@@ -38,4 +38,13 @@ async function loadAllCards() {
   return decks.flat();
 }
 
-export { CARD_TYPES, getCardType, loadAllCards };
+// Fetch a single deck by typeId and return cards stamped with typeId
+async function loadDeck(typeId) {
+  const cardType = getCardType(typeId);
+  if (!cardType) throw new Error(`Unknown card type: ${typeId}`);
+  const res = await fetch(cardType.dataFile);
+  const cards = await res.json();
+  return cards.map(card => Object.freeze({ ...card, typeId }));
+}
+
+export { CARD_TYPES, getCardType, loadAllCards, loadDeck };

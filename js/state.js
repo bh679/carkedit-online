@@ -10,6 +10,7 @@ let _state = {
   currentPlayerIndex: 0,
   hand: [],
   winner: null,
+  decks: { die: null, live: null, bye: null },
 };
 
 export function getState() {

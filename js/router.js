@@ -2,6 +2,7 @@
 'use strict';
 
 import { getState, setState } from './state.js';
+import { loadDeck } from './data/cardTypes.js';
 import { render as renderMenu } from './screens/menu.js';
 import { render as renderLobby } from './screens/lobby.js';
 import { render as renderPhase1 } from './screens/phase1.js';
@@ -36,11 +37,30 @@ function addPlayer() {
   showScreen('lobby');
 }
 
-function drawCard(deck) {
-  // Placeholder — card draw logic to be implemented
-  setState({ currentCard: { title: `${deck} card`, description: '', prompt: '', image: '' } });
+async function drawCard(deckId) {
   const state = getState();
-  showScreen(state.screen);
+  let remaining = state.decks[deckId];
+
+  if (!remaining || remaining.length === 0) {
+    const cards = await loadDeck(deckId);
+    remaining = shuffle(cards);
+  }
+
+  const [currentCard, ...rest] = remaining;
+  setState({
+    currentCard,
+    decks: { ...state.decks, [deckId]: rest },
+  });
+  showScreen(getState().screen);
+}
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
 }
 
 function revealWinner() {
