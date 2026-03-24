@@ -1,0 +1,36 @@
+/* CarkedIt Online — Menu Screen */
+
+.screen--menu {
+  justify-content: center;
+  align-items: center;
+  gap: var(--space-xl);
+}
+
+.menu__logo {
+  text-align: center;
+}
+
+.menu__title {
+  font-size: 3rem;
+  font-weight: 800;
+  color: var(--color-primary);
+  letter-spacing: -1px;
+}
+
+.menu__subtitle {
+  font-size: 1.25rem;
+  color: var(--color-text-muted);
+  margin-top: var(--space-xs);
+}
+
+.menu__actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  width: 100%;
+  max-width: 260px;
+}
+
+.menu__actions .btn {
+  width: 100%;
+}

@@ -1,0 +1,55 @@
+/* CarkedIt Online — Phase Screens (shared: phase 1, 2/3, 4) */
+
+.screen--phase {
+  gap: var(--space-sm);
+}
+
+/* Deck accent colours via data-phase attribute */
+.screen--phase[data-phase="1"] { --phase-accent: var(--color-die); }
+.screen--phase[data-phase="2"] { --phase-accent: var(--color-live); }
+.screen--phase[data-phase="3"] { --phase-accent: var(--color-bye); }
+.screen--phase[data-phase="4"] { --phase-accent: var(--color-bye); }
+
+.phase__prompt {
+  color: var(--color-text-muted);
+  text-align: center;
+  padding: var(--space-xl) 0;
+  font-size: 1.1rem;
+}
+
+.phase__draw {
+  display: flex;
+  justify-content: center;
+}
+
+.phase__actions {
+  display: flex;
+  gap: var(--space-sm);
+  margin-top: auto;
+  padding-top: var(--space-md);
+}
+
+.phase__actions .btn {
+  flex: 1;
+}
+
+/* Phase 4 winner reveal */
+.phase4__winner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-lg);
+  padding: var(--space-xl) 0;
+  text-align: center;
+}
+
+.phase4__winner-title {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--color-primary);
+}
+
+.phase4__winner-name {
+  font-size: 1.5rem;
+  font-weight: 700;
+}

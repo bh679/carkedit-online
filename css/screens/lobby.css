@@ -1,0 +1,33 @@
+/* CarkedIt Online — Lobby Screen */
+
+.screen--lobby {
+  gap: var(--space-md);
+}
+
+.lobby__heading {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: var(--space-sm);
+}
+
+.lobby__add-player {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.lobby__add-player .input {
+  flex: 1;
+}
+
+.lobby__add-player .btn {
+  flex-shrink: 0;
+}
+
+.lobby__actions {
+  margin-top: auto;
+  padding-top: var(--space-md);
+}
+
+.lobby__actions .btn {
+  width: 100%;
+}

@@ -1,0 +1,21 @@
+/* CarkedIt Online — Phase Header Component */
+
+.phase-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  border-left: 4px solid var(--phase-accent, var(--color-primary));
+}
+
+.phase-header__label {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.phase-header__player {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
