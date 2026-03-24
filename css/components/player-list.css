@@ -1,17 +1,17 @@
 /* CarkedIt Online — Player List Component */
 
 .player-list-container {
-  background: #ffffff;
+  background: var(--color-player-list-bg);
   border-radius: 10px;
   padding: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 6px var(--color-shadow-sm), 0 2px 4px var(--color-shadow-sm);
 }
 
 .player-list-container__label {
   display: block;
   font-size: 12px;
   font-weight: 700;
-  color: #364153;
+  color: var(--color-player-list-label);
   margin-bottom: 8px;
 }
 
@@ -30,7 +30,7 @@
 }
 
 .player-list--empty {
-  color: #6b7280;
+  color: var(--color-player-list-empty);
   font-size: 12px;
 }
 
@@ -42,14 +42,14 @@
   height: 26px;
   padding: 0 8px;
   border-radius: 10px;
-  background: #f9fafb;
+  background: var(--color-chip-bg);
   border: 1px solid transparent;
   flex-shrink: 0;
 }
 
 .player-list__chip--director {
-  background: #fef9c2;
-  border-color: #fdc700;
+  background: var(--color-chip-director-bg);
+  border-color: var(--color-chip-director-border);
 }
 
 .player-list__icon {
@@ -63,12 +63,12 @@
 .player-list__name {
   font-size: 12px;
   font-weight: 500;
-  color: #1e2939;
+  color: var(--color-player-name);
   white-space: nowrap;
 }
 
 .player-list__score {
   font-size: 12px;
   font-weight: 700;
-  color: #4a5565;
+  color: var(--color-score);
 }

@@ -21,6 +21,13 @@ Cards use a range of background colours to match their theme:
 - Occasional dark backgrounds (dark grey, navy) for dramatic cards
 - Pink/magenta for humorous or provocative cards
 
+## Color Rules
+
+- **Single source of truth:** All game colors are defined exclusively in `css/colors.css` as CSS custom properties.
+- **No hardcoded colors:** Never write hex, `rgb()`, `rgba()`, `hsl()`, or named colors directly in any CSS file other than `css/colors.css`.
+- **Always use variables:** Reference colors via `var(--color-*)` throughout all CSS files.
+- **Adding new colors:** Define the new token in `css/colors.css` first, then reference it where needed.
+
 ## Typography
 
 - **Primary Font**: Montserrat (sans-serif) — UI text, descriptions

@@ -1,20 +1,7 @@
 /* CarkedIt Online — Base Styles */
+@import './colors.css';
 
 :root {
-  /* Colours */
-  --color-bg: #1a1a2e;
-  --color-surface: #16213e;
-  --color-text: #eee;
-  --color-text-muted: #aaa;
-  --color-primary: #e94560;
-  --color-secondary: #0f3460;
-  --color-border: rgba(255, 255, 255, 0.1);
-
-  /* Deck accent colours */
-  --color-die: #f5c518;
-  --color-live: #4caf50;
-  --color-bye: #2196f3;
-
   /* Card aspect ratio (5:7) */
   --card-aspect: 5 / 7;
 
@@ -90,12 +77,12 @@ body {
 
 .btn--primary {
   background: var(--color-primary);
-  color: #fff;
+  color: var(--color-white);
 }
 
 .btn--secondary {
   background: var(--color-secondary);
-  color: #fff;
+  color: var(--color-white);
 }
 
 /* ── Form inputs ─────────────────────────────────────── */
@@ -105,7 +92,7 @@ body {
   padding: 0.75rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--color-input-bg);
   color: var(--color-text);
   font-size: 1rem;
 }

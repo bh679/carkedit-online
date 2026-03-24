@@ -12,8 +12,8 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    background: #1a1a2e;
-    color: #eee;
+    background: var(--color-bg);
+    color: var(--color-text);
 }
 
 #app {
