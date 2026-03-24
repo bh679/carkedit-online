@@ -7,7 +7,9 @@
       "Bash(gh repo:*)",
       "Bash(gh project:*)",
       "Bash(gh api graphql -f query=':*)",
-      "Bash(gh api:*)"
+      "Bash(gh api:*)",
+      "Bash(python3 -m json.tool)",
+      "Bash(git clone:*)"
     ]
   }
 }
