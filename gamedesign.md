@@ -3,6 +3,7 @@
 ## Design Layout
 The game is designed for mobile first.
 On larger screens, layout width is capped at the mobile breakpoint width to preserve the mobile layout.
+The screens should be entirely within viewport, with no scrolling or zooming.
 
 ## Card Dimensions
 Cards use the standard playing card aspect ratio (approximately 2.5:3.5 or 5:7).
