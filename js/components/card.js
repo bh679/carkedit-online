@@ -5,13 +5,14 @@
  * @param {{ title: string, description: string, prompt: string, image: string, deckType: string }} cardData
  * @returns {string} HTML string
  */
-export function render({ title = '', description = '', prompt = '', image = '', deckType = '' } = {}) {
+export function render({ title = '', description = '', prompt = '', image = '', illustrationKey = '', deckType = '' } = {}) {
+  const imgSrc = image || (illustrationKey && deckType ? `assets/illustrations/${deckType}/${illustrationKey}.jpg` : '');
   const altText = [title, description, prompt].filter(Boolean).join(' — ');
 
   return `
     <div class="card card--${deckType}">
-      ${image
-        ? `<img src="${image}" alt="${altText}" class="card__img">`
+      ${imgSrc
+        ? `<img src="${imgSrc}" alt="${altText}" class="card__img">`
         : `
         <div class="card__image">
           <div class="card__image-placeholder"></div>
