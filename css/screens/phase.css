@@ -262,3 +262,18 @@
   margin-top: var(--space-sm);
 }
 
+/* ── Phase 1 hand action area ───────────────────────────── */
+
+.phase1__hand-actions {
+  display: flex;
+  gap: var(--space-sm);
+  padding: var(--space-sm) 0;
+}
+
+.phase1__hand-actions .btn {
+  flex: 1;
+}
+
+.phase1__card-facedown {
+  cursor: pointer;
+}

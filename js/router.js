@@ -9,7 +9,7 @@ import { render as renderPhase1 } from './screens/phase1.js';
 import { render as renderPhase23 } from './screens/phase2-3.js';
 import { render as renderPhase4 } from './screens/phase4.js';
 import {
-  startPhase1, doneDying,
+  startPhase1, doneDying, revealCard,
   startPhase2, startPhase3,
   showPlayerHand, readyToSelect,
   inspectCard, dismissInspect, submitCard,
@@ -126,6 +126,7 @@ window.game = {
   removePlayer,
   startPhase1,
   doneDying,
+  revealCard,
   revealWinner,
   // Phase 2/3 actions
   startPhase2,

@@ -5,6 +5,7 @@ import { render as renderPhaseHeader } from '../components/phase-header.js';
 import { render as renderPlayerList } from '../components/player-list.js';
 import { render as renderGameboard } from '../components/gameboard.js';
 import { render as renderCard } from '../components/card.js';
+import { render as renderCardBack } from '../components/cardBack.js';
 
 /**
  * @param {object} state
@@ -14,6 +15,8 @@ export function render(state) {
   const currentPlayer = state.players[state.currentPlayerIndex];
 
   let boardContent;
+
+  let handContent;
 
   if (state.phaseComplete) {
     boardContent = `
@@ -28,24 +31,49 @@ export function render(state) {
         </div>
       </div>
     `;
+    handContent = '<div class="hand hand--empty"></div>';
   } else if (state.turnStatus === 'describing' && state.currentCard) {
-    const promptHtml = state.currentCard.prompt
-      ? `<p class="phase1__card-prompt">${state.currentCard.prompt}</p>`
-      : '';
-    boardContent = `
-      <div class="phase1__layout">
-        <div class="phase__draw">
-          ${renderCard({ ...state.currentCard, deckType: 'die' })}
+    if (state.cardRevealed) {
+      const promptHtml = state.currentCard.prompt
+        ? `<p class="phase1__card-prompt">${state.currentCard.prompt}</p>`
+        : '';
+      boardContent = `
+        <div class="phase1__layout">
+          <div class="phase__draw">
+            ${renderCard({ ...state.currentCard, deckType: 'die' })}
+          </div>
+          ${promptHtml}
+          <p class="phase1__turn-label">${currentPlayer.name}'s death</p>
         </div>
-        ${promptHtml}
-        <p class="phase1__turn-label">${currentPlayer.name}'s death</p>
-        <div class="phase__actions">
-          <button class="btn btn--primary" onclick="window.game.doneDying()">
-            Done Dying
-          </button>
+      `;
+      handContent = `
+        <div class="hand">
+          <div class="phase1__hand-actions">
+            <button class="btn btn--primary" onclick="window.game.doneDying()">
+              Done Dying
+            </button>
+          </div>
         </div>
-      </div>
-    `;
+      `;
+    } else {
+      boardContent = `
+        <div class="phase1__layout">
+          <div class="phase__draw phase1__card-facedown" onclick="window.game.revealCard()">
+            ${renderCardBack({ deckType: 'die' })}
+          </div>
+          <p class="phase1__turn-label">${currentPlayer.name}'s death</p>
+        </div>
+      `;
+      handContent = `
+        <div class="hand">
+          <div class="phase1__hand-actions">
+            <button class="btn btn--primary" onclick="window.game.revealCard()">
+              Flip Card
+            </button>
+          </div>
+        </div>
+      `;
+    }
   } else {
     boardContent = `
       <div class="phase1__layout">
@@ -54,6 +82,7 @@ export function render(state) {
         </div>
       </div>
     `;
+    handContent = '<div class="hand hand--empty"></div>';
   }
 
   return `
@@ -64,6 +93,7 @@ export function render(state) {
         activePlayerIndex: state.phaseComplete ? -1 : state.currentPlayerIndex,
       })}
       ${renderGameboard(boardContent)}
+      ${handContent}
     </div>
   `;
 }

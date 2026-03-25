@@ -156,3 +156,9 @@ export function pickWinner(playerName) {
 export function nextRound() {
   currentPhaseManager?.nextRound();
 }
+
+export function revealCard() {
+  if (currentPhaseManager?.revealCard) {
+    currentPhaseManager.revealCard();
+  }
+}
