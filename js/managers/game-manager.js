@@ -38,3 +38,9 @@ export function doneDying() {
     currentPhaseManager.nextTurn();
   }
 }
+
+export function revealCard() {
+  if (currentPhaseManager?.revealCard) {
+    currentPhaseManager.revealCard();
+  }
+}

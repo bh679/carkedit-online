@@ -11,6 +11,7 @@ let _state = {
   turnStatus: 'idle',
   playerDieCards: {},
   phaseComplete: false,
+  cardRevealed: false,
   hand: [],
   winner: null,
   decks: { die: null, live: null, bye: null },

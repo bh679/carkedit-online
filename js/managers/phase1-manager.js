@@ -36,6 +36,7 @@ export function createPhase1Manager({ onStateChange, onPhaseComplete }) {
     onStateChange({
       currentCard: { ...card, deckType: 'die' },
       turnStatus: 'describing',
+      cardRevealed: false,
       decks: { ...state.decks, die: rest },
       playerDieCards: { ...state.playerDieCards, [player.name]: card },
     });
@@ -59,7 +60,11 @@ export function createPhase1Manager({ onStateChange, onPhaseComplete }) {
     setTimeout(() => dealToCurrentPlayer(), 300);
   }
 
-  return { start, nextTurn };
+  function revealCard() {
+    onStateChange({ cardRevealed: true });
+  }
+
+  return { start, nextTurn, revealCard };
 }
 
 function shuffle(arr) {
