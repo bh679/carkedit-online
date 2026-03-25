@@ -15,6 +15,7 @@ let _state = {
   winner: null,
   decks: { die: null, live: null, bye: null },
   preloadComplete: false,
+  selectedPlayerForRemoval: null,
 
   // Phase 2/3 state
   livingDeadIndex: 0,

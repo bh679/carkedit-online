@@ -53,6 +53,7 @@ body {
   flex-direction: column;
   padding: var(--space-md);
   gap: var(--space-md);
+  background: color-mix(in srgb, var(--color-white) 1%, transparent);
 }
 
 /* ── Buttons ─────────────────────────────────────────── */

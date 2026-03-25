@@ -102,3 +102,20 @@
   border-color: var(--color-live);
   box-shadow: 0 0 0 2px var(--color-live);
 }
+
+.player-list__remove-btn {
+  background: #dc2626;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  width: 16px;
+  height: 16px;
+  font-size: 10px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+}

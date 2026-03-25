@@ -1,11 +1,7 @@
 /* CarkedIt Online — Gameboard Component */
 
 .gameboard {
-  background: linear-gradient(
-    180deg,
-    var(--color-chip-bg) 0%,
-    rgba(0, 0, 0, 0) 100%
-  );
+  background: color-mix(in srgb, var(--color-white) 10%, transparent);
   border-radius: 10px;
   box-shadow: 0 4px 6px var(--color-shadow-sm), 0 2px 4px var(--color-shadow-sm);
   padding: 16px;

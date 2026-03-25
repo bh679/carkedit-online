@@ -20,22 +20,14 @@ const SKULL_ICON = `<svg width="10" height="10" viewBox="0 0 10 10" fill="none" 
 
 /**
  * @param {Array<{ name: string, score: number }>} players
- * @param {{ funeralDirector: string|null }} options
- * @returns {string} HTML string
- */
-/**
- * @param {Array<{ name: string, score: number }>} players
  * @param {object} options
- * @param {string|null} options.funeralDirector
- * @param {number} options.activePlayerIndex
- * @param {string|null} options.livingDeadName - Player who is The Living Dead
- * @param {string[]} options.submittedPlayers - Players who have submitted a card
- * @param {string|null} options.pitchingPlayer - Player currently pitching
  * @returns {string} HTML string
  */
 export function render(players = [], {
   funeralDirector = null,
   activePlayerIndex = -1,
+  allowRemove = false,
+  selectedForRemoval = null,
   livingDeadName = null,
   submittedPlayers = [],
   pitchingPlayer = null,
@@ -55,6 +47,7 @@ export function render(players = [], {
     const isSubmitted = submittedPlayers.includes(p.name);
     const isPitching = p.name === pitchingPlayer;
     const isActive = index === activePlayerIndex;
+    const isSelected = allowRemove && p.name === selectedForRemoval;
 
     let icon = PERSON_ICON;
     if (isLivingDead) icon = SKULL_ICON;
@@ -68,11 +61,19 @@ export function render(players = [], {
       isPitching ? ' player-list__chip--pitching' : '',
       isActive ? ' player-list__chip--active' : '',
     ].join('');
+    const escapedName = p.name.replace(/'/g, "\\'");
+    const clickAttr = allowRemove
+      ? ` onclick="window.game.selectPlayerRemoval('${escapedName}')" style="cursor:pointer"`
+      : '';
+    const removeBtn = isSelected
+      ? `<button class="player-list__remove-btn" onclick="event.stopPropagation(); window.game.removePlayer('${escapedName}')" aria-label="Remove ${p.name}">✕</button>`
+      : '';
     return `
-      <div class="player-list__chip${modifiers}">
+      <div class="player-list__chip${modifiers}"${clickAttr}>
         <span class="player-list__icon">${icon}</span>
         <span class="player-list__name">${p.name}</span>
         <span class="player-list__score">${score}</span>
+        ${removeBtn}
       </div>
     `;
   }).join('');

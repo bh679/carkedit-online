@@ -36,7 +36,11 @@ export function render(state) {
   return `
     <div class="screen screen--lobby">
       ${renderPhaseHeader({ phase: '', label: 'Lobby' })}
-      ${renderPlayerList(state.players, { funeralDirector: state.funeralDirector })}
+      ${renderPlayerList(state.players, {
+        funeralDirector: state.funeralDirector,
+        allowRemove: true,
+        selectedForRemoval: state.selectedPlayerForRemoval,
+      })}
       ${renderGameboard(boardContent)}
       ${loadingIndicator}
       <div class="lobby__actions">
