@@ -22,6 +22,10 @@
   justify-content: center;
 }
 
+.gameboard__card-area .card {
+  max-width: 200px;
+}
+
 .gameboard__hint {
   font-size: 12px;
   font-weight: 500;

@@ -33,7 +33,7 @@ function render() {
   const imagePath = card ? `assets/illustrations/${card.typeId}/${card.illustrationKey}.jpg` : '';
 
   const cardHtml = card
-    ? `<div class="card-test__card">
+    ? `<div class="card-test__card" style="width:220px">
         ${renderCard({ title: card.title, description: card.description ?? '', prompt: card.prompt ?? '', image: imagePath, deckType: state.deckType })}
       </div>`
     : '<p style="color:var(--color-text-muted)">No cards loaded.</p>';
