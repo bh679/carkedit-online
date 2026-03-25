@@ -15,7 +15,7 @@ const STAR_ICON = `<svg width="10" height="10" viewBox="0 0 10 10" fill="#fdc700
  * @param {{ funeralDirector: string|null }} options
  * @returns {string} HTML string
  */
-export function render(players = [], { funeralDirector = null } = {}) {
+export function render(players = [], { funeralDirector = null, activePlayerIndex = -1 } = {}) {
   if (!players.length) {
     return `
       <div class="player-list-container">
@@ -25,12 +25,17 @@ export function render(players = [], { funeralDirector = null } = {}) {
     `;
   }
 
-  const chips = players.map((p) => {
+  const chips = players.map((p, index) => {
     const isDirector = p.name === funeralDirector;
+    const isActive = index === activePlayerIndex;
     const icon = isDirector ? STAR_ICON : PERSON_ICON;
     const score = p.score ?? 0;
+    const modifiers = [
+      isDirector ? ' player-list__chip--director' : '',
+      isActive ? ' player-list__chip--active' : '',
+    ].join('');
     return `
-      <div class="player-list__chip${isDirector ? ' player-list__chip--director' : ''}">
+      <div class="player-list__chip${modifiers}">
         <span class="player-list__icon">${icon}</span>
         <span class="player-list__name">${p.name}</span>
         <span class="player-list__score">${score}</span>

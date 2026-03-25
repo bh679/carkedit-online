@@ -68,6 +68,45 @@
   font-weight: 700;
 }
 
+/* ── Phase 1 turn states ──────────────────────────────── */
+
+.phase1__layout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.phase1__turn-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-white);
+  text-align: center;
+  padding-top: var(--space-sm);
+}
+
+.phase1__card-prompt {
+  font-size: 13px;
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.8);
+  text-align: center;
+  padding-top: var(--space-xs);
+}
+
+.phase1__dealing {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+}
+
+.phase1__complete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+}
+
 /* ── Phase action buttons ───────────────────────────────── */
 
 .phase__actions {
