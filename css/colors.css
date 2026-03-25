@@ -31,6 +31,8 @@
   --color-chip-director-border: #fdc700;
   --color-player-name:          #1e2939;
   --color-score:                #4a5565;
+  --color-chip-active-bg:       #ede9fe;
+  --color-chip-active-border:   #9842ff;
 
   /* ── Deck accents ─────────────────────────────────────── */
   --color-die:  #f5c518;
