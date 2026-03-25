@@ -28,7 +28,6 @@ export function render(state) {
           ? renderCard({ ...state.currentCard, deckType: 'bye' })
           : '<p class="phase__prompt">Draw an Eulogy Wildcard</p>'}
       </div>
-      ${renderHand(state.hand ?? [])}
       <div class="phase__actions">
         <button class="btn btn--primary" onclick="window.game.drawCard('bye')">
           Draw Wildcard
@@ -44,6 +43,7 @@ export function render(state) {
       ${renderPhaseHeader({ phase: '4', label: 'Phase 4 - EULOGY' })}
       ${renderPlayerList(state.players, { funeralDirector: state.funeralDirector })}
       ${renderGameboard(boardContent)}
+      ${!state.winner ? renderHand(state.hand ?? []) : ''}
     </div>
   `;
 }

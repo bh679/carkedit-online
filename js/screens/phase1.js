@@ -18,7 +18,6 @@ export function render(state) {
         ? renderCard({ ...state.currentCard, deckType: 'die' })
         : '<p class="phase__prompt">Draw a Die card to begin</p>'}
     </div>
-    ${renderHand(state.hand ?? [])}
     <div class="phase__actions">
       <button class="btn btn--primary" onclick="window.game.drawCard('die')">
         Draw Card
@@ -34,6 +33,7 @@ export function render(state) {
       ${renderPhaseHeader({ phase: '1', label: 'Phase 1 - DIE' })}
       ${renderPlayerList(state.players, { funeralDirector: state.funeralDirector })}
       ${renderGameboard(boardContent)}
+      ${renderHand(state.hand ?? [])}
     </div>
   `;
 }
