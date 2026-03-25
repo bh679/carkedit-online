@@ -673,14 +673,15 @@ function renderDashboard(sections) {
           <div id="section-design-docs">${sections.designDocs}</div>
         </div>
 
-        <div class="dash-card">
-          <div class="dash-card__title">Contribution Graph</div>
-          <div id="section-contrib">${sections.contrib}</div>
-        </div>
-
-        <div class="dash-card">
-          <div class="dash-card__title">Recent Commits</div>
-          <div id="section-commits">${sections.commits}</div>
+        <div class="dash-card--full dash-commits-row">
+          <div class="dash-card dash-card--grow">
+            <div class="dash-card__title">Recent Commits</div>
+            <div id="section-commits">${sections.commits}</div>
+          </div>
+          <div class="dash-card dash-card--fit">
+            <div class="dash-card__title">Contribution Graph</div>
+            <div id="section-contrib">${sections.contrib}</div>
+          </div>
         </div>
 
         <div class="dash-card">

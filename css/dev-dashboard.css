@@ -61,6 +61,22 @@
   grid-column: 1 / -1;
 }
 
+.dash-commits-row {
+  display: flex;
+  gap: var(--space-md);
+  align-items: flex-start;
+}
+
+.dash-card--grow {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.dash-card--fit {
+  flex: 0 0 auto;
+  width: fit-content;
+}
+
 .dash-card__title {
   font-size: 0.875rem;
   font-weight: 700;
