@@ -3,23 +3,41 @@
 ## Colour Palette
 
 ### Brand Colours (from carkedit.com)
-- **Primary Purple**: #9842FF — buttons, accents
-- **Gold/Yellow**: #FFB700 — highlights, emphasis
+- **Primary Purple**: #9842FF — buttons, accents, primary actions
+- **Gold/Yellow**: #FFB700 — highlights, emphasis, director chip
+- **Alert Red**: #E91934 — errors, warnings, destructive actions
 - **Black**: #000000 — text, icons
 - **White**: #FFFFFF — backgrounds, contrast
 
-### Deck Colours (from physical cards)
-- **Die deck**: Yellow/gold tones — death-themed cards
-- **Live deck**: Green tones — life-themed cards
-- **Bye deck**: Blue tones — afterlife-themed cards
+### UI Theme Colours
+- **Background**: #1C1C2E — dark navy with purple undertone
+- **Surface**: #252540 — card/panel backgrounds
+- **Secondary**: #2D2D50 — secondary surfaces
+- **Text**: #F0F0F0 — primary text
+- **Text Muted**: #9A9AB0 — secondary text with purple tint
+- **Gradient**: #4B35B5 → #9842FF — screen backgrounds (lobby, phases)
+
+### Deck Colours (matched to physical card backs)
+- **Die deck**: #DAA520 (goldenrod) — warm, earthy death tone
+- **Live deck**: #4D9E4D (medium green) — natural, life-affirming
+- **Bye deck**: #6B88B0 (steel blue) — calm, ethereal afterlife
+
+### Deck Light Variants (for card backgrounds)
+- **Die light**: #F5DEB3 — warm wheat
+- **Live light**: #A8D5A8 — soft green
+- **Bye light**: #B0C4DE — light steel blue
 
 ### Card Background Tones
 Cards use a range of background colours to match their theme:
-- Light blue (#A8D8EA style) — common for Bye cards
-- Yellow/gold (#F5C542 style) — common for Die cards
-- Green tints — common for Live cards
+- Light blue (#B0C4DE style) — common for Bye cards
+- Yellow/gold (#F5DEB3 style) — common for Die cards
+- Green tints (#A8D5A8 style) — common for Live cards
 - Occasional dark backgrounds (dark grey, navy) for dramatic cards
 - Pink/magenta for humorous or provocative cards
+
+### Colour Demo
+See `color-demo.html` for a visual reference of the full palette with swatches,
+card back previews, UI component examples, and screen mockups.
 
 ## Color Rules
 

@@ -8,9 +8,27 @@ let _state = {
   phase: null,
   currentCard: null,
   currentPlayerIndex: 0,
+  turnStatus: 'idle',
+  playerDieCards: {},
+  phaseComplete: false,
+  cardRevealed: false,
   hand: [],
   winner: null,
   decks: { die: null, live: null, bye: null },
+  preloadComplete: false,
+  selectedPlayerForRemoval: null,
+
+  // Phase 2/3 state
+  livingDeadIndex: 0,
+  phase23Round: 0,
+  playerHands: {},
+  submittedCards: {},
+  revealedCards: false,
+  pitchingPlayerIndex: 0,
+  selectedCard: null,
+  phase2SubState: 'living-dead',
+  currentNonDeadIndex: 0,
+  roundWinner: null,
 };
 
 export function getState() {

@@ -1,7 +1,7 @@
 /* CarkedIt Online — Lobby Screen */
 
 .screen--lobby {
-  background: linear-gradient(101.87deg, #615fff 8.5%, #9810fa 91.5%);
+  background: color-mix(in srgb, var(--color-white) 1%, transparent);
   gap: var(--space-sm);
   padding: var(--space-sm);
 }

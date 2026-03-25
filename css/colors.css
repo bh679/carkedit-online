@@ -5,14 +5,16 @@
 
 :root {
   /* ── Core theme ───────────────────────────────────────── */
-  --color-bg:             #1a1a2e;
-  --color-surface:        #16213e;
-  --color-text:           #eee;
-  --color-text-muted:     #aaa;
+  --color-bg:             #1C1C2E;
+  --color-surface:        #252540;
+  --color-text:           #F0F0F0;
+  --color-text-muted:     #9A9AB0;
   --color-white:          #fff;
-  --color-primary:        #e94560;
-  --color-primary-subtle: rgba(233, 69, 96, 0.15);
-  --color-secondary:      #0f3460;
+  --color-primary:        #9842FF;
+  --color-primary-subtle: rgba(152, 66, 255, 0.15);
+  --color-secondary:      #2D2D50;
+  --color-highlight:      #FFB700;
+  --color-danger:         #E91934;
   --color-border:         rgba(255, 255, 255, 0.1);
   --color-input-bg:       rgba(255, 255, 255, 0.06);
 
@@ -27,13 +29,51 @@
   --color-player-list-label:    #364153;
   --color-player-list-empty:    #6b7280;
   --color-chip-bg:              #f9fafb;
-  --color-chip-director-bg:     #fef9c2;
-  --color-chip-director-border: #fdc700;
+  --color-chip-director-bg:     #FFF3D4;
+  --color-chip-director-border: #FFB700;
   --color-player-name:          #1e2939;
   --color-score:                #4a5565;
+  --color-chip-active-bg:       #ede9fe;
+  --color-chip-active-border:   #9842ff;
 
-  /* ── Deck accents ─────────────────────────────────────── */
-  --color-die:  #f5c518;
-  --color-live: #4caf50;
-  --color-bye:  #2196f3;
+  /* ── Deck accents (matched to physical card backs) ───── */
+  --color-die:  #DAA520;
+  --color-live: #4D9E4D;
+  --color-bye:  #6B88B0;
+
+  /* ── Deck light variants ─────────────────────────────── */
+  --color-die-light:  #F5DEB3;
+  --color-live-light: #A8D5A8;
+  --color-bye-light:  #B0C4DE;
+
+  /* ── Prompt card ────────────────────────────────────── */
+  --color-prompt-bg:          #000000;
+  --color-prompt-border:      #000000;
+  --color-prompt-empty-bg:    rgba(0, 0, 0, 0.3);
+  --color-prompt-empty-border: rgba(255, 255, 255, 0.15);
+  --color-prompt-watermark:   rgba(255, 255, 255, 0.5);
+
+  /* ── Hand component ─────────────────────────────────── */
+  --color-hand-bg:            #ffffff;
+  --color-hand-card-bg:       #ffffff;
+  --color-hand-card-border:   #e5e7eb;
+  --color-hand-card-title:    #000000;
+
+  /* ── Phase header ───────────────────────────────────── */
+  --color-phase-header-text:  #ffffff;
+  --color-phase-settings-bg:  #ffffff;
+  --color-phase-settings-border: rgba(0, 0, 0, 0.1);
+
+  /* ── Screen gradients ───────────────────────────────── */
+  --color-gradient-start:     #4B35B5;
+  --color-gradient-end:       #9842FF;
+
+  /* ── Living Dead / Phase 2-3 ───────────────────────── */
+  --color-chip-dead-bg:              #000000;
+  --color-chip-dead-text:            #ffffff;
+  --color-chip-submitted-bg:         #c2fecb;
+  --color-living-dead-msg-bg:        #fefce8;
+  --color-living-dead-msg-border:    #fdc700;
+  --color-living-dead-msg-text:      #894b00;
+  --color-played-card-back:          #30aa30;
 }

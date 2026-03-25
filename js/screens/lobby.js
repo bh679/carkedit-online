@@ -28,20 +28,28 @@ export function render(state) {
     </div>
   `;
 
-  const canStart = state.players.length >= 2;
+  const canStart = state.players.length >= 2 && state.preloadComplete;
+  const loadingIndicator = state.preloadComplete
+    ? ''
+    : '<p id="preload-progress" class="lobby__loading">Loading cards\u2026</p>';
 
   return `
     <div class="screen screen--lobby">
       ${renderPhaseHeader({ phase: '', label: 'Lobby' })}
-      ${renderPlayerList(state.players, { funeralDirector: state.funeralDirector })}
+      ${renderPlayerList(state.players, {
+        funeralDirector: state.funeralDirector,
+        allowRemove: true,
+        selectedForRemoval: state.selectedPlayerForRemoval,
+      })}
       ${renderGameboard(boardContent)}
+      ${loadingIndicator}
       <div class="lobby__actions">
         <button
           class="btn btn--primary"
-          onclick="window.game.showScreen('phase1')"
+          onclick="window.game.startPhase1()"
           ${canStart ? '' : 'disabled'}
         >
-          Start Game
+          ${state.preloadComplete ? 'Start Game' : 'Loading\u2026'}
         </button>
       </div>
     </div>

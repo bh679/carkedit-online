@@ -10,8 +10,9 @@
     {
       "name": "carkedit-main",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["http-server", ".", "-p", "4601", "-c-1"],
-      "port": 4601
+      "runtimeArgs": ["http-server", ".", "-c-1"],
+      "port": 4601,
+      "autoPort": true
     }
   ]
 }

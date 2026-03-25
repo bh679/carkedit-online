@@ -3,6 +3,7 @@
 
 import { loadAllCards } from './data/cardTypes.js';
 import { render as renderCard } from './components/card.js';
+import { render as renderCardBack } from './components/cardBack.js';
 
 const DECK_TYPES = ['die', 'live', 'bye'];
 
@@ -10,6 +11,7 @@ const state = {
   decks: {},
   deckType: 'die',
   index: 0,
+  showBack: false,
 };
 
 function currentDeck() {
@@ -32,11 +34,18 @@ function render() {
 
   const imagePath = card ? `assets/illustrations/${card.typeId}/${card.illustrationKey}.jpg` : '';
 
-  const cardHtml = card
-    ? `<div class="card-test__card" style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden;width:100%">
+  let cardHtml;
+  if (state.showBack) {
+    cardHtml = `<div class="card-test__card" style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden;width:100%">
+        ${renderCardBack({ deckType: state.deckType })}
+      </div>`;
+  } else if (card) {
+    cardHtml = `<div class="card-test__card" style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden;width:100%">
         ${renderCard({ title: card.title, description: card.description ?? '', prompt: card.prompt ?? '', image: imagePath, deckType: state.deckType })}
-      </div>`
-    : '<p style="color:var(--color-text-muted)">No cards loaded.</p>';
+      </div>`;
+  } else {
+    cardHtml = '<p style="color:var(--color-text-muted)">No cards loaded.</p>';
+  }
 
   const jsonHtml = card
     ? `<pre style="
@@ -62,6 +71,11 @@ function render() {
 
         <div style="display:flex;gap:0.75rem;flex-shrink:0">
           ${deckButtons}
+          <button
+            class="btn ${state.showBack ? 'btn--primary' : 'btn--secondary'}"
+            onclick="window.cardTest.toggleBack()"
+            style="font-size:0.75rem"
+          >BACK</button>
         </div>
 
         ${cardHtml}
@@ -115,7 +129,12 @@ function prevCard() {
   render();
 }
 
-window.cardTest = { switchDeck, nextCard, prevCard };
+function toggleBack() {
+  state.showBack = !state.showBack;
+  render();
+}
+
+window.cardTest = { switchDeck, nextCard, prevCard, toggleBack };
 
 document.addEventListener('DOMContentLoaded', async () => {
   const allCards = await loadAllCards();

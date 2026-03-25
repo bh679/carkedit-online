@@ -1,7 +1,7 @@
 /* CarkedIt Online — Phase Screens (shared: phase 1, 2/3, 4) */
 
 .screen--phase {
-  background: linear-gradient(101.87deg, #615fff 8.5%, #9810fa 91.5%);
+  background: color-mix(in srgb, var(--color-white) 1%, transparent);
   gap: var(--space-sm);
   padding: var(--space-sm);
 }
@@ -10,10 +10,10 @@
 
 .prompt-card {
   position: relative;
-  background: #000000;
-  border: 2px solid #000000;
+  background: var(--color-prompt-bg);
+  border: 2px solid var(--color-prompt-border);
   border-radius: 14px;
-  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 15px var(--color-shadow-sm), 0 4px 6px var(--color-shadow-sm);
   width: 100%;
   padding: 32px;
   min-height: 280px;
@@ -23,8 +23,8 @@
 }
 
 .prompt-card--empty {
-  background: rgba(0, 0, 0, 0.3);
-  border-color: rgba(255, 255, 255, 0.15);
+  background: var(--color-prompt-empty-bg);
+  border-color: var(--color-prompt-empty-border);
   align-items: center;
   justify-content: center;
 }
@@ -32,7 +32,7 @@
 .prompt-card__text {
   font-size: 18px;
   font-weight: 500;
-  color: #ffffff;
+  color: var(--color-white);
   line-height: 1.375;
   letter-spacing: -0.44px;
 }
@@ -41,7 +41,7 @@
   display: block;
   font-size: 14px;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--color-prompt-watermark);
   letter-spacing: -0.15px;
   text-align: center;
 }
@@ -68,6 +68,45 @@
   font-weight: 700;
 }
 
+/* ── Phase 1 turn states ──────────────────────────────── */
+
+.phase1__layout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.phase1__turn-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-white);
+  text-align: center;
+  padding-top: var(--space-sm);
+}
+
+.phase1__card-prompt {
+  font-size: 13px;
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.8);
+  text-align: center;
+  padding-top: var(--space-xs);
+}
+
+.phase1__dealing {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+}
+
+.phase1__complete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+}
+
 /* ── Phase action buttons ───────────────────────────────── */
 
 .phase__actions {
@@ -78,4 +117,163 @@
 
 .phase__actions .btn {
   flex: 1;
+}
+
+/* ── Phase 2/3 action buttons ─────────────────────────── */
+
+.phase-actions {
+  padding: var(--space-sm) 0;
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.phase-actions .btn {
+  flex: 1;
+}
+
+/* ── Pass the phone screen ────────────────────────────── */
+
+.pass-phone {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-lg);
+  padding: var(--space-xl) var(--space-md);
+}
+
+.pass-phone__message {
+  text-align: center;
+}
+
+.pass-phone__title {
+  font-size: 18px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: var(--space-sm);
+}
+
+.pass-phone__name {
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--color-white);
+}
+
+/* ── Judging screen ──────────────────────────────────── */
+
+.judging {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-md) 0;
+}
+
+.judging__title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-white);
+  text-align: center;
+}
+
+.judging__cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  overflow-y: auto;
+  flex: 1;
+}
+
+.judging__card-option {
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.judging__card-option:hover .card {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary);
+}
+
+.judging__card-option .card {
+  border-radius: 14px;
+  box-shadow: 0 4px 6px var(--color-shadow-sm);
+}
+
+.judging__card-player {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-score);
+  text-transform: uppercase;
+  text-align: center;
+  padding: 4px 0;
+}
+
+/* ── Winner announcement ─────────────────────────────── */
+
+.winner-announcement {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-lg);
+  padding: var(--space-xl) var(--space-md);
+}
+
+.winner-announcement__card {
+  background: var(--color-hand-card-bg);
+  border-radius: 14px;
+  padding: 32px;
+  text-align: center;
+  box-shadow: 0 10px 15px var(--color-shadow-sm);
+  width: 100%;
+  max-width: 300px;
+}
+
+.winner-announcement__title {
+  font-size: 48px;
+  margin-bottom: var(--space-sm);
+}
+
+.winner-announcement__name {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-hand-card-title);
+  margin-bottom: var(--space-xs);
+}
+
+.winner-announcement__points {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-live);
+}
+
+/* ── Prompt card prompt text ─────────────────────────── */
+
+.prompt-card__prompt {
+  font-size: 14px;
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.7);
+  margin-top: var(--space-sm);
+}
+
+/* ── Phase 1 hand action area ───────────────────────────── */
+
+.phase1__hand-actions {
+  display: flex;
+  gap: var(--space-sm);
+  padding: var(--space-sm) 0;
+}
+
+.phase1__hand-actions .btn {
+  flex: 1;
+}
+
+.phase1__card-facedown {
+  cursor: pointer;
 }
