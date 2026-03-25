@@ -18,7 +18,8 @@
   justify-content: center;
 }
 
-.gameboard__card-area .card {
+.gameboard__card-area .card,
+.gameboard__card-area .card-back {
   max-width: 200px;
 }
 
