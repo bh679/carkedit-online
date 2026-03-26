@@ -114,7 +114,12 @@ export function startPhase3() {
       id: `wildcard-${i}`,
     }));
   }
-  setState({ decks: { ...getState().decks, bye: [...nonWildcards, ...keepWildcards] } });
+  const combined = [...nonWildcards, ...keepWildcards];
+  for (let i = combined.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [combined[i], combined[j]] = [combined[j], combined[i]];
+  }
+  setState({ decks: { ...getState().decks, bye: combined } });
 
   currentPhaseManager = createPhase23Manager({
     deckType: 'bye',
