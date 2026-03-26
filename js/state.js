@@ -10,6 +10,7 @@ let _state = {
   currentPlayerIndex: 0,
   turnStatus: 'idle',
   playerDieCards: {},
+  playerChosenCards: {},  // { [playerName]: card[] } — cards chosen by each Living Dead across phases
   phaseComplete: false,
   cardRevealed: false,
   hand: [],

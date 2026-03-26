@@ -10,6 +10,25 @@ import { render as renderCardBack } from '../components/cardBack.js';
 const PHASE_LABEL = 'Phase 4 - EULOGY';
 
 /**
+ * Renders the Living Dead's tableau — their chosen Live and Bye cards from Phases 2/3.
+ * Displayed below the die card using the existing played-cards grid pattern.
+ */
+function renderTableau(chosenCards) {
+  if (!chosenCards || chosenCards.length === 0) return '';
+
+  const cardEls = chosenCards.map(card => {
+    return `
+      <div class="gameboard__played-card gameboard__played-card--revealed">
+        ${renderCard({ ...card, deckType: card.deckType || 'live' })}
+      </div>
+    `;
+  }).join('');
+
+  const colClass = chosenCards.length >= 4 ? 'gameboard__played-cards--cols-4' : '';
+  return `<div class="gameboard__played-cards ${colClass}">${cardEls}</div>`;
+}
+
+/**
  * @param {object} state
  * @returns {string} HTML string
  */
@@ -86,9 +105,17 @@ function renderWildcardIntro(state) {
 function renderPickEulogists(state) {
   const wildcardPlayerName = state.wildcardPlayers[state.currentWildcardIndex];
   const selected = state.selectedEulogists ?? [];
+  const chosenCards = (state.playerChosenCards ?? {})[wildcardPlayerName] ?? [];
+  const hasTableau = chosenCards.length > 0;
+
   const dieCardHtml = state.currentCard
     ? renderActiveCard(renderCard({ ...state.currentCard, deckType: 'die' }), { label: `${wildcardPlayerName}'s death` })
     : '';
+
+  const tableauHtml = renderTableau(chosenCards);
+  const cardAreaClass = hasTableau
+    ? 'gameboard__card-area gameboard__card-area--has-played'
+    : 'gameboard__card-area';
 
   const otherPlayers = state.players.filter(p => p.name !== wildcardPlayerName);
   const selectionChips = otherPlayers.map(p => {
@@ -112,7 +139,12 @@ function renderPickEulogists(state) {
         funeralDirector: state.funeralDirector,
         livingDeadName: wildcardPlayerName,
       })}
-      ${dieCardHtml}
+      <div class="gameboard">
+        <div class="${cardAreaClass}">
+          ${dieCardHtml}
+          ${tableauHtml}
+        </div>
+      </div>
       <div class="phase4__pick-eulogists">
         <h2 class="phase4__pick-title">${wildcardPlayerName}, pick 2 players to give your eulogy</h2>
         <div class="phase4__eulogist-chips">
@@ -161,10 +193,17 @@ function renderEulogyScreen(state) {
   const eulogistName = eulogists[state.currentEulogistIndex] ?? '';
   const wildcardPlayerName = state.wildcardPlayers[state.currentWildcardIndex];
   const eulogistNumber = state.currentEulogistIndex + 1;
+  const chosenCards = (state.playerChosenCards ?? {})[wildcardPlayerName] ?? [];
+  const hasTableau = chosenCards.length > 0;
 
   const dieCardHtml = state.currentCard
     ? renderActiveCard(renderCard({ ...state.currentCard, deckType: 'die' }), { label: `${wildcardPlayerName}'s death` })
     : '';
+
+  const tableauHtml = renderTableau(chosenCards);
+  const cardAreaClass = hasTableau
+    ? 'gameboard__card-area gameboard__card-area--has-played'
+    : 'gameboard__card-area';
 
   return `
     <div class="screen screen--phase" data-phase="4">
@@ -174,7 +213,12 @@ function renderEulogyScreen(state) {
         livingDeadName: wildcardPlayerName,
         pitchingPlayer: eulogistName,
       })}
-      ${dieCardHtml}
+      <div class="gameboard">
+        <div class="${cardAreaClass}">
+          ${dieCardHtml}
+          ${tableauHtml}
+        </div>
+      </div>
       <div class="phase4__eulogy">
         <h2 class="phase4__eulogy-title">${eulogistName}'s Eulogy</h2>
         <p class="phase4__eulogy-subtitle">Eulogy ${eulogistNumber} of 2 for ${wildcardPlayerName}</p>

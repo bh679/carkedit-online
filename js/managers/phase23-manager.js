@@ -283,6 +283,13 @@ export function createPhase23Manager({ deckType, onStateChange, onPhaseComplete 
       }
     }
 
+    // Store the winning card on the Living Dead's tableau
+    const livingDeadName = state.players[state.livingDeadIndex].name;
+    const winningCard = state.submittedCards[playerName];
+    const playerChosenCards = { ...(state.playerChosenCards ?? {}) };
+    const existing = playerChosenCards[livingDeadName] ?? [];
+    playerChosenCards[livingDeadName] = [...existing, { ...winningCard, deckType }];
+
     // Draw players back up to 5 cards
     const hands = { ...state.playerHands };
     for (const player of players) {
@@ -297,6 +304,7 @@ export function createPhase23Manager({ deckType, onStateChange, onPhaseComplete 
     onStateChange({
       players,
       playerHands: hands,
+      playerChosenCards,
       roundWinner: playerName,
       roundWinnerCard: state.submittedCards[playerName] ?? null,
       phase2SubState: 'winner-announced',
