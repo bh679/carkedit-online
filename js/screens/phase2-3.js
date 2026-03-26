@@ -6,6 +6,7 @@ import { render as renderPlayerList } from '../components/player-list.js';
 import { render as renderGameboard } from '../components/gameboard.js';
 import { render as renderHand } from '../components/hand.js';
 import { render as renderCard } from '../components/card.js';
+import { render as renderCardGrid } from '../components/card-grid.js';
 
 const PHASE_CONFIG = {
   live: { number: '2', label: 'Phase 2 - LIVE', deckType: 'live', nextScreen: 'phase3' },
@@ -171,14 +172,11 @@ function renderAllSubmittedScreen(config, state, playerListOptions) {
 }
 
 function renderRevealedScreen(config, state, playerListOptions) {
-  const livingDeadName = state.players[state.livingDeadIndex]?.name ?? '';
-  const promptCardHtml = renderDieCard(state.currentCard);
-
   return `
     <div class="screen screen--phase" data-phase="${config.number}">
       ${renderPhaseHeader({ phase: config.number, label: config.label })}
       ${renderPlayerList(state.players, playerListOptions)}
-      ${renderGameboard(promptCardHtml, 'Cards revealed! Time to pitch.', {
+      ${renderGameboard('', 'Cards revealed! Time to pitch.', {
         playedCards: state.submittedCards ?? {},
         revealed: true,
         deckType: config.deckType,
@@ -220,16 +218,17 @@ function renderJudgingScreen(config, state, playerListOptions, nonDeadPlayers) {
   const livingDead = state.players[state.livingDeadIndex];
   const livingDeadName = livingDead?.name ?? '';
 
-  const cardButtons = nonDeadPlayers.map(p => {
-    const card = (state.submittedCards ?? {})[p.name];
-    if (!card) return '';
-    return `
-      <div class="judging__card-option" onclick="window.game.pickWinner('${p.name}')">
-        ${renderCard({ ...card, deckType: card.deckType || config.deckType })}
-        <span class="judging__card-player">${p.name}'s card</span>
-      </div>
-    `;
-  }).join('');
+  const entries = nonDeadPlayers
+    .map(p => {
+      const card = (state.submittedCards ?? {})[p.name];
+      if (!card) return null;
+      return {
+        card: { ...card, deckType: card.deckType || config.deckType },
+        label: `${p.name}'s card`,
+        onClick: `window.game.pickWinner('${p.name}')`,
+      };
+    })
+    .filter(Boolean);
 
   return `
     <div class="screen screen--phase" data-phase="${config.number}">
@@ -237,9 +236,7 @@ function renderJudgingScreen(config, state, playerListOptions, nonDeadPlayers) {
       ${renderPlayerList(state.players, playerListOptions)}
       <div class="judging">
         <h2 class="judging__title">${livingDeadName}, pick your favourite!</h2>
-        <div class="judging__cards">
-          ${cardButtons}
-        </div>
+        ${renderCardGrid(entries)}
       </div>
     </div>
   `;

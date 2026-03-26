@@ -2,6 +2,7 @@
 'use strict';
 
 import { render as renderCard } from './card.js';
+import { render as renderCardGrid } from './card-grid.js';
 
 /**
  * Seed-based pseudo-random for consistent card positions per player name.
@@ -38,6 +39,23 @@ export function render(promptCard = '', hint = '', {
   const playerNames = Object.keys(playedCards);
   const hasPlayedCards = playerNames.length > 0;
 
+  // Revealed with no active pitcher — show all cards in a grid
+  if (hasPlayedCards && revealed && !pitchingPlayer) {
+    const entries = playerNames.map(name => ({
+      card: { ...playedCards[name], deckType: playedCards[name].deckType || deckType },
+      label: name,
+    }));
+    return `
+      <div class="gameboard">
+        <div class="gameboard__card-area">
+          ${renderCardGrid(entries)}
+        </div>
+        ${hint ? `<p class="gameboard__hint">${hint}</p>` : ''}
+      </div>
+    `;
+  }
+
+  // Face-down overlay or pitching overlay
   let playedCardsHtml = '';
   if (hasPlayedCards) {
     const cardEls = playerNames.map((name, index) => {
@@ -46,9 +64,8 @@ export function render(promptCard = '', hint = '', {
       const rotation = (rng() - 0.5) * 90;
       const offsetX = rng() * 60 - 30;
       const offsetY = rng() * 60 - 30;
-      const isPitching = name === pitchingPlayer;
 
-      if (isPitching) {
+      if (name === pitchingPlayer) {
         return '';
       }
 
