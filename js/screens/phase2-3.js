@@ -3,7 +3,7 @@
 
 import { render as renderPhaseHeader } from '../components/phase-header.js';
 import { render as renderPlayerList } from '../components/player-list.js';
-import { render as renderGameboard } from '../components/gameboard.js';
+import { render as renderGameboard, renderActiveCard } from '../components/gameboard.js';
 import { render as renderHand } from '../components/hand.js';
 import { render as renderCard } from '../components/card.js';
 import { render as renderCardGrid } from '../components/card-grid.js';
@@ -78,7 +78,7 @@ function getPitchingPlayerName(state) {
 
 function renderDieCard(card) {
   if (!card) return '';
-  return renderCard({ ...card, deckType: 'die' });
+  return renderActiveCard(renderCard({ ...card, deckType: 'die' }));
 }
 
 function renderLivingDeadScreen(config, state, playerListOptions, livingDeadName) {

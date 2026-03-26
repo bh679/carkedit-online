@@ -14,13 +14,11 @@
 .gameboard__card-area {
   flex: 1;
   display: flex;
-  align-items: flex-start;
+  align-items: stretch;
   justify-content: center;
-}
-
-.gameboard__card-area .card,
-.gameboard__card-area .card-back {
-  max-width: 200px;
+  min-height: 0;
+  container-type: size;
+  position: relative;
 }
 
 .gameboard__hint {
@@ -32,10 +30,50 @@
   flex-shrink: 0;
 }
 
-/* Played cards overlay */
-.gameboard__card-area {
-  position: relative;
+/* ── Active card — single prominent card in the gameboard ── */
+
+.gameboard__active-card {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: inherit;
 }
+
+.gameboard__active-card[onclick] {
+  cursor: pointer;
+}
+
+/* Inner slot: establishes the size container so 100cqh excludes label space */
+.gameboard__active-card__slot {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  container-type: size;
+}
+
+/* Card/card-back inside slot: fill width or height, whichever is reached first */
+.gameboard__active-card__slot > .card,
+.gameboard__active-card__slot > .card-back {
+  width: min(100cqw, calc(100cqh * 5 / 7));
+}
+
+.gameboard__active-card__label {
+  flex: 0 0 auto;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-score);
+  text-align: center;
+  text-transform: uppercase;
+}
+
+/* ── Played cards overlay ───────────────────────────────── */
 
 .gameboard__played-cards {
   position: absolute;
@@ -104,27 +142,4 @@
   text-transform: uppercase;
   text-align: center;
   z-index: 1;
-}
-
-/* Pitch card — full-size in gameboard center */
-.gameboard__pitch-card {
-  width: 100%;
-  max-width: 327px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.gameboard__pitch-card .card {
-  border-radius: 14px;
-  box-shadow: 0 10px 15px var(--color-shadow-sm), 0 4px 6px var(--color-shadow-sm);
-}
-
-.gameboard__pitch-card-player {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-score);
-  text-transform: uppercase;
-  text-align: center;
-  opacity: 0.6;
 }

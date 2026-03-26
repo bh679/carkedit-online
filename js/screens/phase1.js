@@ -3,7 +3,7 @@
 
 import { render as renderPhaseHeader } from '../components/phase-header.js';
 import { render as renderPlayerList } from '../components/player-list.js';
-import { render as renderGameboard } from '../components/gameboard.js';
+import { render as renderGameboard, renderActiveCard } from '../components/gameboard.js';
 import { render as renderCard } from '../components/card.js';
 import { render as renderCardBack } from '../components/cardBack.js';
 
@@ -37,15 +37,10 @@ export function render(state) {
       const promptHtml = state.currentCard.prompt
         ? `<p class="phase1__card-prompt">${state.currentCard.prompt}</p>`
         : '';
-      boardContent = `
-        <div class="phase1__layout">
-          <div class="phase__draw">
-            ${renderCard({ ...state.currentCard, deckType: 'die' })}
-          </div>
-          ${promptHtml}
-          <p class="phase1__turn-label">${currentPlayer.name}'s death</p>
-        </div>
-      `;
+      boardContent = renderActiveCard(
+        renderCard({ ...state.currentCard, deckType: 'die' }),
+        { label: `${currentPlayer.name}'s death`, extraHtml: promptHtml },
+      );
       handContent = `
         <div class="hand">
           <div class="phase1__hand-actions">
@@ -56,14 +51,10 @@ export function render(state) {
         </div>
       `;
     } else {
-      boardContent = `
-        <div class="phase1__layout">
-          <div class="phase__draw phase1__card-facedown" onclick="window.game.revealCard()">
-            ${renderCardBack({ deckType: 'die' })}
-          </div>
-          <p class="phase1__turn-label">${currentPlayer.name}'s death</p>
-        </div>
-      `;
+      boardContent = renderActiveCard(
+        renderCardBack({ deckType: 'die' }),
+        { label: `${currentPlayer.name}'s death`, onClick: 'window.game.revealCard()' },
+      );
       handContent = `
         <div class="hand">
           <div class="phase1__hand-actions">
