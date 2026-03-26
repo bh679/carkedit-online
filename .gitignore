@@ -3,5 +3,5 @@ test-results/
 playwright-report/
 .env
 ports/*.json
-assets/illustrations/
+assets/illustrations
 deploy-status.json

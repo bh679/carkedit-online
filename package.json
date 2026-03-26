@@ -4,6 +4,7 @@
   "description": "CarkedIt Online — turn-based card game web app (vanilla HTML/CSS/JS)",
   "main": "index.html",
   "scripts": {
+    "prestart": "bash scripts/setup-worktree-assets.sh",
     "start": "npx http-server . -p ${PORT:-4600} -c-1",
     "test": "playwright test",
     "test:report": "playwright show-report"
