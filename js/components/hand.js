@@ -43,7 +43,7 @@ export function renderInspectOverlay({ selectedCard, deckType, submitLabel, onSu
  * @param {string} options.deckType - Deck type for card rendering ('live' or 'bye')
  * @returns {string} HTML string
  */
-export function render(cards = [], { dimmed = false, selectedCard = null, livingDeadMessage = null, deckType = 'live' } = {}) {
+export function render(cards = [], { dimmed = false, selectedCard = null, livingDeadMessage = null, deckType = 'live', footer = '' } = {}) {
   if (livingDeadMessage) {
     return `
       <div class="hand hand--living-dead-container">
@@ -90,6 +90,7 @@ export function render(cards = [], { dimmed = false, selectedCard = null, living
       <div class="hand__fan">
         ${cardEls}
       </div>
+      ${footer}
     </div>
     ${inspectOverlay}
   `;

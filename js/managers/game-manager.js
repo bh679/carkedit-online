@@ -62,6 +62,8 @@ export function startPhase2() {
     roundWinner: null,
     currentCard: null,
     hand: [],
+    handRedrawnPlayers: {},
+    hasPlayedCardPlayers: {},
   });
 
   currentPhaseManager = createPhase23Manager({
@@ -99,6 +101,8 @@ export function startPhase3() {
     roundWinner: null,
     currentCard: null,
     hand: [],
+    handRedrawnPlayers: {},
+    hasPlayedCardPlayers: {},
   });
 
   currentPhaseManager = createPhase23Manager({
@@ -124,6 +128,10 @@ export function showPlayerHand() {
 
 export function readyToSelect() {
   currentPhaseManager?.readyToSelect();
+}
+
+export function redrawHand() {
+  currentPhaseManager?.redrawHand();
 }
 
 export function inspectCard(cardId) {

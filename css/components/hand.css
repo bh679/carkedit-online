@@ -143,6 +143,12 @@
   background: rgba(255, 255, 255, 0.35);
 }
 
+/* Redraw Hand button — sits inside .hand below the fan */
+.hand__redraw-btn {
+  width: 100%;
+  margin-top: 12px;
+}
+
 /* Arrow colour matches deck accent */
 .hand__inspect-overlay--live .hand__nav-btn { color: var(--color-live); }
 .hand__inspect-overlay--bye  .hand__nav-btn { color: var(--color-bye); }

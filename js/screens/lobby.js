@@ -34,6 +34,13 @@ function timeEstimate(players, rounds) {
  * @param {object} state
  * @returns {string} HTML string
  */
+const REDRAW_OPTIONS = [
+  { value: 'off',            label: 'Off' },
+  { value: 'once_per_phase', label: 'Once / Phase' },
+  { value: 'once_per_round', label: 'Once / Round' },
+  { value: 'unlimited',      label: 'Unlimited' },
+];
+
 const PITCH_DURATIONS = [30, 60, 120, 180, 240, 300, 600, 900, 1800, 3600];
 
 function formatPitchDuration(seconds) {
@@ -42,7 +49,7 @@ function formatPitchDuration(seconds) {
 }
 
 export function render(state) {
-  const { rounds, handSize, timerEnabled, pitchDuration, timerVisible, timerAutoAdvance } = state.gameSettings;
+  const { rounds, handSize, handRedraws = 'once_per_phase', timerEnabled, pitchDuration, timerVisible, timerAutoAdvance } = state.gameSettings;
   const playerCount = Math.max(state.players.length, 2);
   const estimate = timeEstimate(playerCount, rounds);
   const prompt = ROUND_PROMPTS[rounds] ?? ROUND_PROMPTS[10];
@@ -69,6 +76,17 @@ export function render(state) {
         <button class="btn btn--secondary lobby__stepper-btn"
           onclick="window.game.updateSetting('handSize', ${handSize + 1})"
           ${handSize >= 68 ? 'disabled' : ''}>+</button>
+      </div>
+      <div class="lobby__select-row">
+        <span class="lobby__stepper-label">Hand Redraws</span>
+        <div class="lobby__segmented">
+          ${REDRAW_OPTIONS.map(opt => `
+            <button
+              class="btn lobby__seg-btn ${handRedraws === opt.value ? 'btn--primary' : 'btn--secondary'}"
+              onclick="window.game.setHandRedraws('${opt.value}')"
+            >${opt.label}</button>
+          `).join('')}
+        </div>
       </div>
       <div class="lobby__stepper-row">
         <span class="lobby__stepper-label">Pitch Timer</span>

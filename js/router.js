@@ -11,7 +11,7 @@ import { render as renderPhase4 } from './screens/phase4.js';
 import {
   startPhase1, doneDying, revealCard,
   startPhase2, startPhase3,
-  showPlayerHand, readyToSelect,
+  showPlayerHand, readyToSelect, redrawHand,
   inspectCard, prevCard, nextCard, dismissInspect, submitCard,
   revealCards, startPitching, donePitching,
   pickWinner, nextRound,
@@ -143,6 +143,14 @@ function toggleAdvancedSettings() {
   showScreen('lobby');
 }
 
+function setHandRedraws(value) {
+  const allowed = ['off', 'once_per_phase', 'once_per_round', 'unlimited'];
+  if (!allowed.includes(value)) return;
+  const state = getState();
+  setState({ gameSettings: { ...state.gameSettings, handRedraws: value } });
+  showScreen('lobby');
+}
+
 function toggleSetting(key) {
   const state = getState();
   setState({ gameSettings: { ...state.gameSettings, [key]: !state.gameSettings[key] } });
@@ -177,6 +185,7 @@ window.game = {
   updateSetting,
   setGameMode,
   toggleAdvancedSettings,
+  setHandRedraws,
   toggleSetting,
   cyclePitchDuration,
   startPhase1,
@@ -188,6 +197,7 @@ window.game = {
   startPhase3,
   showPlayerHand,
   readyToSelect,
+  redrawHand,
   inspectCard,
   prevCard,
   nextCard,
