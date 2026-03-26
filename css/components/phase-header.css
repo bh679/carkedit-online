@@ -30,8 +30,8 @@
 }
 
 .phase-header__settings-btn {
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
   background: var(--color-phase-settings-bg);
   border: 1px solid var(--color-phase-settings-border);
   border-radius: 10px;
