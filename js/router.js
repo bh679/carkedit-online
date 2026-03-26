@@ -16,6 +16,8 @@ import {
   revealCards, startPitching, donePitching,
   pickWinner, nextRound,
   inspectJudgingCard, prevJudgingCard, nextJudgingCard, confirmWinner,
+  startPhase4, startEulogyRound, selectEulogist, confirmEulogists,
+  startEulogy, doneEulogy, pickBestEulogy, nextWildcard,
 } from './managers/game-manager.js';
 
 const SCREENS = {
@@ -34,6 +36,15 @@ export function showScreen(name, updates = {}) {
   const renderFn = SCREENS[name];
   if (!renderFn) throw new Error(`Unknown screen: ${name}`);
   app.innerHTML = renderFn(state);
+
+  // Show player list label only when the list overflows (more players than fit on screen)
+  requestAnimationFrame(() => {
+    const list = document.querySelector('.player-list');
+    const container = document.querySelector('.player-list-container');
+    if (list && container) {
+      container.classList.toggle('player-list-container--scrollable', list.scrollWidth > list.clientWidth);
+    }
+  });
 
   // Start preloading cards when entering the lobby
   if (name === 'lobby' && !state.preloadComplete) {
@@ -112,10 +123,31 @@ function removePlayer(name) {
   showScreen('lobby');
 }
 
+function updateSetting(key, rawValue) {
+  const max = key === 'rounds' ? 10 : 68;
+  const value = Math.max(1, Math.min(max, parseInt(rawValue, 10) || 1));
+  const state = getState();
+  setState({ gameSettings: { ...state.gameSettings, [key]: value } });
+  showScreen('lobby');
+}
+
+function setGameMode(mode) {
+  const rounds = mode === 'quick' ? 1 : 2;
+  const state = getState();
+  setState({ gameSettings: { ...state.gameSettings, rounds } });
+  showScreen('lobby');
+}
+
+function toggleAdvancedSettings() {
+  setState({ showAdvancedSettings: !getState().showAdvancedSettings });
+  showScreen('lobby');
+}
+
 function revealWinner() {
   const state = getState();
-  const winner = state.players[Math.floor(Math.random() * state.players.length)]?.name ?? '';
-  setState({ winner });
+  const sorted = [...state.players].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+  const winner = sorted[0]?.name ?? '';
+  setState({ winner, phase4SubState: 'winner' });
   showScreen('phase4');
 }
 
@@ -125,6 +157,9 @@ window.game = {
   addPlayer,
   selectPlayerRemoval,
   removePlayer,
+  updateSetting,
+  setGameMode,
+  toggleAdvancedSettings,
   startPhase1,
   doneDying,
   revealCard,
@@ -148,6 +183,19 @@ window.game = {
   prevJudgingCard,
   nextJudgingCard,
   confirmWinner,
+  // Phase 4 actions
+  startPhase4,
+  startEulogyRound,
+  selectEulogist,
+  confirmEulogists,
+  startEulogy,
+  doneEulogy,
+  pickBestEulogy,
+  nextWildcard,
+  setRounds(n) {
+    setState({ totalRounds: Math.max(1, Math.min(10, n)) });
+    showScreen('lobby');
+  },
 };
 
 document.addEventListener('DOMContentLoaded', () => {

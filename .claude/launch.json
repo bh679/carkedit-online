@@ -15,5 +15,11 @@
       "port": 4601,
       "autoPort": true
     }
+  ,{
+      "name": "carkedit-21415",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["http-server", ".", "-p", "21415", "-c-1"],
+      "port": 21415
+    }
   ]
 }

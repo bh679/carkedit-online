@@ -24,8 +24,8 @@
 
 .gameboard__hint {
   font-size: 12px;
-  font-weight: 500;
-  color: var(--color-score);
+  font-weight: 700;
+  color: var(--color-text);
   text-align: center;
   padding-top: 16px;
   flex-shrink: 0;
@@ -68,8 +68,8 @@
 .gameboard__active-card__label {
   flex: 0 0 auto;
   font-size: 13px;
-  font-weight: 600;
-  color: var(--color-score);
+  font-weight: 700;
+  color: var(--color-text);
   text-align: center;
   text-transform: uppercase;
 }
@@ -157,9 +157,10 @@
   left: 0;
   right: 0;
   font-size: 8px;
-  font-weight: 600;
-  color: var(--color-score);
+  font-weight: 700;
+  color: var(--color-text);
   text-transform: uppercase;
   text-align: center;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
   z-index: 1;
 }

@@ -35,8 +35,8 @@
 
 .card-grid__label {
   font-size: 10px;
-  font-weight: 600;
-  color: var(--color-score);
+  font-weight: 700;
+  color: var(--color-text);
   text-transform: uppercase;
   text-align: center;
   padding: 2px 0;

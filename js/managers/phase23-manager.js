@@ -3,7 +3,6 @@
 
 import { getState } from '../state.js';
 
-const HAND_SIZE = 5;
 const DEFAULT_PITCH_DURATION = 120; // seconds — overridable via state.pitchDuration
 
 let _pitchTimer = null;
@@ -38,10 +37,11 @@ export function createPhase23Manager({ deckType, onStateChange, onPhaseComplete 
     const state = getState();
     const deck = [...getDeck()];
     const hands = { ...state.playerHands };
+    const handSize = state.gameSettings?.handSize ?? 5;
 
     for (const player of state.players) {
       const currentHand = hands[player.name] ?? [];
-      const needed = HAND_SIZE - currentHand.length;
+      const needed = handSize - currentHand.length;
       if (needed > 0 && deck.length > 0) {
         const dealt = deck.splice(0, Math.min(needed, deck.length));
         hands[player.name] = [...currentHand, ...dealt];
@@ -79,19 +79,40 @@ export function createPhase23Manager({ deckType, onStateChange, onPhaseComplete 
   }
 
   function dealHandsFromDeck(deck, state) {
+    const handSize = state.gameSettings?.handSize ?? 5;
     const deckCopy = [...deck];
     const hands = { ...state.playerHands };
+    const wildcardCards = { ...(state.wildcardCards ?? {}) };
 
     for (const player of state.players) {
       const currentHand = hands[player.name] ?? [];
-      const needed = HAND_SIZE - currentHand.length;
+      const needed = handSize - currentHand.length;
       if (needed > 0 && deckCopy.length > 0) {
         const dealt = deckCopy.splice(0, Math.min(needed, deckCopy.length));
-        hands[player.name] = [...currentHand, ...dealt];
+
+        // For bye deck: separate wildcard cards so they're held for Phase 4
+        if (deckType === 'bye') {
+          const regular = [];
+          for (const card of dealt) {
+            if (card.special === 'Wildcard') {
+              const existing = wildcardCards[player.name] ?? [];
+              wildcardCards[player.name] = [...existing, card];
+            } else {
+              regular.push(card);
+            }
+          }
+          hands[player.name] = [...currentHand, ...regular];
+        } else {
+          hands[player.name] = [...currentHand, ...dealt];
+        }
       }
     }
 
-    return { playerHands: hands, ...setDeck(deckCopy) };
+    const result = { playerHands: hands, ...setDeck(deckCopy) };
+    if (deckType === 'bye') {
+      result.wildcardCards = wildcardCards;
+    }
+    return result;
   }
 
   function showPlayerHand() {
@@ -294,11 +315,19 @@ export function createPhase23Manager({ deckType, onStateChange, onPhaseComplete 
       }
     }
 
-    // Draw players back up to 5 cards
+    // Store the winning card on the Living Dead's tableau
+    const livingDeadName = state.players[state.livingDeadIndex].name;
+    const winningCard = state.submittedCards[playerName];
+    const playerChosenCards = { ...(state.playerChosenCards ?? {}) };
+    const existing = playerChosenCards[livingDeadName] ?? [];
+    playerChosenCards[livingDeadName] = [...existing, { ...winningCard, deckType }];
+
+    // Draw players back up to hand size
+    const handSize = state.gameSettings?.handSize ?? 5;
     const hands = { ...state.playerHands };
     for (const player of players) {
       const currentHand = hands[player.name] ?? [];
-      const needed = HAND_SIZE - currentHand.length;
+      const needed = handSize - currentHand.length;
       if (needed > 0 && deck.length > 0) {
         const dealt = deck.splice(0, Math.min(needed, deck.length));
         hands[player.name] = [...currentHand, ...dealt];
@@ -308,6 +337,7 @@ export function createPhase23Manager({ deckType, onStateChange, onPhaseComplete 
     onStateChange({
       players,
       playerHands: hands,
+      playerChosenCards,
       roundWinner: playerName,
       roundWinnerCard: state.submittedCards[playerName] ?? null,
       phase2SubState: 'winner-announced',
@@ -327,8 +357,9 @@ export function createPhase23Manager({ deckType, onStateChange, onPhaseComplete 
       // All players have been Living Dead this round
       const nextPhaseRound = state.phase23Round + 1;
 
-      if (nextPhaseRound >= 2) {
-        // Phase complete — both rounds done
+      const maxRounds = getState().gameSettings?.rounds ?? 2;
+      if (nextPhaseRound >= maxRounds) {
+        // Phase complete — all rounds done
         onPhaseComplete();
         return;
       }

@@ -5,6 +5,7 @@ import { getState, setState } from '../state.js';
 import { showScreen } from '../router.js';
 import { createPhase1Manager } from './phase1-manager.js';
 import { createPhase23Manager } from './phase23-manager.js';
+import { createPhase4Manager } from './phase4-manager.js';
 
 let currentPhaseManager = null;
 
@@ -185,4 +186,62 @@ export function revealCard() {
   if (currentPhaseManager?.revealCard) {
     currentPhaseManager.revealCard();
   }
+}
+
+// ── Phase 4 (EULOGY WILDCARD) ────────────────────────────
+
+export function startPhase4() {
+  setState({
+    screen: 'phase4',
+    phase: 4,
+    phaseComplete: false,
+    phase4SubState: 'wildcard-intro',
+    wildcardPlayers: [],
+    currentWildcardIndex: 0,
+    selectedEulogists: [],
+    currentEulogistIndex: 0,
+    bestEulogist: null,
+    currentCard: null,
+  });
+
+  currentPhaseManager = createPhase4Manager({
+    onStateChange: (updates) => {
+      setState(updates);
+      showScreen('phase4');
+    },
+    onPhaseComplete: () => {
+      setState({ phaseComplete: true });
+      showScreen('phase4');
+    },
+  });
+
+  currentPhaseManager.start();
+}
+
+export function startEulogyRound() {
+  currentPhaseManager?.startEulogyRound();
+}
+
+export function selectEulogist(playerName) {
+  currentPhaseManager?.selectEulogist(playerName);
+}
+
+export function confirmEulogists() {
+  currentPhaseManager?.confirmEulogists();
+}
+
+export function startEulogy() {
+  currentPhaseManager?.startEulogy();
+}
+
+export function doneEulogy() {
+  currentPhaseManager?.doneEulogy();
+}
+
+export function pickBestEulogy(playerName) {
+  currentPhaseManager?.pickBestEulogy(playerName);
+}
+
+export function nextWildcard() {
+  currentPhaseManager?.nextWildcard();
 }

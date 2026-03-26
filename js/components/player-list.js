@@ -80,7 +80,7 @@ export function render(players = [], {
 
   return `
     <div class="player-list-container">
-      <span class="player-list-container__label">Players</span>
+      <span class="player-list-container__label">${players.length} Players</span>
       <div class="player-list">${chips}</div>
     </div>
   `;

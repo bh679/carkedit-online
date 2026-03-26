@@ -294,7 +294,7 @@ function renderPhaseCompleteScreen(config, state) {
   const phaseName = config.deckType === 'live' ? 'LIVE' : 'BYE';
   const nextAction = config.deckType === 'live'
     ? `window.game.startPhase3()`
-    : `window.game.showScreen('phase4')`;
+    : `window.game.startPhase4()`;
   const nextLabel = config.deckType === 'live' ? 'Start Phase 3 — BYE' : 'Final Phase';
 
   // Build scoreboard
