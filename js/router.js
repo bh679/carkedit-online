@@ -123,6 +123,19 @@ function removePlayer(name) {
   showScreen('lobby');
 }
 
+function updateSetting(key, rawValue) {
+  const max = key === 'rounds' ? 10 : 68;
+  const value = Math.max(1, Math.min(max, parseInt(rawValue, 10) || 1));
+  const state = getState();
+  setState({ gameSettings: { ...state.gameSettings, [key]: value } });
+  showScreen('lobby');
+}
+
+function toggleAdvancedSettings() {
+  setState({ showAdvancedSettings: !getState().showAdvancedSettings });
+  showScreen('lobby');
+}
+
 function revealWinner() {
   const state = getState();
   const sorted = [...state.players].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
@@ -137,6 +150,8 @@ window.game = {
   addPlayer,
   selectPlayerRemoval,
   removePlayer,
+  updateSetting,
+  toggleAdvancedSettings,
   startPhase1,
   doneDying,
   revealCard,

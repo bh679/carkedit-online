@@ -35,10 +35,37 @@ function timeEstimate(players, rounds) {
  * @returns {string} HTML string
  */
 export function render(state) {
-  const rounds = state.totalRounds ?? 2;
+  const { rounds, handSize } = state.gameSettings;
   const playerCount = Math.max(state.players.length, 2);
   const estimate = timeEstimate(playerCount, rounds);
   const prompt = ROUND_PROMPTS[rounds] ?? ROUND_PROMPTS[10];
+
+  const advancedPanel = state.showAdvancedSettings ? `
+    <div class="lobby__advanced-panel">
+      <div class="lobby__stepper-row">
+        <span class="lobby__stepper-label">Rounds</span>
+        <button class="btn btn--secondary lobby__stepper-btn"
+          onclick="window.game.updateSetting('rounds', ${rounds - 1})"
+          ${rounds <= 1 ? 'disabled' : ''}>&minus;</button>
+        <span class="lobby__stepper-value">${rounds}</span>
+        <button class="btn btn--secondary lobby__stepper-btn"
+          onclick="window.game.updateSetting('rounds', ${rounds + 1})"
+          ${rounds >= 10 ? 'disabled' : ''}>+</button>
+      </div>
+      <p class="lobby__setting-meta">${estimate} &mdash; ${prompt}</p>
+      <div class="lobby__stepper-row">
+        <span class="lobby__stepper-label">Cards in Hand</span>
+        <button class="btn btn--secondary lobby__stepper-btn"
+          onclick="window.game.updateSetting('handSize', ${handSize - 1})"
+          ${handSize <= 1 ? 'disabled' : ''}>&minus;</button>
+        <span class="lobby__stepper-value">${handSize}</span>
+        <button class="btn btn--secondary lobby__stepper-btn"
+          onclick="window.game.updateSetting('handSize', ${handSize + 1})"
+          ${handSize >= 68 ? 'disabled' : ''}>+</button>
+      </div>
+    </div>
+  ` : '';
+
 
   const boardContent = `
     <div class="lobby__board-content">
@@ -57,24 +84,14 @@ export function render(state) {
         </button>
       </div>
     </div>
-    <div class="lobby__settings">
-      <h2 class="lobby__heading">Game Settings</h2>
-      <div class="lobby__settings-row">
-        <span class="lobby__settings-label">Rounds</span>
-        <button
-          class="btn btn--secondary lobby__settings-btn"
-          onclick="window.game.setRounds(${rounds - 1})"
-          ${rounds <= 1 ? 'disabled' : ''}
-        >\u2212</button>
-        <span class="lobby__settings-value">${rounds}</span>
-        <button
-          class="btn btn--secondary lobby__settings-btn"
-          onclick="window.game.setRounds(${rounds + 1})"
-          ${rounds >= 10 ? 'disabled' : ''}
-        >+</button>
-      </div>
-      <p class="lobby__settings-meta">${estimate} &mdash; ${prompt}</p>
-    </div>
+    <div class="lobby__advanced">
+      <button
+        class="btn btn--secondary lobby__advanced-toggle"
+        onclick="window.game.toggleAdvancedSettings()"
+      >
+        Advanced Settings ${state.showAdvancedSettings ? '▲' : '▼'}
+      </button>
+      ${advancedPanel}
     </div>
   `;
 
