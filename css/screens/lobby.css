@@ -26,6 +26,23 @@
   flex-shrink: 0;
 }
 
+.lobby__birthday-row {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+  margin-top: var(--space-sm);
+}
+
+.lobby__birthday-select {
+  flex: 1;
+  padding: 0.75rem 0.4rem;
+  min-width: 0;
+}
+
+.lobby__add-btn {
+  flex-shrink: 0;
+}
+
 .lobby__board-content {
   display: flex;
   flex-direction: column;

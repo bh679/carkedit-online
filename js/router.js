@@ -86,7 +86,15 @@ function startPreload() {
 }
 
 // TODO (dev only): placeholder names for quick testing — remove or replace with proper UX before shipping
-const DEV_NAME_POOL = ['Brennan', 'Simon', 'Leonie', 'Danikah', 'Lowe', 'Hatton', 'Sanderson'];
+const DEV_NAME_POOL = [
+  { name: 'Brennan',   birthMonth: 11, birthDay: 1  },
+  { name: 'Simon',     birthMonth: 6,  birthDay: 15 },
+  { name: 'Leonie',    birthMonth: 3,  birthDay: 22 },
+  { name: 'Danikah',   birthMonth: 8,  birthDay: 7  },
+  { name: 'Lowe',      birthMonth: 1,  birthDay: 30 },
+  { name: 'Hatton',    birthMonth: 5,  birthDay: 12 },
+  { name: 'Sanderson', birthMonth: 9,  birthDay: 4  },
+];
 
 function addPlayer() {
   const input = document.getElementById('player-name-input');
@@ -96,14 +104,32 @@ function addPlayer() {
     // TODO (dev only): auto-fill a random name when the field is empty
     const state = getState();
     const taken = new Set(state.players.map((p) => p.name));
-    const available = DEV_NAME_POOL.filter((n) => !taken.has(n));
+    const available = DEV_NAME_POOL.filter((n) => !taken.has(n.name));
     if (available.length === 0) return;
-    name = available[Math.floor(Math.random() * available.length)];
+    const pick = available[Math.floor(Math.random() * available.length)];
+    name = pick.name;
+    const monthEl = document.getElementById('player-birth-month');
+    const dayEl = document.getElementById('player-birth-day');
+    if (monthEl) monthEl.value = pick.birthMonth;
+    if (dayEl) dayEl.value = pick.birthDay;
   }
 
   const state = getState();
   if (state.players.some((p) => p.name === name)) return;
-  setState({ players: [...state.players, { name, score: 0 }] });
+
+  const monthEl = document.getElementById('player-birth-month');
+  const dayEl = document.getElementById('player-birth-day');
+  const birthMonth = parseInt(monthEl?.value ?? '', 10) || 0;
+  const birthDay = parseInt(dayEl?.value ?? '', 10) || 0;
+
+  const newPlayers = [...state.players, { name, score: 0, birthMonth, birthDay }];
+  const newPlayerCount = Math.max(newPlayers.length, 2);
+  const maxHandSize = Math.max(1, Math.floor(68 / newPlayerCount));
+  const currentHandSize = state.gameSettings?.handSize ?? 5;
+  setState({
+    players: newPlayers,
+    gameSettings: { ...state.gameSettings, handSize: Math.min(currentHandSize, maxHandSize) },
+  });
   showScreen('lobby');
 }
 
@@ -124,12 +150,19 @@ function removePlayer(name) {
 }
 
 function updateSetting(key, rawValue) {
-  const max = key === 'rounds' ? 10 : key === 'wildcardCount' ? 10 : 68;
-  const min = key === 'wildcardCount' ? 0 : 1;
-  const parsed = parseInt(rawValue, 10);
-  const fallback = min;
-  const value = Math.max(min, Math.min(max, isNaN(parsed) ? fallback : parsed));
   const state = getState();
+  let max, min;
+  if (key === 'rounds') {
+    max = 10; min = 1;
+  } else if (key === 'wildcardCount') {
+    max = 10; min = 0;
+  } else if (key === 'handSize') {
+    const playerCount = Math.max(state.players.length, 2);
+    max = Math.max(1, Math.floor(68 / playerCount)); min = 1;
+  } else {
+    max = 68; min = 1;
+  }
+  const value = Math.max(min, Math.min(max, parseInt(rawValue, 10) || min));
   setState({ gameSettings: { ...state.gameSettings, [key]: value } });
   showScreen('lobby');
 }

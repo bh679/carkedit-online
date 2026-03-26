@@ -51,6 +51,7 @@ function formatPitchDuration(seconds) {
 export function render(state) {
   const { rounds, handSize, enableLive, enableBye, enableEulogy, forceWildcards, wildcardCount, handRedraws = 'once_per_phase', timerEnabled, timerCountUp, pitchDuration, timerVisible, timerAutoAdvance } = state.gameSettings;
   const playerCount = Math.max(state.players.length, 2);
+  const maxHandSize = Math.max(1, Math.floor(68 / playerCount));
   const estimate = timeEstimate(playerCount, rounds);
   const prompt = ROUND_PROMPTS[rounds] ?? ROUND_PROMPTS[10];
 
@@ -97,8 +98,9 @@ export function render(state) {
         <span class="lobby__stepper-value">${handSize}</span>
         <button class="btn btn--secondary lobby__stepper-btn"
           onclick="window.game.updateSetting('handSize', ${handSize + 1})"
-          ${handSize >= 68 ? 'disabled' : ''}>+</button>
+          ${handSize >= maxHandSize ? 'disabled' : ''}>+</button>
       </div>
+      <p class="lobby__setting-meta">Max ${maxHandSize} cards with ${playerCount} players</p>
       <div class="lobby__advanced-divider"></div>
       <p class="lobby__advanced-section-label">Phases</p>
       <div class="lobby__stepper-row lobby__stepper-row--disabled">
@@ -185,6 +187,17 @@ export function render(state) {
   ` : '';
 
 
+  const months = [
+    'Jan','Feb','Mar','Apr','May','Jun',
+    'Jul','Aug','Sep','Oct','Nov','Dec',
+  ];
+  const monthOptions = months.map((m, i) =>
+    `<option value="${i + 1}">${m}</option>`
+  ).join('');
+  const dayOptions = Array.from({ length: 31 }, (_, i) =>
+    `<option value="${i + 1}">${i + 1}</option>`
+  ).join('');
+
   const boardContent = `
     <div class="lobby__board-content">
     <div class="lobby__setup">
@@ -197,7 +210,17 @@ export function render(state) {
           class="input"
           maxlength="24"
         >
-        <button class="btn btn--secondary" onclick="window.game.addPlayer()">
+      </div>
+      <div class="lobby__birthday-row">
+        <select id="player-birth-month" class="input lobby__birthday-select">
+          <option value="">Month</option>
+          ${monthOptions}
+        </select>
+        <select id="player-birth-day" class="input lobby__birthday-select">
+          <option value="">Day</option>
+          ${dayOptions}
+        </select>
+        <button class="btn btn--secondary lobby__add-btn" onclick="window.game.addPlayer()">
           Add
         </button>
       </div>
