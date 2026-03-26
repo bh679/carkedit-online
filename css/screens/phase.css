@@ -74,7 +74,7 @@
 .phase4__winner-name {
   font-size: 2rem;
   font-weight: 800;
-  color: var(--color-secondary);
+  color: var(--color-white);
   margin: 0;
 }
 
@@ -494,7 +494,7 @@
 .scoreboard__name {
   font-size: 16px;
   font-weight: 600;
-  color: var(--color-hand-card-title);
+  color: var(--color-white);
 }
 
 .scoreboard__score {
