@@ -131,6 +131,13 @@ function updateSetting(key, rawValue) {
   showScreen('lobby');
 }
 
+function setGameMode(mode) {
+  const rounds = mode === 'quick' ? 1 : 2;
+  const state = getState();
+  setState({ gameSettings: { ...state.gameSettings, rounds } });
+  showScreen('lobby');
+}
+
 function toggleAdvancedSettings() {
   setState({ showAdvancedSettings: !getState().showAdvancedSettings });
   showScreen('lobby');
@@ -151,6 +158,7 @@ window.game = {
   selectPlayerRemoval,
   removePlayer,
   updateSetting,
+  setGameMode,
   toggleAdvancedSettings,
   startPhase1,
   doneDying,

@@ -32,6 +32,16 @@
   gap: var(--space-md);
 }
 
+.lobby__mode-toggle {
+  display: flex;
+  gap: var(--space-sm);
+  width: 100%;
+}
+
+.lobby__mode-btn {
+  flex: 1;
+}
+
 .lobby__advanced {
   width: 100%;
 }

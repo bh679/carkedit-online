@@ -84,6 +84,16 @@ export function render(state) {
         </button>
       </div>
     </div>
+    <div class="lobby__mode-toggle">
+      <button
+        class="btn lobby__mode-btn ${rounds === 1 ? 'btn--primary' : 'btn--secondary'}"
+        onclick="window.game.setGameMode('quick')"
+      >Quick</button>
+      <button
+        class="btn lobby__mode-btn ${rounds !== 1 ? 'btn--primary' : 'btn--secondary'}"
+        onclick="window.game.setGameMode('normal')"
+      >Normal</button>
+    </div>
     <div class="lobby__advanced">
       <button
         class="btn btn--secondary lobby__advanced-toggle"
