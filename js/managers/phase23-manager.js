@@ -121,6 +121,26 @@ export function createPhase23Manager({ deckType, onStateChange, onPhaseComplete 
     }
   }
 
+  function prevCard(currentCardId) {
+    const state = getState();
+    const hand = state.hand ?? [];
+    const index = hand.findIndex(c => String(c.id) === String(currentCardId));
+    const prevIndex = index <= 0 ? hand.length - 1 : index - 1;
+    if (hand[prevIndex]) {
+      onStateChange({ selectedCard: hand[prevIndex] });
+    }
+  }
+
+  function nextCard(currentCardId) {
+    const state = getState();
+    const hand = state.hand ?? [];
+    const index = hand.findIndex(c => String(c.id) === String(currentCardId));
+    const nextIndex = index >= hand.length - 1 ? 0 : index + 1;
+    if (hand[nextIndex]) {
+      onStateChange({ selectedCard: hand[nextIndex] });
+    }
+  }
+
   function dismissInspect() {
     onStateChange({ selectedCard: null });
   }
@@ -270,6 +290,8 @@ export function createPhase23Manager({ deckType, onStateChange, onPhaseComplete 
     showPlayerHand,
     readyToSelect,
     inspectCard,
+    prevCard,
+    nextCard,
     dismissInspect,
     submitCard,
     revealCards,

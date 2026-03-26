@@ -33,11 +33,13 @@ export function render(cards = [], { dimmed = false, selectedCard = null, living
   const count = cards.length;
 
   const cardEls = cards.map((c, index) => {
+    const isSelected = selectedCard && String(c.id) === String(selectedCard.id);
+    const selectedClass = isSelected ? ' hand__card--selected' : '';
     const leftStyle = count === 1
       ? 'left: 0'
       : `left: calc((100% - ${CARD_WIDTH}px) * ${index} / ${count - 1})`;
     return `
-    <div class="hand__card" style="${leftStyle}"
+    <div class="hand__card${selectedClass}" style="${leftStyle}"
          data-card-id="${c.id}"
          onclick="window.game.inspectCard('${c.id}')">
       ${renderCard({ ...c, deckType: c.deckType || deckType })}
@@ -47,6 +49,7 @@ export function render(cards = [], { dimmed = false, selectedCard = null, living
 
   const inspectOverlay = selectedCard ? `
     <div class="hand__inspect-overlay" onclick="window.game.dismissInspect()">
+      <button class="hand__nav-btn hand__nav-btn--prev" onclick="event.stopPropagation(); window.game.prevCard('${selectedCard.id}')">&#8249;</button>
       <div class="hand__inspect-card-wrapper" onclick="event.stopPropagation()">
         ${renderCard({ ...selectedCard, deckType: selectedCard.deckType || deckType })}
         <button class="btn btn--primary hand__submit-btn"
@@ -54,6 +57,7 @@ export function render(cards = [], { dimmed = false, selectedCard = null, living
           Play This Card
         </button>
       </div>
+      <button class="hand__nav-btn hand__nav-btn--next" onclick="event.stopPropagation(); window.game.nextCard('${selectedCard.id}')">&#8250;</button>
     </div>
   ` : '';
 

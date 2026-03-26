@@ -12,7 +12,7 @@ import {
   startPhase1, doneDying, revealCard,
   startPhase2, startPhase3,
   showPlayerHand, readyToSelect,
-  inspectCard, dismissInspect, submitCard,
+  inspectCard, prevCard, nextCard, dismissInspect, submitCard,
   revealCards, startPitching, donePitching,
   pickWinner, nextRound,
 } from './managers/game-manager.js';
@@ -134,6 +134,8 @@ window.game = {
   showPlayerHand,
   readyToSelect,
   inspectCard,
+  prevCard,
+  nextCard,
   dismissInspect,
   submitCard,
   revealCards,

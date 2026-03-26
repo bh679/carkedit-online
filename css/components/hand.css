@@ -19,13 +19,7 @@
 .hand__fan {
   position: relative;
   height: 197.5px;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-}
-
-.hand__fan::-webkit-scrollbar {
-  display: none;
+  overflow: visible;
 }
 
 .hand__card {
@@ -80,6 +74,12 @@
   line-height: 1.4;
 }
 
+/* Selected card in fan — protrudes ~35% of card height above the rest */
+.hand__card--selected {
+  top: -63px;
+  transition: top 0.15s ease;
+}
+
 /* Inspect overlay — full screen card preview */
 .hand__inspect-overlay {
   position: fixed;
@@ -89,6 +89,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 16px;
   padding: 20px;
 }
 
@@ -107,4 +108,27 @@
 
 .hand__submit-btn {
   width: 100%;
+}
+
+/* Navigation arrows in the inspect overlay */
+.hand__nav-btn {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  font-size: 32px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+  transition: background 0.15s ease;
+}
+
+.hand__nav-btn:hover {
+  background: rgba(255, 255, 255, 0.35);
 }

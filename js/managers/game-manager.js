@@ -129,6 +129,14 @@ export function inspectCard(cardId) {
   currentPhaseManager?.inspectCard(cardId);
 }
 
+export function prevCard(cardId) {
+  currentPhaseManager?.prevCard(cardId);
+}
+
+export function nextCard(cardId) {
+  currentPhaseManager?.nextCard(cardId);
+}
+
 export function dismissInspect() {
   currentPhaseManager?.dismissInspect();
 }
