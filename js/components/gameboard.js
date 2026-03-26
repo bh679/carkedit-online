@@ -2,34 +2,9 @@
 'use strict';
 
 import { render as renderCard } from './card.js';
+import { render as renderCardBack } from './cardBack.js';
 import { render as renderCardGrid } from './card-grid.js';
 
-/**
- * Seed-based pseudo-random for consistent card positions per player name.
- */
-function seededRandom(seed) {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) {
-    h = Math.imul(31, h) + seed.charCodeAt(i) | 0;
-  }
-  return () => {
-    h = Math.imul(h ^ (h >>> 16), 0x45d9f3b);
-    h = Math.imul(h ^ (h >>> 13), 0x45d9f3b);
-    h ^= h >>> 16;
-    return (h >>> 0) / 4294967296;
-  };
-}
-
-/**
- * @param {string} promptCard - HTML for the prompt card
- * @param {string} hint - hint text shown below the card
- * @param {object} options
- * @param {object} options.playedCards - { [playerName]: card } submitted cards
- * @param {boolean} options.revealed - Whether cards are face-up
- * @param {string} options.deckType - 'live' or 'bye' for card back color
- * @param {string|null} options.pitchingPlayer - Player currently pitching (show their card big)
- * @returns {string} HTML string
- */
 /**
  * Renders the standard "active card" layout used whenever one card is the
  * primary focus in the gameboard (Phase 1 die card, Phase 2/3 pitching, etc.)
@@ -54,6 +29,16 @@ export function renderActiveCard(cardHtml, { label = '', extraHtml = '', onClick
   `;
 }
 
+/**
+ * @param {string} promptCard - HTML for the prompt card
+ * @param {string} hint - hint text shown below the card
+ * @param {object} options
+ * @param {object} options.playedCards - { [playerName]: card } submitted cards
+ * @param {boolean} options.revealed - Whether cards are face-up
+ * @param {string} options.deckType - 'live' or 'bye' for card back color
+ * @param {string|null} options.pitchingPlayer - Player currently pitching (show their card big)
+ * @returns {string} HTML string
+ */
 export function render(promptCard = '', hint = '', {
   playedCards = {},
   revealed = false,
@@ -79,37 +64,20 @@ export function render(promptCard = '', hint = '', {
     `;
   }
 
-  // Face-down overlay — hidden during pitching (only the active card is shown)
+  // Face-down row below prompt card — hidden during pitching
   let playedCardsHtml = '';
   if (hasPlayedCards && !pitchingPlayer) {
-    const cardEls = playerNames.map((name, index) => {
-      const card = playedCards[name];
-      const rng = seededRandom(name + index);
-      const rotation = (rng() - 0.5) * 90;
-      const offsetX = rng() * 60 - 30;
-      const offsetY = rng() * 60 - 30;
-
-      if (revealed) {
-        return `
-          <div class="gameboard__played-card gameboard__played-card--revealed"
-               style="transform: rotate(${rotation}deg) translate(${offsetX}px, ${offsetY}px)"
-               data-player="${name}">
-            ${renderCard({ ...card, deckType: card.deckType || deckType })}
-            <span class="gameboard__played-card-player">${name}</span>
-          </div>
-        `;
-      }
-
+    const cardEls = playerNames.map((name) => {
       return `
-        <div class="gameboard__played-card gameboard__played-card--facedown gameboard__played-card--${deckType}"
-             style="transform: rotate(${rotation}deg) translate(${offsetX}px, ${offsetY}px)"
-             data-player="${name}">
+        <div class="gameboard__played-card" data-player="${name}">
+          ${renderCardBack({ deckType })}
           <span class="gameboard__played-card-label">${name}</span>
         </div>
       `;
     }).join('');
 
-    playedCardsHtml = `<div class="gameboard__played-cards">${cardEls}</div>`;
+    const colClass = playerNames.length >= 4 ? 'gameboard__played-cards--cols-4' : '';
+    playedCardsHtml = `<div class="gameboard__played-cards ${colClass}">${cardEls}</div>`;
   }
 
   // During pitching, show the pitching player's card in the main card area
@@ -122,9 +90,13 @@ export function render(promptCard = '', hint = '', {
     );
   }
 
+  const cardAreaClass = playedCardsHtml
+    ? 'gameboard__card-area gameboard__card-area--has-played'
+    : 'gameboard__card-area';
+
   return `
     <div class="gameboard">
-      <div class="gameboard__card-area">
+      <div class="${cardAreaClass}">
         ${mainCardHtml}
         ${playedCardsHtml}
       </div>
