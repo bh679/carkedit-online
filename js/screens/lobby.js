@@ -5,12 +5,43 @@ import { render as renderPhaseHeader } from '../components/phase-header.js';
 import { render as renderGameboard } from '../components/gameboard.js';
 import { render as renderPlayerList } from '../components/player-list.js';
 
+const ROUND_PROMPTS = {
+  1:  'A quick death is a good death.',
+  2:  'Standard Death.',
+  3:  "You're in for a long death.",
+  4:  'This is going to take a while\u2026',
+  5:  'Are you sure about this?',
+  6:  'You might want to order pizza.',
+  7:  'Cancel your plans for the evening.',
+  8:  'This could be your whole weekend.',
+  9:  'Your friends will hate you for this.',
+  10: 'You will literally die before this ends.',
+};
+
+function formatDuration(minutes) {
+  if (minutes < 60) return `${minutes} min`;
+  const hrs = Math.round(minutes / 60 * 10) / 10;
+  return `${Number.isInteger(hrs) ? hrs : hrs.toFixed(1)} hr`;
+}
+
+function timeEstimate(players, rounds) {
+  const lower = Math.round(players * (rounds + 1) * 10 / 3);
+  const upper = lower * 2;
+  return `${formatDuration(lower)}\u2013${formatDuration(upper)}`;
+}
+
 /**
  * @param {object} state
  * @returns {string} HTML string
  */
 export function render(state) {
+  const rounds = state.totalRounds ?? 2;
+  const playerCount = Math.max(state.players.length, 2);
+  const estimate = timeEstimate(playerCount, rounds);
+  const prompt = ROUND_PROMPTS[rounds] ?? ROUND_PROMPTS[10];
+
   const boardContent = `
+    <div class="lobby__board-content">
     <div class="lobby__setup">
       <h2 class="lobby__heading">Player Setup</h2>
       <div class="lobby__add-player">
@@ -25,6 +56,25 @@ export function render(state) {
           Add
         </button>
       </div>
+    </div>
+    <div class="lobby__settings">
+      <h2 class="lobby__heading">Game Settings</h2>
+      <div class="lobby__settings-row">
+        <span class="lobby__settings-label">Rounds</span>
+        <button
+          class="btn btn--secondary lobby__settings-btn"
+          onclick="window.game.setRounds(${rounds - 1})"
+          ${rounds <= 1 ? 'disabled' : ''}
+        >\u2212</button>
+        <span class="lobby__settings-value">${rounds}</span>
+        <button
+          class="btn btn--secondary lobby__settings-btn"
+          onclick="window.game.setRounds(${rounds + 1})"
+          ${rounds >= 10 ? 'disabled' : ''}
+        >+</button>
+      </div>
+      <p class="lobby__settings-meta">${estimate} &mdash; ${prompt}</p>
+    </div>
     </div>
   `;
 

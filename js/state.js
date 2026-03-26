@@ -19,6 +19,7 @@ let _state = {
   selectedPlayerForRemoval: null,
 
   // Phase 2/3 state
+  totalRounds: 2,
   livingDeadIndex: 0,
   phase23Round: 0,
   playerHands: {},

@@ -148,6 +148,10 @@ window.game = {
   prevJudgingCard,
   nextJudgingCard,
   confirmWinner,
+  setRounds(n) {
+    setState({ totalRounds: Math.max(1, Math.min(10, n)) });
+    showScreen('lobby');
+  },
 };
 
 document.addEventListener('DOMContentLoaded', () => {
