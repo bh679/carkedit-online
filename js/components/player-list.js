@@ -18,6 +18,13 @@ const SKULL_ICON = `<svg width="10" height="10" viewBox="0 0 10 10" fill="none" 
   <rect x="5.2" y="6" width="0.6" height="1.2" rx="0.2" fill="#000"/>
 </svg>`;
 
+const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function formatBirthday(p) {
+  if (!p.birthMonth || !p.birthDay) return '';
+  return `🎂 ${MONTH_ABBR[p.birthMonth - 1]} ${p.birthDay}`;
+}
+
 /**
  * @param {Array<{ name: string, score: number }>} players
  * @param {object} options
@@ -72,7 +79,10 @@ export function render(players = [], {
       <div class="player-list__chip${modifiers}"${clickAttr}>
         <span class="player-list__icon">${icon}</span>
         <span class="player-list__name">${p.name}</span>
-        <span class="player-list__score">${score}</span>
+        ${(allowRemove || isActive || isLivingDead) && formatBirthday(p)
+          ? `<span class="player-list__birthday">${formatBirthday(p)}</span>`
+          : `<span class="player-list__score">${score}</span>`
+        }
         ${removeBtn}
       </div>
     `;

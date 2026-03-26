@@ -83,13 +83,22 @@
   color: var(--color-score);
 }
 
+.player-list__birthday {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-player-name);
+  white-space: nowrap;
+}
+
+
 .player-list__chip--living-dead {
   background: var(--color-chip-dead-bg);
   border-color: var(--color-chip-dead-bg);
 }
 
 .player-list__chip--living-dead .player-list__name,
-.player-list__chip--living-dead .player-list__score {
+.player-list__chip--living-dead .player-list__score,
+.player-list__chip--living-dead .player-list__birthday {
   color: var(--color-chip-dead-text);
 }
 

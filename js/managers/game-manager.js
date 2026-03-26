@@ -6,6 +6,7 @@ import { showScreen } from '../router.js';
 import { createPhase1Manager } from './phase1-manager.js';
 import { createPhase23Manager } from './phase23-manager.js';
 import { createPhase4Manager } from './phase4-manager.js';
+import { computeDodTurnOrder } from '../utils/turn-order.js';
 
 let currentPhaseManager = null;
 
@@ -22,9 +23,11 @@ function onPhaseComplete() {
 // ── Phase 1 ──────────────────────────────────────────────
 
 export function startPhase1() {
+  const orderedPlayers = computeDodTurnOrder(getState().players);
   setState({
     screen: 'phase1',
     phase: 1,
+    players: orderedPlayers,
     currentPlayerIndex: 0,
     turnStatus: 'dealing',
     phaseComplete: false,
