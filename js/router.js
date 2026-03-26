@@ -15,6 +15,7 @@ import {
   inspectCard, prevCard, nextCard, dismissInspect, submitCard,
   revealCards, startPitching, donePitching,
   pickWinner, nextRound,
+  inspectJudgingCard, prevJudgingCard, nextJudgingCard, confirmWinner,
 } from './managers/game-manager.js';
 
 const SCREENS = {
@@ -143,6 +144,10 @@ window.game = {
   donePitching,
   pickWinner,
   nextRound,
+  inspectJudgingCard,
+  prevJudgingCard,
+  nextJudgingCard,
+  confirmWinner,
 };
 
 document.addEventListener('DOMContentLoaded', () => {

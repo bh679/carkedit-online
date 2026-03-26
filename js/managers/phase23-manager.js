@@ -145,6 +145,50 @@ export function createPhase23Manager({ deckType, onStateChange, onPhaseComplete 
     onStateChange({ selectedCard: null });
   }
 
+  function getJudgingCardList() {
+    const state = getState();
+    return getNonDeadPlayers()
+      .map(p => {
+        const card = (state.submittedCards ?? {})[p.name];
+        return card ? { ...card, playerName: p.name } : null;
+      })
+      .filter(Boolean);
+  }
+
+  function inspectJudgingCard(playerName) {
+    const state = getState();
+    const card = (state.submittedCards ?? {})[playerName];
+    if (card) {
+      onStateChange({ selectedCard: { ...card, playerName } });
+    }
+  }
+
+  function prevJudgingCard(cardId) {
+    const list = getJudgingCardList();
+    const index = list.findIndex(c => String(c.id) === String(cardId));
+    const prevIndex = index <= 0 ? list.length - 1 : index - 1;
+    if (list[prevIndex]) {
+      onStateChange({ selectedCard: list[prevIndex] });
+    }
+  }
+
+  function nextJudgingCard(cardId) {
+    const list = getJudgingCardList();
+    const index = list.findIndex(c => String(c.id) === String(cardId));
+    const nextIndex = index >= list.length - 1 ? 0 : index + 1;
+    if (list[nextIndex]) {
+      onStateChange({ selectedCard: list[nextIndex] });
+    }
+  }
+
+  function confirmWinner() {
+    const state = getState();
+    const playerName = state.selectedCard?.playerName;
+    if (playerName) {
+      pickWinner(playerName);
+    }
+  }
+
   function submitCard(cardId) {
     const state = getState();
     const nonDeadIndices = getNonDeadPlayerIndices();
@@ -300,5 +344,9 @@ export function createPhase23Manager({ deckType, onStateChange, onPhaseComplete 
     donePitching,
     pickWinner,
     nextRound,
+    inspectJudgingCard,
+    prevJudgingCard,
+    nextJudgingCard,
+    confirmWinner,
   };
 }

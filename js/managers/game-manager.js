@@ -161,6 +161,22 @@ export function pickWinner(playerName) {
   currentPhaseManager?.pickWinner(playerName);
 }
 
+export function inspectJudgingCard(playerName) {
+  currentPhaseManager?.inspectJudgingCard(playerName);
+}
+
+export function prevJudgingCard(cardId) {
+  currentPhaseManager?.prevJudgingCard(cardId);
+}
+
+export function nextJudgingCard(cardId) {
+  currentPhaseManager?.nextJudgingCard(cardId);
+}
+
+export function confirmWinner() {
+  currentPhaseManager?.confirmWinner();
+}
+
 export function nextRound() {
   currentPhaseManager?.nextRound();
 }

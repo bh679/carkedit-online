@@ -4,7 +4,7 @@
 import { render as renderPhaseHeader } from '../components/phase-header.js';
 import { render as renderPlayerList } from '../components/player-list.js';
 import { render as renderGameboard, renderActiveCard } from '../components/gameboard.js';
-import { render as renderHand } from '../components/hand.js';
+import { render as renderHand, renderInspectOverlay } from '../components/hand.js';
 import { render as renderCard } from '../components/card.js';
 import { render as renderCardGrid } from '../components/card-grid.js';
 
@@ -225,10 +225,21 @@ function renderJudgingScreen(config, state, playerListOptions, nonDeadPlayers) {
       return {
         card: { ...card, deckType: card.deckType || config.deckType },
         label: `${p.name}'s card`,
-        onClick: `window.game.pickWinner('${p.name}')`,
+        onClick: `window.game.inspectJudgingCard('${p.name}')`,
       };
     })
     .filter(Boolean);
+
+  const inspectOverlay = state.selectedCard
+    ? renderInspectOverlay({
+        selectedCard: state.selectedCard,
+        deckType: config.deckType,
+        submitLabel: 'Pick This Card',
+        onSubmit: `window.game.confirmWinner()`,
+        onPrev:   `window.game.prevJudgingCard('${state.selectedCard.id}')`,
+        onNext:   `window.game.nextJudgingCard('${state.selectedCard.id}')`,
+      })
+    : '';
 
   return `
     <div class="screen screen--phase" data-phase="${config.number}">
@@ -238,6 +249,7 @@ function renderJudgingScreen(config, state, playerListOptions, nonDeadPlayers) {
         <h2 class="judging__title">${livingDeadName}, pick your favourite!</h2>
         ${renderCardGrid(entries)}
       </div>
+      ${inspectOverlay}
     </div>
   `;
 }

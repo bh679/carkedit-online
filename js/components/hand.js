@@ -6,6 +6,35 @@ import { render as renderCard } from './card.js';
 const CARD_WIDTH = 135;
 
 /**
+ * Shared full-screen inspect overlay — used for hand selection and judging.
+ *
+ * @param {object} options
+ * @param {object|null} options.selectedCard - Card to display
+ * @param {string} options.deckType - Deck type for card rendering and overlay accent colour
+ * @param {string} options.submitLabel - Label for the confirm button
+ * @param {string} options.onSubmit - onclick expression for the confirm button
+ * @param {string} options.onPrev - onclick expression for the prev arrow
+ * @param {string} options.onNext - onclick expression for the next arrow
+ * @returns {string} HTML string (empty if no selectedCard)
+ */
+export function renderInspectOverlay({ selectedCard, deckType, submitLabel, onSubmit, onPrev, onNext }) {
+  if (!selectedCard) return '';
+  const activedeckType = selectedCard.deckType || deckType;
+  return `
+    <div class="hand__inspect-overlay hand__inspect-overlay--${activedeckType}" onclick="window.game.dismissInspect()">
+      <button class="hand__nav-btn hand__nav-btn--prev" onclick="event.stopPropagation(); ${onPrev}">&#8249;</button>
+      <div class="hand__inspect-card-wrapper" onclick="event.stopPropagation()">
+        ${renderCard({ ...selectedCard, deckType: activedeckType })}
+        <button class="btn btn--primary hand__submit-btn" onclick="${onSubmit}">
+          ${submitLabel}
+        </button>
+      </div>
+      <button class="hand__nav-btn hand__nav-btn--next" onclick="event.stopPropagation(); ${onNext}">&#8250;</button>
+    </div>
+  `;
+}
+
+/**
  * @param {Array<{ id: string|number, title: string, deckType: string }>} cards
  * @param {object} options
  * @param {boolean} options.dimmed - Whether to dim the hand (during pitching/judging)
@@ -47,20 +76,14 @@ export function render(cards = [], { dimmed = false, selectedCard = null, living
   `;
   }).join('');
 
-  const activedeckType = selectedCard?.deckType || deckType;
-  const inspectOverlay = selectedCard ? `
-    <div class="hand__inspect-overlay hand__inspect-overlay--${activedeckType}" onclick="window.game.dismissInspect()">
-      <button class="hand__nav-btn hand__nav-btn--prev" onclick="event.stopPropagation(); window.game.prevCard('${selectedCard.id}')">&#8249;</button>
-      <div class="hand__inspect-card-wrapper" onclick="event.stopPropagation()">
-        ${renderCard({ ...selectedCard, deckType: selectedCard.deckType || deckType })}
-        <button class="btn btn--primary hand__submit-btn"
-                onclick="window.game.submitCard('${selectedCard.id}')">
-          Play This Card
-        </button>
-      </div>
-      <button class="hand__nav-btn hand__nav-btn--next" onclick="event.stopPropagation(); window.game.nextCard('${selectedCard.id}')">&#8250;</button>
-    </div>
-  ` : '';
+  const inspectOverlay = renderInspectOverlay({
+    selectedCard,
+    deckType,
+    submitLabel: 'Play This Card',
+    onSubmit: `window.game.submitCard('${selectedCard?.id}')`,
+    onPrev:   `window.game.prevCard('${selectedCard?.id}')`,
+    onNext:   `window.game.nextCard('${selectedCard?.id}')`,
+  });
 
   return `
     <div class="hand${dimmedClass}">
