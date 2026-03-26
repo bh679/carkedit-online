@@ -315,8 +315,8 @@ export function createPhase23Manager({ deckType, onStateChange, onPhaseComplete 
       // All players have been Living Dead this round
       const nextPhaseRound = state.phase23Round + 1;
 
-      if (nextPhaseRound >= 2) {
-        // Phase complete — both rounds done
+      if (nextPhaseRound >= state.totalRounds) {
+        // Phase complete — all rounds done
         onPhaseComplete();
         return;
       }

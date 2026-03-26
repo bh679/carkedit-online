@@ -469,7 +469,38 @@
 
 .winner-announcement__title {
   font-size: 48px;
+  font-weight: 700;
+  color: var(--color-hand-card-title);
   margin-bottom: var(--space-sm);
+}
+
+.scoreboard {
+  margin-top: var(--space-sm);
+  width: 100%;
+}
+
+.scoreboard__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--color-hand-card-border);
+}
+
+.scoreboard__row:last-child {
+  border-bottom: none;
+}
+
+.scoreboard__name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-hand-card-title);
+}
+
+.scoreboard__score {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-live);
 }
 
 .winner-announcement__name {

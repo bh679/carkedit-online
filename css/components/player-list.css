@@ -8,11 +8,15 @@
 }
 
 .player-list-container__label {
-  display: block;
+  display: none;
   font-size: 12px;
   font-weight: 700;
   color: var(--color-player-list-label);
   margin-bottom: 8px;
+}
+
+.player-list-container--scrollable .player-list-container__label {
+  display: block;
 }
 
 .player-list {

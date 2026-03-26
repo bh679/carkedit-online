@@ -25,6 +25,48 @@
   flex-shrink: 0;
 }
 
+.lobby__board-content {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: var(--space-md);
+}
+
+.lobby__settings {
+  margin-top: var(--space-md);
+}
+
+.lobby__settings-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+.lobby__settings-label {
+  flex: 1;
+}
+
+.lobby__settings-btn {
+  flex-shrink: 0;
+  width: 2.5rem;
+  padding: 0;
+  text-align: center;
+}
+
+.lobby__settings-value {
+  min-width: 2ch;
+  text-align: center;
+  font-weight: 700;
+  font-size: 1.25rem;
+}
+
+.lobby__settings-meta {
+  margin-top: var(--space-sm);
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+
 .lobby__actions {
   margin-top: auto;
   padding-top: var(--space-md);
