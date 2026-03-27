@@ -50,7 +50,7 @@ function formatPitchDuration(seconds) {
 
 export function renderAdvancedPanel(state) {
   if (!state.showAdvancedSettings) return '';
-  const { rounds, handSize, enableLive, enableBye, enableEulogy, forceWildcards, wildcardCount, handRedraws = 'once_per_phase', timerEnabled, pitchTimerEnabled, playCardTimerEnabled, timerCountUp, pitchDuration, timerVisible, timerAutoAdvance, ultraQuickMode } = state.gameSettings;
+  const { rounds, handSize, enableLive, enableBye, enableEulogy, forceWildcards, wildcardCount, eulogistCount, handRedraws = 'once_per_phase', timerEnabled, pitchTimerEnabled, playCardTimerEnabled, timerCountUp, pitchDuration, timerVisible, timerAutoAdvance, ultraQuickMode } = state.gameSettings;
   const playerCount = Math.max(state.players.length, 2);
   const maxHandSize = Math.max(1, Math.floor(68 / playerCount));
   const estimate = timeEstimate(playerCount, rounds);
@@ -74,6 +74,22 @@ export function renderAdvancedPanel(state) {
         <button class="btn btn--secondary lobby__stepper-btn"
           onclick="window.game.updateSetting('wildcardCount', ${wildcardCount + 1})"
           ${wildcardCount >= 10 || forceWildcards ? 'disabled' : ''}>+</button>
+      </div>
+      <div class="lobby__stepper-row">
+        <span class="lobby__stepper-label">Eulogists per Round</span>
+        ${(() => {
+          const maxEulogists = Math.max(1, state.players.length - 1);
+          const effectiveEulogistCount = Math.min(eulogistCount, maxEulogists);
+          return `
+            <button class="btn btn--secondary lobby__stepper-btn"
+              onclick="window.game.updateSetting('eulogistCount', ${effectiveEulogistCount - 1})"
+              ${effectiveEulogistCount <= 1 ? 'disabled' : ''}>&minus;</button>
+            <span class="lobby__stepper-value">${effectiveEulogistCount}</span>
+            <button class="btn btn--secondary lobby__stepper-btn"
+              onclick="window.game.updateSetting('eulogistCount', ${effectiveEulogistCount + 1})"
+              ${effectiveEulogistCount >= maxEulogists ? 'disabled' : ''}>+</button>
+          `;
+        })()}
       </div>
     </div>
   ` : '';

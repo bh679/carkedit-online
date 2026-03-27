@@ -55,6 +55,20 @@ export function createPhase4Manager({ onStateChange, onPhaseComplete }) {
   function startEulogyRound() {
     const state = getState();
     const wildcardPlayerName = state.wildcardPlayers[state.currentWildcardIndex];
+    const otherPlayers = state.players.filter(p => p.name !== wildcardPlayerName);
+    const requiredCount = Math.min(state.gameSettings?.eulogistCount ?? 2, otherPlayers.length);
+
+    // If no choice to be made, auto-select all eligible players and skip picking
+    if (otherPlayers.length === requiredCount) {
+      onStateChange({
+        phase4SubState: 'pass-phone-eulogist',
+        selectedEulogists: otherPlayers.map(p => p.name),
+        currentEulogistIndex: 0,
+        bestEulogist: null,
+        currentCard: getWildcardPlayerDieCard(state, wildcardPlayerName),
+      });
+      return;
+    }
 
     onStateChange({
       phase4SubState: 'pick-eulogists',
@@ -69,6 +83,8 @@ export function createPhase4Manager({ onStateChange, onPhaseComplete }) {
     const state = getState();
     const current = state.selectedEulogists ?? [];
     const wildcardPlayerName = state.wildcardPlayers[state.currentWildcardIndex];
+    const otherPlayers = state.players.filter(p => p.name !== wildcardPlayerName);
+    const requiredCount = Math.min(state.gameSettings?.eulogistCount ?? 2, otherPlayers.length);
 
     // Can't select self
     if (playerName === wildcardPlayerName) return;
@@ -78,11 +94,11 @@ export function createPhase4Manager({ onStateChange, onPhaseComplete }) {
     let next;
     if (isSelected) {
       next = current.filter(n => n !== playerName);
-    } else if (current.length < 2) {
+    } else if (current.length < requiredCount) {
       next = [...current, playerName];
     } else {
-      // Already have 2 — replace the oldest
-      next = [current[1], playerName];
+      // Already at limit — replace the oldest
+      next = [...current.slice(-(requiredCount - 1)), playerName];
     }
 
     onStateChange({ selectedEulogists: next });
@@ -90,7 +106,10 @@ export function createPhase4Manager({ onStateChange, onPhaseComplete }) {
 
   function confirmEulogists() {
     const state = getState();
-    if ((state.selectedEulogists ?? []).length !== 2) return;
+    const wildcardPlayerName = state.wildcardPlayers[state.currentWildcardIndex];
+    const otherPlayers = state.players.filter(p => p.name !== wildcardPlayerName);
+    const requiredCount = Math.min(state.gameSettings?.eulogistCount ?? 2, otherPlayers.length);
+    if ((state.selectedEulogists ?? []).length !== requiredCount) return;
 
     onStateChange({
       phase4SubState: 'pass-phone-eulogist',
@@ -112,8 +131,8 @@ export function createPhase4Manager({ onStateChange, onPhaseComplete }) {
     const state = getState();
     const nextIndex = state.currentEulogistIndex + 1;
 
-    if (nextIndex >= 2) {
-      // Both eulogies done — time to judge
+    if (nextIndex >= (state.selectedEulogists ?? []).length) {
+      // All eulogies done — time to judge
       onStateChange({
         phase4SubState: 'judge',
         currentEulogistIndex: 0,

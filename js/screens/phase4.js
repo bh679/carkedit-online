@@ -118,6 +118,7 @@ function renderPickEulogists(state) {
     : 'gameboard__card-area';
 
   const otherPlayers = state.players.filter(p => p.name !== wildcardPlayerName);
+  const requiredCount = Math.min(state.gameSettings?.eulogistCount ?? 2, otherPlayers.length);
   const selectionChips = otherPlayers.map(p => {
     const isSelected = selected.includes(p.name);
     const escapedName = p.name.replace(/'/g, "\\'");
@@ -130,7 +131,7 @@ function renderPickEulogists(state) {
     `;
   }).join('');
 
-  const canConfirm = selected.length === 2;
+  const canConfirm = selected.length === requiredCount;
 
   return `
     <div class="screen screen--phase" data-phase="4">
@@ -146,7 +147,7 @@ function renderPickEulogists(state) {
         </div>
       </div>
       <div class="phase4__pick-eulogists">
-        <h2 class="phase4__pick-title">${wildcardPlayerName}, pick 2 players to give your eulogy</h2>
+        <h2 class="phase4__pick-title">${wildcardPlayerName}, pick ${requiredCount} player${requiredCount === 1 ? '' : 's'} to give your eulogy</h2>
         <div class="phase4__eulogist-chips">
           ${selectionChips}
         </div>
@@ -155,7 +156,7 @@ function renderPickEulogists(state) {
         <button class="btn btn--primary${canConfirm ? '' : ' btn--disabled'}"
                 onclick="window.game.confirmEulogists()"
                 ${canConfirm ? '' : 'disabled'}>
-          Confirm (${selected.length}/2)
+          Confirm (${selected.length}/${requiredCount})
         </button>
       </div>
     </div>
@@ -221,7 +222,7 @@ function renderEulogyScreen(state) {
       </div>
       <div class="phase4__eulogy">
         <h2 class="phase4__eulogy-title">${eulogistName}'s Eulogy</h2>
-        <p class="phase4__eulogy-subtitle">Eulogy ${eulogistNumber} of 2 for ${wildcardPlayerName}</p>
+        <p class="phase4__eulogy-subtitle">Eulogy ${eulogistNumber} of ${eulogists.length} for ${wildcardPlayerName}</p>
         <p class="phase4__eulogy-prompt">Celebrate, honour, and roast ${wildcardPlayerName}!</p>
       </div>
       <div class="phase-actions">
@@ -288,11 +289,12 @@ function renderPointsAwarded(state) {
             <span class="phase4__points-label">Best Eulogy</span>
             <span class="phase4__points-value">+2</span>
           </div>
+          ${runnerUp ? `
           <div class="phase4__points-row">
             <span class="phase4__points-name">${runnerUp}</span>
             <span class="phase4__points-label">Runner-up</span>
             <span class="phase4__points-value">+1</span>
-          </div>
+          </div>` : ''}
           <div class="phase4__points-row">
             <span class="phase4__points-name">${wildcardPlayerName}</span>
             <span class="phase4__points-label">Played Wildcard</span>
