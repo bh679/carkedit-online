@@ -53,4 +53,10 @@
   color: var(--color-text-muted);
   opacity: 0.4;
   letter-spacing: 0.05em;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.menu__version:hover {
+  opacity: 0.8;
 }

@@ -23,7 +23,7 @@ export function render(state) {
           Start Game
         </button>
       </div>
-      <p class="menu__version" id="menu-version"></p>
+      <a class="menu__version" id="menu-version" href="https://github.com/bh679/carkedit-online" target="_blank" rel="noopener noreferrer"></a>
     </div>
   `;
 }
