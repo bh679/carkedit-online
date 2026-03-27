@@ -209,6 +209,14 @@ export function confirmWinner() {
   currentPhaseManager?.confirmWinner();
 }
 
+export function inspectProfileCard(index) {
+  currentPhaseManager?.inspectProfileCard(index);
+}
+
+export function dismissProfileCard() {
+  currentPhaseManager?.dismissProfileCard();
+}
+
 export function nextRound() {
   currentPhaseManager?.nextRound();
 }

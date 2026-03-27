@@ -7,6 +7,7 @@ import { render as renderGameboard, renderActiveCard } from '../components/gameb
 import { render as renderHand, renderInspectOverlay } from '../components/hand.js';
 import { render as renderCard } from '../components/card.js';
 import { render as renderCardGrid } from '../components/card-grid.js';
+import { render as renderLivingDeadProfile } from '../components/living-dead-profile.js';
 
 const PHASE_CONFIG = {
   live: { number: '2', label: 'Phase 2 - LIVE', deckType: 'live', nextScreen: 'phase3' },
@@ -82,7 +83,11 @@ function renderDieCard(card) {
 }
 
 function renderLivingDeadScreen(config, state, playerListOptions, livingDeadName) {
-  const promptCardHtml = renderDieCard(state.currentCard);
+  const livingDead = state.players[state.livingDeadIndex];
+  const dieCard = state.playerDieCards?.[livingDeadName]
+    ? { ...state.playerDieCards[livingDeadName], deckType: 'die' }
+    : null;
+  const chosenCards = state.playerChosenCards?.[livingDeadName] ?? [];
 
   const round = state.phase23Round + 1;
   const hint = `Round ${round} — ${livingDeadName} is The Living Dead`;
@@ -91,7 +96,14 @@ function renderLivingDeadScreen(config, state, playerListOptions, livingDeadName
     <div class="screen screen--phase" data-phase="${config.number}">
       ${renderPhaseHeader({ phase: config.number, label: config.label })}
       ${renderPlayerList(state.players, playerListOptions)}
-      ${renderGameboard(promptCardHtml, hint)}
+      ${renderLivingDeadProfile({
+        player: livingDead,
+        dieCard,
+        chosenCards,
+        profileInspectCard: state.profileInspectCard ?? null,
+        deckType: config.deckType,
+        hint,
+      })}
       ${renderHand([], {
         livingDeadMessage: `You are The Living Dead this round.\nSit back and relax! 👑`,
         footer: `
@@ -129,8 +141,12 @@ function renderPassPhoneScreen(config, state, playerListOptions, nonDeadIndices)
 function renderSelectingScreen(config, state, playerListOptions) {
   const currentPlayer = state.players[state.currentPlayerIndex];
   const playerName = currentPlayer?.name ?? '';
-
-  const promptCardHtml = renderDieCard(state.currentCard);
+  const livingDead = state.players[state.livingDeadIndex];
+  const livingDeadName = livingDead?.name ?? '';
+  const dieCard = state.playerDieCards?.[livingDeadName]
+    ? { ...state.playerDieCards[livingDeadName], deckType: 'die' }
+    : null;
+  const chosenCards = state.playerChosenCards?.[livingDeadName] ?? [];
 
   const hint = `${playerName}, select your best card to play`;
 
@@ -150,10 +166,14 @@ function renderSelectingScreen(config, state, playerListOptions) {
     <div class="screen screen--phase" data-phase="${config.number}">
       ${renderPhaseHeader({ phase: config.number, label: config.label })}
       ${renderPlayerList(state.players, playerListOptions)}
-      ${renderGameboard(promptCardHtml, hint, {
-        playedCards: state.submittedCards ?? {},
-        revealed: false,
+      ${renderLivingDeadProfile({
+        player: livingDead,
+        dieCard,
+        chosenCards,
+        profileInspectCard: state.profileInspectCard ?? null,
         deckType: config.deckType,
+        hint,
+        submittedCards: state.submittedCards ?? {},
       })}
       ${renderHand(state.hand ?? [], { selectedCard: state.selectedCard, deckType: config.deckType, footer: redrawButton })}
     </div>

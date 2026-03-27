@@ -52,6 +52,9 @@ let _state = {
   handRedrawnPlayers: {},
   hasPlayedCardPlayers: {},
 
+  // Profile card inspect overlay (living-dead / selecting sub-states)
+  profileInspectCard: null,
+
   // Pitching timer (live countdown — not a setting)
   pitchTimerSeconds: 120,
 
