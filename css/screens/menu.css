@@ -1,6 +1,7 @@
 /* CarkedIt Online — Menu Screen */
 
 .screen--menu {
+  position: relative;
   justify-content: center;
   align-items: center;
   gap: var(--space-xl);
@@ -43,4 +44,13 @@
 
 .menu__actions .btn {
   width: 100%;
+}
+
+.menu__version {
+  position: absolute;
+  bottom: var(--space-md);
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+  opacity: 0.4;
+  letter-spacing: 0.05em;
 }

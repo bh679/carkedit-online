@@ -38,6 +38,13 @@ export function showScreen(name, updates = {}) {
   if (!renderFn) throw new Error(`Unknown screen: ${name}`);
   app.innerHTML = renderFn(state);
 
+  if (name === 'menu') {
+    fetch('package.json').then(r => r.json()).then(pkg => {
+      const el = document.getElementById('menu-version');
+      if (el) el.textContent = `v${pkg.version}`;
+    }).catch(() => {});
+  }
+
   // Show player list label only when the list overflows (more players than fit on screen)
   requestAnimationFrame(() => {
     const list = document.querySelector('.player-list');

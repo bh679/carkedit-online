@@ -23,6 +23,7 @@ export function render(state) {
           Start Game
         </button>
       </div>
+      <p class="menu__version" id="menu-version"></p>
     </div>
   `;
 }
