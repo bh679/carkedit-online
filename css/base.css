@@ -69,6 +69,8 @@ body {
   font-weight: 600;
   cursor: pointer;
   transition: opacity 0.15s;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .btn:active {
