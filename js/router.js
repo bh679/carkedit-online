@@ -186,6 +186,8 @@ function updateSetting(key, rawValue) {
   } else if (key === 'handSize') {
     const playerCount = Math.max(state.players.length, 2);
     max = Math.max(1, Math.floor(68 / playerCount)); min = 1;
+  } else if (key === 'eulogistCount') {
+    max = 10; min = 1;
   } else {
     max = 68; min = 1;
   }
@@ -225,6 +227,7 @@ const DEFAULT_GAME_SETTINGS = {
   enableEulogy: true,
   forceWildcards: false,
   wildcardCount: 2,
+  eulogistCount: 2,
   handRedraws: 'once_per_phase',
   timerEnabled: false,
   pitchTimerEnabled: true,
