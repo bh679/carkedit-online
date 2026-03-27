@@ -155,6 +155,10 @@ export function dismissInspect() {
   currentPhaseManager?.dismissInspect();
 }
 
+export function passCard() {
+  currentPhaseManager?.passCard();
+}
+
 export function submitCard(cardId) {
   currentPhaseManager?.submitCard(cardId);
 }

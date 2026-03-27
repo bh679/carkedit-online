@@ -69,12 +69,13 @@
 
 .lobby__mode-toggle {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-sm);
   width: 100%;
 }
 
 .lobby__mode-btn {
-  flex: 1;
+  flex: 1 1 calc(50% - var(--space-sm));
 }
 
 .lobby__advanced {

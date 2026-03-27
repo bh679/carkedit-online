@@ -43,6 +43,17 @@ export function createPhase23Manager({ deckType, onStateChange, onPhaseComplete 
       .filter(i => i !== state.livingDeadIndex);
   }
 
+  function getActiveNonDeadPlayerIndices() {
+    const state = getState();
+    const forced = state.forcedPlayerNames ?? [];
+    if (forced.length > 0) {
+      return state.players
+        .map((p, i) => (forced.includes(p.name) ? i : null))
+        .filter(i => i !== null);
+    }
+    return getNonDeadPlayerIndices();
+  }
+
   function dealHands() {
     const state = getState();
     const deck = [...getDeck()];
@@ -87,6 +98,7 @@ export function createPhase23Manager({ deckType, onStateChange, onPhaseComplete 
       roundWinner: null,
       handRedrawnPlayers: {},
       hasPlayedCardPlayers: {},
+      forcedPlayerNames: [],
       currentCard: getLivingDeadDieCard(state, bounds.startIndex),
       ...handUpdates,
     });
@@ -163,7 +175,7 @@ export function createPhase23Manager({ deckType, onStateChange, onPhaseComplete 
 
   function readyToSelect() {
     const state = getState();
-    const nonDeadIndices = getNonDeadPlayerIndices();
+    const nonDeadIndices = getActiveNonDeadPlayerIndices();
     const playerIndex = nonDeadIndices[state.currentNonDeadIndex];
     const player = state.players[playerIndex];
 
@@ -286,10 +298,49 @@ export function createPhase23Manager({ deckType, onStateChange, onPhaseComplete 
     }
   }
 
+  function passCard() {
+    clearPlayCardTimer();
+    const state = getState();
+    const nonDeadIndices = getActiveNonDeadPlayerIndices();
+    const nextNonDeadIndex = state.currentNonDeadIndex + 1;
+    const allDone = nextNonDeadIndex >= nonDeadIndices.length;
+
+    if (allDone) {
+      const submittedCount = Object.keys(state.submittedCards ?? {}).length;
+      if (submittedCount === 0) {
+        // Force the first 2 non-dead players to play
+        const allNonDead = getNonDeadPlayerIndices();
+        const forced = allNonDead.slice(0, 2).map(i => state.players[i].name);
+        onStateChange({
+          forcedPlayerNames: forced,
+          currentNonDeadIndex: 0,
+          selectedCard: null,
+          hand: [],
+          phase2SubState: 'pass-phone',
+        });
+      } else {
+        onStateChange({
+          forcedPlayerNames: [],
+          selectedCard: null,
+          hand: [],
+          currentNonDeadIndex: nextNonDeadIndex,
+          phase2SubState: 'all-submitted',
+        });
+      }
+    } else {
+      onStateChange({
+        selectedCard: null,
+        hand: [],
+        currentNonDeadIndex: nextNonDeadIndex,
+        phase2SubState: 'pass-phone',
+      });
+    }
+  }
+
   function submitCard(cardId) {
     clearPlayCardTimer();
     const state = getState();
-    const nonDeadIndices = getNonDeadPlayerIndices();
+    const nonDeadIndices = getActiveNonDeadPlayerIndices();
     const playerIndex = nonDeadIndices[state.currentNonDeadIndex];
     const player = state.players[playerIndex];
     const hand = state.playerHands[player.name] ?? [];
@@ -315,6 +366,7 @@ export function createPhase23Manager({ deckType, onStateChange, onPhaseComplete 
       selectedCard: null,
       hand: [],
       currentNonDeadIndex: nextNonDeadIndex,
+      forcedPlayerNames: allSubmitted ? [] : state.forcedPlayerNames ?? [],
       phase2SubState: allSubmitted ? 'all-submitted' : 'pass-phone',
     });
   }
@@ -408,12 +460,12 @@ export function createPhase23Manager({ deckType, onStateChange, onPhaseComplete 
   function donePitching() {
     clearPitchTimer();
     const state = getState();
-    const nonDeadPlayers = getNonDeadPlayers();
+    const submittedPlayerNames = Object.keys(state.submittedCards ?? {});
     const nextIndex = state.pitchingPlayerIndex + 1;
     const countUp = state.gameSettings?.timerCountUp ?? false;
     const duration = state.gameSettings?.pitchDuration ?? DEFAULT_PITCH_DURATION;
 
-    if (nextIndex >= nonDeadPlayers.length) {
+    if (nextIndex >= submittedPlayerNames.length) {
       onStateChange({
         phase2SubState: 'judging',
       });
@@ -530,6 +582,7 @@ export function createPhase23Manager({ deckType, onStateChange, onPhaseComplete 
         selectedCard: null,
         profileInspectCard: null,
         roundWinner: null,
+        forcedPlayerNames: [],
         currentCard: getLivingDeadDieCard(state, bounds.startIndex),
         phase2SubState: 'living-dead',
         ...redrawReset,
@@ -545,6 +598,7 @@ export function createPhase23Manager({ deckType, onStateChange, onPhaseComplete 
         selectedCard: null,
         profileInspectCard: null,
         roundWinner: null,
+        forcedPlayerNames: [],
         currentCard: getLivingDeadDieCard(state, nextLivingDead),
         phase2SubState: 'living-dead',
         ...redrawReset,
@@ -561,6 +615,7 @@ export function createPhase23Manager({ deckType, onStateChange, onPhaseComplete 
     prevCard,
     nextCard,
     dismissInspect,
+    passCard,
     submitCard,
     revealCards,
     startPitching,

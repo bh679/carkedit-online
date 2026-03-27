@@ -86,8 +86,8 @@ export function render(phase, state) {
 }
 
 function getPitchingPlayerName(state) {
-  const nonDeadPlayers = state.players.filter((_, i) => i !== state.livingDeadIndex);
-  return nonDeadPlayers[state.pitchingPlayerIndex]?.name ?? null;
+  const submittedPlayerNames = Object.keys(state.submittedCards ?? {});
+  return submittedPlayerNames[state.pitchingPlayerIndex] ?? null;
 }
 
 function renderDieCard(card) {
@@ -159,6 +159,18 @@ function renderSelectingScreen(config, state, playerListOptions) {
     </button>
   ` : '';
 
+  const isForced = (state.forcedPlayerNames ?? []).length > 0;
+  const optionalCardPlay = (state.gameSettings?.optionalCardPlay ?? false) && !isForced;
+  const passButton = optionalCardPlay ? `
+    <button class="btn btn--secondary" onclick="window.game.passCard()">
+      Pass
+    </button>
+  ` : '';
+
+  const footerContent = (redrawButton || passButton)
+    ? `<div class="hand__footer-row">${redrawButton}${passButton}</div>`
+    : '';
+
   const { timerEnabled, playCardTimerEnabled, timerVisible, timerCountUp } = state.gameSettings ?? {};
   const playCardSeconds = state.playCardTimerSeconds ?? (timerCountUp ? 0 : 120);
   const playCardTimerClass = (!timerCountUp && playCardSeconds < 30) ? 'pitch-timer pitch-timer--warning' : 'pitch-timer';
@@ -177,7 +189,7 @@ function renderSelectingScreen(config, state, playerListOptions) {
       submittedCards: state.submittedCards ?? {},
     })}
     ${playCardTimerHtml}
-    ${renderHand(state.hand ?? [], { selectedCard: state.selectedCard, deckType: config.deckType, footer: redrawButton })}
+    ${renderHand(state.hand ?? [], { selectedCard: state.selectedCard, deckType: config.deckType, footer: footerContent })}
   `);
 }
 
@@ -231,8 +243,8 @@ function formatTime(seconds) {
 }
 
 function renderPitchingScreen(config, state, playerListOptions, nonDeadPlayers) {
-  const pitcher = nonDeadPlayers[state.pitchingPlayerIndex];
-  const pitcherName = pitcher?.name ?? '';
+  const submittedPlayerNames = Object.keys(state.submittedCards ?? {});
+  const pitcherName = submittedPlayerNames[state.pitchingPlayerIndex] ?? '';
   const { timerEnabled, timerVisible, timerCountUp } = state.gameSettings ?? {};
   const seconds = state.pitchTimerSeconds ?? (timerCountUp ? 0 : 120);
   const timerClass = (!timerCountUp && seconds < 30) ? 'pitch-timer pitch-timer--warning' : 'pitch-timer';

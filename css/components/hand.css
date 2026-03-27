@@ -153,6 +153,15 @@
   width: 100%;
 }
 
+.hand__footer-row {
+  display: flex;
+  gap: 8px;
+}
+
+.hand__footer-row .btn {
+  flex: 1;
+}
+
 /* Arrow colour matches deck accent */
 .hand__inspect-overlay--live .hand__nav-btn { color: var(--color-live); }
 .hand__inspect-overlay--bye  .hand__nav-btn { color: var(--color-bye); }

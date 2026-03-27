@@ -13,7 +13,7 @@ import {
   startPhase1, doneDying, revealCard,
   startPhase2, startPhase3,
   showPlayerHand, readyToSelect, redrawHand,
-  inspectCard, prevCard, nextCard, dismissInspect, submitCard,
+  inspectCard, prevCard, nextCard, dismissInspect, passCard, submitCard,
   revealCards, startPitching, donePitching,
   pickWinner, nextRound,
   inspectJudgingCard, prevJudgingCard, nextJudgingCard, confirmWinner,
@@ -73,16 +73,21 @@ function refreshAdvancedPanel() {
   }
   const modeToggle = document.getElementById('lobby-mode-toggle');
   if (modeToggle) {
-    const { rounds, ultraQuickMode } = state.gameSettings;
+    const { rounds, ultraQuickMode, optionalCardPlay } = state.gameSettings;
+    const pc = state.players.length;
+    const isQuick     = !ultraQuickMode && rounds === 1 && !optionalCardPlay;
+    const isNormal    = !ultraQuickMode && rounds !== 1 && !optionalCardPlay;
+    const isBigGroup  = !ultraQuickMode && rounds === 1 &&  optionalCardPlay;
+    const isHugeGroup =  ultraQuickMode &&                  optionalCardPlay;
     modeToggle.innerHTML = `
-      <button
-        class="btn lobby__mode-btn ${!ultraQuickMode && rounds === 1 ? 'btn--primary' : 'btn--secondary'}"
-        onclick="window.game.setGameMode('quick')"
-      >Quick</button>
-      <button
-        class="btn lobby__mode-btn ${!ultraQuickMode && rounds !== 1 ? 'btn--primary' : 'btn--secondary'}"
-        onclick="window.game.setGameMode('normal')"
-      >Normal</button>
+      <button class="btn lobby__mode-btn ${isQuick ? 'btn--primary' : 'btn--secondary'}"
+        onclick="window.game.setGameMode('quick')">Quick</button>
+      <button class="btn lobby__mode-btn ${isNormal ? 'btn--primary' : 'btn--secondary'}"
+        onclick="window.game.setGameMode('normal')">Normal</button>
+      ${pc > 6 ? `<button class="btn lobby__mode-btn ${isBigGroup ? 'btn--primary' : 'btn--secondary'}"
+        onclick="window.game.setGameMode('big-group')">Big Group</button>` : ''}
+      ${pc > 9 ? `<button class="btn lobby__mode-btn ${isHugeGroup ? 'btn--primary' : 'btn--secondary'}"
+        onclick="window.game.setGameMode('huge-group')">Huge Group</button>` : ''}
     `;
   }
 }
@@ -196,10 +201,16 @@ function updateSetting(key, rawValue) {
 }
 
 function setGameMode(mode) {
-  const rounds = (mode === 'quick' || mode === 'ultra-quick') ? 1 : 2;
-  const ultraQuickMode = mode === 'ultra-quick';
   const state = getState();
-  setState({ gameSettings: { ...state.gameSettings, rounds, ultraQuickMode } });
+  const presets = {
+    'quick':      { rounds: 1, ultraQuickMode: false, optionalCardPlay: false },
+    'normal':     { rounds: 2, ultraQuickMode: false, optionalCardPlay: false },
+    'big-group':  { rounds: 1, ultraQuickMode: false, optionalCardPlay: true  },
+    'huge-group': { rounds: 1, ultraQuickMode: true,  optionalCardPlay: true  },
+  };
+  const patch = presets[mode];
+  if (!patch) return;
+  setState({ gameSettings: { ...state.gameSettings, ...patch } });
   refreshAdvancedPanel();
 }
 
@@ -237,6 +248,7 @@ const DEFAULT_GAME_SETTINGS = {
   timerVisible: true,
   timerAutoAdvance: true,
   ultraQuickMode: false,
+  optionalCardPlay: false,
 };
 
 function resetSettings() {
@@ -309,6 +321,7 @@ window.game = {
   prevCard,
   nextCard,
   dismissInspect,
+  passCard,
   submitCard,
   revealCards,
   startPitching,

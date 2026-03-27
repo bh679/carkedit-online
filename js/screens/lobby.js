@@ -104,7 +104,7 @@ function renderStepper(label, value, onDec, onInc, decDisabled, incDisabled, { d
 
 export function renderAdvancedPanel(state) {
   if (!state.showAdvancedSettings) return '';
-  const { rounds, handSize, enableLive, enableBye, enableEulogy, forceWildcards, playableWildcards = true, wildcardCount, eulogistCount, handRedraws = 'once_per_phase', timerEnabled, pitchTimerEnabled, playCardTimerEnabled, timerCountUp, pitchDuration, timerVisible, timerAutoAdvance, ultraQuickMode } = state.gameSettings;
+  const { rounds, handSize, enableLive, enableBye, enableEulogy, forceWildcards, playableWildcards = true, wildcardCount, eulogistCount, handRedraws = 'once_per_phase', timerEnabled, pitchTimerEnabled, playCardTimerEnabled, timerCountUp, pitchDuration, timerVisible, timerAutoAdvance, ultraQuickMode, optionalCardPlay } = state.gameSettings;
   const playerCount = Math.max(state.players.length, 2);
   const maxHandSize = Math.max(1, Math.floor(68 / playerCount));
   const estimate = timeEstimate(playerCount, rounds);
@@ -201,6 +201,12 @@ export function renderAdvancedPanel(state) {
         handSize <= 1, handSize >= maxHandSize,
       )}
       <p class="lobby__setting-meta">Max ${maxHandSize} cards with ${playerCount} players</p>
+      ${renderToggle(
+        `Optional Card Play <span class="lobby__stepper-hint">${playerCount <= 3 ? '(needs 4+ players)' : '(players may pass instead of playing a card)'}</span>`,
+        optionalCardPlay,
+        "window.game.toggleSetting('optionalCardPlay')",
+        { disabled: playerCount <= 3 },
+      )}
       ${renderToggle('Timer', timerEnabled, "window.game.toggleSetting('timerEnabled')")}
       ${timerSubSettings}
       <div class="lobby__advanced-divider"></div>
@@ -212,7 +218,7 @@ export function renderAdvancedPanel(state) {
 }
 
 export function render(state) {
-  const { rounds, ultraQuickMode } = state.gameSettings;
+  const { rounds, ultraQuickMode, optionalCardPlay } = state.gameSettings;
 
   const months = [
     'Jan','Feb','Mar','Apr','May','Jun',
@@ -254,17 +260,26 @@ export function render(state) {
     </div>
     <div class="lobby__settings-section">
       <div class="lobby__settings-divider"></div>
-      <h2 class="lobby__heading">Game Settings</h2>
-      <div id="lobby-mode-toggle" class="lobby__mode-toggle">
-        <button
-          class="btn lobby__mode-btn ${!ultraQuickMode && rounds === 1 ? 'btn--primary' : 'btn--secondary'}"
-          onclick="window.game.setGameMode('quick')"
-        >Quick</button>
-        <button
-          class="btn lobby__mode-btn ${!ultraQuickMode && rounds !== 1 ? 'btn--primary' : 'btn--secondary'}"
-          onclick="window.game.setGameMode('normal')"
-        >Normal</button>
-      </div>
+      <h2 class="lobby__heading">Game Modes</h2>
+      ${(() => {
+        const pc = state.players.length;
+        const isQuick     = !ultraQuickMode && rounds === 1 && !optionalCardPlay;
+        const isNormal    = !ultraQuickMode && rounds !== 1 && !optionalCardPlay;
+        const isBigGroup  = !ultraQuickMode && rounds === 1 &&  optionalCardPlay;
+        const isHugeGroup =  ultraQuickMode &&                  optionalCardPlay;
+        return `
+          <div id="lobby-mode-toggle" class="lobby__mode-toggle">
+            <button class="btn lobby__mode-btn ${isQuick ? 'btn--primary' : 'btn--secondary'}"
+              onclick="window.game.setGameMode('quick')">Quick</button>
+            <button class="btn lobby__mode-btn ${isNormal ? 'btn--primary' : 'btn--secondary'}"
+              onclick="window.game.setGameMode('normal')">Normal</button>
+            ${pc > 6 ? `<button class="btn lobby__mode-btn ${isBigGroup ? 'btn--primary' : 'btn--secondary'}"
+              onclick="window.game.setGameMode('big-group')">Big Group</button>` : ''}
+            ${pc > 9 ? `<button class="btn lobby__mode-btn ${isHugeGroup ? 'btn--primary' : 'btn--secondary'}"
+              onclick="window.game.setGameMode('huge-group')">Huge Group</button>` : ''}
+          </div>
+        `;
+      })()}
       <div id="lobby-advanced" class="lobby__advanced">
         <button
           class="btn btn--secondary lobby__advanced-toggle"
