@@ -21,6 +21,15 @@ export function createPhase23Manager({ deckType, onStateChange, onPhaseComplete 
     return { decks: { ...state.decks, [deckType]: cards } };
   }
 
+  function getUltraQuickBounds(state) {
+    const isUltraQuick = state.gameSettings?.ultraQuickMode ?? false;
+    if (!isUltraQuick) return { startIndex: 0, endIndex: state.players.length };
+    const half = Math.ceil(state.players.length / 2);
+    return deckType === 'live'
+      ? { startIndex: 0, endIndex: half }
+      : { startIndex: half, endIndex: state.players.length };
+  }
+
   function getNonDeadPlayers() {
     const state = getState();
     return state.players.filter((_, i) => i !== state.livingDeadIndex);
@@ -59,12 +68,13 @@ export function createPhase23Manager({ deckType, onStateChange, onPhaseComplete 
 
   function start() {
     const state = getState();
+    const bounds = getUltraQuickBounds(state);
 
     const deck = [...getDeck()];
     const handUpdates = dealHandsFromDeck(deck, state);
 
     onStateChange({
-      livingDeadIndex: 0,
+      livingDeadIndex: bounds.startIndex,
       phase23Round: 0,
       submittedCards: {},
       revealedCards: false,
@@ -76,7 +86,7 @@ export function createPhase23Manager({ deckType, onStateChange, onPhaseComplete 
       roundWinner: null,
       handRedrawnPlayers: {},
       hasPlayedCardPlayers: {},
-      currentCard: getLivingDeadDieCard(state, 0),
+      currentCard: getLivingDeadDieCard(state, bounds.startIndex),
       ...handUpdates,
     });
   }
@@ -432,6 +442,7 @@ export function createPhase23Manager({ deckType, onStateChange, onPhaseComplete 
   function nextRound() {
     clearPitchTimer();
     const state = getState();
+    const bounds = getUltraQuickBounds(state);
     const nextLivingDead = state.livingDeadIndex + 1;
     const handRedraws = state.gameSettings?.handRedraws ?? 'once_per_phase';
     const resetRedrawTracking = handRedraws === 'once_per_round' || handRedraws === 'unlimited';
@@ -439,8 +450,8 @@ export function createPhase23Manager({ deckType, onStateChange, onPhaseComplete 
       ? { handRedrawnPlayers: {}, hasPlayedCardPlayers: {} }
       : {};
 
-    if (nextLivingDead >= state.players.length) {
-      // All players have been Living Dead this round
+    if (nextLivingDead >= bounds.endIndex) {
+      // All assigned players have been Living Dead this round
       const nextPhaseRound = state.phase23Round + 1;
 
       const maxRounds = getState().gameSettings?.rounds ?? 2;
@@ -450,10 +461,10 @@ export function createPhase23Manager({ deckType, onStateChange, onPhaseComplete 
         return;
       }
 
-      // Start next round (all players are Living Dead again)
+      // Start next round (assigned players cycle again)
       onStateChange({
         phase23Round: nextPhaseRound,
-        livingDeadIndex: 0,
+        livingDeadIndex: bounds.startIndex,
         currentNonDeadIndex: 0,
         submittedCards: {},
         revealedCards: false,
@@ -461,7 +472,7 @@ export function createPhase23Manager({ deckType, onStateChange, onPhaseComplete 
         selectedCard: null,
         profileInspectCard: null,
         roundWinner: null,
-        currentCard: getLivingDeadDieCard(state, 0),
+        currentCard: getLivingDeadDieCard(state, bounds.startIndex),
         phase2SubState: 'living-dead',
         ...redrawReset,
       });

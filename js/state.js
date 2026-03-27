@@ -33,6 +33,7 @@ let _state = {
     pitchDuration: 120,
     timerVisible: true,
     timerAutoAdvance: true,
+    ultraQuickMode: false,
   },
   showAdvancedSettings: false,
 
