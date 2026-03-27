@@ -50,7 +50,7 @@ function formatPitchDuration(seconds) {
 
 export function renderAdvancedPanel(state) {
   if (!state.showAdvancedSettings) return '';
-  const { rounds, handSize, enableLive, enableBye, enableEulogy, forceWildcards, wildcardCount, eulogistCount, handRedraws = 'once_per_phase', timerEnabled, pitchTimerEnabled, playCardTimerEnabled, timerCountUp, pitchDuration, timerVisible, timerAutoAdvance } = state.gameSettings;
+  const { rounds, handSize, enableLive, enableBye, enableEulogy, forceWildcards, wildcardCount, eulogistCount, handRedraws = 'once_per_phase', timerEnabled, pitchTimerEnabled, playCardTimerEnabled, timerCountUp, pitchDuration, timerVisible, timerAutoAdvance, ultraQuickMode } = state.gameSettings;
   const playerCount = Math.max(state.players.length, 2);
   const maxHandSize = Math.max(1, Math.floor(68 / playerCount));
   const estimate = timeEstimate(playerCount, rounds);
@@ -97,14 +97,22 @@ export function renderAdvancedPanel(state) {
   return `
     <div class="lobby__advanced-panel">
       <div class="lobby__stepper-row">
+        <span class="lobby__stepper-label">Ultra Quick Mode <span class="lobby__stepper-hint">(half players per phase, good for 8+ players)</span></span>
+        <button class="btn lobby__stepper-btn ${ultraQuickMode ? 'btn--primary' : 'btn--secondary'}"
+          onclick="window.game.toggleUltraQuickMode()">
+          ${ultraQuickMode ? 'On' : 'Off'}
+        </button>
+      </div>
+      <div class="lobby__advanced-divider"></div>
+      <div class="lobby__stepper-row ${ultraQuickMode ? 'lobby__stepper-row--disabled' : ''}">
         <span class="lobby__stepper-label">Rounds</span>
         <button class="btn btn--secondary lobby__stepper-btn"
           onclick="window.game.updateSetting('rounds', ${rounds - 1})"
-          ${rounds <= 1 ? 'disabled' : ''}>&minus;</button>
+          ${rounds <= 1 || ultraQuickMode ? 'disabled' : ''}>&minus;</button>
         <span class="lobby__stepper-value">${rounds}</span>
         <button class="btn btn--secondary lobby__stepper-btn"
           onclick="window.game.updateSetting('rounds', ${rounds + 1})"
-          ${rounds >= 10 ? 'disabled' : ''}>+</button>
+          ${rounds >= 10 || ultraQuickMode ? 'disabled' : ''}>+</button>
       </div>
       <p class="lobby__setting-meta">${estimate} &mdash; ${prompt}</p>
       <div class="lobby__advanced-divider"></div>
@@ -113,17 +121,19 @@ export function renderAdvancedPanel(state) {
         <span class="lobby__stepper-label">DIE</span>
         <button class="btn lobby__stepper-btn btn--primary" disabled>On</button>
       </div>
-      <div class="lobby__stepper-row">
+      <div class="lobby__stepper-row ${ultraQuickMode ? 'lobby__stepper-row--disabled' : ''}">
         <span class="lobby__stepper-label">LIVE</span>
         <button class="btn lobby__stepper-btn ${enableLive ? 'btn--primary' : 'btn--secondary'}"
-          onclick="window.game.toggleSetting('enableLive')">
+          onclick="window.game.toggleSetting('enableLive')"
+          ${ultraQuickMode ? 'disabled' : ''}>
           ${enableLive ? 'On' : 'Off'}
         </button>
       </div>
-      <div class="lobby__stepper-row">
+      <div class="lobby__stepper-row ${ultraQuickMode ? 'lobby__stepper-row--disabled' : ''}">
         <span class="lobby__stepper-label">BYE</span>
         <button class="btn lobby__stepper-btn ${enableBye ? 'btn--primary' : 'btn--secondary'}"
-          onclick="window.game.toggleSetting('enableBye')">
+          onclick="window.game.toggleSetting('enableBye')"
+          ${ultraQuickMode ? 'disabled' : ''}>
           ${enableBye ? 'On' : 'Off'}
         </button>
       </div>
@@ -225,7 +235,7 @@ export function renderAdvancedPanel(state) {
 }
 
 export function render(state) {
-  const { rounds } = state.gameSettings;
+  const { rounds, ultraQuickMode } = state.gameSettings;
 
   const months = [
     'Jan','Feb','Mar','Apr','May','Jun',
@@ -268,14 +278,16 @@ export function render(state) {
     <div class="lobby__settings-section">
       <div class="lobby__settings-divider"></div>
       <h2 class="lobby__heading">Game Settings</h2>
-      <div id="lobby-mode-toggle" class="lobby__mode-toggle">
+      <div id="lobby-mode-toggle" class="lobby__mode-toggle ${ultraQuickMode ? 'lobby__mode-toggle--disabled' : ''}">
         <button
-          class="btn lobby__mode-btn ${rounds === 1 ? 'btn--primary' : 'btn--secondary'}"
+          class="btn lobby__mode-btn ${!ultraQuickMode && rounds === 1 ? 'btn--primary' : 'btn--secondary'}"
           onclick="window.game.setGameMode('quick')"
+          ${ultraQuickMode ? 'disabled' : ''}
         >Quick</button>
         <button
-          class="btn lobby__mode-btn ${rounds !== 1 ? 'btn--primary' : 'btn--secondary'}"
+          class="btn lobby__mode-btn ${!ultraQuickMode && rounds !== 1 ? 'btn--primary' : 'btn--secondary'}"
           onclick="window.game.setGameMode('normal')"
+          ${ultraQuickMode ? 'disabled' : ''}
         >Normal</button>
       </div>
       <div id="lobby-advanced" class="lobby__advanced">
