@@ -40,7 +40,7 @@
   text-transform: uppercase;
   color: var(--color-white);
   line-height: 1.05;
-  text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.15);
+  text-shadow: 2px 2px 0 var(--color-shadow-text-light);
 }
 
 .card-back__word--faded {

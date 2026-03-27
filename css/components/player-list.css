@@ -117,8 +117,8 @@
 }
 
 .player-list__remove-btn {
-  background: #dc2626;
-  color: #fff;
+  background: var(--color-danger);
+  color: var(--color-white);
   border: none;
   border-radius: 6px;
   width: 16px;

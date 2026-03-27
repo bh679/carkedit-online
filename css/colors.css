@@ -76,4 +76,24 @@
   --color-living-dead-msg-border:    #fdc700;
   --color-living-dead-msg-text:      #894b00;
   --color-played-card-back:          #30aa30;
+
+  /* ── Dev dashboard ──────────────────────────────── */
+  --color-dash-item-bg:              rgba(255, 255, 255, 0.03);
+  --color-contrib-cell-1:            rgba(76, 175, 80, 0.3);
+  --color-contrib-cell-2:            rgba(76, 175, 80, 0.5);
+  --color-contrib-cell-3:            rgba(76, 175, 80, 0.7);
+  --color-danger-subtle:             rgba(233, 25, 52, 0.08);
+
+  /* ── Nav button overlay ─────────────────────────── */
+  --color-nav-btn-bg:                rgba(255, 255, 255, 0.2);
+  --color-nav-btn-hover-bg:          rgba(255, 255, 255, 0.35);
+
+  /* ── Opacity text variants ──────────────────────── */
+  --color-text-90:                   rgba(255, 255, 255, 0.9);
+  --color-text-80:                   rgba(255, 255, 255, 0.8);
+  --color-text-70:                   rgba(255, 255, 255, 0.7);
+
+  /* ── Shadows & overlays ─────────────────────────── */
+  --color-overlay-dim:               rgba(0, 0, 0, 0.6);
+  --color-shadow-text-light:         rgba(0, 0, 0, 0.15);
 }

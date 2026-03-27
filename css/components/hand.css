@@ -84,7 +84,7 @@
 .hand__inspect-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: var(--color-overlay-dim);
   z-index: 100;
   display: flex;
   align-items: center;
@@ -118,8 +118,8 @@
   height: 44px;
   border-radius: 50%;
   border: none;
-  background: rgba(255, 255, 255, 0.2);
-  color: #fff;
+  background: var(--color-nav-btn-bg);
+  color: var(--color-white);
   font-size: 32px;
   line-height: 1;
   cursor: pointer;
@@ -140,7 +140,7 @@
 }
 
 .hand__nav-btn:hover {
-  background: rgba(255, 255, 255, 0.35);
+  background: var(--color-nav-btn-hover-bg);
 }
 
 /* Footer area — sits inside .hand below the fan */

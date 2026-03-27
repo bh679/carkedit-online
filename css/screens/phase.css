@@ -186,7 +186,7 @@
 .phase4__eulogy-prompt {
   font-size: 16px;
   font-style: italic;
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--color-text-80);
   margin: 0;
 }
 
@@ -304,7 +304,7 @@
 
 .phase4__points-label {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--color-text-70);
 }
 
 .phase4__points-value {
@@ -324,7 +324,7 @@
 }
 
 .scoreboard__row--winner {
-  background: rgba(152, 66, 255, 0.15);
+  background: var(--color-primary-subtle);
   border-radius: 6px;
 }
 
@@ -356,7 +356,7 @@
 .phase1__card-prompt {
   font-size: 13px;
   font-style: italic;
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--color-text-80);
   text-align: center;
   padding-top: var(--space-xs);
 }
@@ -406,7 +406,7 @@
 .pass-phone__title {
   font-size: 18px;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--color-text-70);
   margin-bottom: var(--space-sm);
 }
 
@@ -509,7 +509,7 @@
 .prompt-card__prompt {
   font-size: 14px;
   font-style: italic;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--color-text-70);
   margin-top: var(--space-sm);
 }
 
