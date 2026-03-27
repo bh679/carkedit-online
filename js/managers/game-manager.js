@@ -7,6 +7,7 @@ import { createPhase1Manager } from './phase1-manager.js';
 import { createPhase23Manager } from './phase23-manager.js';
 import { createPhase4Manager } from './phase4-manager.js';
 import { computeDodTurnOrder } from '../utils/turn-order.js';
+import { shuffle } from '../utils/shuffle.js';
 
 let currentPhaseManager = null;
 
@@ -121,11 +122,7 @@ export function startPhase3() {
       id: `wildcard-${i}`,
     }));
   }
-  const combined = [...nonWildcards, ...keepWildcards];
-  for (let i = combined.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [combined[i], combined[j]] = [combined[j], combined[i]];
-  }
+  const combined = shuffle([...nonWildcards, ...keepWildcards]);
   setState({ decks: { ...getState().decks, bye: combined } });
 
   currentPhaseManager = createPhase23Manager({

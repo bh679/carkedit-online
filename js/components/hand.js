@@ -17,19 +17,40 @@ const CARD_WIDTH = 135;
  * @param {string} options.onNext - onclick expression for the next arrow
  * @returns {string} HTML string (empty if no selectedCard)
  */
-export function renderInspectOverlay({ selectedCard, deckType, submitLabel, onSubmit, onPrev, onNext }) {
+/**
+ * Shared full-screen inspect overlay — used for hand selection and judging.
+ *
+ * @param {object} options
+ * @param {object|null} options.selectedCard - Card to display
+ * @param {string} options.deckType - Deck type for card rendering and overlay accent colour
+ * @param {string} options.submitLabel - Label for the confirm button
+ * @param {string} options.onSubmit - onclick expression for the confirm button
+ * @param {string|null} [options.onDismiss] - onclick for overlay backdrop (defaults to dismissInspect)
+ * @param {string|null} [options.onPrev] - onclick expression for the prev arrow (null hides arrow)
+ * @param {string|null} [options.onNext] - onclick expression for the next arrow (null hides arrow)
+ * @param {string} [options.btnStyle='primary'] - Button style variant ('primary' or 'secondary')
+ * @returns {string} HTML string (empty if no selectedCard)
+ */
+export function renderInspectOverlay({ selectedCard, deckType, submitLabel, onSubmit, onDismiss = null, onPrev = null, onNext = null, btnStyle = 'primary' }) {
   if (!selectedCard) return '';
   const activedeckType = selectedCard.deckType || deckType;
+  const dismissAction = onDismiss || 'window.game.dismissInspect()';
+  const prevBtn = onPrev
+    ? `<button class="hand__nav-btn hand__nav-btn--prev" onclick="event.stopPropagation(); ${onPrev}">&#8249;</button>`
+    : '';
+  const nextBtn = onNext
+    ? `<button class="hand__nav-btn hand__nav-btn--next" onclick="event.stopPropagation(); ${onNext}">&#8250;</button>`
+    : '';
   return `
-    <div class="hand__inspect-overlay hand__inspect-overlay--${activedeckType}" onclick="window.game.dismissInspect()">
-      <button class="hand__nav-btn hand__nav-btn--prev" onclick="event.stopPropagation(); ${onPrev}">&#8249;</button>
+    <div class="hand__inspect-overlay hand__inspect-overlay--${activedeckType}" onclick="${dismissAction}">
+      ${prevBtn}
       <div class="hand__inspect-card-wrapper" onclick="event.stopPropagation()">
         ${renderCard({ ...selectedCard, deckType: activedeckType })}
-        <button class="btn btn--primary hand__submit-btn" onclick="${onSubmit}">
+        <button class="btn btn--${btnStyle} hand__submit-btn" onclick="${onSubmit}">
           ${submitLabel}
         </button>
       </div>
-      <button class="hand__nav-btn hand__nav-btn--next" onclick="event.stopPropagation(); ${onNext}">&#8250;</button>
+      ${nextBtn}
     </div>
   `;
 }

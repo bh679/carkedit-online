@@ -48,6 +48,60 @@ function formatPitchDuration(seconds) {
   return `${seconds / 60} min`;
 }
 
+/**
+ * Renders a toggle row: label + On/Off button.
+ *
+ * @param {string} label - Display label (may include HTML like hints)
+ * @param {boolean} value - Current on/off state
+ * @param {string} onClick - onclick expression
+ * @param {boolean} [disabled=false] - Whether the row is disabled
+ * @param {boolean} [overrideDisplay] - Force a specific display value (for dependent toggles)
+ */
+function renderToggle(label, value, onClick, { disabled = false, overrideDisplay } = {}) {
+  const displayOn = overrideDisplay !== undefined ? overrideDisplay : value;
+  const rowClass = disabled ? 'lobby__stepper-row lobby__stepper-row--disabled' : 'lobby__stepper-row';
+  return `
+    <div class="${rowClass}">
+      <span class="lobby__stepper-label">${label}</span>
+      <button class="btn lobby__stepper-btn ${displayOn ? 'btn--primary' : 'btn--secondary'}"
+        onclick="${onClick}"
+        ${disabled ? 'disabled' : ''}>
+        ${displayOn ? 'On' : 'Off'}
+      </button>
+    </div>
+  `;
+}
+
+/**
+ * Renders a stepper row: label + −/value/+ buttons.
+ *
+ * @param {string} label - Display label
+ * @param {number|string} value - Current value
+ * @param {string} onDec - onclick for decrement
+ * @param {string} onInc - onclick for increment
+ * @param {boolean} decDisabled - Whether − is disabled
+ * @param {boolean} incDisabled - Whether + is disabled
+ * @param {object} [options]
+ * @param {boolean} [options.disabled=false] - Disable entire row
+ * @param {string} [options.valueClass=''] - Extra CSS class for value span
+ */
+function renderStepper(label, value, onDec, onInc, decDisabled, incDisabled, { disabled = false, valueClass = '' } = {}) {
+  const rowClass = disabled ? 'lobby__stepper-row lobby__stepper-row--disabled' : 'lobby__stepper-row';
+  const valClass = `lobby__stepper-value${valueClass ? ` ${valueClass}` : ''}`;
+  return `
+    <div class="${rowClass}">
+      <span class="lobby__stepper-label">${label}</span>
+      <button class="btn btn--secondary lobby__stepper-btn"
+        onclick="${onDec}"
+        ${decDisabled || disabled ? 'disabled' : ''}>&minus;</button>
+      <span class="${valClass}">${value}</span>
+      <button class="btn btn--secondary lobby__stepper-btn"
+        onclick="${onInc}"
+        ${incDisabled || disabled ? 'disabled' : ''}>+</button>
+    </div>
+  `;
+}
+
 export function renderAdvancedPanel(state) {
   if (!state.showAdvancedSettings) return '';
   const { rounds, handSize, enableLive, enableBye, enableEulogy, forceWildcards, wildcardCount, eulogistCount, handRedraws = 'once_per_phase', timerEnabled, pitchTimerEnabled, playCardTimerEnabled, timerCountUp, pitchDuration, timerVisible, timerAutoAdvance, ultraQuickMode } = state.gameSettings;
@@ -56,94 +110,72 @@ export function renderAdvancedPanel(state) {
   const estimate = timeEstimate(playerCount, rounds);
   const prompt = ROUND_PROMPTS[rounds] ?? ROUND_PROMPTS[10];
 
+  const maxEulogists = Math.max(1, state.players.length - 1);
+  const effectiveEulogistCount = Math.min(eulogistCount, maxEulogists);
+
   const wildcardSubSettings = enableEulogy ? `
     <div class="lobby__advanced-subsection">
-      <div class="lobby__stepper-row">
-        <span class="lobby__stepper-label">Force Wildcards <span class="lobby__stepper-hint">(everyone gets one)</span></span>
-        <button class="btn lobby__stepper-btn ${forceWildcards ? 'btn--primary' : 'btn--secondary'}"
-          onclick="window.game.toggleSetting('forceWildcards')">
-          ${forceWildcards ? 'On' : 'Off'}
-        </button>
-      </div>
-      <div class="lobby__stepper-row ${forceWildcards ? 'lobby__stepper-row--disabled' : ''}">
-        <span class="lobby__stepper-label">Wildcards in Deck</span>
-        <button class="btn btn--secondary lobby__stepper-btn"
-          onclick="window.game.updateSetting('wildcardCount', ${wildcardCount - 1})"
-          ${wildcardCount <= 0 || forceWildcards ? 'disabled' : ''}>&minus;</button>
-        <span class="lobby__stepper-value">${wildcardCount}</span>
-        <button class="btn btn--secondary lobby__stepper-btn"
-          onclick="window.game.updateSetting('wildcardCount', ${wildcardCount + 1})"
-          ${wildcardCount >= 10 || forceWildcards ? 'disabled' : ''}>+</button>
-      </div>
-      <div class="lobby__stepper-row">
-        <span class="lobby__stepper-label">Eulogists per Round</span>
-        ${(() => {
-          const maxEulogists = Math.max(1, state.players.length - 1);
-          const effectiveEulogistCount = Math.min(eulogistCount, maxEulogists);
-          return `
-            <button class="btn btn--secondary lobby__stepper-btn"
-              onclick="window.game.updateSetting('eulogistCount', ${effectiveEulogistCount - 1})"
-              ${effectiveEulogistCount <= 1 ? 'disabled' : ''}>&minus;</button>
-            <span class="lobby__stepper-value">${effectiveEulogistCount}</span>
-            <button class="btn btn--secondary lobby__stepper-btn"
-              onclick="window.game.updateSetting('eulogistCount', ${effectiveEulogistCount + 1})"
-              ${effectiveEulogistCount >= maxEulogists ? 'disabled' : ''}>+</button>
-          `;
-        })()}
-      </div>
+      ${renderToggle(
+        'Force Wildcards <span class="lobby__stepper-hint">(everyone gets one)</span>',
+        forceWildcards,
+        "window.game.toggleSetting('forceWildcards')",
+      )}
+      ${renderStepper(
+        'Wildcards in Deck', wildcardCount,
+        `window.game.updateSetting('wildcardCount', ${wildcardCount - 1})`,
+        `window.game.updateSetting('wildcardCount', ${wildcardCount + 1})`,
+        wildcardCount <= 0, wildcardCount >= 10,
+        { disabled: forceWildcards },
+      )}
+      ${renderStepper(
+        'Eulogists per Round', effectiveEulogistCount,
+        `window.game.updateSetting('eulogistCount', ${effectiveEulogistCount - 1})`,
+        `window.game.updateSetting('eulogistCount', ${effectiveEulogistCount + 1})`,
+        effectiveEulogistCount <= 1, effectiveEulogistCount >= maxEulogists,
+      )}
+    </div>
+  ` : '';
+
+  const timerSubSettings = timerEnabled ? `
+    <div class="lobby__advanced-subsection">
+      ${renderToggle('Pitch Timer', pitchTimerEnabled, "window.game.toggleSetting('pitchTimerEnabled')")}
+      ${renderToggle('Play Card Timer', playCardTimerEnabled, "window.game.toggleSetting('playCardTimerEnabled')")}
+      ${renderToggle('Count Up', timerCountUp, "window.game.toggleSetting('timerCountUp')")}
+      ${renderStepper(
+        'Duration', formatPitchDuration(pitchDuration),
+        "window.game.cyclePitchDuration(-1)",
+        "window.game.cyclePitchDuration(1)",
+        PITCH_DURATIONS.indexOf(pitchDuration) <= 0,
+        PITCH_DURATIONS.indexOf(pitchDuration) >= PITCH_DURATIONS.length - 1,
+        { disabled: timerCountUp, valueClass: 'lobby__stepper-value--wide' },
+      )}
+      ${renderToggle('Show Timer', timerVisible, "window.game.toggleSetting('timerVisible')", { disabled: timerCountUp, overrideDisplay: timerCountUp || timerVisible })}
+      ${renderToggle('Auto-advance', timerAutoAdvance, "window.game.toggleSetting('timerAutoAdvance')", { disabled: timerCountUp, overrideDisplay: !timerCountUp && timerAutoAdvance })}
     </div>
   ` : '';
 
   return `
     <div class="lobby__advanced-panel">
-      <div class="lobby__stepper-row">
-        <span class="lobby__stepper-label">Ultra Quick Mode <span class="lobby__stepper-hint">(half players per phase, good for 8+ players)</span></span>
-        <button class="btn lobby__stepper-btn ${ultraQuickMode ? 'btn--primary' : 'btn--secondary'}"
-          onclick="window.game.toggleUltraQuickMode()">
-          ${ultraQuickMode ? 'On' : 'Off'}
-        </button>
-      </div>
+      ${renderToggle(
+        'Ultra Quick Mode <span class="lobby__stepper-hint">(half players per phase, good for 8+ players)</span>',
+        ultraQuickMode,
+        "window.game.toggleUltraQuickMode()",
+      )}
       <div class="lobby__advanced-divider"></div>
-      <div class="lobby__stepper-row ${ultraQuickMode ? 'lobby__stepper-row--disabled' : ''}">
-        <span class="lobby__stepper-label">Rounds</span>
-        <button class="btn btn--secondary lobby__stepper-btn"
-          onclick="window.game.updateSetting('rounds', ${rounds - 1})"
-          ${rounds <= 1 || ultraQuickMode ? 'disabled' : ''}>&minus;</button>
-        <span class="lobby__stepper-value">${rounds}</span>
-        <button class="btn btn--secondary lobby__stepper-btn"
-          onclick="window.game.updateSetting('rounds', ${rounds + 1})"
-          ${rounds >= 10 || ultraQuickMode ? 'disabled' : ''}>+</button>
-      </div>
+      ${renderStepper(
+        'Rounds', rounds,
+        `window.game.updateSetting('rounds', ${rounds - 1})`,
+        `window.game.updateSetting('rounds', ${rounds + 1})`,
+        rounds <= 1, rounds >= 10,
+        { disabled: ultraQuickMode },
+      )}
       <p class="lobby__setting-meta">${estimate} &mdash; ${prompt}</p>
       <div class="lobby__advanced-divider"></div>
       <p class="lobby__advanced-section-label">Phases</p>
-      <div class="lobby__stepper-row lobby__stepper-row--disabled">
-        <span class="lobby__stepper-label">DIE</span>
-        <button class="btn lobby__stepper-btn btn--primary" disabled>On</button>
-      </div>
-      <div class="lobby__stepper-row ${ultraQuickMode ? 'lobby__stepper-row--disabled' : ''}">
-        <span class="lobby__stepper-label">LIVE</span>
-        <button class="btn lobby__stepper-btn ${enableLive ? 'btn--primary' : 'btn--secondary'}"
-          onclick="window.game.toggleSetting('enableLive')"
-          ${ultraQuickMode ? 'disabled' : ''}>
-          ${enableLive ? 'On' : 'Off'}
-        </button>
-      </div>
-      <div class="lobby__stepper-row ${ultraQuickMode ? 'lobby__stepper-row--disabled' : ''}">
-        <span class="lobby__stepper-label">BYE</span>
-        <button class="btn lobby__stepper-btn ${enableBye ? 'btn--primary' : 'btn--secondary'}"
-          onclick="window.game.toggleSetting('enableBye')"
-          ${ultraQuickMode ? 'disabled' : ''}>
-          ${enableBye ? 'On' : 'Off'}
-        </button>
-      </div>
-      <div class="lobby__stepper-row">
-        <span class="lobby__stepper-label">EULOGY</span>
-        <button class="btn lobby__stepper-btn ${enableEulogy ? 'btn--primary' : 'btn--secondary'}"
-          onclick="window.game.toggleSetting('enableEulogy')">
-          ${enableEulogy ? 'On' : 'Off'}
-        </button>
-      </div>
+      ${renderToggle('DIE', true, '', { disabled: true })}
+      ${renderToggle('LIVE', enableLive, "window.game.toggleSetting('enableLive')", { disabled: ultraQuickMode })}
+      ${renderToggle('BYE', enableBye, "window.game.toggleSetting('enableBye')", { disabled: ultraQuickMode })}
+      ${renderToggle('EULOGY', enableEulogy, "window.game.toggleSetting('enableEulogy')")}
       ${wildcardSubSettings}
       <div class="lobby__advanced-divider"></div>
       <div class="lobby__select-row">
@@ -157,75 +189,15 @@ export function renderAdvancedPanel(state) {
           `).join('')}
         </div>
       </div>
-      <div class="lobby__stepper-row">
-        <span class="lobby__stepper-label">Cards in Hand</span>
-        <button class="btn btn--secondary lobby__stepper-btn"
-          onclick="window.game.updateSetting('handSize', ${handSize - 1})"
-          ${handSize <= 1 ? 'disabled' : ''}>&minus;</button>
-        <span class="lobby__stepper-value">${handSize}</span>
-        <button class="btn btn--secondary lobby__stepper-btn"
-          onclick="window.game.updateSetting('handSize', ${handSize + 1})"
-          ${handSize >= maxHandSize ? 'disabled' : ''}>+</button>
-      </div>
+      ${renderStepper(
+        'Cards in Hand', handSize,
+        `window.game.updateSetting('handSize', ${handSize - 1})`,
+        `window.game.updateSetting('handSize', ${handSize + 1})`,
+        handSize <= 1, handSize >= maxHandSize,
+      )}
       <p class="lobby__setting-meta">Max ${maxHandSize} cards with ${playerCount} players</p>
-      <div class="lobby__stepper-row">
-        <span class="lobby__stepper-label">Timer</span>
-        <button class="btn lobby__stepper-btn ${timerEnabled ? 'btn--primary' : 'btn--secondary'}"
-          onclick="window.game.toggleSetting('timerEnabled')">
-          ${timerEnabled ? 'On' : 'Off'}
-        </button>
-      </div>
-      ${timerEnabled ? `
-      <div class="lobby__advanced-subsection">
-        <div class="lobby__stepper-row">
-          <span class="lobby__stepper-label">Pitch Timer</span>
-          <button class="btn lobby__stepper-btn ${pitchTimerEnabled ? 'btn--primary' : 'btn--secondary'}"
-            onclick="window.game.toggleSetting('pitchTimerEnabled')">
-            ${pitchTimerEnabled ? 'On' : 'Off'}
-          </button>
-        </div>
-        <div class="lobby__stepper-row">
-          <span class="lobby__stepper-label">Play Card Timer</span>
-          <button class="btn lobby__stepper-btn ${playCardTimerEnabled ? 'btn--primary' : 'btn--secondary'}"
-            onclick="window.game.toggleSetting('playCardTimerEnabled')">
-            ${playCardTimerEnabled ? 'On' : 'Off'}
-          </button>
-        </div>
-        <div class="lobby__stepper-row">
-          <span class="lobby__stepper-label">Count Up</span>
-          <button class="btn lobby__stepper-btn ${timerCountUp ? 'btn--primary' : 'btn--secondary'}"
-            onclick="window.game.toggleSetting('timerCountUp')">
-            ${timerCountUp ? 'On' : 'Off'}
-          </button>
-        </div>
-        <div class="lobby__stepper-row${timerCountUp ? ' lobby__stepper-row--disabled' : ''}">
-          <span class="lobby__stepper-label">Duration</span>
-          <button class="btn btn--secondary lobby__stepper-btn"
-            onclick="window.game.cyclePitchDuration(-1)"
-            ${timerCountUp || PITCH_DURATIONS.indexOf(pitchDuration) <= 0 ? 'disabled' : ''}>&minus;</button>
-          <span class="lobby__stepper-value lobby__stepper-value--wide">${formatPitchDuration(pitchDuration)}</span>
-          <button class="btn btn--secondary lobby__stepper-btn"
-            onclick="window.game.cyclePitchDuration(1)"
-            ${timerCountUp || PITCH_DURATIONS.indexOf(pitchDuration) >= PITCH_DURATIONS.length - 1 ? 'disabled' : ''}>+</button>
-        </div>
-        <div class="lobby__stepper-row${timerCountUp ? ' lobby__stepper-row--disabled' : ''}">
-          <span class="lobby__stepper-label">Show Timer</span>
-          <button class="btn lobby__stepper-btn ${timerCountUp ? 'btn--primary' : timerVisible ? 'btn--primary' : 'btn--secondary'}"
-            onclick="window.game.toggleSetting('timerVisible')"
-            ${timerCountUp ? 'disabled' : ''}>
-            ${timerCountUp ? 'On' : timerVisible ? 'On' : 'Off'}
-          </button>
-        </div>
-        <div class="lobby__stepper-row${timerCountUp ? ' lobby__stepper-row--disabled' : ''}">
-          <span class="lobby__stepper-label">Auto-advance</span>
-          <button class="btn lobby__stepper-btn ${!timerCountUp && timerAutoAdvance ? 'btn--primary' : 'btn--secondary'}"
-            onclick="window.game.toggleSetting('timerAutoAdvance')"
-            ${timerCountUp ? 'disabled' : ''}>
-            ${timerCountUp ? 'Off' : timerAutoAdvance ? 'On' : 'Off'}
-          </button>
-        </div>
-      </div>
-      ` : ''}
+      ${renderToggle('Timer', timerEnabled, "window.game.toggleSetting('timerEnabled')")}
+      ${timerSubSettings}
       <div class="lobby__advanced-divider"></div>
       <button class="btn btn--secondary lobby__reset-btn" onclick="window.game.resetSettings()">
         Default Settings

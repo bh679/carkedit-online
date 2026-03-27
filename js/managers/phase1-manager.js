@@ -3,6 +3,7 @@
 
 import { getState } from '../state.js';
 import { loadDeck } from '../data/cardTypes.js';
+import { shuffle } from '../utils/shuffle.js';
 
 /**
  * @param {{ onStateChange: (updates: object) => void, onPhaseComplete: () => void }} callbacks
@@ -65,13 +66,4 @@ export function createPhase1Manager({ onStateChange, onPhaseComplete }) {
   }
 
   return { start, nextTurn, revealCard };
-}
-
-function shuffle(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
 }

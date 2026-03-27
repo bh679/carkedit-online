@@ -8,6 +8,7 @@ import { render as renderLobby, renderAdvancedPanel } from './screens/lobby.js';
 import { render as renderPhase1 } from './screens/phase1.js';
 import { render as renderPhase23 } from './screens/phase2-3.js';
 import { render as renderPhase4 } from './screens/phase4.js';
+import { shuffle } from './utils/shuffle.js';
 import {
   startPhase1, doneDying, revealCard,
   startPhase2, startPhase3,
@@ -87,15 +88,6 @@ function refreshAdvancedPanel() {
 }
 
 let _preloadPromise = null;
-
-function shuffle(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
 
 function startPreload() {
   if (_preloadPromise) return; // already in progress

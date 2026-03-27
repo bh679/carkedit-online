@@ -8,6 +8,7 @@ import { render as renderHand, renderInspectOverlay } from '../components/hand.j
 import { render as renderCard } from '../components/card.js';
 import { render as renderCardGrid } from '../components/card-grid.js';
 import { render as renderLivingDeadProfile } from '../components/living-dead-profile.js';
+import { render as renderPassPhone } from '../components/pass-phone.js';
 
 const PHASE_CONFIG = {
   live: { number: '2', label: 'Phase 2 - LIVE', deckType: 'live', nextScreen: 'phase3' },
@@ -125,15 +126,7 @@ function renderPassPhoneScreen(config, state, playerListOptions, nonDeadIndices)
     <div class="screen screen--phase" data-phase="${config.number}">
       ${renderPhaseHeader({ phase: config.number, label: config.label })}
       ${renderPlayerList(state.players, playerListOptions)}
-      <div class="pass-phone">
-        <div class="pass-phone__message">
-          <h2 class="pass-phone__title">Pass the phone to</h2>
-          <p class="pass-phone__name">${playerName}</p>
-        </div>
-        <button class="btn btn--primary" onclick="window.game.readyToSelect()">
-          I'm ${playerName}
-        </button>
-      </div>
+      ${renderPassPhone({ playerName, onReady: 'window.game.readyToSelect()' })}
     </div>
   `;
 }

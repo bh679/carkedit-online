@@ -6,6 +6,7 @@ import { render as renderPlayerList } from '../components/player-list.js';
 import { render as renderGameboard, renderActiveCard } from '../components/gameboard.js';
 import { render as renderCard } from '../components/card.js';
 import { render as renderCardBack } from '../components/cardBack.js';
+import { render as renderPassPhone } from '../components/pass-phone.js';
 
 const PHASE_LABEL = 'Phase 4 - EULOGY';
 
@@ -175,16 +176,11 @@ function renderPassPhoneEulogist(state) {
         funeralDirector: state.funeralDirector,
         livingDeadName: wildcardPlayerName,
       })}
-      <div class="pass-phone">
-        <div class="pass-phone__message">
-          <h2 class="pass-phone__title">Pass the phone to</h2>
-          <p class="pass-phone__name">${eulogistName}</p>
-          <p class="pass-phone__subtitle">Time to give ${wildcardPlayerName}'s eulogy!</p>
-        </div>
-        <button class="btn btn--primary" onclick="window.game.startEulogy()">
-          I'm ${eulogistName}
-        </button>
-      </div>
+      ${renderPassPhone({
+        playerName: eulogistName,
+        onReady: 'window.game.startEulogy()',
+        subtitle: `Time to give ${wildcardPlayerName}'s eulogy!`,
+      })}
     </div>
   `;
 }
