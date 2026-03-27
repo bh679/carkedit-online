@@ -227,6 +227,8 @@ const DEFAULT_GAME_SETTINGS = {
   wildcardCount: 2,
   handRedraws: 'once_per_phase',
   timerEnabled: false,
+  pitchTimerEnabled: true,
+  playCardTimerEnabled: true,
   timerCountUp: false,
   pitchDuration: 120,
   timerVisible: true,

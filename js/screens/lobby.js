@@ -50,7 +50,7 @@ function formatPitchDuration(seconds) {
 
 export function renderAdvancedPanel(state) {
   if (!state.showAdvancedSettings) return '';
-  const { rounds, handSize, enableLive, enableBye, enableEulogy, forceWildcards, wildcardCount, handRedraws = 'once_per_phase', timerEnabled, timerCountUp, pitchDuration, timerVisible, timerAutoAdvance } = state.gameSettings;
+  const { rounds, handSize, enableLive, enableBye, enableEulogy, forceWildcards, wildcardCount, handRedraws = 'once_per_phase', timerEnabled, pitchTimerEnabled, playCardTimerEnabled, timerCountUp, pitchDuration, timerVisible, timerAutoAdvance } = state.gameSettings;
   const playerCount = Math.max(state.players.length, 2);
   const maxHandSize = Math.max(1, Math.floor(68 / playerCount));
   const estimate = timeEstimate(playerCount, rounds);
@@ -143,7 +143,7 @@ export function renderAdvancedPanel(state) {
       </div>
       <p class="lobby__setting-meta">Max ${maxHandSize} cards with ${playerCount} players</p>
       <div class="lobby__stepper-row">
-        <span class="lobby__stepper-label">Pitch Timer</span>
+        <span class="lobby__stepper-label">Timer</span>
         <button class="btn lobby__stepper-btn ${timerEnabled ? 'btn--primary' : 'btn--secondary'}"
           onclick="window.game.toggleSetting('timerEnabled')">
           ${timerEnabled ? 'On' : 'Off'}
@@ -151,6 +151,20 @@ export function renderAdvancedPanel(state) {
       </div>
       ${timerEnabled ? `
       <div class="lobby__advanced-subsection">
+        <div class="lobby__stepper-row">
+          <span class="lobby__stepper-label">Pitch Timer</span>
+          <button class="btn lobby__stepper-btn ${pitchTimerEnabled ? 'btn--primary' : 'btn--secondary'}"
+            onclick="window.game.toggleSetting('pitchTimerEnabled')">
+            ${pitchTimerEnabled ? 'On' : 'Off'}
+          </button>
+        </div>
+        <div class="lobby__stepper-row">
+          <span class="lobby__stepper-label">Play Card Timer</span>
+          <button class="btn lobby__stepper-btn ${playCardTimerEnabled ? 'btn--primary' : 'btn--secondary'}"
+            onclick="window.game.toggleSetting('playCardTimerEnabled')">
+            ${playCardTimerEnabled ? 'On' : 'Off'}
+          </button>
+        </div>
         <div class="lobby__stepper-row">
           <span class="lobby__stepper-label">Count Up</span>
           <button class="btn lobby__stepper-btn ${timerCountUp ? 'btn--primary' : 'btn--secondary'}"
