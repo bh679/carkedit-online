@@ -1,0 +1,536 @@
+/* CarkedIt Online — Phase Screens (shared: phase 1, 2/3, 4) */
+
+.screen--phase {
+  background: color-mix(in srgb, var(--color-white) 1%, transparent);
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+}
+
+/* ── Prompt card (shown in gameboard) ───────────────────── */
+
+.prompt-card {
+  position: relative;
+  background: var(--color-prompt-bg);
+  border: 2px solid var(--color-prompt-border);
+  border-radius: 14px;
+  box-shadow: 0 10px 15px var(--color-shadow-sm), 0 4px 6px var(--color-shadow-sm);
+  width: 100%;
+  padding: 32px;
+  min-height: 280px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.prompt-card--empty {
+  background: var(--color-prompt-empty-bg);
+  border-color: var(--color-prompt-empty-border);
+  align-items: center;
+  justify-content: center;
+}
+
+.prompt-card__text {
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--color-white);
+  line-height: 1.375;
+  letter-spacing: -0.44px;
+}
+
+.prompt-card__watermark {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-prompt-watermark);
+  letter-spacing: -0.15px;
+  text-align: center;
+}
+
+/* ── Phase 4 winner reveal ──────────────────────────────── */
+
+.phase4__winner {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-sm);
+  text-align: center;
+}
+
+.phase4__winner-crown {
+  font-size: 48px;
+  margin: 0;
+}
+
+.phase4__winner-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--color-primary);
+  margin: 0;
+}
+
+.phase4__winner-name {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--color-white);
+  margin: 0;
+}
+
+/* ── Phase 4 wildcard intro ────────────────────────────── */
+
+.phase4__wildcard-holders {
+  text-align: center;
+  padding: var(--space-sm) 0;
+}
+
+.phase4__wildcard-holders-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-white);
+  margin: 0 0 var(--space-xs);
+}
+
+.phase4__wildcard-holders-subtitle {
+  font-size: 14px;
+  color: var(--color-text-muted);
+  margin: 0 0 var(--space-sm);
+}
+
+.phase4__wildcard-names {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-xs);
+}
+
+.phase4__wildcard-name {
+  background: var(--color-bye);
+  color: var(--color-white);
+  font-weight: 700;
+  font-size: 14px;
+  padding: 6px 14px;
+  border-radius: 20px;
+}
+
+.phase4__no-wildcards {
+  text-align: center;
+  padding: var(--space-lg) 0;
+  color: var(--color-text-muted);
+}
+
+/* ── Phase 4 pick eulogists ────────────────────────────── */
+
+.phase4__pick-eulogists {
+  text-align: center;
+  padding: var(--space-sm) 0;
+}
+
+.phase4__pick-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-white);
+  margin: 0 0 var(--space-md);
+}
+
+.phase4__eulogist-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-sm);
+}
+
+.phase4__eulogist-chip {
+  background: var(--color-surface);
+  color: var(--color-white);
+  border: 2px solid var(--color-secondary);
+  border-radius: 12px;
+  padding: 12px 20px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.phase4__eulogist-chip:hover {
+  border-color: var(--color-bye);
+}
+
+.phase4__eulogist-chip--selected {
+  background: var(--color-bye);
+  border-color: var(--color-bye);
+  color: var(--color-white);
+}
+
+/* ── Phase 4 eulogy screen ─────────────────────────────── */
+
+.phase4__eulogy {
+  text-align: center;
+  padding: var(--space-sm) 0;
+}
+
+.phase4__eulogy-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--color-white);
+  margin: 0 0 var(--space-xs);
+}
+
+.phase4__eulogy-subtitle {
+  font-size: 14px;
+  color: var(--color-text-muted);
+  margin: 0 0 var(--space-sm);
+}
+
+.phase4__eulogy-prompt {
+  font-size: 16px;
+  font-style: italic;
+  color: var(--color-text-80);
+  margin: 0;
+}
+
+/* ── Phase 4 pass phone subtitle ───────────────────────── */
+
+.pass-phone__subtitle {
+  font-size: 14px;
+  color: var(--color-text-muted);
+  margin-top: var(--space-xs);
+}
+
+/* ── Phase 4 judge screen ──────────────────────────────── */
+
+.phase4__judge {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-lg);
+  padding: var(--space-md) 0;
+}
+
+.phase4__judge-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-white);
+  text-align: center;
+  margin: 0;
+}
+
+.phase4__judge-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  width: 100%;
+  max-width: 280px;
+}
+
+.phase4__judge-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  background: var(--color-surface);
+  border: 2px solid var(--color-secondary);
+  border-radius: 14px;
+  padding: 20px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.phase4__judge-btn:hover {
+  border-color: var(--color-bye);
+  background: var(--color-secondary);
+}
+
+.phase4__judge-btn-name {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--color-white);
+}
+
+.phase4__judge-btn-label {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+/* ── Phase 4 points breakdown ──────────────────────────── */
+
+.phase4__points {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-md);
+  padding: var(--space-md) 0;
+}
+
+.phase4__points-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--color-white);
+  text-align: center;
+  margin: 0;
+}
+
+.phase4__points-breakdown {
+  width: 100%;
+  max-width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.phase4__points-row {
+  display: flex;
+  align-items: center;
+  background: var(--color-surface);
+  border-radius: 10px;
+  padding: 12px 16px;
+  gap: var(--space-sm);
+}
+
+.phase4__points-row--best {
+  background: var(--color-bye);
+}
+
+.phase4__points-name {
+  font-weight: 700;
+  color: var(--color-white);
+  flex: 1;
+}
+
+.phase4__points-label {
+  font-size: 12px;
+  color: var(--color-text-70);
+}
+
+.phase4__points-value {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--color-secondary);
+}
+
+/* ── Scoreboard (Phase 4 winner + Phase 2/3 complete) ── */
+
+.scoreboard__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-align: center;
+  margin: var(--space-sm) 0 var(--space-xs);
+}
+
+.scoreboard__row--winner {
+  background: var(--color-primary-subtle);
+  border-radius: 6px;
+}
+
+/* ── Disabled button ───────────────────────────────────── */
+
+.btn--disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── Phase 1 turn states ──────────────────────────────── */
+
+.phase1__layout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+
+.phase1__turn-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-white);
+  text-align: center;
+  padding-top: var(--space-sm);
+}
+
+.phase1__card-prompt {
+  font-size: 13px;
+  font-style: italic;
+  color: var(--color-text-80);
+  text-align: center;
+  padding-top: var(--space-xs);
+}
+
+.phase1__dealing {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+}
+
+.phase1__complete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+}
+
+/* ── Phase action buttons ───────────────────────────────── */
+
+.phase__actions {
+  display: flex;
+  gap: var(--space-sm);
+  padding-top: var(--space-md);
+}
+
+.phase__actions .btn {
+  flex: 1;
+}
+
+/* ── Pass the phone screen ────────────────────────────── */
+
+.pass-phone {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-lg);
+  padding: var(--space-xl) var(--space-md);
+}
+
+.pass-phone__message {
+  text-align: center;
+}
+
+.pass-phone__title {
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--color-text-70);
+  margin-bottom: var(--space-sm);
+}
+
+.pass-phone__name {
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--color-white);
+}
+
+/* ── Judging screen ──────────────────────────────────── */
+
+.judging {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-md) 0;
+}
+
+.judging__title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-white);
+  text-align: center;
+}
+
+/* ── Winner announcement ─────────────────────────────── */
+
+.winner-announcement {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-lg);
+  padding: var(--space-xl) var(--space-md);
+}
+
+.winner-announcement__card {
+  background: var(--color-hand-card-bg);
+  border-radius: 14px;
+  padding: 32px;
+  text-align: center;
+  box-shadow: 0 10px 15px var(--color-shadow-sm);
+  width: 100%;
+  max-width: 300px;
+}
+
+.winner-announcement__title {
+  font-size: 48px;
+  font-weight: 700;
+  color: var(--color-hand-card-title);
+  margin-bottom: var(--space-sm);
+}
+
+.scoreboard {
+  margin-top: var(--space-sm);
+  width: 100%;
+}
+
+.scoreboard__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--color-hand-card-border);
+}
+
+.scoreboard__row:last-child {
+  border-bottom: none;
+}
+
+.scoreboard__name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-hand-card-title);
+}
+
+.scoreboard__score {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-live);
+}
+
+.winner-announcement__name {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-hand-card-title);
+  margin-bottom: var(--space-xs);
+}
+
+.winner-announcement__points {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-live);
+}
+
+/* ── Prompt card prompt text ─────────────────────────── */
+
+.prompt-card__prompt {
+  font-size: 14px;
+  font-style: italic;
+  color: var(--color-text-70);
+  margin-top: var(--space-sm);
+}
+
+.phase1__card-facedown {
+  cursor: pointer;
+}
+
+.phase__draw {
+  width: 100%;
+  max-width: 200px;
+}
+
+/* ── Phase action buttons ───────────────────────────────── */
+
+.phase-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.phase-actions .btn {
+  width: 100%;
+}

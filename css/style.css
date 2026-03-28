@@ -1,0 +1,21 @@
+/* CarkedIt Online — Main Styles */
+
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: var(--color-bg);
+    color: var(--color-text);
+}
+
+#app {
+    text-align: center;
+}

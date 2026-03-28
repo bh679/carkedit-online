@@ -1,0 +1,43 @@
+#!/bin/bash
+# setup-worktree-assets.sh
+#
+# When running in a git worktree, assets/illustrations and assets/CarkedIt.webp
+# are gitignored and won't be present. This script creates symlinks to the main
+# repo's assets so worktrees can reference images without duplicating them.
+
+# Find the common git directory (main repo's .git)
+GIT_COMMON_DIR=$(git rev-parse --git-common-dir 2>/dev/null) || exit 0
+
+# In the main repo, git-common-dir is the relative ".git" — skip
+if [ "$GIT_COMMON_DIR" = ".git" ]; then
+  exit 0
+fi
+
+# Derive main repo root from the common .git path
+MAIN_REPO_ROOT=$(dirname "$GIT_COMMON_DIR")
+
+# Symlink assets/illustrations
+ILLUSTRATIONS_DIR="./assets/illustrations"
+if [ ! -e "$ILLUSTRATIONS_DIR" ] && [ ! -L "$ILLUSTRATIONS_DIR" ]; then
+  MAIN_ILLUSTRATIONS="$MAIN_REPO_ROOT/assets/illustrations"
+  if [ -d "$MAIN_ILLUSTRATIONS" ]; then
+    ln -s "$MAIN_ILLUSTRATIONS" "$ILLUSTRATIONS_DIR"
+    echo "Linked assets/illustrations → $MAIN_ILLUSTRATIONS"
+  else
+    echo "Warning: Main repo illustrations not found at $MAIN_ILLUSTRATIONS (images may be missing)"
+  fi
+fi
+
+# Symlink asset files from the main repo
+for ASSET_FILE in CarkedIt.webp CarkedIt-skull.webp; do
+  LOCAL="./assets/$ASSET_FILE"
+  if [ ! -e "$LOCAL" ] && [ ! -L "$LOCAL" ]; then
+    MAIN="$MAIN_REPO_ROOT/assets/$ASSET_FILE"
+    if [ -f "$MAIN" ]; then
+      ln -s "$MAIN" "$LOCAL"
+      echo "Linked assets/$ASSET_FILE → $MAIN"
+    else
+      echo "Warning: $MAIN not found (image may be missing)"
+    fi
+  fi
+done

@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CarkedIt Online — Color Palette Demo</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Montserrat', sans-serif;
+      background: #111;
+      color: #F0F0F0;
+      padding: 24px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    h1 { font-size: 28px; margin-bottom: 8px; }
+    h2 { font-size: 20px; margin: 32px 0 16px; color: #9842FF; }
+    h3 { font-size: 16px; margin: 24px 0 12px; color: #FFB700; }
+    p.subtitle { color: #9A9AB0; margin-bottom: 24px; }
+
+    /* ── Swatch Grid ─────────────────────────── */
+    .swatches {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .swatch {
+      border-radius: 12px;
+      overflow: hidden;
+      background: #1C1C2E;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .swatch-color {
+      height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 13px;
+    }
+    .swatch-label {
+      padding: 8px 10px;
+      font-size: 11px;
+    }
+    .swatch-label .name { font-weight: 700; display: block; margin-bottom: 2px; }
+    .swatch-label .hex { color: #9A9AB0; font-family: monospace; font-size: 11px; }
+
+    /* ── Card Backs ──────────────────────────── */
+    .card-backs {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .card-back {
+      aspect-ratio: 5/7;
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .card-back .word {
+      font-weight: 900;
+      font-size: 42px;
+      text-transform: uppercase;
+      color: white;
+      text-shadow: 2px 2px 0 rgba(0,0,0,0.15);
+      line-height: 1;
+      opacity: 0.95;
+    }
+    .card-back .word.faded {
+      opacity: 0.3;
+    }
+
+    /* ── UI Mockups ──────────────────────────── */
+    .mockup {
+      background: #1C1C2E;
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 16px;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .mockup-title {
+      font-size: 13px;
+      color: #9A9AB0;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 16px;
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 12px 32px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 15px;
+      border: none;
+      cursor: pointer;
+      margin: 4px 8px 4px 0;
+      color: white;
+    }
+    .btn-primary { background: #9842FF; }
+    .btn-gold { background: #FFB700; color: #1C1C2E; }
+    .btn-danger { background: #E91934; }
+    .btn-secondary { background: #2D2D50; }
+    .btn-die { background: #DAA520; }
+    .btn-live { background: #4D9E4D; }
+    .btn-bye { background: #6B88B0; }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 600;
+      margin: 4px;
+    }
+    .chip-default {
+      background: #f9fafb;
+      color: #1e2939;
+    }
+    .chip-director {
+      background: #FFF3D4;
+      border: 2px solid #FFB700;
+      color: #1e2939;
+    }
+
+    .input-mock {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 12px 16px;
+      color: #F0F0F0;
+      font-size: 14px;
+      width: 100%;
+      max-width: 300px;
+      margin: 8px 0;
+    }
+
+    /* ── Phase Header Strips ────────────────── */
+    .phase-strip {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 20px;
+      border-radius: 12px;
+      margin-bottom: 8px;
+      color: white;
+      font-weight: 700;
+      font-size: 16px;
+    }
+    .phase-strip .badge {
+      background: rgba(255,255,255,0.2);
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-size: 12px;
+    }
+
+    /* ── Screen Mockup ──────────────────────── */
+    .screen-mock {
+      background: #1C1C2E;
+      border-radius: 20px;
+      padding: 20px;
+      max-width: 320px;
+      margin: 0 auto 16px;
+      border: 2px solid #252540;
+      text-align: center;
+    }
+    .screen-mock h4 {
+      font-size: 24px;
+      margin-bottom: 4px;
+    }
+    .screen-mock .tagline {
+      color: #9A9AB0;
+      font-size: 13px;
+      margin-bottom: 20px;
+    }
+
+    .screens-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    /* ── Comparison ──────────────────────────── */
+    .comparison {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .comparison-panel {
+      border-radius: 12px;
+      padding: 16px;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .comparison-panel.old { background: #16213e; }
+    .comparison-panel.new { background: #252540; }
+    .comparison-panel h4 {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+    }
+    .comparison-panel.old h4 { color: #e94560; }
+    .comparison-panel.new h4 { color: #9842FF; }
+
+    .mini-card-back {
+      width: 60px;
+      height: 84px;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 11px;
+      color: white;
+      margin: 4px;
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      margin: 32px 0;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>CarkedIt Online</h1>
+  <p class="subtitle">Color Palette Proposal — based on carkedit.com + physical card backs</p>
+
+  <!-- ════════════════════════════════════════ -->
+  <h2>1. Brand Colors (from carkedit.com)</h2>
+  <div class="swatches">
+    <div class="swatch">
+      <div class="swatch-color" style="background:#9842FF; color:white;">Aa</div>
+      <div class="swatch-label"><span class="name">Primary Purple</span><span class="hex">#9842FF</span></div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-color" style="background:#FFB700; color:#1C1C2E;">Aa</div>
+      <div class="swatch-label"><span class="name">Gold/Highlight</span><span class="hex">#FFB700</span></div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-color" style="background:#E91934; color:white;">Aa</div>
+      <div class="swatch-label"><span class="name">Alert Red</span><span class="hex">#E91934</span></div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-color" style="background:#1C1C2E; color:#F0F0F0; border: 1px solid rgba(255,255,255,0.1);">Aa</div>
+      <div class="swatch-label"><span class="name">Background</span><span class="hex">#1C1C2E</span></div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-color" style="background:#252540; color:#F0F0F0;">Aa</div>
+      <div class="swatch-label"><span class="name">Surface</span><span class="hex">#252540</span></div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-color" style="background:#2D2D50; color:#F0F0F0;">Aa</div>
+      <div class="swatch-label"><span class="name">Secondary</span><span class="hex">#2D2D50</span></div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════ -->
+  <h2>2. Deck Colors (from physical card backs)</h2>
+  <div class="swatches">
+    <div class="swatch">
+      <div class="swatch-color" style="background:#DAA520; color:white;">DIE</div>
+      <div class="swatch-label"><span class="name">Die — Goldenrod</span><span class="hex">#DAA520</span></div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-color" style="background:#4D9E4D; color:white;">LIVE</div>
+      <div class="swatch-label"><span class="name">Live — Green</span><span class="hex">#4D9E4D</span></div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-color" style="background:#6B88B0; color:white;">BYE</div>
+      <div class="swatch-label"><span class="name">Bye — Steel Blue</span><span class="hex">#6B88B0</span></div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-color" style="background:#F5DEB3; color:#1C1C2E;">Aa</div>
+      <div class="swatch-label"><span class="name">Die Light</span><span class="hex">#F5DEB3</span></div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-color" style="background:#A8D5A8; color:#1C1C2E;">Aa</div>
+      <div class="swatch-label"><span class="name">Live Light</span><span class="hex">#A8D5A8</span></div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-color" style="background:#B0C4DE; color:#1C1C2E;">Aa</div>
+      <div class="swatch-label"><span class="name">Bye Light</span><span class="hex">#B0C4DE</span></div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════ -->
+  <h2>3. Card Backs Preview</h2>
+  <div class="card-backs">
+    <div class="card-back" style="background: #DAA520;">
+      <span class="word faded">LIVE</span>
+      <span class="word">DIE</span>
+      <span class="word faded">BYE!</span>
+    </div>
+    <div class="card-back" style="background: #4D9E4D;">
+      <span class="word">LIVE</span>
+      <span class="word faded">DIE</span>
+      <span class="word faded">BYE!</span>
+    </div>
+    <div class="card-back" style="background: #6B88B0;">
+      <span class="word faded">LIVE</span>
+      <span class="word faded">DIE</span>
+      <span class="word">BYE!</span>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════ -->
+  <h2>4. Old vs New Comparison</h2>
+  <div class="comparison">
+    <div class="comparison-panel old">
+      <h4>Current Colors</h4>
+      <div class="mini-card-back" style="background:#f5c518;">DIE</div>
+      <div class="mini-card-back" style="background:#4caf50;">LIVE</div>
+      <div class="mini-card-back" style="background:#2196f3;">BYE</div>
+      <div style="margin-top:12px;">
+        <button class="btn" style="background:#e94560; padding:8px 20px; font-size:13px;">Start Game</button>
+      </div>
+    </div>
+    <div class="comparison-panel new">
+      <h4>Proposed Colors</h4>
+      <div class="mini-card-back" style="background:#DAA520;">DIE</div>
+      <div class="mini-card-back" style="background:#4D9E4D;">LIVE</div>
+      <div class="mini-card-back" style="background:#6B88B0;">BYE</div>
+      <div style="margin-top:12px;">
+        <button class="btn" style="background:#9842FF; padding:8px 20px; font-size:13px;">Start Game</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════ -->
+  <h2>5. UI Components</h2>
+
+  <h3>Buttons</h3>
+  <div class="mockup">
+    <div class="mockup-title">Primary Actions</div>
+    <button class="btn btn-primary">Start Game</button>
+    <button class="btn btn-gold">Add Player</button>
+    <button class="btn btn-secondary">Settings</button>
+    <button class="btn btn-danger">Leave Game</button>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-title">Deck-Themed Buttons</div>
+    <button class="btn btn-die">Draw Die Card</button>
+    <button class="btn btn-live">Choose Live Card</button>
+    <button class="btn btn-bye">Choose Bye Card</button>
+  </div>
+
+  <h3>Player Chips</h3>
+  <div class="mockup" style="background: #ffffff; color: #1e2939;">
+    <div class="mockup-title" style="color: #364153;">Player List</div>
+    <div class="chip chip-director">Brennan (Director)</div>
+    <div class="chip chip-default">Alex</div>
+    <div class="chip chip-default">Jordan</div>
+    <div class="chip chip-default">Sam</div>
+  </div>
+
+  <h3>Input Fields</h3>
+  <div class="mockup">
+    <div class="mockup-title">Form Elements</div>
+    <div class="input-mock">Enter player name...</div>
+  </div>
+
+  <!-- ════════════════════════════════════════ -->
+  <h2>6. Phase Headers</h2>
+  <div class="mockup">
+    <div class="phase-strip" style="background:#DAA520;">
+      <span>Phase 1 — Die</span>
+      <span class="badge">Round 3/8</span>
+    </div>
+    <div class="phase-strip" style="background:#4D9E4D;">
+      <span>Phase 2 — Live</span>
+      <span class="badge">Pick 2</span>
+    </div>
+    <div class="phase-strip" style="background:#6B88B0;">
+      <span>Phase 3 — Bye</span>
+      <span class="badge">Pick 2</span>
+    </div>
+    <div class="phase-strip" style="background:#9842FF;">
+      <span>Phase 4 — Eulogy</span>
+      <span class="badge">Wildcard</span>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════ -->
+  <h2>7. Screen Mockups</h2>
+  <div class="screens-row">
+    <div class="screen-mock">
+      <h4 style="color:#FFB700;">CARKED IT!</h4>
+      <p class="tagline">The card game about death, life, and everything after</p>
+      <button class="btn btn-primary" style="width:100%; margin-bottom:8px;">Start New Game</button>
+      <button class="btn btn-secondary" style="width:100%;">How to Play</button>
+    </div>
+
+    <div class="screen-mock">
+      <div style="font-size:12px; text-transform:uppercase; letter-spacing:1px; color:#9A9AB0; margin-bottom:12px;">Lobby</div>
+      <div style="background:#ffffff; border-radius:12px; padding:12px; margin-bottom:16px; text-align:left;">
+        <div class="chip chip-director" style="font-size:11px;">Brennan (Director)</div>
+        <div class="chip chip-default" style="font-size:11px;">Alex</div>
+        <div class="chip chip-default" style="font-size:11px;">Jordan</div>
+      </div>
+      <div class="input-mock" style="max-width:100%;">Enter player name...</div>
+      <button class="btn btn-gold" style="width:100%; margin-top:8px;">Add Player</button>
+      <button class="btn btn-primary" style="width:100%; margin-top:8px;">Begin Game</button>
+    </div>
+
+    <div class="screen-mock" style="border-color:#DAA520;">
+      <div class="phase-strip" style="background:#DAA520; margin:-20px -20px 16px; border-radius:18px 18px 0 0; padding:16px;">
+        <span>Phase 1 — Die</span>
+      </div>
+      <div class="card-back" style="background:#DAA520; height:180px; border-radius:12px; margin-bottom:12px;">
+        <span class="word" style="font-size:28px;">DIE</span>
+      </div>
+      <p style="color:#9A9AB0; font-size:12px;">Tap to reveal your death...</p>
+    </div>
+  </div>
+
+  <hr>
+  <p style="color:#9A9AB0; font-size:12px; text-align:center;">
+    CarkedIt Online — Color Palette Demo v1.0
+  </p>
+
+</body>
+</html>

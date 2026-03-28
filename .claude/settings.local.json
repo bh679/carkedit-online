@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git init:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(gh repo:*)",
+      "Bash(gh project:*)",
+      "Bash(gh api graphql -f query=':*)",
+      "Bash(gh api:*)",
+      "Bash(python3 -m json.tool)",
+      "Bash(git clone:*)",
+      "mcp__Claude_Preview__preview_start",
+      "mcp__plugin_playwright_playwright__browser_navigate",
+      "mcp__plugin_playwright_playwright__browser_click",
+      "mcp__plugin_playwright_playwright__browser_take_screenshot"
+    ]
+  }
+}

@@ -1,0 +1,56 @@
+/* CarkedIt Online — Card Back Component */
+
+.card-back {
+  aspect-ratio: var(--card-aspect);
+  width: 100%;
+  border-radius: var(--radius-md);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Absolutely-positioned fallback — does not affect card sizing */
+.card-back__fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-back__image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  z-index: 1;
+}
+
+/* Deck background colours */
+.card-back--die  { background: var(--color-die); }
+.card-back--live { background: var(--color-live); }
+.card-back--bye  { background: var(--color-bye); }
+
+/* Word styling */
+.card-back__word {
+  font-weight: 900;
+  font-size: clamp(2rem, 12vw, 3.5rem);
+  text-transform: uppercase;
+  color: var(--color-white);
+  line-height: 1.05;
+  text-shadow: 2px 2px 0 var(--color-shadow-text-light);
+}
+
+.card-back__word--faded {
+  opacity: 0.3;
+}
+
+/* Scale card back on card test page */
+.card-test__card .card-back {
+  width: auto;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+}

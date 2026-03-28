@@ -1,0 +1,134 @@
+/* CarkedIt Online — Player List Component */
+
+.player-list-container {
+  background: var(--color-player-list-bg);
+  border-radius: 10px;
+  padding: 8px;
+  box-shadow: 0 4px 6px var(--color-shadow-sm), 0 2px 4px var(--color-shadow-sm);
+}
+
+.player-list-container__label {
+  display: none;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-player-list-label);
+  margin-bottom: 8px;
+}
+
+.player-list-container--scrollable .player-list-container__label {
+  display: block;
+}
+
+.player-list {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.player-list::-webkit-scrollbar {
+  display: none;
+}
+
+.player-list--empty {
+  color: var(--color-player-list-empty);
+  font-size: 12px;
+}
+
+.player-list__chip {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 10px;
+  background: var(--color-chip-bg);
+  border: 1px solid transparent;
+  flex-shrink: 0;
+}
+
+.player-list__chip--director {
+  background: var(--color-chip-director-bg);
+  border-color: var(--color-chip-director-border);
+}
+
+.player-list__chip--active {
+  background: var(--color-chip-active-bg);
+  border-color: var(--color-chip-active-border);
+  box-shadow: 0 0 0 2px var(--color-chip-active-border);
+}
+
+.player-list__icon {
+  width: 10px;
+  height: 10px;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.player-list__name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-player-name);
+  white-space: nowrap;
+}
+
+.player-list__score {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-score);
+}
+
+.player-list__birthday {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-player-name);
+  white-space: nowrap;
+}
+
+
+.player-list__chip--living-dead {
+  background: var(--color-chip-dead-bg);
+  border-color: var(--color-chip-dead-bg);
+}
+
+.player-list__chip--living-dead .player-list__name,
+.player-list__chip--living-dead .player-list__score,
+.player-list__chip--living-dead .player-list__birthday {
+  color: var(--color-chip-dead-text);
+}
+
+.player-list__chip--living-dead .player-list__icon svg {
+  color: var(--color-chip-dead-text);
+}
+
+.player-list__chip--submitted {
+  background: var(--color-chip-submitted-bg);
+}
+
+.player-list__chip--pitching {
+  background: var(--color-chip-submitted-bg);
+  border-color: var(--color-live);
+  box-shadow: 0 0 0 2px var(--color-live);
+}
+
+.player-list__remove-btn {
+  background: var(--color-danger);
+  color: var(--color-white);
+  border: none;
+  border-radius: 6px;
+  width: 16px;
+  height: 16px;
+  font-size: 10px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+}

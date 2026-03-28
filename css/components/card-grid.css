@@ -1,0 +1,43 @@
+/* CarkedIt Online — Card Grid Component */
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  width: 100%;
+}
+
+.card-grid--cols-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.card-grid__item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-radius: 14px;
+}
+
+.card-grid__item--interactive {
+  cursor: pointer;
+}
+
+.card-grid__item--interactive:hover .card {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary);
+}
+
+.card-grid__item .card {
+  border-radius: 14px;
+  width: 100%;
+}
+
+.card-grid__label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-text);
+  text-transform: uppercase;
+  text-align: center;
+  padding: 2px 0;
+}

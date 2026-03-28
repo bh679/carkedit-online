@@ -1,0 +1,309 @@
+[
+  {
+    "id": 1,
+    "title": "Died by Eating Five-Week Old Leftovers",
+    "illustrationKey": "died-eating-old-leftovers"
+  },
+  {
+    "id": 2,
+    "title": "Died by Drowning While Snorkelling",
+    "illustrationKey": "died-drowning-snorkelling"
+  },
+  {
+    "id": 3,
+    "title": "Died by Confusing Left & Right",
+    "illustrationKey": "died-confusing-left-right"
+  },
+  {
+    "id": 4,
+    "title": "Died of Old Age Surrounded by Family",
+    "illustrationKey": "died-old-age-family"
+  },
+  {
+    "id": 5,
+    "title": "Died Falling off a Cliff",
+    "illustrationKey": "died-falling-cliff"
+  },
+  {
+    "id": 6,
+    "title": "Died While Cooking the World's Hottest Chilli Sauce",
+    "illustrationKey": "died-cooking-chilli-sauce"
+  },
+  {
+    "id": 7,
+    "title": "Died in a Car Accident",
+    "illustrationKey": "died-car-accident"
+  },
+  {
+    "id": 8,
+    "title": "Died in a Plane Crash",
+    "illustrationKey": "died-plane-crash"
+  },
+  {
+    "id": 9,
+    "title": "Died from Long Battle with Awful Illness",
+    "illustrationKey": "died-long-illness"
+  },
+  {
+    "id": 10,
+    "title": "Died Because of Global Warming",
+    "illustrationKey": "died-global-warming"
+  },
+  {
+    "id": 11,
+    "title": "Died from Drug & Alcohol Abuse",
+    "illustrationKey": "died-drug-alcohol-abuse"
+  },
+  {
+    "id": 12,
+    "title": "Died from Accidental Shooting",
+    "illustrationKey": "died-accidental-shooting"
+  },
+  {
+    "id": 13,
+    "title": "Died Alone in a Care Home",
+    "illustrationKey": "died-alone-care-home"
+  },
+  {
+    "id": 14,
+    "title": "Murdered by Player to Your Right",
+    "illustrationKey": "murdered-by-player-right"
+  },
+  {
+    "id": 15,
+    "title": "Died from Strangulation by Octopus",
+    "illustrationKey": "died-strangulation-octopus"
+  },
+  {
+    "id": 16,
+    "title": "Died from Peanut Allergy on Vacation",
+    "illustrationKey": "died-peanut-allergy-vacation"
+  },
+  {
+    "id": 17,
+    "title": "Died from Pneumonia",
+    "illustrationKey": "died-pneumonia"
+  },
+  {
+    "id": 18,
+    "title": "Died Being Stabbed by a Psycho in the Shower",
+    "illustrationKey": "died-stabbed-psycho-shower"
+  },
+  {
+    "id": 19,
+    "title": "Died by Forgetting the Safe Word",
+    "illustrationKey": "died-forgot-safe-word"
+  },
+  {
+    "id": 20,
+    "title": "Died Under Falling Anvil Roadrunner-Style",
+    "illustrationKey": "died-falling-anvil"
+  },
+  {
+    "id": 21,
+    "title": "Died Sleeping Peacefully in Your Own Bed",
+    "illustrationKey": "died-sleeping-own-bed"
+  },
+  {
+    "id": 22,
+    "title": "Died Taking Part in a Snake Handling Ceremony",
+    "illustrationKey": "died-snake-handling-ceremony"
+  },
+  {
+    "id": 23,
+    "title": "Died by Crocodile Attack in a Remote River",
+    "illustrationKey": "died-crocodile-attack"
+  },
+  {
+    "id": 24,
+    "title": "Died from Septicaemia After Leaving a Cat Bite Untreated",
+    "illustrationKey": "died-cat-bite-septicaemia"
+  },
+  {
+    "id": 25,
+    "title": "Died While Operating Heavy Machinery",
+    "illustrationKey": "died-heavy-machinery"
+  },
+  {
+    "id": 26,
+    "title": "Died by Being Ripped in Half by a Giant Crab",
+    "illustrationKey": "died-giant-crab"
+  },
+  {
+    "id": 27,
+    "title": "Died by Being Stepped On",
+    "illustrationKey": "died-stepped-on"
+  },
+  {
+    "id": 28,
+    "title": "Died Peacefully in a Field of Sunflowers",
+    "illustrationKey": "died-field-sunflowers"
+  },
+  {
+    "id": 29,
+    "title": "Died Being Ripped Apart by Dalmatians",
+    "illustrationKey": "died-ripped-by-dalmatians"
+  },
+  {
+    "id": 30,
+    "title": "Pick the Best Way to Die",
+    "illustrationKey": "q-pick-best-way-to-die",
+    "special": "?"
+  },
+  {
+    "id": 31,
+    "title": "Pick the Worst Way to Die",
+    "illustrationKey": "q-pick-worst-way-to-die",
+    "special": "?"
+  },
+  {
+    "id": 32,
+    "title": "Pick the Funniest Way to Die",
+    "illustrationKey": "q-pick-funniest-way-to-die",
+    "special": "?"
+  },
+  {
+    "id": 33,
+    "title": "Pick a Common Way to Die",
+    "illustrationKey": "q-pick-common-way-to-die",
+    "special": "?"
+  },
+  {
+    "id": 34,
+    "title": "Pick a Bizarre Way to Die",
+    "illustrationKey": "q-pick-bizarre-way-to-die",
+    "special": "?"
+  },
+  {
+    "id": 35,
+    "title": "Pick a Gross Way to Die",
+    "illustrationKey": "q-pick-gross-way-to-die",
+    "special": "?"
+  },
+  {
+    "id": 36,
+    "title": "Pick a Stupid Way to Die",
+    "illustrationKey": "q-pick-stupid-way-to-die",
+    "special": "?"
+  },
+  {
+    "id": 37,
+    "title": "Trampled to Death by Camels or Eaten by a Killer Whale",
+    "options": [
+      "Trampled to Death by Camels",
+      "Eaten by a Killer Whale"
+    ],
+    "illustrationKey": "split-camels-or-whale",
+    "special": "Split"
+  },
+  {
+    "id": 38,
+    "title": "Tickled to Death or Bitten by Sexy Vampires",
+    "options": [
+      "Tickled to Death",
+      "Bitten by Sexy Vampires"
+    ],
+    "illustrationKey": "split-tickled-or-vampires",
+    "special": "Split"
+  },
+  {
+    "id": 39,
+    "title": "A Heart Attack Doing Something You Love or Peacefully in Your Sleep",
+    "options": [
+      "A Heart Attack Doing Something You Love",
+      "Peacefully in Your Sleep"
+    ],
+    "illustrationKey": "split-heartattack-or-sleep",
+    "special": "Split"
+  },
+  {
+    "id": 40,
+    "title": "Nuked in the Robot Uprising or Survive the Nuke but Die from Radiation",
+    "options": [
+      "Nuked in the Robot Uprising",
+      "Survive the Nuke but Die from Radiation"
+    ],
+    "illustrationKey": "split-nuked-or-radiation",
+    "special": "Split"
+  },
+  {
+    "id": 41,
+    "title": "Laughing Too Much During the Best Meal Ever or On the Toilet After",
+    "options": [
+      "Laughing Too Much During the Best Meal Ever!",
+      "On the Toilet After the Best Meal Ever!"
+    ],
+    "illustrationKey": "split-laughing-or-toilet",
+    "special": "Split"
+  },
+  {
+    "id": 42,
+    "title": "Because of Sex or During Sex",
+    "options": [
+      "Because of Sex",
+      "During Sex"
+    ],
+    "illustrationKey": "split-because-sex-or-during",
+    "special": "Split"
+  },
+  {
+    "id": 43,
+    "title": "A Quick Death or A Slow Death",
+    "options": [
+      "A Quick Death",
+      "A Slow Death"
+    ],
+    "illustrationKey": "split-quick-or-slow-death",
+    "special": "Split"
+  },
+  {
+    "id": 44,
+    "title": "Hit on the Head by a Falling Coconut or Skydiving with a Faulty Parachute",
+    "options": [
+      "Hit on the Head by a Falling Coconut",
+      "Skydiving with a Faulty Parachute"
+    ],
+    "illustrationKey": "split-coconut-or-parachute",
+    "special": "Split"
+  },
+  {
+    "id": 45,
+    "title": "Washed Away in a Tsunami or Turned to Stone by a Volcanic Blast",
+    "options": [
+      "Washed Away in a Tsunami",
+      "Turned to Stone by a Volcanic Blast"
+    ],
+    "illustrationKey": "split-tsunami-or-volcano",
+    "special": "Split"
+  },
+  {
+    "id": 46,
+    "title": "With Time to Prepare or Suddenly Without Warning",
+    "options": [
+      "With Time to Prepare",
+      "Suddenly, Without Warning"
+    ],
+    "illustrationKey": "split-prepared-or-sudden",
+    "special": "Split"
+  },
+  {
+    "id": 47,
+    "title": "Listening to Your Favourite Music or Watching Your Favourite Movie",
+    "options": [
+      "Listening to Your Favourite Music",
+      "Watching Your Favourite Movie"
+    ],
+    "illustrationKey": "split-music-or-movie",
+    "special": "Split"
+  },
+  {
+    "id": 48,
+    "title": "Old with Many Regrets or Young with No Regrets",
+    "options": [
+      "Old with Many Regrets",
+      "Young with No Regrets"
+    ],
+    "illustrationKey": "split-old-regrets-or-young",
+    "special": "Split"
+  }
+]

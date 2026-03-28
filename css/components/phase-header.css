@@ -1,0 +1,47 @@
+/* CarkedIt Online — Phase Header Component */
+
+.phase-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px;
+  min-height: 40px;
+}
+
+.phase-header__left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.phase-header__app-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-phase-header-text);
+  line-height: 1;
+  letter-spacing: -0.44px;
+}
+
+.phase-header__phase-label {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--color-phase-header-text);
+  line-height: 1;
+}
+
+.phase-header__settings-btn {
+  width: 44px;
+  height: 44px;
+  background: var(--color-phase-settings-bg);
+  border: 1px solid var(--color-phase-settings-border);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.phase-header__settings-btn:active {
+  opacity: 0.8;
+}

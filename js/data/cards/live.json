@@ -1,0 +1,478 @@
+[
+  {
+    "id": 1,
+    "title": "Advance Care Plan",
+    "description": "Make sure the people in your life know what sort of care you want, or don't want, if you can't speak for yourself.",
+    "prompt": "Who would you want to speak for you?",
+    "illustrationKey": "advance-care-plan"
+  },
+  {
+    "id": 2,
+    "title": "Bagpipe Marathon",
+    "description": "Put on your favourite bagpipe album and annoy the neighbours!",
+    "prompt": null,
+    "illustrationKey": "bagpipe-marathon"
+  },
+  {
+    "id": 3,
+    "title": "Become an Organ Donor",
+    "description": "This has to be done BEFORE you die. Fill out the paperwork, sign the forms, donate your organs for someone else.",
+    "prompt": "Don't forget to tell your family!",
+    "illustrationKey": "become-an-organ-donor"
+  },
+  {
+    "id": 4,
+    "title": "Bequest the Pets",
+    "description": "Make sure your pets are looked after when you're gone. Leave them everything!",
+    "prompt": "Have you thought about your pets?",
+    "illustrationKey": "bequest-the-pets"
+  },
+  {
+    "id": 5,
+    "title": "Bucket List",
+    "description": "Choose one thing from your Bucket List to do. What is it?",
+    "prompt": "What's on your bucket list?",
+    "illustrationKey": "bucket-list"
+  },
+  {
+    "id": 6,
+    "title": "Bury a Time Capsule",
+    "description": "Hide away a time capsule for loved ones to discover in the future.",
+    "prompt": "What's in the time capsule?",
+    "illustrationKey": "bury-a-time-capsule"
+  },
+  {
+    "id": 7,
+    "title": "Bury Me In...",
+    "description": "Go coffin shopping. Cardboard or wood? Silk lining or flannel? Or an engraved gold sarcophagus?",
+    "prompt": "Grandiose gesture or environmentally friendly?",
+    "illustrationKey": "bury-me-in"
+  },
+  {
+    "id": 8,
+    "title": "Buy Lottery Tickets",
+    "description": "Life is a gamble, isn't it? Maybe you'll win this time.",
+    "prompt": "What will you do if you win big?",
+    "illustrationKey": "buy-lottery-tickets"
+  },
+  {
+    "id": 9,
+    "title": "Cargo Plane Money Drop",
+    "description": "All your money is tossed out of a plane to the city below.",
+    "prompt": "Generosity or chaos?",
+    "illustrationKey": "cargo-plane-money-drop"
+  },
+  {
+    "id": 10,
+    "title": "Celebrate Your Heritage",
+    "description": "Get together with the family and celebrate your heritage. Go through the photo albums and share stories.",
+    "prompt": null,
+    "illustrationKey": "celebrate-your-heritage"
+  },
+  {
+    "id": 11,
+    "title": "Choose an Heir",
+    "description": "Choose someone at the table to inherit everything in this shock reveal.",
+    "prompt": "How much do you know about your family?",
+    "illustrationKey": "choose-an-heir"
+  },
+  {
+    "id": 12,
+    "title": "Confess Your Crush",
+    "description": "Time to confess your undying love, it's better late than never!",
+    "prompt": null,
+    "illustrationKey": "confess-your-crush"
+  },
+  {
+    "id": 13,
+    "title": "Create a Montage",
+    "description": "Use photos or videos to create a montage of your life to play at your funeral and forever more!",
+    "prompt": "Are your images sorted?",
+    "illustrationKey": "create-a-montage"
+  },
+  {
+    "id": 14,
+    "title": "D.I.Y. Legends",
+    "description": "Do that crafty project you've always wanted to do with friends/family but never had the time.",
+    "prompt": null,
+    "illustrationKey": "diy-legends"
+  },
+  {
+    "id": 15,
+    "title": "Death Doula",
+    "description": "All the death literacy and support on tap with your own death midwife.",
+    "prompt": "Have you ever heard of a death doula?",
+    "illustrationKey": "death-doula"
+  },
+  {
+    "id": 16,
+    "title": "Death Party",
+    "description": "The best end of life party with you as the main guest!",
+    "prompt": "Who do you invite? What's the dress code? What's on your playlist?",
+    "illustrationKey": "death-party-live"
+  },
+  {
+    "id": 17,
+    "title": "Deep Sea Diving",
+    "description": "Dive deep into the great, blue sea. Swim with whales and cavort with creatures of the deep.",
+    "prompt": null,
+    "illustrationKey": "deep-sea-diving"
+  },
+  {
+    "id": 18,
+    "title": "Delete Search History",
+    "description": "They must never know. Delete it all and burn the hard drive, just to be safe.",
+    "prompt": "Seriously though, do you have a digital legacy plan?",
+    "illustrationKey": "delete-search-history"
+  },
+  {
+    "id": 19,
+    "title": "Design Funeral",
+    "description": "Plan out your funeral right down to the music, the place and the final fanfare. Share it with your funeral director or someone who can make it happen.",
+    "prompt": "How will you share your plan?",
+    "illustrationKey": "design-funeral"
+  },
+  {
+    "id": 20,
+    "title": "Dish Out Valuables",
+    "description": "Collect everything in a pile and hand it out like hotcakes!",
+    "prompt": "What would you give away?",
+    "illustrationKey": "dish-out-valuables"
+  },
+  {
+    "id": 21,
+    "title": "Documents and Stuff",
+    "description": "Do your loved ones know where all your documents are? Wills, car keys, bank details and more — who knows where they all are?",
+    "prompt": null,
+    "illustrationKey": "documents-and-stuff"
+  },
+  {
+    "id": 22,
+    "title": "Dog Sledding",
+    "description": "Get pulled along by a team of dedicated huskies.",
+    "prompt": null,
+    "illustrationKey": "dog-sledding"
+  },
+  {
+    "id": 23,
+    "title": "Donate Body to Science",
+    "description": "Save your family the cost of a funeral and benefit science at the same time.",
+    "prompt": "Why would they want YOUR body?",
+    "illustrationKey": "donate-body-to-science"
+  },
+  {
+    "id": 24,
+    "title": "Dreeeam Lusting",
+    "description": "OK, so you've been given a pass 'cos you know, you're dying. Who are you hitting the sack with?",
+    "prompt": "Is it someone famous, a Roman style orgy?",
+    "illustrationKey": "dreeeam-lusting"
+  },
+  {
+    "id": 25,
+    "title": "Family is Forever",
+    "description": "Write a farewell letter to all your loved ones.",
+    "prompt": null,
+    "illustrationKey": "family-is-forever"
+  },
+  {
+    "id": 26,
+    "title": "Family Tree",
+    "description": "Uncover the family secrets. Take a DNA test and map your ancestry.",
+    "prompt": "Any dark secrets in your family?",
+    "illustrationKey": "family-tree"
+  },
+  {
+    "id": 27,
+    "title": "Fertility Freezing",
+    "description": "Preserve your eggs or sperm for the future. You never know when someone might want them, right?",
+    "prompt": "Would you ever want to be cloned?",
+    "illustrationKey": "fertility-freezing"
+  },
+  {
+    "id": 28,
+    "title": "Find God & Pray",
+    "description": "Well, you may as well start praying and asking for forgiveness. God will forgive all your sins and maybe your financial debts too!",
+    "prompt": null,
+    "illustrationKey": "find-god-and-pray"
+  },
+  {
+    "id": 29,
+    "title": "Forgiveness",
+    "description": "No more excuses for hangin' on — forgive and get on with livin' and lovin' life!",
+    "prompt": "Who can you forgive?",
+    "illustrationKey": "forgiveness"
+  },
+  {
+    "id": 30,
+    "title": "Free Drinks",
+    "description": "Get free drinks by telling the bar staff you're dying.",
+    "prompt": null,
+    "illustrationKey": "free-drinks"
+  },
+  {
+    "id": 31,
+    "title": "Funeral Fashion",
+    "description": "Find that perfect outfit, the one you want to be buried in.",
+    "prompt": "What would you wear?",
+    "illustrationKey": "funeral-fashion"
+  },
+  {
+    "id": 32,
+    "title": "Get Inked",
+    "description": "Go out and get a tattoo — the one you've always wanted but were scared you might grow to hate.",
+    "prompt": "What is your tattoo?",
+    "illustrationKey": "get-inked"
+  },
+  {
+    "id": 33,
+    "title": "Go Skydiving",
+    "description": "Jump like there's no tomorrow! It's now or never.",
+    "prompt": null,
+    "illustrationKey": "go-skydiving"
+  },
+  {
+    "id": 34,
+    "title": "Go Supernova",
+    "description": "Spend a night under the stars with your nearest and dearest, contemplating the universe, life and everything.",
+    "prompt": null,
+    "illustrationKey": "go-supernova"
+  },
+  {
+    "id": 35,
+    "title": "Headstone Epitaph",
+    "description": "You decide to create your own epitaph — your memory immortalised in stone.",
+    "prompt": "What does it say?",
+    "illustrationKey": "headstone-epitaph"
+  },
+  {
+    "id": 36,
+    "title": "Holiday",
+    "description": "Take the holiday of a lifetime and create some memories before you kick the bucket!",
+    "prompt": "Where are you going?",
+    "illustrationKey": "holiday"
+  },
+  {
+    "id": 37,
+    "title": "I Got Prepaid!",
+    "description": "You already paid for the funeral, it's all sorted — you're welcome!",
+    "prompt": "Where would you put the details so your family can find them?",
+    "illustrationKey": "i-got-prepaid"
+  },
+  {
+    "id": 38,
+    "title": "Make Your Will",
+    "description": "Decide who gets what — if anything!",
+    "prompt": "Who gets what?",
+    "illustrationKey": "make-your-will"
+  },
+  {
+    "id": 39,
+    "title": "Perfect Job",
+    "description": "You can finally spend a day in the best job ever. If it's a passion, it's not work, right?",
+    "prompt": "What is your perfect job? Are you doing it?",
+    "illustrationKey": "perfect-job"
+  },
+  {
+    "id": 40,
+    "title": "Keep Me Alive!",
+    "description": "Don't turn off the resuscitator. Do everything possible to keep me alive!",
+    "prompt": "Do you have an Advanced Care Plan in case you cannot speak for yourself?",
+    "illustrationKey": "keep-me-alive"
+  },
+  {
+    "id": 41,
+    "title": "Last Supper",
+    "description": "You organise an amazing last meal with all the things you love to eat and drink.",
+    "prompt": "What would you eat, where and who with?",
+    "illustrationKey": "last-supper"
+  },
+  {
+    "id": 42,
+    "title": "Life Drawing Model",
+    "description": "Get it all off and help some aspiring artists hone their craft by illustrating your beautiful physical form.",
+    "prompt": null,
+    "illustrationKey": "life-drawing-model"
+  },
+  {
+    "id": 43,
+    "title": "Living Wake",
+    "description": "Celebrate your life while you're still alive. Invite everyone to celebrate with you.",
+    "prompt": "What food would you serve?",
+    "illustrationKey": "living-wake"
+  },
+  {
+    "id": 44,
+    "title": "Make a Sexy Calendar",
+    "description": "Why not show what you've got while you've got it?",
+    "prompt": null,
+    "illustrationKey": "make-a-sexy-calendar"
+  },
+  {
+    "id": 45,
+    "title": "Monument City",
+    "description": "Erect a statue of you in your hometown for everyone to remember you.",
+    "prompt": "Where would it stand?",
+    "illustrationKey": "monument-city"
+  },
+  {
+    "id": 46,
+    "title": "Mushroom Time",
+    "description": "Eat some shrooms and lose your fear of death. True story.",
+    "prompt": null,
+    "illustrationKey": "mushroom-time"
+  },
+  {
+    "id": 47,
+    "title": "Share the Combination",
+    "description": "Hand over the combination to your safe. Entrust your valuables and secrets.",
+    "prompt": "Who is getting the combination?",
+    "illustrationKey": "share-the-combination"
+  },
+  {
+    "id": 48,
+    "title": "Paint Your Own Coffin",
+    "description": "Have a 'wine and paint' style party and invite everyone to paint your coffin.",
+    "prompt": "Which fun photos of your life could you use as inspiration?",
+    "illustrationKey": "paint-your-own-coffin"
+  },
+  {
+    "id": 49,
+    "title": "Party All the Time",
+    "description": "Have a crazy 24-hour party like no other.",
+    "prompt": null,
+    "illustrationKey": "party-all-the-time"
+  },
+  {
+    "id": 50,
+    "title": "Release the Genie",
+    "description": "You've got three wishes. What will they be? But here's the catch, you can't wish your death away.",
+    "prompt": null,
+    "illustrationKey": "release-the-genie"
+  },
+  {
+    "id": 51,
+    "title": "Rodeo Bull Ride",
+    "description": "Yeehaw! Git along lil' doggie, here comes the bucking bull.",
+    "prompt": null,
+    "illustrationKey": "rodeo-bull-ride"
+  },
+  {
+    "id": 52,
+    "title": "Ambulance Ride",
+    "description": "Lights and sirens for your final moments. What a way to go!",
+    "prompt": null,
+    "illustrationKey": "ambulance-ride"
+  },
+  {
+    "id": 53,
+    "title": "Ouija Board",
+    "description": "Commune with the spirits to see what you're in for!",
+    "prompt": "30% of people report seeing a deceased relative just prior to death — know any such stories?",
+    "illustrationKey": "ouija-board"
+  },
+  {
+    "id": 54,
+    "title": "Best Seller",
+    "description": "Write that book — everyone has at least one novel in them. The time is now!",
+    "prompt": "What's your book about?",
+    "illustrationKey": "best-seller"
+  },
+  {
+    "id": 55,
+    "title": "Superhero",
+    "description": "Become a masked vigilante for an evening! Punch crime in the face.",
+    "prompt": null,
+    "illustrationKey": "superhero"
+  },
+  {
+    "id": 56,
+    "title": "Swim with Dolphins",
+    "description": "Swim with dolphins before your time is up!",
+    "prompt": null,
+    "illustrationKey": "swim-with-dolphins"
+  },
+  {
+    "id": 57,
+    "title": "Swim with Sharks",
+    "description": "It's now or never! Why not give these ocean beasties some love and hugs.",
+    "prompt": null,
+    "illustrationKey": "swim-with-sharks"
+  },
+  {
+    "id": 58,
+    "title": "Take a Day Off",
+    "description": "Play hooky and take the 1961 Ferrari 250 GT California Spyder for a spin.",
+    "prompt": null,
+    "illustrationKey": "take-a-day-off"
+  },
+  {
+    "id": 59,
+    "title": "Term Deposits",
+    "description": "Place your money in long-term high yield investment accounts so your family can reap the benefits later.",
+    "prompt": null,
+    "illustrationKey": "term-deposits"
+  },
+  {
+    "id": 60,
+    "title": "To Slur or Not to Slur",
+    "description": "Tell people what you really think of them. Don't hold back.",
+    "prompt": "Anything you want to say?",
+    "illustrationKey": "to-slur-or-not-to-slur"
+  },
+  {
+    "id": 61,
+    "title": "Van Life",
+    "description": "Go on a road trip. Pack your bags and the camping gear and make some memories.",
+    "prompt": null,
+    "illustrationKey": "van-life"
+  },
+  {
+    "id": 62,
+    "title": "Victory is Mine!",
+    "description": "You get to see your favourite team or player win and go out to celebrate with them.",
+    "prompt": "Do you support any teams?",
+    "illustrationKey": "victory-is-mine"
+  },
+  {
+    "id": 63,
+    "title": "Words of Wisdom",
+    "description": "Pass on some life wisdom to your family — words to remember you by.",
+    "prompt": "What's your advice?",
+    "illustrationKey": "words-of-wisdom"
+  },
+  {
+    "id": 64,
+    "title": "You Can't Take It With You",
+    "description": "Blow it all — spend your money in a lavish, fun-filled extravaganza before you depart this mortal coil.",
+    "prompt": null,
+    "illustrationKey": "you-cant-take-it-with-you"
+  },
+  {
+    "id": 65,
+    "title": "You'll Be \"Taken Care Of\"",
+    "description": "All the care you need. Someone nice will take care of you in your final days... or will they?",
+    "prompt": "Who would care for you at the end?",
+    "illustrationKey": "youll-be-taken-care-of"
+  },
+  {
+    "id": 66,
+    "title": "Euthanasia",
+    "description": "Give the instruction to relieve your suffering and have your doctor deliberately cause your death.",
+    "prompt": null,
+    "illustrationKey": "euthanasia"
+  },
+  {
+    "id": 67,
+    "title": "Voluntary Assisted Dying",
+    "description": "You want the pain and suffering to end and seek a prescription to voluntarily self-administer your own death.",
+    "prompt": null,
+    "illustrationKey": "voluntary-assisted-dying"
+  },
+  {
+    "id": 68,
+    "title": "Shark Hugging",
+    "description": "What extreme thing would you want to do before you die?",
+    "prompt": null,
+    "illustrationKey": "shark-hugging"
+  }
+]

@@ -1,0 +1,23 @@
+/* CarkedIt Online — Pitch Timer Component */
+
+.pitch-timer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 12px;
+  margin-top: calc(-1 * var(--space-sm));
+  background: var(--color-hand-bg);
+  color: var(--color-player-list-label);
+}
+
+.pitch-timer__time {
+  font-size: 2.5rem;
+  font-weight: 700;
+  font-family: 'Montserrat', sans-serif;
+  letter-spacing: 0.05em;
+  transition: color 0.3s ease;
+}
+
+.pitch-timer--warning .pitch-timer__time {
+  color: var(--color-danger);
+}

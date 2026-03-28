@@ -1,0 +1,67 @@
+/* CarkedIt Online — Menu Screen */
+
+.screen--menu {
+  position: relative;
+  justify-content: center;
+  align-items: center;
+  gap: var(--space-xl);
+}
+
+.menu__logo {
+  position: relative;
+  text-align: center;
+}
+
+.menu__logo-img {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 320px;
+  padding-bottom: var(--space-md);
+}
+
+.menu__title {
+  font-size: 3rem;
+  font-weight: 800;
+  color: var(--color-primary);
+  letter-spacing: -1px;
+}
+
+.menu__subtitle {
+  font-size: 1.25rem;
+  color: var(--color-text-muted);
+  margin-top: var(--space-xs);
+}
+
+.menu__actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  width: 100%;
+  max-width: 260px;
+}
+
+.menu__actions .btn {
+  width: 100%;
+}
+
+.menu__site-link {
+  text-decoration: none;
+  text-align: center;
+}
+
+.menu__version {
+  position: absolute;
+  bottom: var(--space-md);
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+  opacity: 0.4;
+  letter-spacing: 0.05em;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.menu__version:hover {
+  opacity: 0.8;
+}

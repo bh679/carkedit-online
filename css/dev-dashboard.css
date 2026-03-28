@@ -1,0 +1,484 @@
+/* CarkedIt Online — Dev Dashboard Styles */
+
+/* Override the game's narrow max-width for the dev tool */
+#app {
+  max-width: 960px;
+}
+
+/* ── Dashboard Header ──────────────────────────────── */
+
+.dash-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md) 0;
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: var(--space-md);
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.dash-header__title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.dash-header__meta {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+/* ── Grid Layout ───────────────────────────────────── */
+
+.dash-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--space-md);
+  padding-bottom: var(--space-xl);
+}
+
+.dash-grid--full {
+  grid-column: 1 / -1;
+}
+
+/* ── Dashboard Card ────────────────────────────────── */
+
+.dash-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.dash-card--full {
+  grid-column: 1 / -1;
+}
+
+.dash-commits-row {
+  display: flex;
+  gap: var(--space-md);
+  align-items: flex-start;
+}
+
+.dash-card--grow {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.dash-card--fit {
+  flex: 0 0 auto;
+  width: fit-content;
+}
+
+.dash-card__title {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--color-text);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dash-card__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text);
+  background: var(--color-secondary);
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  transition: opacity 0.15s;
+  margin-top: var(--space-sm);
+  align-self: flex-start;
+}
+
+.dash-card__link:hover {
+  opacity: 0.85;
+}
+
+/* ── Contribution Graph ────────────────────────────── */
+
+.contrib-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: var(--space-xs);
+}
+
+.contrib-month-group {
+  flex-shrink: 0;
+}
+
+.contrib-month-label {
+  font-size: 0.6rem;
+  color: var(--color-text-muted);
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.contrib-week-row {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 2px;
+}
+
+.contrib-cell {
+  position: relative;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--color-input-bg);
+  flex-shrink: 0;
+}
+
+.contrib-cell--1 { background: var(--color-contrib-cell-1); }
+.contrib-cell--2 { background: var(--color-contrib-cell-2); }
+.contrib-cell--3 { background: var(--color-contrib-cell-3); }
+.contrib-cell--4 { background: var(--color-live); }
+
+.contrib-cell[data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--color-bg);
+  color: var(--color-text);
+  border: 1px solid var(--color-prompt-empty-border);
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 0.6rem;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.contrib-legend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.6rem;
+  color: var(--color-text-muted);
+  margin-top: var(--space-xs);
+  justify-content: flex-end;
+}
+
+.contrib-legend__cell {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+/* ── Commit List ───────────────────────────────────── */
+
+.commit-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.commit-item {
+  padding: var(--space-sm);
+  background: var(--color-dash-item-bg);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.commit-item:hover {
+  background: var(--color-input-bg);
+}
+
+.commit-item__row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  font-size: 0.75rem;
+}
+
+.commit-item__msg {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--color-text);
+}
+
+.commit-item__date {
+  color: var(--color-text-muted);
+  font-size: 0.65rem;
+  white-space: nowrap;
+}
+
+.commit-item__sha {
+  font-family: monospace;
+  font-size: 0.65rem;
+  white-space: nowrap;
+}
+
+.commit-item__repo {
+  font-size: 0.55rem;
+  font-weight: 600;
+  padding: 1px 5px;
+  border: 1px solid;
+  border-radius: 8px;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.commit-item--outdated {
+  opacity: 0.4;
+}
+
+.commit-item__files {
+  margin-top: var(--space-xs);
+  padding-top: var(--space-xs);
+  border-top: 1px solid var(--color-border);
+  font-size: 0.65rem;
+  color: var(--color-text-muted);
+}
+
+.commit-item__files ul {
+  list-style: none;
+  margin-top: 4px;
+}
+
+.commit-item__files li {
+  padding: 2px 0;
+  font-family: monospace;
+  font-size: 0.6rem;
+}
+
+.commit-item__files .additions { color: var(--color-live); }
+.commit-item__files .deletions { color: var(--color-primary); }
+
+/* ── Mini Card Tester ──────────────────────────────── */
+
+.mini-card-tester__decks {
+  display: flex;
+  gap: var(--space-xs);
+}
+
+.mini-card-tester__decks .btn {
+  padding: 0.4rem 0.75rem;
+  font-size: 0.75rem;
+}
+
+.mini-card-tester__preview {
+  height: 240px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.mini-card-tester__preview .card {
+  max-height: 100%;
+  width: auto;
+}
+
+.mini-card-tester__counter {
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+/* ── Color Palette ─────────────────────────────────── */
+
+.palette-group__title {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--space-xs);
+  margin-top: var(--space-sm);
+}
+
+.palette-group__title:first-child {
+  margin-top: 0;
+}
+
+.swatch-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.swatch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 4px 4px;
+  background: var(--color-dash-item-bg);
+  border-radius: var(--radius-sm);
+  font-size: 0.65rem;
+}
+
+.swatch__color {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.swatch__info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.swatch__name {
+  color: var(--color-text);
+  font-weight: 600;
+  font-size: 0.6rem;
+}
+
+.swatch__value {
+  color: var(--color-text-muted);
+  font-family: monospace;
+  font-size: 0.55rem;
+}
+
+/* ── Wiki & Todo ───────────────────────────────────── */
+
+.wiki-list, .todo-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.wiki-item, .todo-item {
+  padding: var(--space-sm);
+  background: var(--color-dash-item-bg);
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+}
+
+.wiki-item__title, .todo-item__title {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.wiki-item__preview {
+  margin-top: var(--space-xs);
+}
+
+.wiki-item__meta, .todo-item__meta {
+  font-size: 0.65rem;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+
+.todo-item__labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.todo-label {
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 0.6rem;
+  font-weight: 600;
+}
+
+/* ── Design Docs Viewer ────────────────────────────── */
+
+.design-docs__tabs {
+  display: flex;
+  gap: var(--space-xs);
+  flex-wrap: wrap;
+}
+
+.design-docs__tab {
+  padding: 0.4rem 0.75rem;
+  font-size: 0.75rem;
+}
+
+.design-docs__pre {
+  background: var(--color-dash-item-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-md);
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 500px;
+  overflow-y: auto;
+  margin-top: var(--space-sm);
+}
+
+/* ── List Actions (Show more + Source link) ────────── */
+
+.dash-list-actions {
+  display: flex;
+  gap: var(--space-xs);
+  margin-top: var(--space-sm);
+}
+
+.dash-list-actions__btn {
+  padding: 0.35rem 0.65rem !important;
+  font-size: 0.7rem !important;
+  text-decoration: none;
+}
+
+/* ── Rate Limit Indicator ─────────────────────────── */
+
+.rate-limit-indicator {
+  font-size: 0.65rem;
+  color: var(--color-text-muted);
+  font-family: monospace;
+  padding: 0.2rem 0.5rem;
+  background: var(--color-dash-item-bg);
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+}
+
+.rate-limit--warn {
+  color: var(--color-primary);
+  background: var(--color-danger-subtle);
+}
+
+/* ── Loading / Error States ────────────────────────── */
+
+.dash-loading {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-style: italic;
+  padding: var(--space-sm);
+}
+
+.dash-error {
+  color: var(--color-primary);
+  font-size: 0.75rem;
+  padding: var(--space-sm);
+}
+
+.dash-empty {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  padding: var(--space-sm);
+}

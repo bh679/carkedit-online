@@ -1,0 +1,31 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "carkedit-server",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["start"],
+      "port": 4600,
+      "autoPort": true
+    },
+    {
+      "name": "carkedit-main",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["http-server", ".", "-c-1"],
+      "port": 4601,
+      "autoPort": true
+    }
+  ,{
+      "name": "carkedit-21415",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["http-server", ".", "-p", "21415", "-c-1"],
+      "port": 21415
+    }
+  ,{
+      "name": "carkedit-4620",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["http-server", ".", "-p", "4620", "-c-1"],
+      "port": 4620
+    }
+  ]
+}
