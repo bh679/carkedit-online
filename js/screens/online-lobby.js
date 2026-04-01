@@ -91,9 +91,18 @@ function renderJoinCreate(state, connecting, error) {
     </div>
   `;
 
+  const headerHtml = `
+    <header class="phase-header">
+      <div class="phase-header__left">
+        <span class="phase-header__app-name">CarkedIt</span>
+        <span class="phase-header__phase-label">Online</span>
+      </div>
+    </header>
+  `;
+
   return `
     <div class="screen screen--online-lobby">
-      ${renderPhaseHeader({ phase: '', label: 'Online' })}
+      ${headerHtml}
       ${renderGameboard(boardContent)}
       <div class="online-lobby__actions">
         <button class="btn btn--secondary" onclick="window.game.showScreen('mode-select')">
@@ -119,7 +128,7 @@ function renderConnectedLobby(state) {
       `).join('');
 
   const codeDisplay = roomCode
-    ? `<div class="online-lobby__room-code">
+    ? `<div class="online-lobby__room-code" onclick="window.game.copyJoinLink()" style="cursor:pointer" title="Click to copy join link">
         <span class="online-lobby__code-label">Room Code</span>
         <span class="online-lobby__code-value">${escapeHtml(roomCode)}</span>
        </div>`
@@ -154,7 +163,7 @@ function renderConnectedLobby(state) {
         <span class="phase-header__app-name">CarkedIt</span>
         <span class="phase-header__phase-label">Online Lobby</span>
       </div>
-      <button class="phase-header__settings-btn" aria-label="Copy join link" onclick="window.game.copyJoinLink()">
+      <button class="phase-header__settings-btn" aria-label="Copy join link" onclick="window.game.copyJoinLink()" ${roomCode ? '' : 'disabled'}>
         ${LINK_ICON}
       </button>
     </header>
