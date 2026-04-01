@@ -361,14 +361,23 @@ window.game = {
   },
   // Online multiplayer actions
   async createRoom() {
-    const name = document.getElementById('online-player-name')?.value?.trim();
+    let name = document.getElementById('online-player-name')?.value?.trim();
+    let birthMonth = parseInt(document.getElementById('online-birth-month')?.value ?? '', 10) || 0;
+    let birthDay = parseInt(document.getElementById('online-birth-day')?.value ?? '', 10) || 0;
     if (!name) {
-      setState({ onlineError: 'Please enter your name' });
-      showScreen('online-lobby');
-      return;
+      const state = getState();
+      const taken = new Set(state.onlinePlayers.map((p) => p.name));
+      const available = DEV_NAME_POOL.filter((n) => !taken.has(n.name));
+      if (available.length === 0) {
+        setState({ onlineError: 'Please enter your name' });
+        showScreen('online-lobby');
+        return;
+      }
+      const pick = available[Math.floor(Math.random() * available.length)];
+      name = pick.name;
+      birthMonth = pick.birthMonth;
+      birthDay = pick.birthDay;
     }
-    const birthMonth = parseInt(document.getElementById('online-birth-month')?.value ?? '', 10) || 0;
-    const birthDay = parseInt(document.getElementById('online-birth-day')?.value ?? '', 10) || 0;
     try {
       await networkCreateRoom(
         { name, birthMonth, birthDay, isPrivate: true },
@@ -380,20 +389,29 @@ window.game = {
     }
   },
   async joinRoom() {
-    const name = document.getElementById('online-player-name')?.value?.trim();
+    let name = document.getElementById('online-player-name')?.value?.trim();
     const code = document.getElementById('online-room-code')?.value?.trim();
+    let birthMonth = parseInt(document.getElementById('online-birth-month')?.value ?? '', 10) || 0;
+    let birthDay = parseInt(document.getElementById('online-birth-day')?.value ?? '', 10) || 0;
     if (!name) {
-      setState({ onlineError: 'Please enter your name' });
-      showScreen('online-lobby');
-      return;
+      const state = getState();
+      const taken = new Set(state.onlinePlayers.map((p) => p.name));
+      const available = DEV_NAME_POOL.filter((n) => !taken.has(n.name));
+      if (available.length === 0) {
+        setState({ onlineError: 'Please enter your name' });
+        showScreen('online-lobby');
+        return;
+      }
+      const pick = available[Math.floor(Math.random() * available.length)];
+      name = pick.name;
+      birthMonth = pick.birthMonth;
+      birthDay = pick.birthDay;
     }
     if (!code) {
       setState({ onlineError: 'Please enter a room code' });
       showScreen('online-lobby');
       return;
     }
-    const birthMonth = parseInt(document.getElementById('online-birth-month')?.value ?? '', 10) || 0;
-    const birthDay = parseInt(document.getElementById('online-birth-day')?.value ?? '', 10) || 0;
     try {
       await networkJoinRoom(
         code,

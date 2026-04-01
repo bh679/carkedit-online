@@ -95,7 +95,19 @@ function waitForState(room) {
       resolve();
       return;
     }
-    room.onStateChange.once(() => resolve());
+    // State may arrive via onStateChange or may already be in flight.
+    // Use both a listener and a short poll as fallback.
+    let resolved = false;
+    const done = () => { if (!resolved) { resolved = true; resolve(); } };
+    room.onStateChange.once(done);
+    // Fallback: poll every 50ms for up to 3s in case the event was missed
+    const interval = setInterval(() => {
+      if (room.state?.players?.forEach) {
+        clearInterval(interval);
+        done();
+      }
+    }, 50);
+    setTimeout(() => { clearInterval(interval); done(); }, 3000);
   });
 }
 
