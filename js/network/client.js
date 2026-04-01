@@ -3,10 +3,9 @@
 
 import { getState, setState } from '../state.js';
 
-const _host = window.location.hostname;
-const _isSecure = window.location.protocol === 'https:';
-const DEFAULT_SERVER_URL = `${_isSecure ? 'wss' : 'ws'}://${_host}:4500`;
-const REST_BASE_URL = `${_isSecure ? 'https' : 'http'}://${_host}:4500`;
+const _origin = window.location.origin;
+const DEFAULT_SERVER_URL = `${_origin}/colyseus`;
+const REST_BASE_URL = _origin;
 
 let _client = null;
 let _room = null;
