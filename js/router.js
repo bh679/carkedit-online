@@ -430,8 +430,35 @@ window.game = {
   startOnlineGame() {
     // Placeholder — game state sync will be implemented in a future session
   },
+  copyJoinLink() {
+    const state = getState();
+    const code = state.roomCode;
+    if (!code) return;
+    const url = new URL(window.location.href);
+    url.search = `?join=${encodeURIComponent(code)}`;
+    navigator.clipboard.writeText(url.toString()).then(() => {
+      const btn = document.querySelector('.phase-header__settings-btn');
+      if (btn) {
+        const original = btn.innerHTML;
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.innerHTML = original; }, 1500);
+      }
+    }).catch(() => {});
+  },
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-  showScreen('menu');
+  const params = new URLSearchParams(window.location.search);
+  const joinCode = params.get('join');
+  if (joinCode) {
+    setState({ roomCode: joinCode.toUpperCase() });
+    showScreen('online-lobby');
+    // Pre-fill the room code input after render
+    requestAnimationFrame(() => {
+      const codeInput = document.getElementById('online-room-code');
+      if (codeInput) codeInput.value = joinCode.toUpperCase();
+    });
+  } else {
+    showScreen('menu');
+  }
 });
