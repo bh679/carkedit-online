@@ -1,14 +1,13 @@
-// CarkedIt Online — Colyseus Network Client
+// CarkedIt Online — Colyseus Network Client (SDK 0.17)
 'use strict';
 
 import { getState, setState } from '../state.js';
 
-const DEFAULT_SERVER_URL = 'ws://localhost:4501';
-const REST_BASE_URL = 'http://localhost:4501';
+const DEFAULT_SERVER_URL = 'ws://localhost:4500';
+const REST_BASE_URL = 'http://localhost:4500';
 
 let _client = null;
 let _room = null;
-let _stateChangeCallbacks = [];
 
 function getColyseusClient() {
   if (_client) return _client;
@@ -21,6 +20,7 @@ function getColyseusClient() {
 
 function syncPlayersFromRoom(room) {
   const players = [];
+  if (!room.state?.players?.forEach) return players;
   room.state.players.forEach((player, sessionId) => {
     players.push({
       sessionId,
@@ -36,24 +36,46 @@ function syncPlayersFromRoom(room) {
 }
 
 function setupRoomListeners(room, onUpdate) {
-  room.state.players.onAdd((player, sessionId) => {
+  // Colyseus 0.17 uses getStateCallbacks for state change listeners
+  const $ = window.Colyseus.getStateCallbacks(room);
+
+  // Wait for state to be ready before setting up listeners
+  if (!room.state) {
+    room.onStateChange.once(() => setupRoomListeners(room, onUpdate));
+    return;
+  }
+
+  // Listen for room code changes on root state
+  $(room.state).listen('roomCode', (value) => {
+    setState({ roomCode: value });
+    if (onUpdate) onUpdate(syncPlayersFromRoom(room));
+  });
+
+  // Players map might not exist yet — guard
+  if (!room.state.players) return;
+
+  // Listen for player additions
+  $(room.state.players).onAdd((player, sessionId) => {
     const updated = syncPlayersFromRoom(room);
     setState({ onlinePlayers: updated });
     if (onUpdate) onUpdate(updated);
 
-    player.onChange(() => {
+    // Listen for changes on individual players
+    $(player).onChange(() => {
       const refreshed = syncPlayersFromRoom(room);
       setState({ onlinePlayers: refreshed });
       if (onUpdate) onUpdate(refreshed);
     });
   });
 
-  room.state.players.onRemove((player, sessionId) => {
+  // Listen for player removals
+  $(room.state.players).onRemove(() => {
     const updated = syncPlayersFromRoom(room);
     setState({ onlinePlayers: updated });
     if (onUpdate) onUpdate(updated);
   });
 
+  // Room lifecycle events (not state callbacks — these are on Room directly)
   room.onLeave((code) => {
     setState({
       connectionStatus: 'disconnected',
@@ -67,33 +89,39 @@ function setupRoomListeners(room, onUpdate) {
   });
 }
 
+function waitForState(room) {
+  return new Promise((resolve) => {
+    if (room.state?.players?.forEach) {
+      resolve();
+      return;
+    }
+    room.onStateChange.once(() => resolve());
+  });
+}
+
 export async function createRoom({ name, birthMonth, birthDay, isPrivate = true }, onUpdate) {
   setState({ connectionStatus: 'connecting', onlineError: null });
   try {
     const client = getColyseusClient();
-    const room = await client.create('game_room', {
+    const room = await client.create('game', {
       name,
       birthMonth: birthMonth || 0,
       birthDay: birthDay || 0,
-      isPrivate,
+      private: isPrivate,
     });
     _room = room;
-    const roomCode = room.state?.roomCode || null;
+
+    // Wait for first state sync so players/roomCode are available
+    await waitForState(room);
+
     setState({
       connectionStatus: 'connected',
       isHost: true,
-      roomCode,
+      roomCode: room.state?.roomCode || null,
       gameMode: 'online',
       onlinePlayers: syncPlayersFromRoom(room),
     });
     setupRoomListeners(room, onUpdate);
-
-    // Room code may arrive via state change after initial join
-    room.state.listen('roomCode', (value) => {
-      setState({ roomCode: value });
-      if (onUpdate) onUpdate(syncPlayersFromRoom(room));
-    });
-
     return room;
   } catch (err) {
     setState({
@@ -123,6 +151,10 @@ export async function joinRoom(code, { name, birthMonth, birthDay }, onUpdate) {
       birthDay: birthDay || 0,
     });
     _room = room;
+
+    // Wait for first state sync so players are available
+    await waitForState(room);
+
     setState({
       connectionStatus: 'connected',
       isHost: false,
@@ -131,11 +163,6 @@ export async function joinRoom(code, { name, birthMonth, birthDay }, onUpdate) {
       onlinePlayers: syncPlayersFromRoom(room),
     });
     setupRoomListeners(room, onUpdate);
-
-    room.state.listen('roomCode', (value) => {
-      setState({ roomCode: value });
-    });
-
     return room;
   } catch (err) {
     setState({
