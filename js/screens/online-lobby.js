@@ -4,6 +4,12 @@
 import { render as renderPhaseHeader } from '../components/phase-header.js';
 import { render as renderGameboard } from '../components/gameboard.js';
 
+const LINK_ICON = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <path d="M6.5 9.5L9.5 6.5" stroke="#374151" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M9 10L10.5 8.5C11.9 7.1 11.9 4.9 10.5 3.5C9.1 2.1 6.9 2.1 5.5 3.5L4 5" stroke="#374151" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M7 6L5.5 7.5C4.1 8.9 4.1 11.1 5.5 12.5C6.9 13.9 9.1 13.9 10.5 12.5L12 11" stroke="#374151" stroke-width="1.5" stroke-linecap="round"/>
+</svg>`;
+
 /**
  * @param {object} state
  * @returns {string} HTML string
@@ -142,9 +148,21 @@ function renderConnectedLobby(state) {
     </div>
   `;
 
+  const headerHtml = `
+    <header class="phase-header">
+      <div class="phase-header__left">
+        <span class="phase-header__app-name">CarkedIt</span>
+        <span class="phase-header__phase-label">Online Lobby</span>
+      </div>
+      <button class="phase-header__settings-btn" aria-label="Copy join link" onclick="window.game.copyJoinLink()">
+        ${LINK_ICON}
+      </button>
+    </header>
+  `;
+
   return `
     <div class="screen screen--online-lobby">
-      ${renderPhaseHeader({ phase: '', label: 'Online Lobby' })}
+      ${headerHtml}
       ${renderGameboard(boardContent)}
       <div class="online-lobby__actions">
         <button class="btn btn--secondary" onclick="window.game.leaveRoom()">
