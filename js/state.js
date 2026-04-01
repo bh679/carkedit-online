@@ -18,6 +18,15 @@ let _state = {
   decks: { die: null, live: null, bye: null },
   preloadComplete: false,
   selectedPlayerForRemoval: null,
+
+  // Network / online multiplayer state
+  gameMode: 'local',               // 'local' | 'online'
+  isHost: false,
+  roomCode: null,
+  connectionStatus: 'disconnected', // 'disconnected' | 'connecting' | 'connected'
+  onlinePlayers: [],               // synced from server room state
+  onlineError: null,               // connection/join error message
+
   gameSettings: {
     rounds: 2,
     handSize: 5,

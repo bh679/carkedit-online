@@ -4,11 +4,18 @@
 import { getState, setState } from './state.js';
 import { preloadCards } from './preloader.js';
 import { render as renderMenu } from './screens/menu.js';
+import { render as renderModeSelect } from './screens/mode-select.js';
 import { render as renderLobby, renderAdvancedPanel } from './screens/lobby.js';
+import { render as renderOnlineLobby } from './screens/online-lobby.js';
 import { render as renderPhase1 } from './screens/phase1.js';
 import { render as renderPhase23 } from './screens/phase2-3.js';
 import { render as renderPhase4 } from './screens/phase4.js';
 import { shuffle } from './utils/shuffle.js';
+import {
+  createRoom as networkCreateRoom,
+  joinRoom as networkJoinRoom,
+  leaveRoom as networkLeaveRoom,
+} from './network/client.js';
 import {
   startPhase1, doneDying, revealCard,
   startPhase2, startPhase3,
@@ -23,12 +30,14 @@ import {
 } from './managers/game-manager.js';
 
 const SCREENS = {
-  menu:   (state) => renderMenu(state),
-  lobby:  (state) => renderLobby(state),
-  phase1: (state) => renderPhase1(state),
-  phase2: (state) => renderPhase23('live', state),
-  phase3: (state) => renderPhase23('bye', state),
-  phase4: (state) => renderPhase4(state),
+  menu:          (state) => renderMenu(state),
+  'mode-select': (state) => renderModeSelect(state),
+  lobby:         (state) => renderLobby(state),
+  'online-lobby': (state) => renderOnlineLobby(state),
+  phase1:        (state) => renderPhase1(state),
+  phase2:        (state) => renderPhase23('live', state),
+  phase3:        (state) => renderPhase23('bye', state),
+  phase4:        (state) => renderPhase4(state),
 };
 
 export function showScreen(name, updates = {}) {
@@ -349,6 +358,59 @@ window.game = {
   setRounds(n) {
     setState({ totalRounds: Math.max(1, Math.min(10, n)) });
     showScreen('lobby');
+  },
+  // Online multiplayer actions
+  async createRoom() {
+    const name = document.getElementById('online-player-name')?.value?.trim();
+    if (!name) {
+      setState({ onlineError: 'Please enter your name' });
+      showScreen('online-lobby');
+      return;
+    }
+    const birthMonth = parseInt(document.getElementById('online-birth-month')?.value ?? '', 10) || 0;
+    const birthDay = parseInt(document.getElementById('online-birth-day')?.value ?? '', 10) || 0;
+    try {
+      await networkCreateRoom(
+        { name, birthMonth, birthDay, isPrivate: true },
+        () => { if (getState().screen === 'online-lobby') showScreen('online-lobby'); },
+      );
+      showScreen('online-lobby');
+    } catch (err) {
+      showScreen('online-lobby');
+    }
+  },
+  async joinRoom() {
+    const name = document.getElementById('online-player-name')?.value?.trim();
+    const code = document.getElementById('online-room-code')?.value?.trim();
+    if (!name) {
+      setState({ onlineError: 'Please enter your name' });
+      showScreen('online-lobby');
+      return;
+    }
+    if (!code) {
+      setState({ onlineError: 'Please enter a room code' });
+      showScreen('online-lobby');
+      return;
+    }
+    const birthMonth = parseInt(document.getElementById('online-birth-month')?.value ?? '', 10) || 0;
+    const birthDay = parseInt(document.getElementById('online-birth-day')?.value ?? '', 10) || 0;
+    try {
+      await networkJoinRoom(
+        code,
+        { name, birthMonth, birthDay },
+        () => { if (getState().screen === 'online-lobby') showScreen('online-lobby'); },
+      );
+      showScreen('online-lobby');
+    } catch (err) {
+      showScreen('online-lobby');
+    }
+  },
+  async leaveRoom() {
+    await networkLeaveRoom();
+    showScreen('online-lobby');
+  },
+  startOnlineGame() {
+    // Placeholder — game state sync will be implemented in a future session
   },
 };
 

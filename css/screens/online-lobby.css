@@ -1,0 +1,152 @@
+/* CarkedIt Online — Online Lobby Screen */
+
+.screen--online-lobby {
+  gap: var(--space-md);
+}
+
+.online-lobby__forms,
+.online-lobby__connected {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-md) 0;
+}
+
+.online-lobby__heading {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.online-lobby__birthday-row {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.online-lobby__birthday-select {
+  flex: 1;
+}
+
+.online-lobby__divider {
+  height: 1px;
+  background: var(--color-border);
+  margin: var(--space-xs) 0;
+}
+
+.online-lobby__join-row {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: stretch;
+}
+
+.online-lobby__code-input {
+  flex: 1;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+}
+
+.online-lobby__action-btn {
+  width: 100%;
+}
+
+.online-lobby__error {
+  color: var(--color-danger);
+  font-size: 0.875rem;
+  text-align: center;
+  padding: var(--space-sm);
+  background: rgba(233, 25, 52, 0.08);
+  border-radius: var(--radius-sm);
+}
+
+/* ── Connected lobby ─────────────────────────────────── */
+
+.online-lobby__room-code {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-md);
+  background: var(--color-primary-subtle);
+  border-radius: var(--radius-md);
+}
+
+.online-lobby__code-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.online-lobby__code-value {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: var(--color-primary);
+  letter-spacing: 0.2em;
+}
+
+.online-lobby__player-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.online-lobby__player {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-input-bg);
+  border-radius: var(--radius-sm);
+}
+
+.online-lobby__player--disconnected {
+  opacity: 0.4;
+}
+
+.online-lobby__player-name {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.online-lobby__player-status {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.online-lobby__empty {
+  color: var(--color-text-muted);
+  font-style: italic;
+  text-align: center;
+  padding: var(--space-md);
+}
+
+.online-lobby__waiting {
+  color: var(--color-text-muted);
+  text-align: center;
+  font-style: italic;
+  padding: var(--space-sm);
+}
+
+.online-lobby__start-btn {
+  width: 100%;
+}
+
+.online-lobby__actions {
+  margin-top: auto;
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.online-lobby__actions .btn {
+  flex: 1;
+}
+
+/* ── Mode select back button ──────────────────────────── */
+
+.mode-select__back-btn {
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
