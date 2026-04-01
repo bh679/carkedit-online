@@ -3,8 +3,10 @@
 
 import { getState, setState } from '../state.js';
 
-const DEFAULT_SERVER_URL = 'ws://localhost:4500';
-const REST_BASE_URL = 'http://localhost:4500';
+const _host = window.location.hostname;
+const _isSecure = window.location.protocol === 'https:';
+const DEFAULT_SERVER_URL = `${_isSecure ? 'wss' : 'ws'}://${_host}:4500`;
+const REST_BASE_URL = `${_isSecure ? 'https' : 'http'}://${_host}:4500`;
 
 let _client = null;
 let _room = null;
