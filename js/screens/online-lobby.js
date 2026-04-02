@@ -28,9 +28,24 @@ export function render(state) {
 }
 
 function renderJoinCreate(state, connecting, error) {
+  const { roomCode } = state;
+  const hasJoinCode = !!roomCode;
   const errorHtml = error
     ? `<p class="online-lobby__error">${escapeHtml(error)}</p>`
     : '';
+
+  const createRoomHtml = hasJoinCode ? '' : `
+      <div class="online-lobby__divider"></div>
+
+      <h2 class="online-lobby__heading">Create a Room</h2>
+      <button
+        class="btn btn--primary online-lobby__action-btn"
+        onclick="window.game.createRoom()"
+        ${connecting ? 'disabled' : ''}
+      >
+        ${connecting ? 'Creating...' : 'Create Private Room'}
+      </button>
+  `;
 
   const boardContent = `
     <div class="online-lobby__forms">
@@ -56,16 +71,7 @@ function renderJoinCreate(state, connecting, error) {
         </select>
       </div>
 
-      <div class="online-lobby__divider"></div>
-
-      <h2 class="online-lobby__heading">Create a Room</h2>
-      <button
-        class="btn btn--primary online-lobby__action-btn"
-        onclick="window.game.createRoom()"
-        ${connecting ? 'disabled' : ''}
-      >
-        ${connecting ? 'Creating...' : 'Create Private Room'}
-      </button>
+      ${createRoomHtml}
 
       <div class="online-lobby__divider"></div>
 
