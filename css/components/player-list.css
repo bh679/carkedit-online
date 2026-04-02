@@ -62,6 +62,11 @@
   box-shadow: 0 0 0 2px var(--color-chip-active-border);
 }
 
+.player-list__chip--self {
+  border-color: var(--color-chip-self-border);
+  box-shadow: 0 0 0 2px var(--color-chip-self-border);
+}
+
 .player-list__icon {
   width: 10px;
   height: 10px;
