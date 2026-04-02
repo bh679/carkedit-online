@@ -304,8 +304,9 @@ function toggleOnlineSetting(key) {
   const current = state.onlineSettings[key];
   const updated = { ...state.onlineSettings, [key]: !current };
   setState({ onlineSettings: updated });
-  // TODO: send to server once the server handles 'setting' messages
-  // sendMessage('setting', { key, value: !current });
+  if (state.connectionStatus === 'connected') {
+    sendMessage('setting', { key, value: !current });
+  }
   showScreen('online-lobby');
 }
 
