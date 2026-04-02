@@ -40,6 +40,11 @@ export function render(phase, state) {
     return renderPhaseCompleteScreen(config, state);
   }
 
+  // Online mode — render based on server-synced phase
+  if (state.gameMode === 'online' && state.onlinePhase) {
+    return renderOnline(phase, config, state);
+  }
+
   const subState = state.phase2SubState ?? 'living-dead';
   const livingDead = state.players[state.livingDeadIndex];
   const livingDeadName = livingDead?.name ?? '';
@@ -323,6 +328,169 @@ function renderWinnerScreen(config, state, playerListOptions) {
         Next Round
       </button>
     </div>
+  `);
+}
+
+// ── Online Mode Rendering ─────────────────────────────────
+
+function renderOnline(phase, config, state) {
+  const livingDead = state.players[state.livingDeadIndex];
+  const livingDeadName = livingDead?.name ?? '';
+
+  const playerListOptions = {
+    funeralDirector: state.funeralDirector,
+    livingDeadName,
+    submittedPlayers: [],
+    pitchingPlayer: state.onlinePhase === 'convince' ? state.onlineConvincerName : null,
+  };
+
+  switch (state.onlinePhase) {
+    case 'submit':
+      return renderOnlineSubmit(config, state, playerListOptions, livingDead, livingDeadName);
+    case 'convince':
+      return renderOnlineConvince(config, state, playerListOptions, livingDeadName);
+    case 'select':
+      return renderOnlineSelect(config, state, playerListOptions, livingDeadName);
+    default:
+      return renderOnlineSubmit(config, state, playerListOptions, livingDead, livingDeadName);
+  }
+}
+
+function renderOnlineSubmit(config, state, playerListOptions, livingDead, livingDeadName) {
+  const round = state.round ?? 1;
+  const hint = `Round ${round} — ${livingDeadName} is The Living Dead`;
+  const dieCard = state.currentCard;
+  const chosenCards = state.playerChosenCards?.[livingDeadName] ?? [];
+
+  const progressHtml = `<div class="online-progress">${state.onlineSubmittedCount}/${state.onlineTotalSubmitters} players submitted</div>`;
+
+  if (state.isLivingDead) {
+    // Living Dead sees the prompt — no Start Round button
+    return layout(config, state, playerListOptions, `
+      ${renderLivingDeadProfile({
+        player: livingDead,
+        dieCard,
+        chosenCards,
+        profileInspectCard: state.profileInspectCard ?? null,
+        deckType: config.deckType,
+        hint,
+      })}
+      ${renderHand([], {
+        livingDeadMessage: `You are The Living Dead this round.\nSit back and relax! 👑`,
+      })}
+      ${progressHtml}
+    `);
+  }
+
+  // Non-Living-Dead player — show hand for card selection
+  return layout(config, state, playerListOptions, `
+    ${renderLivingDeadProfile({
+      player: livingDead,
+      dieCard,
+      chosenCards,
+      profileInspectCard: state.profileInspectCard ?? null,
+      deckType: config.deckType,
+      hint: 'Select your best card to play',
+    })}
+    ${progressHtml}
+    ${renderHand(state.hand ?? [], { selectedCard: state.selectedCard, deckType: config.deckType })}
+  `);
+}
+
+function renderOnlineConvince(config, state, playerListOptions, livingDeadName) {
+  // Build submitted cards as a name->card map for gameboard display
+  const submittedMap = {};
+  for (const card of state.onlineSubmittedCards) {
+    // Find player name from sessionId
+    const player = state.players.find(p => p.sessionId === card.submittedBy);
+    const name = player?.name ?? card.submittedBy;
+    submittedMap[name] = { ...card, deckType: card.deckType || config.deckType };
+  }
+
+  const convincerName = state.onlineConvincerName ?? '';
+
+  if (state.isMyConvinceTurn) {
+    // It's my turn to pitch
+    const myCard = state.onlineSubmittedCards.find(c => c.submittedBy === state.mySessionId);
+    const revealButton = (myCard && !myCard.faceUp)
+      ? `<button class="btn btn--primary" onclick="window.game.revealCards()">Reveal My Card</button>`
+      : `<button class="btn btn--primary" onclick="window.game.donePitching()">Done Pitching</button>`;
+
+    return layout(config, state, { ...playerListOptions, pitchingPlayer: convincerName }, `
+      ${renderGameboard('', 'Your turn to pitch!', {
+        playedCards: submittedMap,
+        revealed: false,
+        deckType: config.deckType,
+        pitchingPlayer: convincerName,
+      })}
+      ${renderHand([], { footer: revealButton })}
+    `);
+  }
+
+  // Watching someone else pitch
+  return layout(config, state, { ...playerListOptions, pitchingPlayer: convincerName }, `
+    ${renderGameboard('', `${convincerName} is pitching`, {
+      playedCards: submittedMap,
+      revealed: false,
+      deckType: config.deckType,
+      pitchingPlayer: convincerName,
+    })}
+    ${renderHand([], {
+      livingDeadMessage: `Waiting for ${convincerName} to pitch...`,
+    })}
+  `);
+}
+
+function renderOnlineSelect(config, state, playerListOptions, livingDeadName) {
+  if (state.isLivingDead) {
+    // Living Dead picks the winner — build judging entries from submitted cards
+    const entries = state.onlineSubmittedCards.map(card => {
+      const player = state.players.find(p => p.sessionId === card.submittedBy);
+      const name = player?.name ?? 'Unknown';
+      return {
+        card: { ...card, deckType: card.deckType || config.deckType },
+        label: `${name}'s card`,
+        onClick: `window.game.inspectJudgingCard('${name}')`,
+        playerName: name,
+      };
+    });
+
+    // Build submittedCards map for judging card navigation (used by game-manager)
+    const submittedMap = {};
+    for (const entry of entries) {
+      submittedMap[entry.playerName] = entry.card;
+    }
+    // Store in state for judging card inspect/nav (uses submittedCards keyed by name)
+    if (Object.keys(state.submittedCards ?? {}).length === 0 && entries.length > 0) {
+      // Populate submittedCards for local judging card helpers
+      state.submittedCards = submittedMap;
+    }
+
+    const inspectOverlay = state.selectedCard
+      ? renderInspectOverlay({
+          selectedCard: state.selectedCard,
+          deckType: config.deckType,
+          submitLabel: 'Pick This Card',
+          onSubmit: `window.game.confirmWinner()`,
+          onPrev: `window.game.prevJudgingCard('${state.selectedCard.id}')`,
+          onNext: `window.game.nextJudgingCard('${state.selectedCard.id}')`,
+        })
+      : '';
+
+    return layout(config, state, playerListOptions, `
+      <div class="judging">
+        <h2 class="judging__title">${livingDeadName}, pick your favourite!</h2>
+        ${renderCardGrid(entries)}
+      </div>
+      ${inspectOverlay}
+    `);
+  }
+
+  // Non-Living-Dead waits for selection
+  return layout(config, state, playerListOptions, `
+    ${renderHand([], {
+      livingDeadMessage: `Waiting for ${livingDeadName} to pick a winner...`,
+    })}
   `);
 }
 

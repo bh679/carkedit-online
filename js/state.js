@@ -29,6 +29,17 @@ let _state = {
   mySessionId: null,               // local player's Colyseus session ID
   isMyTurn: false,                  // whether it's this player's turn (online mode)
 
+  // Online Phase 2/3 state
+  onlinePhase: null,                // 'submit' | 'convince' | 'select' | 'winner' | null
+  isLivingDead: false,              // whether this client is the current Living Dead
+  onlineSubmittedCount: 0,          // how many players have submitted cards
+  onlineTotalSubmitters: 0,         // total non-Living-Dead players
+  onlineConvincerName: null,        // name of the player currently convincing
+  isMyConvinceTurn: false,          // whether it's this client's turn to convince
+  onlineSubmittedCards: [],         // submitted cards synced from server
+  onlineWinner: null,               // { name, card } after selection
+  myCardRevealed: false,            // whether this client's submitted card has been revealed
+
   // Online lobby settings (host-controlled)
   onlineSettings: {
     autoStartOnReady: true,        // auto-start game when all players are ready
