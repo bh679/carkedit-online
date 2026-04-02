@@ -115,17 +115,25 @@ function renderJoinCreate(state, connecting, error) {
 
 function renderConnectedLobby(state) {
   const { roomCode, isHost, onlinePlayers } = state;
+  const allReady = onlinePlayers.length > 0 && onlinePlayers.every(p => p.ready);
 
   const playerListHtml = onlinePlayers.length === 0
     ? '<p class="online-lobby__empty">No players yet...</p>'
-    : onlinePlayers.map(p => `
-        <div class="online-lobby__player ${p.connected ? '' : 'online-lobby__player--disconnected'}">
-          <span class="online-lobby__player-name">${escapeHtml(p.name)}</span>
-          <span class="online-lobby__player-status">
-            ${p.ready ? 'Ready' : p.connected ? 'Connected' : 'Disconnected'}
-          </span>
-        </div>
-      `).join('');
+    : onlinePlayers.map((p, i) => {
+        const isFD = i === 0;
+        return `
+          <div class="online-lobby__player ${p.connected ? '' : 'online-lobby__player--disconnected'}">
+            <span class="online-lobby__player-name">
+              ${isFD ? '<strong>' : ''}${escapeHtml(p.name)}${isFD ? '</strong>' : ''}
+            </span>
+            <span class="online-lobby__player-status">
+              ${isFD
+                ? (p.ready ? 'The Funeral Director - Ready to Die' : 'The Funeral Director')
+                : p.ready ? 'Ready to Die' : p.connected ? 'Connected' : 'Disconnected'}
+            </span>
+          </div>
+        `;
+      }).join('');
 
   const codeDisplay = roomCode
     ? `<div class="online-lobby__room-code" onclick="window.game.copyJoinLink()" style="cursor:pointer" title="Click to copy join link">
@@ -134,15 +142,31 @@ function renderConnectedLobby(state) {
        </div>`
     : '';
 
+  // Find if the local player is ready
+  const myPlayer = onlinePlayers.find(p => p.sessionId === state.mySessionId);
+  const amReady = myPlayer?.ready ?? false;
+
+  const readyBtn = `
+    <button
+      class="btn ${amReady ? 'btn--secondary' : 'btn--primary'} online-lobby__ready-btn"
+      onclick="window.game.toggleReady()"
+    >
+      ${amReady ? 'Not Ready' : 'Ready to Die'}
+    </button>
+  `;
+
   const hostControls = isHost
-    ? `<button
+    ? `${readyBtn}
+       <div class="online-lobby__divider"></div>
+       <button
         class="btn btn--primary online-lobby__start-btn"
         onclick="window.game.startOnlineGame()"
         ${onlinePlayers.length < 2 ? 'disabled' : ''}
       >
         Start Game (${onlinePlayers.length} players)
       </button>`
-    : '<p class="online-lobby__waiting">Waiting for host to start the game...</p>';
+    : `${readyBtn}
+       <p class="online-lobby__waiting">Waiting for The Funeral Director to start the game...</p>`;
 
   const boardContent = `
     <div class="online-lobby__connected">
