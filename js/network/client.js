@@ -158,13 +158,17 @@ function syncLivingPhaseState(room) {
     }
   }
 
-  // Count submitters
+  // Count submitters and collect submitted player names
   let submittedCount = 0;
   let totalSubmitters = 0;
+  const onlineSubmittedPlayerNames = [];
   room.state.players.forEach((p, sid) => {
     if (sid === currentLivingDead) return;
     totalSubmitters++;
-    if (p.hasSubmitted) submittedCount++;
+    if (p.hasSubmitted) {
+      submittedCount++;
+      onlineSubmittedPlayerNames.push(p.name);
+    }
   });
 
   // Sync submitted cards
@@ -205,6 +209,7 @@ function syncLivingPhaseState(room) {
     hand,
     onlineSubmittedCount: submittedCount,
     onlineTotalSubmitters: totalSubmitters,
+    onlineSubmittedPlayerNames,
     onlineSubmittedCards: submittedCards,
     onlineConvincerName,
     isMyConvinceTurn,

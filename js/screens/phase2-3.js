@@ -340,7 +340,7 @@ function renderOnline(phase, config, state) {
   const playerListOptions = {
     funeralDirector: state.funeralDirector,
     livingDeadName,
-    submittedPlayers: [],
+    submittedPlayers: state.onlineSubmittedPlayerNames ?? [],
     pitchingPlayer: state.onlinePhase === 'convince' ? state.onlineConvincerName : null,
   };
 
@@ -362,7 +362,12 @@ function renderOnlineSubmit(config, state, playerListOptions, livingDead, living
   const dieCard = state.currentCard;
   const chosenCards = state.playerChosenCards?.[livingDeadName] ?? [];
 
-  const progressHtml = `<div class="online-progress">${state.onlineSubmittedCount}/${state.onlineTotalSubmitters} players submitted</div>`;
+  // Build submitted cards map (name -> card) for profile display
+  const submittedCardsMap = {};
+  for (const card of (state.onlineSubmittedCards ?? [])) {
+    const player = state.players.find(p => p.sessionId === card.submittedBy);
+    if (player) submittedCardsMap[player.name] = card;
+  }
 
   if (state.isLivingDead) {
     // Living Dead sees the prompt — no Start Round button
@@ -374,11 +379,11 @@ function renderOnlineSubmit(config, state, playerListOptions, livingDead, living
         profileInspectCard: state.profileInspectCard ?? null,
         deckType: config.deckType,
         hint,
+        submittedCards: submittedCardsMap,
       })}
       ${renderHand([], {
         livingDeadMessage: `You are The Living Dead this round.\nSit back and relax! 👑`,
       })}
-      ${progressHtml}
     `);
   }
 
@@ -391,8 +396,8 @@ function renderOnlineSubmit(config, state, playerListOptions, livingDead, living
       profileInspectCard: state.profileInspectCard ?? null,
       deckType: config.deckType,
       hint: 'Select your best card to play',
+      submittedCards: submittedCardsMap,
     })}
-    ${progressHtml}
     ${renderHand(state.hand ?? [], { selectedCard: state.selectedCard, deckType: config.deckType })}
   `);
 }
@@ -442,30 +447,30 @@ function renderOnlineConvince(config, state, playerListOptions, livingDeadName) 
 }
 
 function renderOnlineSelect(config, state, playerListOptions, livingDeadName) {
+  // Build judging entries from submitted cards — shared by all players
+  const entries = state.onlineSubmittedCards.map(card => {
+    const player = state.players.find(p => p.sessionId === card.submittedBy);
+    const name = player?.name ?? 'Unknown';
+    return {
+      card: { ...card, deckType: card.deckType || config.deckType },
+      label: `${name}'s card`,
+      onClick: `window.game.inspectJudgingCard('${name}')`,
+      playerName: name,
+    };
+  });
+
+  // Build submittedCards map for judging card navigation (used by game-manager)
+  const submittedMap = {};
+  for (const entry of entries) {
+    submittedMap[entry.playerName] = entry.card;
+  }
+  // Store in state for judging card inspect/nav (uses submittedCards keyed by name)
+  if (Object.keys(state.submittedCards ?? {}).length === 0 && entries.length > 0) {
+    state.submittedCards = submittedMap;
+  }
+
   if (state.isLivingDead) {
-    // Living Dead picks the winner — build judging entries from submitted cards
-    const entries = state.onlineSubmittedCards.map(card => {
-      const player = state.players.find(p => p.sessionId === card.submittedBy);
-      const name = player?.name ?? 'Unknown';
-      return {
-        card: { ...card, deckType: card.deckType || config.deckType },
-        label: `${name}'s card`,
-        onClick: `window.game.inspectJudgingCard('${name}')`,
-        playerName: name,
-      };
-    });
-
-    // Build submittedCards map for judging card navigation (used by game-manager)
-    const submittedMap = {};
-    for (const entry of entries) {
-      submittedMap[entry.playerName] = entry.card;
-    }
-    // Store in state for judging card inspect/nav (uses submittedCards keyed by name)
-    if (Object.keys(state.submittedCards ?? {}).length === 0 && entries.length > 0) {
-      // Populate submittedCards for local judging card helpers
-      state.submittedCards = submittedMap;
-    }
-
+    // Living Dead picks the winner
     const inspectOverlay = state.selectedCard
       ? renderInspectOverlay({
           selectedCard: state.selectedCard,
@@ -486,11 +491,25 @@ function renderOnlineSelect(config, state, playerListOptions, livingDeadName) {
     `);
   }
 
-  // Non-Living-Dead waits for selection
+  // Non-Living-Dead sees the same cards but can only preview (no winner selection)
+  const inspectOverlay = state.selectedCard
+    ? renderInspectOverlay({
+        selectedCard: state.selectedCard,
+        deckType: config.deckType,
+        submitLabel: 'Close',
+        onSubmit: `window.game.dismissInspect()`,
+        onPrev: `window.game.prevJudgingCard('${state.selectedCard.id}')`,
+        onNext: `window.game.nextJudgingCard('${state.selectedCard.id}')`,
+        btnStyle: 'secondary',
+      })
+    : '';
+
   return layout(config, state, playerListOptions, `
-    ${renderHand([], {
-      livingDeadMessage: `Waiting for ${livingDeadName} to pick a winner...`,
-    })}
+    <div class="judging">
+      <h2 class="judging__title">${livingDeadName} is picking their favourite...</h2>
+      ${renderCardGrid(entries)}
+    </div>
+    ${inspectOverlay}
   `);
 }
 
