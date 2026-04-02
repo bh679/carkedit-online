@@ -303,7 +303,9 @@ function toggleOnlineSetting(key) {
   const current = state.onlineSettings[key];
   const updated = { ...state.onlineSettings, [key]: !current };
   setState({ onlineSettings: updated });
-  sendRoomSetting(key, !current);
+  if (state.connectionStatus === 'connected') {
+    sendRoomSetting(key, !current);
+  }
   showScreen('online-lobby');
 }
 

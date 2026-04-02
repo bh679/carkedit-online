@@ -128,15 +128,13 @@ function renderConnectedLobby(state) {
   const settingsHtml = isHost
     ? `<div class="online-lobby__settings">
         <h2 class="online-lobby__heading">Room Settings</h2>
-        <label class="online-lobby__setting-row">
-          <input
-            type="checkbox"
-            class="online-lobby__checkbox"
-            ${onlineSettings.autoStartOnReady ? 'checked' : ''}
-            onchange="window.game.toggleOnlineSetting('autoStartOnReady')"
-          >
-          <span>Auto-start when everyone is ready</span>
-        </label>
+        <div class="lobby__stepper-row">
+          <span class="lobby__stepper-label">Auto-start when ready</span>
+          <button class="btn lobby__stepper-btn ${onlineSettings.autoStartOnReady ? 'btn--primary' : 'btn--secondary'}"
+            onclick="window.game.toggleOnlineSetting('autoStartOnReady')">
+            ${onlineSettings.autoStartOnReady ? 'On' : 'Off'}
+          </button>
+        </div>
       </div>
       <div class="online-lobby__divider"></div>`
     : '';
