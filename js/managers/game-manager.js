@@ -323,11 +323,34 @@ export function confirmWinner() {
 }
 
 export function inspectProfileCard(index) {
-  currentPhaseManager?.inspectProfileCard(index);
+  if (currentPhaseManager?.inspectProfileCard) {
+    currentPhaseManager.inspectProfileCard(index);
+    return;
+  }
+  // Online mode fallback — compute profile cards directly from state
+  const state = getState();
+  const livingDead = state.players[state.livingDeadIndex];
+  if (!livingDead) return;
+  const chosenCards = state.playerChosenCards?.[livingDead.name] ?? [];
+  const dieCard = state.playerDieCards?.[livingDead.name];
+  const allCards = [];
+  chosenCards.forEach(c => { if (c.deckType === 'live') allCards.push(c); });
+  if (dieCard) allCards.push({ ...dieCard, deckType: 'die' });
+  chosenCards.forEach(c => { if (c.deckType === 'bye') allCards.push(c); });
+  const card = allCards[index];
+  if (card) {
+    setState({ profileInspectCard: card });
+    showScreen(getState().screen);
+  }
 }
 
 export function dismissProfileCard() {
-  currentPhaseManager?.dismissProfileCard();
+  if (currentPhaseManager?.dismissProfileCard) {
+    currentPhaseManager.dismissProfileCard();
+    return;
+  }
+  setState({ profileInspectCard: null });
+  showScreen(getState().screen);
 }
 
 export function nextRound() {

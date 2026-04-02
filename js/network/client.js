@@ -340,6 +340,12 @@ function setupRoomListeners(room, onUpdate) {
       });
       if (_onScreenChange) _onScreenChange('phase1');
     } else if (phase !== 'die_phase' && phase !== 'lobby' && state.screen === 'phase1') {
+      // Store the last player's die card before transitioning
+      if (state.currentCard && state.players?.[state.currentPlayerIndex]) {
+        const lastPlayerName = state.players[state.currentPlayerIndex].name;
+        const playerDieCards = { ...(state.playerDieCards ?? {}), [lastPlayerName]: state.currentCard };
+        setState({ playerDieCards });
+      }
       // Die phase ended — show completion
       setState({ phaseComplete: true, turnStatus: 'idle' });
       if (_onScreenChange) _onScreenChange('phase1');
@@ -384,6 +390,13 @@ function setupRoomListeners(room, onUpdate) {
   $(room.state).listen('currentTurn', () => {
     const state = getState();
     if (room.state.phase === 'die_phase' && state.screen === 'phase1') {
+      // Store the previous player's die card before advancing
+      if (state.currentCard && state.players?.[state.currentPlayerIndex]) {
+        const prevPlayerName = state.players[state.currentPlayerIndex].name;
+        const playerDieCards = { ...(state.playerDieCards ?? {}), [prevPlayerName]: state.currentCard };
+        setState({ playerDieCards });
+      }
+
       const dieState = syncDiePhaseState(room);
       setState(dieState);
       if (_onScreenChange) _onScreenChange('phase1');
@@ -405,6 +418,22 @@ function setupRoomListeners(room, onUpdate) {
     const state = getState();
     if (state.onlinePhase) {
       const lbState = syncLivingPhaseState(room);
+
+      // Track chosen cards for Living Dead profile display
+      if (lbState.roundWinnerCard && lbState.onlinePhase === 'winner') {
+        const livingDeadPlayer = room.state.players.get(room.state.currentLivingDead);
+        const livingDeadName = livingDeadPlayer?.name ?? '';
+        if (livingDeadName) {
+          const existing = state.playerChosenCards ?? {};
+          const playerCards = existing[livingDeadName] ?? [];
+          const deckType = room.state.phase.startsWith('living') ? 'live' : 'bye';
+          lbState.playerChosenCards = {
+            ...existing,
+            [livingDeadName]: [...playerCards, { ...lbState.roundWinnerCard, deckType }],
+          };
+        }
+      }
+
       setState(lbState);
       if (_onScreenChange) _onScreenChange(state.screen);
     }
