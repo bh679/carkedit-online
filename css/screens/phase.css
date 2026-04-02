@@ -504,6 +504,32 @@
   color: var(--color-live);
 }
 
+/* ── Winner timer bar ────────────────────────────────── */
+
+.winner-timer {
+  width: 80%;
+  max-width: 300px;
+  height: 6px;
+  margin: 16px auto 0;
+  background: var(--color-surface, rgba(255,255,255,0.1));
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.winner-timer__bar {
+  height: 100%;
+  width: 100%;
+  background: var(--color-live, #30aa30);
+  border-radius: 3px;
+  animation: winner-timer-fill 5s linear forwards;
+  transform-origin: left;
+}
+
+@keyframes winner-timer-fill {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
 /* ── Prompt card prompt text ─────────────────────────── */
 
 .prompt-card__prompt {
