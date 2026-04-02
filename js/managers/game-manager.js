@@ -331,7 +331,7 @@ export function dismissProfileCard() {
 }
 
 export function nextRound() {
-  if (getState().gameMode === 'online') return; // Server auto-advances rounds
+  if (getState().gameMode === 'online') return; // Server auto-advances after 5s
   currentPhaseManager?.nextRound();
 }
 

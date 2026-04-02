@@ -351,6 +351,8 @@ function renderOnline(phase, config, state) {
       return renderOnlineConvince(config, state, playerListOptions, livingDeadName);
     case 'select':
       return renderOnlineSelect(config, state, playerListOptions, livingDeadName);
+    case 'winner':
+      return renderOnlineWinner(config, state, playerListOptions);
     default:
       return renderOnlineSubmit(config, state, playerListOptions, livingDead, livingDeadName);
   }
@@ -510,6 +512,26 @@ function renderOnlineSelect(config, state, playerListOptions, livingDeadName) {
       ${renderCardGrid(entries)}
     </div>
     ${inspectOverlay}
+  `);
+}
+
+function renderOnlineWinner(config, state, playerListOptions) {
+  const winnerName = state.roundWinner ?? '';
+  const winnerCard = state.roundWinnerCard;
+  const activeCardHtml = winnerCard
+    ? renderActiveCard(renderCard({ ...winnerCard, deckType: winnerCard.deckType || config.deckType }))
+    : '';
+
+  return layout(config, state, playerListOptions, `
+    ${activeCardHtml}
+    <div class="winner-announcement">
+      <div class="winner-announcement__card">
+        <h2 class="winner-announcement__title">🎉</h2>
+        <p class="winner-announcement__name">${winnerName} wins this round!</p>
+        <p class="winner-announcement__points">+1 point</p>
+      </div>
+      <div class="winner-timer"><div class="winner-timer__bar"></div></div>
+    </div>
   `);
 }
 
