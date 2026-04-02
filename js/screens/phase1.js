@@ -12,10 +12,11 @@ import { render as renderHand } from '../components/hand.js';
  * @returns {string} HTML string
  */
 export function render(state) {
+  const isOnline = state.gameMode === 'online';
+  const isMyTurn = isOnline ? state.isMyTurn : true;
   const currentPlayer = state.players[state.currentPlayerIndex];
 
   let boardContent;
-
   let handContent;
 
   if (state.phaseComplete) {
@@ -46,21 +47,28 @@ export function render(state) {
         renderCard({ ...state.currentCard, deckType: 'die' }),
         { label: `${currentPlayer.name}'s death`, extraHtml: promptHtml },
       );
-      handContent = renderHand([], { footer: `
-        <button class="btn btn--primary" onclick="window.game.doneDying()">
-          Done Dying
-        </button>
-      ` });
+      handContent = isMyTurn
+        ? renderHand([], { footer: `
+            <button class="btn btn--primary" onclick="window.game.doneDying()">
+              Done Dying
+            </button>
+          ` })
+        : renderHand([], { footer: '' });
     } else {
       boardContent = renderActiveCard(
         renderCardBack({ deckType: 'die' }),
-        { label: `${currentPlayer.name}'s death`, onClick: 'window.game.revealCard()' },
+        {
+          label: `${currentPlayer.name}'s death`,
+          onClick: isMyTurn ? 'window.game.revealCard()' : '',
+        },
       );
-      handContent = renderHand([], { footer: `
-        <button class="btn btn--primary" onclick="window.game.revealCard()">
-          Flip Card
-        </button>
-      ` });
+      handContent = isMyTurn
+        ? renderHand([], { footer: `
+            <button class="btn btn--primary" onclick="window.game.revealCard()">
+              Flip Card
+            </button>
+          ` })
+        : renderHand([], { footer: '' });
     }
   } else {
     boardContent = `

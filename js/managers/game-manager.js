@@ -8,6 +8,7 @@ import { createPhase23Manager } from './phase23-manager.js';
 import { createPhase4Manager } from './phase4-manager.js';
 import { computeDodTurnOrder } from '../utils/turn-order.js';
 import { shuffle } from '../utils/shuffle.js';
+import { sendMessage } from '../network/client.js';
 
 let currentPhaseManager = null;
 
@@ -42,6 +43,10 @@ export function startPhase1() {
 }
 
 export function doneDying() {
+  if (getState().gameMode === 'online') {
+    sendMessage('end_die_turn');
+    return;
+  }
   if (currentPhaseManager?.nextTurn) {
     currentPhaseManager.nextTurn();
   }
@@ -208,6 +213,10 @@ export function nextRound() {
 }
 
 export function revealCard() {
+  if (getState().gameMode === 'online') {
+    sendMessage('reveal_die');
+    return;
+  }
   if (currentPhaseManager?.revealCard) {
     currentPhaseManager.revealCard();
   }
