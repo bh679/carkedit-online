@@ -4,7 +4,7 @@
 import { getState, setState } from '../state.js';
 
 const _origin = window.location.origin;
-const DEFAULT_SERVER_URL = _origin;
+const DEFAULT_SERVER_URL = `${_origin}/colyseus`;
 const REST_BASE_URL = _origin;
 
 let _client = null;
