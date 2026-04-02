@@ -348,6 +348,8 @@ export function revealCard() {
 // ── Phase 4 (EULOGY WILDCARD) ────────────────────────────
 
 export function startPhase4() {
+  if (getState().gameMode === 'online') return; // Server manages eulogy transition
+
   setState({
     screen: 'phase4',
     phase: 4,
@@ -376,29 +378,53 @@ export function startPhase4() {
 }
 
 export function startEulogyRound() {
+  if (getState().gameMode === 'online') {
+    sendMessage('start_eulogy_round');
+    return;
+  }
   currentPhaseManager?.startEulogyRound();
 }
 
-export function selectEulogist(playerName) {
-  currentPhaseManager?.selectEulogist(playerName);
+export function selectEulogist(playerNameOrSessionId) {
+  if (getState().gameMode === 'online') {
+    // In online mode, the argument is a session ID
+    sendMessage('select_eulogist', { sessionId: playerNameOrSessionId });
+    return;
+  }
+  currentPhaseManager?.selectEulogist(playerNameOrSessionId);
 }
 
 export function confirmEulogists() {
+  if (getState().gameMode === 'online') {
+    sendMessage('confirm_eulogists');
+    return;
+  }
   currentPhaseManager?.confirmEulogists();
 }
 
 export function startEulogy() {
+  // No pass-phone in online mode — this is only used in shared device mode
   currentPhaseManager?.startEulogy();
 }
 
 export function doneEulogy() {
+  if (getState().gameMode === 'online') {
+    sendMessage('done_eulogy');
+    return;
+  }
   currentPhaseManager?.doneEulogy();
 }
 
-export function pickBestEulogy(playerName) {
-  currentPhaseManager?.pickBestEulogy(playerName);
+export function pickBestEulogy(playerNameOrSessionId) {
+  if (getState().gameMode === 'online') {
+    // In online mode, the argument is a session ID
+    sendMessage('pick_best_eulogy', { sessionId: playerNameOrSessionId });
+    return;
+  }
+  currentPhaseManager?.pickBestEulogy(playerNameOrSessionId);
 }
 
 export function nextWildcard() {
+  if (getState().gameMode === 'online') return; // Server auto-advances after 5s
   currentPhaseManager?.nextWildcard();
 }
