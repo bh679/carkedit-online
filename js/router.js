@@ -56,8 +56,12 @@ export function showScreen(name, updates = {}) {
 
   if (name === 'menu') {
     fetch('package.json').then(r => r.json()).then(pkg => {
-      const el = document.getElementById('menu-version');
-      if (el) el.textContent = `v${pkg.version}`;
+      const el = document.getElementById('menu-version-client');
+      if (el) el.textContent = `Client: v${pkg.version}`;
+    }).catch(() => {});
+    fetch('/api/carkedit/version').then(r => r.json()).then(data => {
+      const el = document.getElementById('menu-version-server');
+      if (el) el.textContent = `Server: v${data.version}`;
     }).catch(() => {});
   }
 

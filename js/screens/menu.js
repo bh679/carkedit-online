@@ -28,7 +28,10 @@ export function render(state) {
         <a class="btn btn--ghost menu__site-link menu__shop-link" href="https://carkedit.com/shop/all-products/games/carked-it/" target="_blank" rel="noopener noreferrer">Buy Physical Game</a>
         <a class="btn btn--ghost menu__site-link" href="https://carkedit.com" target="_blank" rel="noopener noreferrer">CarkedIt.com</a>
       </div>
-      <a class="menu__version" id="menu-version" href="https://github.com/bh679/carkedit-online" target="_blank" rel="noopener noreferrer"></a>
+      <div class="menu__versions">
+        <a class="menu__version" id="menu-version-client" href="https://github.com/bh679/carkedit-online" target="_blank" rel="noopener noreferrer"></a>
+        <a class="menu__version" id="menu-version-server" href="https://github.com/bh679/carkedit-api" target="_blank" rel="noopener noreferrer"></a>
+      </div>
     </div>
   `;
 }
