@@ -147,9 +147,6 @@ function syncLivingPhaseState(room) {
   } else if (serverPhase === 'living_select' || serverPhase === 'bye_select') {
     onlinePhase = 'select';
     screenName = serverPhase.startsWith('living') ? 'phase2' : 'phase3';
-  } else if (serverPhase === 'living_winner' || serverPhase === 'bye_winner') {
-    onlinePhase = 'winner';
-    screenName = serverPhase.startsWith('living') ? 'phase2' : 'phase3';
   }
 
   // Sync this player's hand
@@ -203,16 +200,6 @@ function syncLivingPhaseState(room) {
     ? { ...state.playerDieCards[livingDeadName], deckType: 'die' }
     : null;
 
-  // Winner announcement data
-  const roundWinnerSessionId = room.state.roundWinner || '';
-  const roundWinnerPlayer = roundWinnerSessionId ? room.state.players.get(roundWinnerSessionId) : null;
-  const roundWinnerName = roundWinnerPlayer?.name ?? '';
-  const roundWinnerCardIndex = room.state.roundWinnerCardIndex ?? -1;
-  let roundWinnerCard = null;
-  if (roundWinnerCardIndex >= 0 && roundWinnerCardIndex < submittedCards.length) {
-    roundWinnerCard = submittedCards[roundWinnerCardIndex];
-  }
-
   return {
     players,
     livingDeadIndex: Math.max(0, livingDeadIndex),
@@ -229,13 +216,7 @@ function syncLivingPhaseState(room) {
     myCardRevealed,
     currentCard,
     round: room.state.round,
-    roundWinner: roundWinnerName,
-    roundWinnerCard,
-    // Only reset submittedCards/selectedCard when not in select or winner phase
-    // (these are managed locally by the judging UI during those phases)
-    ...(onlinePhase !== 'select' && onlinePhase !== 'winner'
-      ? { submittedCards: {}, selectedCard: null }
-      : {}),
+    selectedCard: null,
     phaseComplete: false,
   };
 }
@@ -274,12 +255,11 @@ function setupRoomListeners(room, onUpdate) {
     }
 
     // Living / Bye phase transitions
-    const livingBye = ['living_submit', 'living_convince', 'living_select', 'living_winner',
-                       'bye_submit', 'bye_convince', 'bye_select', 'bye_winner'];
+    const livingBye = ['living_submit', 'living_convince', 'living_select',
+                       'bye_submit', 'bye_convince', 'bye_select'];
     if (livingBye.includes(phase)) {
       const lbState = syncLivingPhaseState(room);
       const phaseNum = phase.startsWith('living') ? 2 : 3;
-      console.log(`[client] Phase transition: ${phase} → onlinePhase=${lbState.onlinePhase}, winner=${lbState.roundWinner}, card=${lbState.roundWinnerCard?.id}`);
       setState({
         phase: phaseNum,
         screen: lbState.screenName,
@@ -309,16 +289,6 @@ function setupRoomListeners(room, onUpdate) {
   $(room.state).listen('convincingTurn', () => {
     const state = getState();
     if (state.onlinePhase === 'convince') {
-      const lbState = syncLivingPhaseState(room);
-      setState(lbState);
-      if (_onScreenChange) _onScreenChange(state.screen);
-    }
-  });
-
-  // Listen for round winner changes (winner announcement phase)
-  $(room.state).listen('roundWinner', () => {
-    const state = getState();
-    if (state.onlinePhase) {
       const lbState = syncLivingPhaseState(room);
       setState(lbState);
       if (_onScreenChange) _onScreenChange(state.screen);
