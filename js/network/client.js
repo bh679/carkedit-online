@@ -207,3 +207,9 @@ export function getRoom() {
 export function getSessionId() {
   return _room?.sessionId ?? null;
 }
+
+export function sendRoomSetting(key, value) {
+  if (_room) {
+    _room.send('setting', { key, value });
+  }
+}

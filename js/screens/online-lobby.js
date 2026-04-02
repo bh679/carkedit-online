@@ -105,7 +105,7 @@ function renderJoinCreate(state, connecting, error) {
 }
 
 function renderConnectedLobby(state) {
-  const { roomCode, isHost, onlinePlayers } = state;
+  const { roomCode, isHost, onlinePlayers, onlineSettings } = state;
 
   const playerListHtml = onlinePlayers.length === 0
     ? '<p class="online-lobby__empty">No players yet...</p>'
@@ -123,6 +123,22 @@ function renderConnectedLobby(state) {
         <span class="online-lobby__code-label">Room Code</span>
         <span class="online-lobby__code-value">${escapeHtml(roomCode)}</span>
        </div>`
+    : '';
+
+  const settingsHtml = isHost
+    ? `<div class="online-lobby__settings">
+        <h2 class="online-lobby__heading">Room Settings</h2>
+        <label class="online-lobby__setting-row">
+          <input
+            type="checkbox"
+            class="online-lobby__checkbox"
+            ${onlineSettings.autoStartOnReady ? 'checked' : ''}
+            onchange="window.game.toggleOnlineSetting('autoStartOnReady')"
+          >
+          <span>Auto-start when everyone is ready</span>
+        </label>
+      </div>
+      <div class="online-lobby__divider"></div>`
     : '';
 
   const hostControls = isHost
@@ -144,6 +160,7 @@ function renderConnectedLobby(state) {
         ${playerListHtml}
       </div>
       <div class="online-lobby__divider"></div>
+      ${settingsHtml}
       ${hostControls}
     </div>
   `;

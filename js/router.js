@@ -15,6 +15,7 @@ import {
   createRoom as networkCreateRoom,
   joinRoom as networkJoinRoom,
   leaveRoom as networkLeaveRoom,
+  sendRoomSetting,
 } from './network/client.js';
 import {
   startPhase1, doneDying, revealCard,
@@ -297,6 +298,15 @@ function cyclePitchDuration(dir) {
   refreshAdvancedPanel();
 }
 
+function toggleOnlineSetting(key) {
+  const state = getState();
+  const current = state.onlineSettings[key];
+  const updated = { ...state.onlineSettings, [key]: !current };
+  setState({ onlineSettings: updated });
+  sendRoomSetting(key, !current);
+  showScreen('online-lobby');
+}
+
 function revealWinner() {
   const state = getState();
   const sorted = [...state.players].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
@@ -427,6 +437,7 @@ window.game = {
     await networkLeaveRoom();
     showScreen('online-lobby');
   },
+  toggleOnlineSetting,
   startOnlineGame() {
     // Placeholder — game state sync will be implemented in a future session
   },

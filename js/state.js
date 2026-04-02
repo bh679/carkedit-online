@@ -27,6 +27,11 @@ let _state = {
   onlinePlayers: [],               // synced from server room state
   onlineError: null,               // connection/join error message
 
+  // Online lobby settings (host-controlled)
+  onlineSettings: {
+    autoStartOnReady: true,        // auto-start game when all players are ready
+  },
+
   gameSettings: {
     rounds: 2,
     handSize: 5,
