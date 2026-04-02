@@ -188,13 +188,15 @@ function renderConnectedLobby(state) {
   const hostControls = isHost
     ? `${readyBtn}
        <div class="online-lobby__divider"></div>
-       <button
-        class="btn btn--primary online-lobby__start-btn"
-        onclick="window.game.startOnlineGame()"
-        ${onlinePlayers.length < 2 ? 'disabled' : ''}
-      >
-        Start Game (${onlinePlayers.length} players)
-      </button>`
+       <div class="online-lobby__start-container">
+         <button
+          class="btn btn--primary online-lobby__start-btn"
+          onclick="window.game.startOnlineGame()"
+          ${onlinePlayers.length < 2 ? 'disabled' : ''}
+        >
+          Start Game (${onlinePlayers.length} players)
+        </button>
+       </div>`
     : `${readyBtn}
        <p class="online-lobby__waiting">Waiting for The Funeral Director to start the game...</p>`;
 

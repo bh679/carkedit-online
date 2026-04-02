@@ -449,9 +449,24 @@ window.game = {
     const allReady = state.onlinePlayers.length > 0 && state.onlinePlayers.every(p => p.ready);
     if (!allReady && state.onlinePlayers.length >= 2) {
       const notReady = state.onlinePlayers.filter(p => !p.ready).map(p => p.name);
-      if (!confirm(`Not all players are ready (${notReady.join(', ')}). Start anyway?`)) return;
+      const container = document.querySelector('.online-lobby__start-container');
+      if (container) {
+        container.innerHTML = `
+          <p class="online-lobby__confirm-msg">Not all players are ready (${notReady.join(', ')}). Start anyway?</p>
+          <div class="online-lobby__confirm-actions">
+            <button class="btn btn--secondary" onclick="window.game.cancelStartOnlineGame()">Cancel</button>
+            <button class="btn btn--primary" onclick="window.game.confirmStartOnlineGame()">Start</button>
+          </div>`;
+      }
+      return;
     }
     sendMessage('start_game');
+  },
+  confirmStartOnlineGame() {
+    sendMessage('start_game');
+  },
+  cancelStartOnlineGame() {
+    showScreen('online-lobby');
   },
   copyJoinLink() {
     const state = getState();
