@@ -534,3 +534,16 @@
 .phase-actions .btn {
   width: 100%;
 }
+
+/* ── Online progress indicator ─────────────────────────── */
+
+.online-progress {
+  text-align: center;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-secondary, #666);
+  background: var(--color-surface, rgba(255,255,255,0.05));
+  border-radius: 8px;
+  margin: 4px auto;
+}

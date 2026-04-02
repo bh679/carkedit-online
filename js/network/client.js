@@ -113,6 +113,109 @@ function syncDiePhaseState(room) {
   };
 }
 
+/** Map a server Card schema object to the local card format */
+function serverCardToLocal(serverCard) {
+  const state = getState();
+  const deckType = serverCard.deck === 'living' ? 'live' : serverCard.deck;
+  const localDeck = state.decks?.[deckType] ?? [];
+  const match = localDeck.find(c => String(c.id) === serverCard.id);
+  return match
+    ? { ...match, deckType, faceUp: serverCard.faceUp, submittedBy: serverCard.submittedBy }
+    : { id: serverCard.id, title: serverCard.text, deckType, faceUp: serverCard.faceUp, submittedBy: serverCard.submittedBy };
+}
+
+/** Build state for the living/bye phase from server room state */
+function syncLivingPhaseState(room) {
+  const state = getState();
+  const mySessionId = state.mySessionId;
+  const players = buildPlayersFromOnline(room);
+  const turnOrder = Array.from(room.state.turnOrder ?? []);
+  const currentLivingDead = room.state.currentLivingDead;
+  const livingDeadIndex = turnOrder.indexOf(currentLivingDead);
+  const isLivingDead = currentLivingDead === mySessionId;
+
+  // Map server phase to online sub-phase
+  const serverPhase = room.state.phase;
+  let onlinePhase = null;
+  let screenName = null;
+  if (serverPhase === 'living_submit' || serverPhase === 'bye_submit') {
+    onlinePhase = 'submit';
+    screenName = serverPhase.startsWith('living') ? 'phase2' : 'phase3';
+  } else if (serverPhase === 'living_convince' || serverPhase === 'bye_convince') {
+    onlinePhase = 'convince';
+    screenName = serverPhase.startsWith('living') ? 'phase2' : 'phase3';
+  } else if (serverPhase === 'living_select' || serverPhase === 'bye_select') {
+    onlinePhase = 'select';
+    screenName = serverPhase.startsWith('living') ? 'phase2' : 'phase3';
+  }
+
+  // Sync this player's hand
+  const myPlayer = room.state.players.get(mySessionId);
+  const hand = [];
+  if (myPlayer?.hand) {
+    for (let i = 0; i < myPlayer.hand.length; i++) {
+      hand.push(serverCardToLocal(myPlayer.hand[i]));
+    }
+  }
+
+  // Count submitters
+  let submittedCount = 0;
+  let totalSubmitters = 0;
+  room.state.players.forEach((p, sid) => {
+    if (sid === currentLivingDead) return;
+    totalSubmitters++;
+    if (p.hasSubmitted) submittedCount++;
+  });
+
+  // Sync submitted cards
+  const submittedCards = [];
+  for (let i = 0; i < room.state.submittedCards.length; i++) {
+    submittedCards.push(serverCardToLocal(room.state.submittedCards[i]));
+  }
+
+  // Convince turn info
+  const convincingTurn = room.state.convincingTurn;
+  const convincerPlayer = room.state.players.get(convincingTurn);
+  const onlineConvincerName = convincerPlayer?.name ?? null;
+  const isMyConvinceTurn = convincingTurn === mySessionId;
+
+  // Check if my submitted card has been revealed
+  let myCardRevealed = false;
+  for (let i = 0; i < room.state.submittedCards.length; i++) {
+    const card = room.state.submittedCards[i];
+    if (card.submittedBy === mySessionId && card.faceUp) {
+      myCardRevealed = true;
+      break;
+    }
+  }
+
+  // Living Dead die card (for profile display)
+  const livingDeadPlayer = room.state.players.get(currentLivingDead);
+  const livingDeadName = livingDeadPlayer?.name ?? '';
+  const currentCard = state.playerDieCards?.[livingDeadName]
+    ? { ...state.playerDieCards[livingDeadName], deckType: 'die' }
+    : null;
+
+  return {
+    players,
+    livingDeadIndex: Math.max(0, livingDeadIndex),
+    isLivingDead,
+    onlinePhase,
+    screenName,
+    hand,
+    onlineSubmittedCount: submittedCount,
+    onlineTotalSubmitters: totalSubmitters,
+    onlineSubmittedCards: submittedCards,
+    onlineConvincerName,
+    isMyConvinceTurn,
+    myCardRevealed,
+    currentCard,
+    round: room.state.round,
+    selectedCard: null,
+    phaseComplete: false,
+  };
+}
+
 function setupRoomListeners(room, onUpdate) {
   const $ = window.Colyseus.getStateCallbacks(room);
 
@@ -145,6 +248,26 @@ function setupRoomListeners(room, onUpdate) {
       setState({ phaseComplete: true, turnStatus: 'idle' });
       if (_onScreenChange) _onScreenChange('phase1');
     }
+
+    // Living / Bye phase transitions
+    const livingBye = ['living_submit', 'living_convince', 'living_select',
+                       'bye_submit', 'bye_convince', 'bye_select'];
+    if (livingBye.includes(phase)) {
+      const lbState = syncLivingPhaseState(room);
+      const phaseNum = phase.startsWith('living') ? 2 : 3;
+      setState({
+        phase: phaseNum,
+        screen: lbState.screenName,
+        ...lbState,
+      });
+      if (_onScreenChange) _onScreenChange(lbState.screenName);
+    }
+
+    if (phase === 'game_over') {
+      const players = buildPlayersFromOnline(room);
+      setState({ onlinePhase: 'game_over', players, phaseComplete: true });
+      if (_onScreenChange) _onScreenChange(getState().screen);
+    }
   });
 
   // Listen for current turn changes (advances during die phase)
@@ -155,6 +278,35 @@ function setupRoomListeners(room, onUpdate) {
       setState(dieState);
       if (_onScreenChange) _onScreenChange('phase1');
     }
+  });
+
+  // Listen for convincing turn changes (living/bye convince phase)
+  $(room.state).listen('convincingTurn', () => {
+    const state = getState();
+    if (state.onlinePhase === 'convince') {
+      const lbState = syncLivingPhaseState(room);
+      setState(lbState);
+      if (_onScreenChange) _onScreenChange(state.screen);
+    }
+  });
+
+  // Listen for submitted cards changes
+  $(room.state.submittedCards).onAdd((card) => {
+    const state = getState();
+    if (state.onlinePhase) {
+      const lbState = syncLivingPhaseState(room);
+      setState(lbState);
+      if (_onScreenChange) _onScreenChange(state.screen);
+    }
+    // Listen for faceUp changes on submitted cards (reveal during convince)
+    $(card).listen('faceUp', () => {
+      const s = getState();
+      if (s.onlinePhase) {
+        const updated = syncLivingPhaseState(room);
+        setState(updated);
+        if (_onScreenChange) _onScreenChange(s.screen);
+      }
+    });
   });
 
   // Players map might not exist yet — guard
@@ -171,9 +323,17 @@ function setupRoomListeners(room, onUpdate) {
       const refreshed = syncPlayersFromRoom(room);
       setState({ onlinePlayers: refreshed });
       if (onUpdate) onUpdate(refreshed);
+
+      // Re-sync living phase state when player properties change (e.g. hasSubmitted, score)
+      const s = getState();
+      if (s.onlinePhase) {
+        const lbState = syncLivingPhaseState(room);
+        setState(lbState);
+        if (_onScreenChange) _onScreenChange(s.screen);
+      }
     });
 
-    // Listen for card faceUp changes in player's hand
+    // Listen for card changes in player's hand
     if (player.hand) {
       $(player.hand).onAdd((card) => {
         $(card).listen('faceUp', () => {
@@ -184,6 +344,14 @@ function setupRoomListeners(room, onUpdate) {
             if (_onScreenChange) _onScreenChange('phase1');
           }
         });
+
+        // Re-sync hand when cards are added during living/bye phases
+        const s = getState();
+        if (s.onlinePhase && sessionId === s.mySessionId) {
+          const lbState = syncLivingPhaseState(room);
+          setState(lbState);
+          if (_onScreenChange) _onScreenChange(s.screen);
+        }
       });
     }
   });
