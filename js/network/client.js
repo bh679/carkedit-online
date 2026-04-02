@@ -405,6 +405,22 @@ function setupRoomListeners(room, onUpdate) {
     const state = getState();
     if (state.onlinePhase) {
       const lbState = syncLivingPhaseState(room);
+
+      // Track chosen cards for Living Dead profile display
+      if (lbState.roundWinnerCard && lbState.onlinePhase === 'winner') {
+        const livingDeadPlayer = room.state.players.get(room.state.currentLivingDead);
+        const livingDeadName = livingDeadPlayer?.name ?? '';
+        if (livingDeadName) {
+          const existing = state.playerChosenCards ?? {};
+          const playerCards = existing[livingDeadName] ?? [];
+          const deckType = room.state.phase.startsWith('living') ? 'live' : 'bye';
+          lbState.playerChosenCards = {
+            ...existing,
+            [livingDeadName]: [...playerCards, { ...lbState.roundWinnerCard, deckType }],
+          };
+        }
+      }
+
       setState(lbState);
       if (_onScreenChange) _onScreenChange(state.screen);
     }
