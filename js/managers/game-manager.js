@@ -338,7 +338,10 @@ export function inspectProfileCard(index) {
   if (dieCard) allCards.push({ ...dieCard, deckType: 'die' });
   chosenCards.forEach(c => { if (c.deckType === 'bye') allCards.push(c); });
   const card = allCards[index];
-  if (card) setState({ profileInspectCard: card });
+  if (card) {
+    setState({ profileInspectCard: card });
+    showScreen(getState().screen);
+  }
 }
 
 export function dismissProfileCard() {
@@ -347,6 +350,7 @@ export function dismissProfileCard() {
     return;
   }
   setState({ profileInspectCard: null });
+  showScreen(getState().screen);
 }
 
 export function nextRound() {
