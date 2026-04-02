@@ -29,6 +29,11 @@ let _state = {
   mySessionId: null,               // local player's Colyseus session ID
   isMyTurn: false,                  // whether it's this player's turn (online mode)
 
+  // Online lobby settings (host-controlled)
+  onlineSettings: {
+    autoStartOnReady: true,        // auto-start game when all players are ready
+  },
+
   gameSettings: {
     rounds: 2,
     handSize: 5,

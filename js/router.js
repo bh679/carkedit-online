@@ -299,6 +299,17 @@ function cyclePitchDuration(dir) {
   refreshAdvancedPanel();
 }
 
+function toggleOnlineSetting(key) {
+  const state = getState();
+  const current = state.onlineSettings[key];
+  const updated = { ...state.onlineSettings, [key]: !current };
+  setState({ onlineSettings: updated });
+  if (state.connectionStatus === 'connected') {
+    sendMessage('setting', { key, value: !current });
+  }
+  showScreen('online-lobby');
+}
+
 function revealWinner() {
   const state = getState();
   const sorted = [...state.players].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
@@ -429,6 +440,7 @@ window.game = {
     await networkLeaveRoom();
     showScreen('online-lobby');
   },
+  toggleOnlineSetting,
   toggleReady() {
     sendMessage('ready');
   },
