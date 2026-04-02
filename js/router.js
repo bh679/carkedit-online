@@ -454,6 +454,11 @@ window.game = {
         btn.textContent = 'Copied!';
         setTimeout(() => { btn.innerHTML = original; }, 1500);
       }
+      const label = document.querySelector('.online-lobby__code-label');
+      if (label) {
+        label.textContent = 'Copied';
+        setTimeout(() => { label.textContent = 'Room Code'; }, 1500);
+      }
     }).catch(() => {});
   },
 };
