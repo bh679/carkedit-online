@@ -56,6 +56,16 @@
   border-color: var(--color-chip-director-border);
 }
 
+.player-list__chip--director .player-list__name,
+.player-list__chip--director .player-list__score,
+.player-list__chip--director .player-list__birthday {
+  color: var(--color-chip-director-text);
+}
+
+.player-list__chip--director .player-list__icon {
+  color: var(--color-chip-director-text);
+}
+
 .player-list__chip--active {
   background: var(--color-chip-active-bg);
   border-color: var(--color-chip-active-border);

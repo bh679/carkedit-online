@@ -29,8 +29,9 @@
   --color-player-list-label:    #364153;
   --color-player-list-empty:    #6b7280;
   --color-chip-bg:              #f9fafb;
-  --color-chip-director-bg:     #FFF3D4;
-  --color-chip-director-border: #FFB700;
+  --color-chip-director-bg:     #000000;
+  --color-chip-director-border: #000000;
+  --color-chip-director-text:   #ffffff;
   --color-player-name:          #1e2939;
   --color-score:                #4a5565;
   --color-chip-active-bg:       #ede9fe;
