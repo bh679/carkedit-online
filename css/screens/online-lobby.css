@@ -101,6 +101,15 @@
   border-radius: var(--radius-sm);
 }
 
+.online-lobby__player--director {
+  background: var(--color-chip-director-bg);
+}
+
+.online-lobby__player--director .online-lobby__player-name,
+.online-lobby__player--director .online-lobby__player-status {
+  color: var(--color-chip-director-text);
+}
+
 .online-lobby__player--disconnected {
   opacity: 0.4;
 }
