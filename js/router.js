@@ -15,7 +15,8 @@ import {
   createRoom as networkCreateRoom,
   joinRoom as networkJoinRoom,
   leaveRoom as networkLeaveRoom,
-  sendRoomSetting,
+  sendMessage,
+  onScreenChange,
 } from './network/client.js';
 import {
   startPhase1, doneDying, revealCard,
@@ -65,8 +66,8 @@ export function showScreen(name, updates = {}) {
     }
   });
 
-  // Start preloading cards when entering the lobby
-  if (name === 'lobby' && !state.preloadComplete) {
+  // Start preloading cards when entering a lobby
+  if ((name === 'lobby' || name === 'online-lobby') && !state.preloadComplete) {
     startPreload();
   }
 }
@@ -304,7 +305,7 @@ function toggleOnlineSetting(key) {
   const updated = { ...state.onlineSettings, [key]: !current };
   setState({ onlineSettings: updated });
   // TODO: send to server once the server handles 'setting' messages
-  // sendRoomSetting(key, !current);
+  // sendMessage('setting', { key, value: !current });
   showScreen('online-lobby');
 }
 
@@ -439,8 +440,17 @@ window.game = {
     showScreen('online-lobby');
   },
   toggleOnlineSetting,
+  toggleReady() {
+    sendMessage('ready');
+  },
   startOnlineGame() {
-    // Placeholder — game state sync will be implemented in a future session
+    const state = getState();
+    const allReady = state.onlinePlayers.length > 0 && state.onlinePlayers.every(p => p.ready);
+    if (!allReady && state.onlinePlayers.length >= 2) {
+      const notReady = state.onlinePlayers.filter(p => !p.ready).map(p => p.name);
+      if (!confirm(`Not all players are ready (${notReady.join(', ')}). Start anyway?`)) return;
+    }
+    sendMessage('start_game');
   },
   copyJoinLink() {
     const state = getState();
@@ -455,11 +465,21 @@ window.game = {
         btn.textContent = 'Copied!';
         setTimeout(() => { btn.innerHTML = original; }, 1500);
       }
+      const label = document.querySelector('.online-lobby__code-label');
+      if (label) {
+        label.textContent = 'Copied';
+        setTimeout(() => { label.textContent = 'Room Code'; }, 1500);
+      }
     }).catch(() => {});
   },
 };
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Register screen change callback for server-driven transitions
+  onScreenChange((screenName) => {
+    showScreen(screenName);
+  });
+
   const params = new URLSearchParams(window.location.search);
   const joinCode = params.get('join');
   if (joinCode) {

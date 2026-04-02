@@ -3,11 +3,13 @@
 
 import { getState, setState } from '../state.js';
 
-const DEFAULT_SERVER_URL = 'ws://localhost:4500';
-const REST_BASE_URL = 'http://localhost:4500';
+const _origin = window.location.origin;
+const DEFAULT_SERVER_URL = _origin;
+const REST_BASE_URL = _origin;
 
 let _client = null;
 let _room = null;
+let _onScreenChange = null;
 
 function getColyseusClient() {
   if (_client) return _client;
@@ -35,11 +37,65 @@ function syncPlayersFromRoom(room) {
   return players;
 }
 
+/** Build the local players array from online player data + turn order */
+function buildPlayersFromOnline(room) {
+  const turnOrder = Array.from(room.state.turnOrder ?? []);
+  const players = [];
+  for (const sessionId of turnOrder) {
+    const p = room.state.players.get(sessionId);
+    if (p) {
+      players.push({
+        sessionId,
+        name: p.name,
+        score: p.score ?? 0,
+        birthMonth: p.birthMonth,
+        birthDay: p.birthDay,
+      });
+    }
+  }
+  return players;
+}
+
+/** Find the card data for the current turn player's die card from server state */
+function syncDiePhaseState(room) {
+  const state = getState();
+  const currentTurn = room.state.currentTurn;
+  const mySessionId = state.mySessionId;
+  const players = buildPlayersFromOnline(room);
+  const turnOrder = Array.from(room.state.turnOrder ?? []);
+  const currentPlayerIndex = turnOrder.indexOf(currentTurn);
+  const currentPlayer = room.state.players.get(currentTurn);
+
+  // Get the die card from the current player's hand
+  let currentCard = null;
+  let cardRevealed = false;
+  if (currentPlayer?.hand?.length > 0) {
+    const serverCard = currentPlayer.hand[0];
+    cardRevealed = serverCard.faceUp;
+    // Look up the full card from the local die deck by matching ID
+    const dieCards = state.decks?.die ?? [];
+    const localCard = dieCards.find(c => String(c.id) === serverCard.id);
+    if (localCard) {
+      currentCard = { ...localCard, deckType: 'die' };
+    } else {
+      // Fallback: use server text as title
+      currentCard = { id: serverCard.id, title: serverCard.text, deckType: 'die' };
+    }
+  }
+
+  return {
+    players,
+    currentPlayerIndex: Math.max(0, currentPlayerIndex),
+    currentCard,
+    cardRevealed,
+    turnStatus: currentCard ? 'describing' : 'dealing',
+    isMyTurn: currentTurn === mySessionId,
+  };
+}
+
 function setupRoomListeners(room, onUpdate) {
-  // Colyseus 0.17 uses getStateCallbacks for state change listeners
   const $ = window.Colyseus.getStateCallbacks(room);
 
-  // Wait for state to be ready before setting up listeners
   if (!room.state) {
     room.onStateChange.once(() => setupRoomListeners(room, onUpdate));
     return;
@@ -49,6 +105,36 @@ function setupRoomListeners(room, onUpdate) {
   $(room.state).listen('roomCode', (value) => {
     setState({ roomCode: value });
     if (onUpdate) onUpdate(syncPlayersFromRoom(room));
+  });
+
+  // Listen for game phase changes
+  $(room.state).listen('phase', (phase) => {
+    const state = getState();
+    if (phase === 'die_phase' && state.screen !== 'phase1') {
+      // Transition to Phase 1 screen
+      const dieState = syncDiePhaseState(room);
+      setState({
+        phase: 1,
+        phaseComplete: false,
+        playerDieCards: {},
+        ...dieState,
+      });
+      if (_onScreenChange) _onScreenChange('phase1');
+    } else if (phase !== 'die_phase' && phase !== 'lobby' && state.screen === 'phase1') {
+      // Die phase ended — show completion
+      setState({ phaseComplete: true, turnStatus: 'idle' });
+      if (_onScreenChange) _onScreenChange('phase1');
+    }
+  });
+
+  // Listen for current turn changes (advances during die phase)
+  $(room.state).listen('currentTurn', () => {
+    const state = getState();
+    if (room.state.phase === 'die_phase' && state.screen === 'phase1') {
+      const dieState = syncDiePhaseState(room);
+      setState(dieState);
+      if (_onScreenChange) _onScreenChange('phase1');
+    }
   });
 
   // Players map might not exist yet — guard
@@ -66,6 +152,20 @@ function setupRoomListeners(room, onUpdate) {
       setState({ onlinePlayers: refreshed });
       if (onUpdate) onUpdate(refreshed);
     });
+
+    // Listen for card faceUp changes in player's hand
+    if (player.hand) {
+      $(player.hand).onAdd((card) => {
+        $(card).listen('faceUp', () => {
+          const state = getState();
+          if (room.state.phase === 'die_phase' && state.screen === 'phase1') {
+            const dieState = syncDiePhaseState(room);
+            setState(dieState);
+            if (_onScreenChange) _onScreenChange('phase1');
+          }
+        });
+      });
+    }
   });
 
   // Listen for player removals
@@ -75,7 +175,7 @@ function setupRoomListeners(room, onUpdate) {
     if (onUpdate) onUpdate(updated);
   });
 
-  // Room lifecycle events (not state callbacks — these are on Room directly)
+  // Room lifecycle events
   room.onLeave((code) => {
     setState({
       connectionStatus: 'disconnected',
@@ -95,12 +195,9 @@ function waitForState(room) {
       resolve();
       return;
     }
-    // State may arrive via onStateChange or may already be in flight.
-    // Use both a listener and a short poll as fallback.
     let resolved = false;
     const done = () => { if (!resolved) { resolved = true; resolve(); } };
     room.onStateChange.once(done);
-    // Fallback: poll every 50ms for up to 3s in case the event was missed
     const interval = setInterval(() => {
       if (room.state?.players?.forEach) {
         clearInterval(interval);
@@ -123,7 +220,6 @@ export async function createRoom({ name, birthMonth, birthDay, isPrivate = true 
     });
     _room = room;
 
-    // Wait for first state sync so players/roomCode are available
     await waitForState(room);
 
     setState({
@@ -132,6 +228,7 @@ export async function createRoom({ name, birthMonth, birthDay, isPrivate = true 
       roomCode: room.state?.roomCode || null,
       gameMode: 'online',
       onlinePlayers: syncPlayersFromRoom(room),
+      mySessionId: room.sessionId,
     });
     setupRoomListeners(room, onUpdate);
     return room;
@@ -147,7 +244,6 @@ export async function createRoom({ name, birthMonth, birthDay, isPrivate = true 
 export async function joinRoom(code, { name, birthMonth, birthDay }, onUpdate) {
   setState({ connectionStatus: 'connecting', onlineError: null });
   try {
-    // Look up room ID by code via REST endpoint
     const lookupUrl = `${REST_BASE_URL}/api/carkedit/rooms/lookup?code=${encodeURIComponent(code.toUpperCase())}`;
     const res = await fetch(lookupUrl);
     if (!res.ok) {
@@ -164,7 +260,6 @@ export async function joinRoom(code, { name, birthMonth, birthDay }, onUpdate) {
     });
     _room = room;
 
-    // Wait for first state sync so players are available
     await waitForState(room);
 
     setState({
@@ -173,6 +268,7 @@ export async function joinRoom(code, { name, birthMonth, birthDay }, onUpdate) {
       roomCode: code.toUpperCase(),
       gameMode: 'online',
       onlinePlayers: syncPlayersFromRoom(room),
+      mySessionId: room.sessionId,
     });
     setupRoomListeners(room, onUpdate);
     return room;
@@ -197,6 +293,7 @@ export async function leaveRoom() {
     gameMode: 'local',
     onlinePlayers: [],
     onlineError: null,
+    mySessionId: null,
   });
 }
 
@@ -208,8 +305,13 @@ export function getSessionId() {
   return _room?.sessionId ?? null;
 }
 
-export function sendRoomSetting(key, value) {
+export function sendMessage(type, data) {
   if (_room) {
-    _room.send('setting', { key, value });
+    _room.send(type, data);
   }
+}
+
+/** Register a callback for screen changes triggered by server state */
+export function onScreenChange(callback) {
+  _onScreenChange = callback;
 }

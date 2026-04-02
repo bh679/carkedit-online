@@ -26,6 +26,8 @@ let _state = {
   connectionStatus: 'disconnected', // 'disconnected' | 'connecting' | 'connected'
   onlinePlayers: [],               // synced from server room state
   onlineError: null,               // connection/join error message
+  mySessionId: null,               // local player's Colyseus session ID
+  isMyTurn: false,                  // whether it's this player's turn (online mode)
 
   // Online lobby settings (host-controlled)
   onlineSettings: {
