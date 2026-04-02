@@ -3,6 +3,7 @@
 
 import { render as renderPhaseHeader } from '../components/phase-header.js';
 import { render as renderGameboard } from '../components/gameboard.js';
+import { PERSON_ICON, STAR_ICON, formatBirthday } from '../components/player-list.js';
 
 const LINK_ICON = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
   <path d="M6.5 9.5L9.5 6.5" stroke="#374151" stroke-width="1.5" stroke-linecap="round"/>
@@ -121,16 +122,25 @@ function renderConnectedLobby(state) {
     ? '<p class="online-lobby__empty">No players yet...</p>'
     : onlinePlayers.map((p, i) => {
         const isFD = i === 0;
+        const isSelf = p.sessionId === state.mySessionId;
+        const icon = isFD ? STAR_ICON : PERSON_ICON;
+        const birthday = formatBirthday(p);
+        const modifiers = [
+          isFD ? ' player-list__chip--director' : '',
+          isSelf ? ' player-list__chip--self' : '',
+          !p.connected ? ' player-list__chip--disconnected' : '',
+        ].join('');
+        const status = isFD
+          ? (p.ready ? 'Ready to Die' : 'Funeral Director')
+          : p.ready ? 'Ready to Die' : p.connected ? 'Connected' : 'Disconnected';
         return `
-          <div class="online-lobby__player ${isFD ? 'online-lobby__player--director' : ''} ${p.connected ? '' : 'online-lobby__player--disconnected'}">
-            <span class="online-lobby__player-name">
-              ${isFD ? '<strong>' : ''}${escapeHtml(p.name)}${isFD ? '</strong>' : ''}
-            </span>
-            <span class="online-lobby__player-status">
-              ${isFD
-                ? (p.ready ? 'The Funeral Director - Ready to Die' : 'The Funeral Director')
-                : p.ready ? 'Ready to Die' : p.connected ? 'Connected' : 'Disconnected'}
-            </span>
+          <div class="player-list__chip${modifiers}">
+            <span class="player-list__icon">${icon}</span>
+            <span class="player-list__name">${escapeHtml(p.name)}</span>
+            ${birthday
+              ? `<span class="player-list__birthday">${birthday}</span>`
+              : ''}
+            <span class="player-list__status">${status}</span>
           </div>
         `;
       }).join('');

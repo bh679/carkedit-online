@@ -86,42 +86,27 @@
   letter-spacing: 0.2em;
 }
 
+/* Lobby reuses player-list__chip from player-list component in a vertical layout */
 .online-lobby__player-list {
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
 }
 
-.online-lobby__player {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+.online-lobby__player-list .player-list__chip {
+  width: 100%;
+  height: auto;
   padding: var(--space-sm) var(--space-md);
-  background: var(--color-input-bg);
-  border-radius: var(--radius-sm);
 }
 
-.online-lobby__player--director {
-  background: var(--color-chip-director-bg);
-}
-
-.online-lobby__player--director .online-lobby__player-name,
-.online-lobby__player--director .online-lobby__player-status {
-  color: var(--color-chip-director-text);
-}
-
-.online-lobby__player--disconnected {
+.online-lobby__player-list .player-list__chip--disconnected {
   opacity: 0.4;
 }
 
-.online-lobby__player-name {
-  font-weight: 600;
-  color: var(--color-text);
-}
-
-.online-lobby__player-status {
+.online-lobby__player-list .player-list__status {
+  margin-left: auto;
   font-size: 0.75rem;
-  color: var(--color-text-muted);
+  color: var(--color-score);
 }
 
 .online-lobby__empty {

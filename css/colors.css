@@ -36,6 +36,7 @@
   --color-score:                #4a5565;
   --color-chip-active-bg:       #ede9fe;
   --color-chip-active-border:   #9842ff;
+  --color-chip-self-border:     #9842ff;
 
   /* ── Deck accents (matched to physical card backs) ───── */
   --color-die:  #DAA520;
