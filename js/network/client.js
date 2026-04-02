@@ -4,19 +4,39 @@
 import { getState, setState } from '../state.js';
 
 const _origin = window.location.origin;
-const DEFAULT_SERVER_URL = _origin;
-const REST_BASE_URL = _origin;
+let _serverUrl = _origin;
+let _restBaseUrl = _origin;
+let _configLoaded = false;
 
 let _client = null;
 let _room = null;
 let _onScreenChange = null;
 
-function getColyseusClient() {
+async function loadConfig() {
+  if (_configLoaded) return;
+  _configLoaded = true;
+  try {
+    const res = await fetch('config.json');
+    if (res.ok) {
+      const cfg = await res.json();
+      if (cfg.serverUrl) {
+        _serverUrl = cfg.serverUrl.replace(/\/+$/, '');
+        _restBaseUrl = _serverUrl;
+        console.log(`[client] Using server URL from config.json: ${_serverUrl}`);
+      }
+    }
+  } catch {
+    // No config.json or invalid — use same-origin default
+  }
+}
+
+async function getColyseusClient() {
+  await loadConfig();
   if (_client) return _client;
   if (!window.Colyseus) {
     throw new Error('Colyseus SDK not loaded. Ensure the script tag is in index.html.');
   }
-  _client = new window.Colyseus.Client(DEFAULT_SERVER_URL);
+  _client = new window.Colyseus.Client(_serverUrl);
   return _client;
 }
 
@@ -211,7 +231,7 @@ function waitForState(room) {
 export async function createRoom({ name, birthMonth, birthDay, isPrivate = true }, onUpdate) {
   setState({ connectionStatus: 'connecting', onlineError: null });
   try {
-    const client = getColyseusClient();
+    const client = await getColyseusClient();
     const room = await client.create('game', {
       name,
       birthMonth: birthMonth || 0,
@@ -244,7 +264,8 @@ export async function createRoom({ name, birthMonth, birthDay, isPrivate = true 
 export async function joinRoom(code, { name, birthMonth, birthDay }, onUpdate) {
   setState({ connectionStatus: 'connecting', onlineError: null });
   try {
-    const lookupUrl = `${REST_BASE_URL}/api/carkedit/rooms/lookup?code=${encodeURIComponent(code.toUpperCase())}`;
+    await loadConfig();
+    const lookupUrl = `${_restBaseUrl}/api/carkedit/rooms/lookup?code=${encodeURIComponent(code.toUpperCase())}`;
     const res = await fetch(lookupUrl);
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
@@ -252,7 +273,7 @@ export async function joinRoom(code, { name, birthMonth, birthDay }, onUpdate) {
     }
     const { roomId } = await res.json();
 
-    const client = getColyseusClient();
+    const client = await getColyseusClient();
     const room = await client.joinById(roomId, {
       name,
       birthMonth: birthMonth || 0,

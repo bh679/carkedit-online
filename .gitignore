@@ -5,3 +5,4 @@ playwright-report/
 ports/*.json
 assets/illustrations
 deploy-status.json
+config.json

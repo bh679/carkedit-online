@@ -45,7 +45,7 @@ export function render(state) {
         : '';
       boardContent = renderActiveCard(
         renderCard({ ...state.currentCard, deckType: 'die' }),
-        { label: `${currentPlayer.name}'s death`, extraHtml: promptHtml },
+        { label: isMyTurn ? 'Your death' : `${currentPlayer.name}'s death`, extraHtml: promptHtml },
       );
       handContent = isMyTurn
         ? renderHand([], { footer: `
@@ -58,7 +58,7 @@ export function render(state) {
       boardContent = renderActiveCard(
         renderCardBack({ deckType: 'die' }),
         {
-          label: `${currentPlayer.name}'s death`,
+          label: isMyTurn ? 'Your death' : `${currentPlayer.name}'s death`,
           onClick: isMyTurn ? 'window.game.revealCard()' : '',
         },
       );
