@@ -122,7 +122,7 @@ function renderConnectedLobby(state) {
     : onlinePlayers.map((p, i) => {
         const isFD = i === 0;
         return `
-          <div class="online-lobby__player ${p.connected ? '' : 'online-lobby__player--disconnected'}">
+          <div class="online-lobby__player ${isFD ? 'online-lobby__player--director' : ''} ${p.connected ? '' : 'online-lobby__player--disconnected'}">
             <span class="online-lobby__player-name">
               ${isFD ? '<strong>' : ''}${escapeHtml(p.name)}${isFD ? '</strong>' : ''}
             </span>
