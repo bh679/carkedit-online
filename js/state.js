@@ -29,8 +29,8 @@ let _state = {
   mySessionId: null,               // local player's Colyseus session ID
   isMyTurn: false,                  // whether it's this player's turn (online mode)
 
-  // Online Phase 2/3 state
-  onlinePhase: null,                // 'submit' | 'convince' | 'select' | 'winner' | null
+  // Online Phase 2/3/4 state
+  onlinePhase: null,                // 'submit' | 'convince' | 'select' | 'winner' | 'eulogy_intro' | 'eulogy_pick' | 'eulogy_speech' | 'eulogy_judge' | 'eulogy_points' | 'game_winner' | 'game_over' | null
   isLivingDead: false,              // whether this client is the current Living Dead
   onlineSubmittedCount: 0,          // how many players have submitted cards
   onlineTotalSubmitters: 0,         // total non-Living-Dead players
@@ -104,6 +104,12 @@ let _state = {
   selectedEulogists: [],
   currentEulogistIndex: 0,
   bestEulogist: null,
+
+  // Online Phase 4 (Eulogy) state
+  isCurrentWildcardPlayer: false,   // whether this client is the current wildcard holder
+  isCurrentEulogist: false,         // whether this client is the current eulogist
+  onlineEulogistNames: [],          // names of selected eulogists
+  onlineWildcardPlayerName: '',     // name of current wildcard holder
 };
 
 export function getState() {

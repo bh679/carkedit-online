@@ -240,6 +240,78 @@ function syncLivingPhaseState(room) {
   };
 }
 
+/** Build state for the eulogy (Phase 4) from server room state */
+function syncEulogyPhaseState(room) {
+  const state = getState();
+  const mySessionId = state.mySessionId;
+  const players = buildPlayersFromOnline(room);
+  const serverPhase = room.state.phase;
+
+  // Map server phase to client phase4SubState
+  const phaseMap = {
+    'eulogy_intro': 'wildcard-intro',
+    'eulogy_pick': 'pick-eulogists',
+    'eulogy_speech': 'eulogy',
+    'eulogy_judge': 'judge',
+    'eulogy_points': 'points-awarded',
+    'winner': 'winner',
+  };
+  const phase4SubState = phaseMap[serverPhase] ?? 'wildcard-intro';
+
+  // Map wildcard player IDs to names
+  const wildcardPlayerIds = Array.from(room.state.wildcardPlayerIds ?? []);
+  const wildcardPlayers = wildcardPlayerIds.map(id => {
+    const p = room.state.players.get(id);
+    return p?.name ?? id;
+  });
+
+  // Current wildcard player
+  const currentWildcardPlayer = room.state.currentWildcardPlayer ?? '';
+  const wildcardPlayerObj = room.state.players.get(currentWildcardPlayer);
+  const onlineWildcardPlayerName = wildcardPlayerObj?.name ?? '';
+  const isCurrentWildcardPlayer = currentWildcardPlayer === mySessionId;
+
+  // Selected eulogists (session IDs to names)
+  const eulogistIds = Array.from(room.state.selectedEulogists ?? []);
+  const selectedEulogists = eulogistIds.map(id => {
+    const p = room.state.players.get(id);
+    return p?.name ?? id;
+  });
+  const onlineEulogistNames = selectedEulogists;
+
+  // Current eulogist
+  const currentEulogistIndex = room.state.currentEulogistIndex ?? 0;
+  const currentEulogistId = eulogistIds[currentEulogistIndex] ?? '';
+  const isCurrentEulogist = currentEulogistId === mySessionId;
+
+  // Best eulogist
+  const bestEulogistId = room.state.bestEulogist ?? '';
+  const bestEulogistObj = room.state.players.get(bestEulogistId);
+  const bestEulogist = bestEulogistObj?.name ?? null;
+
+  // Die card for current wildcard player (from local playerDieCards)
+  const currentCard = state.playerDieCards?.[onlineWildcardPlayerName]
+    ? { ...state.playerDieCards[onlineWildcardPlayerName], deckType: 'die' }
+    : null;
+
+  return {
+    players,
+    phase4SubState,
+    wildcardPlayers,
+    currentWildcardIndex: room.state.currentWildcardIndex ?? 0,
+    selectedEulogists,
+    currentEulogistIndex,
+    bestEulogist,
+    currentCard,
+    isCurrentWildcardPlayer,
+    isCurrentEulogist,
+    onlineEulogistNames,
+    onlineWildcardPlayerName,
+    onlinePhase: serverPhase,
+    phaseComplete: false,
+  };
+}
+
 function setupRoomListeners(room, onUpdate) {
   const $ = window.Colyseus.getStateCallbacks(room);
 
@@ -288,6 +360,19 @@ function setupRoomListeners(room, onUpdate) {
       if (_onScreenChange) _onScreenChange(lbState.screenName);
     }
 
+    // Eulogy / Winner phase transitions
+    const eulogyPhases = ['eulogy_intro', 'eulogy_pick', 'eulogy_speech', 'eulogy_judge', 'eulogy_points', 'winner'];
+    if (eulogyPhases.includes(phase)) {
+      const eulogyState = syncEulogyPhaseState(room);
+      console.log(`[client] Eulogy phase transition: ${phase} → phase4SubState=${eulogyState.phase4SubState}`);
+      setState({
+        phase: 4,
+        screen: 'phase4',
+        ...eulogyState,
+      });
+      if (_onScreenChange) _onScreenChange('phase4');
+    }
+
     if (phase === 'game_over') {
       const players = buildPlayersFromOnline(room);
       setState({ onlinePhase: 'game_over', players, phaseComplete: true });
@@ -325,6 +410,52 @@ function setupRoomListeners(room, onUpdate) {
     }
   });
 
+  // Listen for eulogy state changes
+  $(room.state).listen('currentEulogistIndex', () => {
+    const eulogyPhases = ['eulogy_intro', 'eulogy_pick', 'eulogy_speech', 'eulogy_judge', 'eulogy_points', 'winner'];
+    if (eulogyPhases.includes(room.state.phase)) {
+      const eulogyState = syncEulogyPhaseState(room);
+      setState(eulogyState);
+      if (_onScreenChange) _onScreenChange('phase4');
+    }
+  });
+
+  $(room.state).listen('bestEulogist', () => {
+    const eulogyPhases = ['eulogy_intro', 'eulogy_pick', 'eulogy_speech', 'eulogy_judge', 'eulogy_points', 'winner'];
+    if (eulogyPhases.includes(room.state.phase)) {
+      const eulogyState = syncEulogyPhaseState(room);
+      setState(eulogyState);
+      if (_onScreenChange) _onScreenChange('phase4');
+    }
+  });
+
+  $(room.state).listen('currentWildcardPlayer', () => {
+    const eulogyPhases = ['eulogy_intro', 'eulogy_pick', 'eulogy_speech', 'eulogy_judge', 'eulogy_points', 'winner'];
+    if (eulogyPhases.includes(room.state.phase)) {
+      const eulogyState = syncEulogyPhaseState(room);
+      setState(eulogyState);
+      if (_onScreenChange) _onScreenChange('phase4');
+    }
+  });
+
+  $(room.state.selectedEulogists).onAdd(() => {
+    const eulogyPhases = ['eulogy_pick'];
+    if (eulogyPhases.includes(room.state.phase)) {
+      const eulogyState = syncEulogyPhaseState(room);
+      setState(eulogyState);
+      if (_onScreenChange) _onScreenChange('phase4');
+    }
+  });
+
+  $(room.state.selectedEulogists).onRemove(() => {
+    const eulogyPhases = ['eulogy_pick'];
+    if (eulogyPhases.includes(room.state.phase)) {
+      const eulogyState = syncEulogyPhaseState(room);
+      setState(eulogyState);
+      if (_onScreenChange) _onScreenChange('phase4');
+    }
+  });
+
   // Listen for submitted cards changes
   $(room.state.submittedCards).onAdd((card) => {
     const state = getState();
@@ -359,9 +490,14 @@ function setupRoomListeners(room, onUpdate) {
       setState({ onlinePlayers: refreshed });
       if (onUpdate) onUpdate(refreshed);
 
-      // Re-sync living phase state when player properties change (e.g. hasSubmitted, score)
+      // Re-sync phase state when player properties change (e.g. hasSubmitted, score)
       const s = getState();
-      if (s.onlinePhase) {
+      const eulogyPhases = ['eulogy_intro', 'eulogy_pick', 'eulogy_speech', 'eulogy_judge', 'eulogy_points', 'winner'];
+      if (eulogyPhases.includes(room.state.phase)) {
+        const eulogyState = syncEulogyPhaseState(room);
+        setState(eulogyState);
+        if (_onScreenChange) _onScreenChange('phase4');
+      } else if (s.onlinePhase) {
         const lbState = syncLivingPhaseState(room);
         setState(lbState);
         if (_onScreenChange) _onScreenChange(s.screen);

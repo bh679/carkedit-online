@@ -49,6 +49,11 @@ function renderTableau(chosenCards) {
 export function render(state) {
   const subState = state.phase4SubState ?? 'wildcard-intro';
 
+  // Online mode — render with online-specific UI
+  if (state.gameMode === 'online' && state.onlinePhase) {
+    return renderOnline(state, subState);
+  }
+
   switch (subState) {
     case 'wildcard-intro':
       return renderWildcardIntro(state);
@@ -67,6 +72,282 @@ export function render(state) {
     default:
       return renderWildcardIntro(state);
   }
+}
+
+// ── Online Mode Rendering ─────────────────────────────────
+
+function renderOnline(state, subState) {
+  switch (subState) {
+    case 'wildcard-intro':
+      return renderOnlineWildcardIntro(state);
+    case 'pick-eulogists':
+      return renderOnlinePickEulogists(state);
+    case 'eulogy':
+      return renderOnlineEulogy(state);
+    case 'judge':
+      return renderOnlineJudge(state);
+    case 'points-awarded':
+      return renderOnlinePointsAwarded(state);
+    case 'winner':
+      return renderWinnerScreen(state);
+    default:
+      return renderOnlineWildcardIntro(state);
+  }
+}
+
+function renderOnlineWildcardIntro(state) {
+  const wildcardPlayers = state.wildcardPlayers ?? [];
+  const hasWildcards = wildcardPlayers.length > 0;
+
+  const wildcardDisplayCard = {
+    id: 'wildcard-intro',
+    title: 'Wildcard Eulogy',
+    description: 'Save this card until the end, for a chance at bonus points!',
+    prompt: 'Bonus Mini-Game: pick 2 players to give your Eulogy!',
+    illustrationKey: 'wildcard-eulogy',
+    deckType: 'bye',
+  };
+  const wildcardCardHtml = renderActiveCard(
+    renderCard(wildcardDisplayCard),
+    { label: 'Wildcard Eulogy' },
+  );
+
+  const playerListHtml = hasWildcards
+    ? `<div class="phase4__wildcard-holders">
+        <h3 class="phase4__wildcard-holders-title">The Living Dead</h3>
+        <p class="phase4__wildcard-holders-subtitle">Players with Eulogy Wildcards:</p>
+        <div class="phase4__wildcard-names">
+          ${wildcardPlayers.map(name => `<span class="phase4__wildcard-name">${name}</span>`).join('')}
+        </div>
+      </div>`
+    : `<div class="phase4__no-wildcards">
+        <p>No players held Eulogy Wildcards.</p>
+      </div>`;
+
+  // Only host or wildcard holder can start
+  const canStart = state.isHost || state.isCurrentWildcardPlayer;
+  const actionBtn = hasWildcards
+    ? (canStart
+        ? `<button class="btn btn--primary" onclick="window.game.startEulogyRound()">Start Eulogy Round</button>`
+        : `<p class="phase4__waiting">Waiting for the host to start...</p>`)
+    : (canStart
+        ? `<button class="btn btn--primary" onclick="window.game.revealWinner()">Reveal Winner</button>`
+        : `<p class="phase4__waiting">Waiting for results...</p>`);
+
+  return layout(state, { funeralDirector: state.funeralDirector }, `
+    ${renderGameboard(wildcardCardHtml, 'Wildcard Eulogy Round')}
+    ${playerListHtml}
+    <div class="phase-actions">
+      ${actionBtn}
+    </div>
+  `);
+}
+
+function renderOnlinePickEulogists(state) {
+  const wildcardPlayerName = state.onlineWildcardPlayerName ?? state.wildcardPlayers[state.currentWildcardIndex];
+  const chosenCards = (state.playerChosenCards ?? {})[wildcardPlayerName] ?? [];
+  const hasTableau = chosenCards.length > 0;
+
+  const dieCardHtml = state.currentCard
+    ? renderActiveCard(renderCard({ ...state.currentCard, deckType: 'die' }), { label: `${wildcardPlayerName}'s death` })
+    : '';
+
+  const tableauHtml = renderTableau(chosenCards);
+  const cardAreaClass = hasTableau
+    ? 'gameboard__card-area gameboard__card-area--has-played'
+    : 'gameboard__card-area';
+
+  if (!state.isCurrentWildcardPlayer) {
+    // Non-wildcard players see a waiting message
+    return layout(state, {
+      funeralDirector: state.funeralDirector,
+      livingDeadName: wildcardPlayerName,
+    }, `
+      <div class="gameboard">
+        <div class="${cardAreaClass}">
+          ${dieCardHtml}
+          ${tableauHtml}
+        </div>
+      </div>
+      <div class="phase4__pick-eulogists">
+        <h2 class="phase4__pick-title">${wildcardPlayerName} is picking eulogists...</h2>
+        <p class="phase4__waiting">Waiting for selection</p>
+      </div>
+    `);
+  }
+
+  // Wildcard holder picks eulogists (using session IDs via server)
+  const selected = state.selectedEulogists ?? [];
+  const otherPlayers = state.players.filter(p => p.name !== wildcardPlayerName);
+  const requiredCount = Math.min(state.gameSettings?.eulogistCount ?? 2, otherPlayers.length);
+
+  const selectionChips = otherPlayers.map(p => {
+    const isSelected = selected.includes(p.name);
+    const escapedSid = (p.sessionId ?? '').replace(/'/g, "\\'");
+    const selectedClass = isSelected ? ' phase4__eulogist-chip--selected' : '';
+    return `
+      <button class="phase4__eulogist-chip${selectedClass}"
+              onclick="window.game.selectEulogist('${escapedSid}')">
+        ${p.name}
+      </button>
+    `;
+  }).join('');
+
+  const canConfirm = selected.length === requiredCount;
+
+  return layout(state, {
+    funeralDirector: state.funeralDirector,
+    livingDeadName: wildcardPlayerName,
+  }, `
+    <div class="gameboard">
+      <div class="${cardAreaClass}">
+        ${dieCardHtml}
+        ${tableauHtml}
+      </div>
+    </div>
+    <div class="phase4__pick-eulogists">
+      <h2 class="phase4__pick-title">${wildcardPlayerName}, pick ${requiredCount} player${requiredCount === 1 ? '' : 's'} to give your eulogy</h2>
+      <div class="phase4__eulogist-chips">
+        ${selectionChips}
+      </div>
+    </div>
+    <div class="phase-actions">
+      <button class="btn btn--primary${canConfirm ? '' : ' btn--disabled'}"
+              onclick="window.game.confirmEulogists()"
+              ${canConfirm ? '' : 'disabled'}>
+        Confirm (${selected.length}/${requiredCount})
+      </button>
+    </div>
+  `);
+}
+
+function renderOnlineEulogy(state) {
+  const eulogists = state.selectedEulogists ?? [];
+  const eulogistName = eulogists[state.currentEulogistIndex] ?? '';
+  const wildcardPlayerName = state.onlineWildcardPlayerName ?? state.wildcardPlayers[state.currentWildcardIndex];
+  const eulogistNumber = state.currentEulogistIndex + 1;
+  const chosenCards = (state.playerChosenCards ?? {})[wildcardPlayerName] ?? [];
+  const hasTableau = chosenCards.length > 0;
+
+  const dieCardHtml = state.currentCard
+    ? renderActiveCard(renderCard({ ...state.currentCard, deckType: 'die' }), { label: `${wildcardPlayerName}'s death` })
+    : '';
+
+  const tableauHtml = renderTableau(chosenCards);
+  const cardAreaClass = hasTableau
+    ? 'gameboard__card-area gameboard__card-area--has-played'
+    : 'gameboard__card-area';
+
+  const actionArea = state.isCurrentEulogist
+    ? `<div class="phase-actions">
+        <button class="btn btn--primary" onclick="window.game.doneEulogy()">Done</button>
+      </div>`
+    : `<div class="phase4__waiting">
+        <p>Waiting for ${eulogistName} to finish their eulogy...</p>
+      </div>`;
+
+  return layout(state, {
+    funeralDirector: state.funeralDirector,
+    livingDeadName: wildcardPlayerName,
+    pitchingPlayer: eulogistName,
+  }, `
+    <div class="gameboard">
+      <div class="${cardAreaClass}">
+        ${dieCardHtml}
+        ${tableauHtml}
+      </div>
+    </div>
+    <div class="phase4__eulogy">
+      <h2 class="phase4__eulogy-title">${eulogistName}'s Eulogy</h2>
+      <p class="phase4__eulogy-subtitle">Eulogy ${eulogistNumber} of ${eulogists.length} for ${wildcardPlayerName}</p>
+      <p class="phase4__eulogy-prompt">Celebrate, honour, and roast ${wildcardPlayerName}!</p>
+    </div>
+    ${actionArea}
+  `);
+}
+
+function renderOnlineJudge(state) {
+  const eulogists = state.selectedEulogists ?? [];
+  const wildcardPlayerName = state.onlineWildcardPlayerName ?? state.wildcardPlayers[state.currentWildcardIndex];
+
+  if (!state.isCurrentWildcardPlayer) {
+    // Non-wildcard players see waiting message
+    return layout(state, {
+      funeralDirector: state.funeralDirector,
+      livingDeadName: wildcardPlayerName,
+    }, `
+      <div class="phase4__judge">
+        <h2 class="phase4__judge-title">${wildcardPlayerName} is picking their favourite eulogy...</h2>
+        <div class="phase4__judge-options">
+          ${eulogists.map(name => `
+            <div class="phase4__judge-btn phase4__judge-btn--disabled">
+              <span class="phase4__judge-btn-name">${name}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `);
+  }
+
+  // Wildcard holder picks the best (sends session ID to server)
+  const eulogistButtons = eulogists.map(name => {
+    // Find the session ID for this eulogist name
+    const player = state.players.find(p => p.name === name);
+    const escapedSid = (player?.sessionId ?? '').replace(/'/g, "\\'");
+    return `
+      <button class="phase4__judge-btn" onclick="window.game.pickBestEulogy('${escapedSid}')">
+        <span class="phase4__judge-btn-name">${name}</span>
+        <span class="phase4__judge-btn-label">Pick as best</span>
+      </button>
+    `;
+  }).join('');
+
+  return layout(state, {
+    funeralDirector: state.funeralDirector,
+    livingDeadName: wildcardPlayerName,
+  }, `
+    <div class="phase4__judge">
+      <h2 class="phase4__judge-title">${wildcardPlayerName}, pick your favourite eulogy!</h2>
+      <div class="phase4__judge-options">
+        ${eulogistButtons}
+      </div>
+    </div>
+  `);
+}
+
+function renderOnlinePointsAwarded(state) {
+  const eulogists = state.selectedEulogists ?? [];
+  const bestEulogist = state.bestEulogist;
+  const runnerUp = eulogists.find(n => n !== bestEulogist);
+  const wildcardPlayerName = state.onlineWildcardPlayerName ?? state.wildcardPlayers[state.currentWildcardIndex];
+
+  return layout(state, {
+    funeralDirector: state.funeralDirector,
+    livingDeadName: wildcardPlayerName,
+  }, `
+    <div class="phase4__points">
+      <h2 class="phase4__points-title">Points Awarded!</h2>
+      <div class="phase4__points-breakdown">
+        <div class="phase4__points-row phase4__points-row--best">
+          <span class="phase4__points-name">${bestEulogist}</span>
+          <span class="phase4__points-label">Best Eulogy</span>
+          <span class="phase4__points-value">+2</span>
+        </div>
+        ${runnerUp ? `
+        <div class="phase4__points-row">
+          <span class="phase4__points-name">${runnerUp}</span>
+          <span class="phase4__points-label">Runner-up</span>
+          <span class="phase4__points-value">+1</span>
+        </div>` : ''}
+        <div class="phase4__points-row">
+          <span class="phase4__points-name">${wildcardPlayerName}</span>
+          <span class="phase4__points-label">Played Wildcard</span>
+          <span class="phase4__points-value">+1</span>
+        </div>
+      </div>
+    </div>
+    <div class="winner-timer"><div class="winner-timer__bar"></div></div>
+  `);
 }
 
 function renderWildcardIntro(state) {

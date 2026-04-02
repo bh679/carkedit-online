@@ -311,6 +311,10 @@ function toggleOnlineSetting(key) {
 }
 
 function revealWinner() {
+  if (getState().gameMode === 'online') {
+    sendMessage('reveal_winner');
+    return;
+  }
   const state = getState();
   const sorted = [...state.players].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
   const winner = sorted[0]?.name ?? '';
