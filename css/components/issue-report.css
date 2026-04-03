@@ -1,0 +1,112 @@
+/* CarkedIt Online — Issue Report Overlay */
+
+.issue-report__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: var(--color-overlay-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-md);
+}
+
+.issue-report__panel {
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  padding: var(--space-lg);
+  width: 100%;
+  max-width: 400px;
+  max-height: 90vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.issue-report__title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.issue-report__subtitle {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.issue-report__categories {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.issue-report__category {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: 0.9375rem;
+  color: var(--color-text);
+  cursor: pointer;
+  padding: var(--space-xs) 0;
+}
+
+.issue-report__category input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.issue-report__description {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.issue-report__status {
+  font-size: 0.875rem;
+  min-height: 1.25rem;
+}
+
+.issue-report__status--error {
+  color: var(--color-danger);
+}
+
+.issue-report__status--success {
+  color: #4caf50;
+}
+
+.issue-report__actions {
+  display: flex;
+  gap: var(--space-sm);
+  justify-content: flex-end;
+}
+
+.issue-report__actions .btn {
+  min-width: 90px;
+}
+
+/* Flag button in phase header */
+.phase-header__flag-btn {
+  width: 34px;
+  height: 34px;
+  background: transparent;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.phase-header__flag-btn:active {
+  opacity: 0.8;
+}
+
+.phase-header__right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}

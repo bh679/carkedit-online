@@ -2,6 +2,7 @@
 'use strict';
 
 import { render as renderGameboard } from '../components/gameboard.js';
+import { render as renderPhaseHeader } from '../components/phase-header.js';
 
 /**
  * @param {object} state
@@ -63,14 +64,7 @@ export function render(state) {
     </div>
   `;
 
-  const headerHtml = `
-    <header class="phase-header">
-      <div class="phase-header__left">
-        <span class="phase-header__app-name">CarkedIt</span>
-        <span class="phase-header__phase-label">Join Game</span>
-      </div>
-    </header>
-  `;
+  const headerHtml = renderPhaseHeader({ phase: 'join', label: 'Join Game' });
 
   return `
     <div class="screen screen--online-lobby">
