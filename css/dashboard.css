@@ -36,6 +36,41 @@
   margin-left: var(--space-sm);
 }
 
+.dashboard__version-item {
+  position: relative;
+  cursor: default;
+}
+
+.dashboard__version-item[data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--color-bg, #1a1a2e);
+  color: var(--color-text, #e0e0e0);
+  border: 1px solid var(--color-prompt-empty-border, #444);
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 0.6rem;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.version-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+.version-dot--checking { background: #f0ad4e; }
+.version-dot--current  { background: #5cb85c; }
+.version-dot--outdated { background: #d9534f; }
+
 .dashboard__refresh-timer {
   opacity: 0.4;
   font-variant-numeric: tabular-nums;

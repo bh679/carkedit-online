@@ -853,8 +853,8 @@ function renderPage() {
       <header class="dashboard__header">
         <h1 class="dashboard__title">CarkedIt — Game Dashboard
           <span class="dashboard__versions">
-            <span id="dash-version-client">...</span>
-            <span id="dash-version-server">...</span>
+            <span id="dash-version-client" class="dashboard__version-item" data-tooltip="Checking...">...<span class="version-dot version-dot--checking"></span></span>
+            <span id="dash-version-server" class="dashboard__version-item" data-tooltip="Checking...">...<span class="version-dot version-dot--checking"></span></span>
             <span id="dash-refresh-timer" class="dashboard__refresh-timer">${REFRESH_INTERVAL}s</span>
             <button class="dashboard__refresh-btn" onclick="window.dash.refreshNow()" title="Refresh now">&#x21bb;</button>
           </span>
@@ -922,13 +922,43 @@ window.dash = { cyclePlayTime, cycleGamesCount, toggleGame, setDeckFilter, setCa
 document.addEventListener('DOMContentLoaded', async () => {
   renderPage();
 
+  // --- Version display with GitHub sync status ---
+  function updateVersionEl(el, label, localVer, ghVer, extra) {
+    if (!el) return;
+    const dot = el.querySelector('.version-dot');
+    el.childNodes[0].textContent = `${label}: v${localVer} `;
+    if (ghVer === null) {
+      // still checking or error
+      if (dot) { dot.className = 'version-dot version-dot--checking'; }
+      el.setAttribute('data-tooltip', extra || 'Checking GitHub...');
+    } else if (localVer === ghVer) {
+      if (dot) { dot.className = 'version-dot version-dot--current'; }
+      el.setAttribute('data-tooltip', `Up to date with GitHub (v${ghVer})${extra ? ' \u2014 ' + extra : ''}`);
+    } else {
+      if (dot) { dot.className = 'version-dot version-dot--outdated'; }
+      el.setAttribute('data-tooltip', `Running v${localVer} \u2014 GitHub has v${ghVer}${extra ? ' \u2014 ' + extra : ''}`);
+    }
+  }
+
+  // Fetch client version
   fetch('package.json').then(r => r.json()).then(pkg => {
     const el = document.getElementById('dash-version-client');
-    if (el) el.textContent = `Client: v${pkg.version}`;
+    updateVersionEl(el, 'Client', pkg.version, null, 'Checking GitHub...');
+    fetch('https://raw.githubusercontent.com/bh679/carkedit-online/main/package.json')
+      .then(r => r.json())
+      .then(ghPkg => updateVersionEl(el, 'Client', pkg.version, ghPkg.version))
+      .catch(() => updateVersionEl(el, 'Client', pkg.version, null, 'Could not check GitHub'));
   }).catch(() => {});
+
+  // Fetch server version
   fetch('/api/carkedit/version').then(r => r.json()).then(data => {
     const el = document.getElementById('dash-version-server');
-    if (el) el.textContent = `Server: v${data.version}`;
+    const started = data.startedAt ? `Started: ${new Date(data.startedAt).toLocaleString()}` : '';
+    updateVersionEl(el, 'Server', data.version, null, started || 'Checking GitHub...');
+    fetch('https://raw.githubusercontent.com/bh679/carkedit-api/main/package.json')
+      .then(r => r.json())
+      .then(ghPkg => updateVersionEl(el, 'Server', data.version, ghPkg.version, started))
+      .catch(() => updateVersionEl(el, 'Server', data.version, null, started || 'Could not check GitHub'));
   }).catch(() => {});
 
   await Promise.all([fetchGames(), fetchStats(), fetchPeriodStats(), fetchCardStats(), loadCardData()]);
