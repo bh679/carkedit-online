@@ -334,6 +334,7 @@ function renderGameList() {
 // ── Card Analytics ────────────────────────────────
 let cardStats = { mostPlayed: [], leastPlayed: [], highestWinRate: [] };
 let cardDeckFilter = 'all'; // 'all' | 'die' | 'living' | 'bye'
+let cardSortMode = 'mostPlayed'; // 'mostPlayed' | 'leastPlayed' | 'highestWinRate'
 
 async function fetchCardStats() {
   try {
@@ -352,6 +353,11 @@ function filterCards(cards) {
 
 function setDeckFilter(filter) {
   cardDeckFilter = filter;
+  renderCardAnalytics();
+}
+
+function setCardSort(mode) {
+  cardSortMode = mode;
   renderCardAnalytics();
 }
 
@@ -400,6 +406,14 @@ function renderCardRow(title, cards) {
     </div>`;
 }
 
+function getActiveCards() {
+  switch (cardSortMode) {
+    case 'leastPlayed': return cardStats.leastPlayed;
+    case 'highestWinRate': return cardStats.highestWinRate;
+    default: return cardStats.mostPlayed;
+  }
+}
+
 function renderCardAnalytics() {
   const el = document.getElementById('card-analytics');
   if (!el) return;
@@ -409,17 +423,29 @@ function renderCardAnalytics() {
     return `<button class="dashboard__filter-btn ${active}" onclick="window.dash.setDeckFilter('${value}')">${label}</button>`;
   };
 
+  const sortOption = (value, label) =>
+    `<option value="${value}" ${cardSortMode === value ? 'selected' : ''}>${label}</option>`;
+
+  const filtered = filterCards(getActiveCards());
+  const cardsHtml = filtered.length > 0
+    ? `<div class="dashboard__card-row-scroll">${filtered.map(renderStatCard).join('')}</div>`
+    : '<p class="dashboard__card-row-empty">No data yet</p>';
+
   el.innerHTML = `
-    <h2 class="dashboard__section-title">Card Analytics</h2>
-    <div class="dashboard__filter-bar">
-      ${filterBtn('all', 'All')}
-      ${filterBtn('die', 'Die')}
-      ${filterBtn('living', 'Live')}
-      ${filterBtn('bye', 'Bye')}
+    <div class="dashboard__card-analytics-header">
+      <select class="dashboard__sort-select" onchange="window.dash.setCardSort(this.value)">
+        ${sortOption('mostPlayed', 'Most Played')}
+        ${sortOption('leastPlayed', 'Least Played')}
+        ${sortOption('highestWinRate', 'Highest Win Rate (3+ plays)')}
+      </select>
+      <div class="dashboard__filter-bar">
+        ${filterBtn('all', 'All')}
+        ${filterBtn('die', 'Die')}
+        ${filterBtn('living', 'Live')}
+        ${filterBtn('bye', 'Bye')}
+      </div>
     </div>
-    ${renderCardRow('Most Played', cardStats.mostPlayed)}
-    ${renderCardRow('Least Played', cardStats.leastPlayed)}
-    ${renderCardRow('Highest Win Rate (3+ plays)', cardStats.highestWinRate)}
+    ${cardsHtml}
   `;
 }
 
@@ -441,7 +467,7 @@ function renderPage() {
 }
 
 // ── Init ─────────────────────────────────────────────
-window.dash = { cyclePlayTime, toggleGame, setDeckFilter };
+window.dash = { cyclePlayTime, toggleGame, setDeckFilter, setCardSort };
 
 document.addEventListener('DOMContentLoaded', async () => {
   renderPage();

@@ -328,26 +328,28 @@
 /* Mini cards in detail */
 .detail__mini-card-wrap {
   flex-shrink: 0;
-  width: 70px;
+  width: 50px;
   text-align: center;
 }
 
 .detail__mini-card-wrap--winner {
   outline: 2px solid var(--color-highlight);
-  outline-offset: 2px;
+  outline-offset: 1px;
   border-radius: var(--radius-sm);
 }
 
-.detail__mini-card {
-  font-size: 0.5rem;
+.detail__mini-card-wrap .card {
+  width: 50px;
+  font-size: 0.4rem;
 }
 
-.detail__mini-card .card__body {
-  padding: 3px;
+.detail__mini-card-wrap .card__body {
+  padding: 2px;
 }
 
-.detail__mini-card .card__title {
-  font-size: 0.45rem;
+.detail__mini-card-wrap .card__title {
+  font-size: 0.35rem;
+  line-height: 1.15;
 }
 
 .detail__mini-card-player {
@@ -418,6 +420,30 @@
   font-size: 1.2rem;
   font-weight: 700;
   margin: var(--space-lg) 0 var(--space-md);
+}
+
+.dashboard__card-analytics-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+.dashboard__sort-select {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-xs) var(--space-sm);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  appearance: auto;
+}
+
+.dashboard__sort-select:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
 }
 
 /* Filter bar */
