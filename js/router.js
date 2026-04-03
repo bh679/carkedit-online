@@ -578,6 +578,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const params = new URLSearchParams(window.location.search);
   const joinCode = params.get('join');
+  const screenParam = params.get('screen');
   if (joinCode) {
     setState({ roomCode: joinCode.toUpperCase() });
     showScreen('join-game');
@@ -586,6 +587,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const codeInput = document.getElementById('online-room-code');
       if (codeInput) codeInput.value = joinCode.toUpperCase();
     });
+  } else if (screenParam && SCREENS[screenParam]) {
+    showScreen(screenParam);
   } else {
     showScreen('menu');
   }
