@@ -60,6 +60,18 @@
   border-radius: var(--radius-sm);
 }
 
+/* ── Gameboard scrolling (match shared-device lobby behavior) ── */
+
+.screen--online-lobby .gameboard {
+  min-height: 0;
+}
+
+.screen--online-lobby .gameboard__card-area {
+  overflow-y: auto;
+  align-items: stretch;
+  container-type: normal;
+}
+
 /* ── Connected lobby ─────────────────────────────────── */
 
 .online-lobby__room-code {
