@@ -57,7 +57,7 @@ function formatPitchDuration(seconds) {
  * @param {boolean} [disabled=false] - Whether the row is disabled
  * @param {boolean} [overrideDisplay] - Force a specific display value (for dependent toggles)
  */
-function renderToggle(label, value, onClick, { disabled = false, overrideDisplay } = {}) {
+export function renderToggle(label, value, onClick, { disabled = false, overrideDisplay } = {}) {
   const displayOn = overrideDisplay !== undefined ? overrideDisplay : value;
   const rowClass = disabled ? 'lobby__stepper-row lobby__stepper-row--disabled' : 'lobby__stepper-row';
   return `
@@ -85,7 +85,7 @@ function renderToggle(label, value, onClick, { disabled = false, overrideDisplay
  * @param {boolean} [options.disabled=false] - Disable entire row
  * @param {string} [options.valueClass=''] - Extra CSS class for value span
  */
-function renderStepper(label, value, onDec, onInc, decDisabled, incDisabled, { disabled = false, valueClass = '' } = {}) {
+export function renderStepper(label, value, onDec, onInc, decDisabled, incDisabled, { disabled = false, valueClass = '' } = {}) {
   const rowClass = disabled ? 'lobby__stepper-row lobby__stepper-row--disabled' : 'lobby__stepper-row';
   const valClass = `lobby__stepper-value${valueClass ? ` ${valueClass}` : ''}`;
   return `
@@ -105,12 +105,15 @@ function renderStepper(label, value, onDec, onInc, decDisabled, incDisabled, { d
 export function renderAdvancedPanel(state) {
   if (!state.showAdvancedSettings) return '';
   const { rounds, handSize, enableLive, enableBye, enableEulogy, forceWildcards, playableWildcards = true, wildcardCount, eulogistCount, handRedraws = 'once_per_phase', timerEnabled, pitchTimerEnabled, playCardTimerEnabled, timerCountUp, pitchDuration, timerVisible, timerAutoAdvance, ultraQuickMode, optionalCardPlay } = state.gameSettings;
-  const playerCount = Math.max(state.players.length, 2);
+  const rawPlayerCount = state.gameMode === 'online'
+    ? (state.onlinePlayers?.length ?? 0)
+    : state.players.length;
+  const playerCount = Math.max(rawPlayerCount, 2);
   const maxHandSize = Math.max(1, Math.floor(68 / playerCount));
   const estimate = timeEstimate(playerCount, rounds);
   const prompt = ROUND_PROMPTS[rounds] ?? ROUND_PROMPTS[10];
 
-  const maxEulogists = Math.max(1, state.players.length - 1);
+  const maxEulogists = Math.max(1, rawPlayerCount - 1);
   const effectiveEulogistCount = Math.min(eulogistCount, maxEulogists);
 
   const wildcardSubSettings = enableEulogy ? `

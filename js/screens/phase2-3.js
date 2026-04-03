@@ -390,6 +390,13 @@ function renderOnlineSubmit(config, state, playerListOptions, livingDead, living
   }
 
   // Non-Living-Dead player — show hand for card selection
+  const { timerEnabled, playCardTimerEnabled, timerVisible, timerCountUp } = state.gameSettings ?? {};
+  const playCardSeconds = state.playCardTimerSeconds ?? (timerCountUp ? 0 : 120);
+  const playCardTimerClass = (!timerCountUp && playCardSeconds < 30) ? 'pitch-timer pitch-timer--warning' : 'pitch-timer';
+  const playCardTimerHtml = (timerEnabled && playCardTimerEnabled && timerVisible)
+    ? `<div class="${playCardTimerClass}"><span class="pitch-timer__time">${formatTime(playCardSeconds)}</span></div>`
+    : '';
+
   return layout(config, state, playerListOptions, `
     ${renderLivingDeadProfile({
       player: livingDead,
@@ -400,6 +407,7 @@ function renderOnlineSubmit(config, state, playerListOptions, livingDead, living
       hint: 'Select your best card to play',
       submittedCards: submittedCardsMap,
     })}
+    ${playCardTimerHtml}
     ${renderHand(state.hand ?? [], { selectedCard: state.selectedCard, deckType: config.deckType })}
   `);
 }
@@ -416,6 +424,14 @@ function renderOnlineConvince(config, state, playerListOptions, livingDeadName) 
 
   const convincerName = state.onlineConvincerName ?? '';
 
+  // Pitch timer display
+  const { timerEnabled, pitchTimerEnabled, timerVisible, timerCountUp } = state.gameSettings ?? {};
+  const pitchSeconds = state.pitchTimerSeconds ?? (timerCountUp ? 0 : 120);
+  const pitchTimerClass = (!timerCountUp && pitchSeconds < 30) ? 'pitch-timer pitch-timer--warning' : 'pitch-timer';
+  const pitchTimerHtml = (timerEnabled && pitchTimerEnabled && timerVisible)
+    ? `<div class="${pitchTimerClass}"><span class="pitch-timer__time">${formatTime(pitchSeconds)}</span></div>`
+    : '';
+
   if (state.isMyConvinceTurn) {
     // It's my turn to pitch
     const myCard = state.onlineSubmittedCards.find(c => c.submittedBy === state.mySessionId);
@@ -430,6 +446,7 @@ function renderOnlineConvince(config, state, playerListOptions, livingDeadName) 
         deckType: config.deckType,
         pitchingPlayer: convincerName,
       })}
+      ${pitchTimerHtml}
       ${renderHand([], { footer: revealButton })}
     `);
   }
@@ -442,6 +459,7 @@ function renderOnlineConvince(config, state, playerListOptions, livingDeadName) 
       deckType: config.deckType,
       pitchingPlayer: convincerName,
     })}
+    ${pitchTimerHtml}
     ${renderHand([], {
       livingDeadMessage: `Waiting for ${convincerName} to pitch...`,
     })}

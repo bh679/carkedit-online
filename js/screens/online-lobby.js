@@ -4,6 +4,7 @@
 import { render as renderPhaseHeader } from '../components/phase-header.js';
 import { render as renderGameboard } from '../components/gameboard.js';
 import { PERSON_ICON, STAR_ICON, formatBirthday } from '../components/player-list.js';
+import { renderAdvancedPanel, renderToggle } from './lobby.js';
 
 const LINK_ICON = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
   <path d="M6.5 9.5L9.5 6.5" stroke="#374151" stroke-width="1.5" stroke-linecap="round"/>
@@ -159,17 +160,44 @@ function renderConnectedLobby(state) {
     : '';
 
   const settingsHtml = isHost
-    ? `<div class="online-lobby__settings">
-        <h2 class="online-lobby__heading">Room Settings</h2>
-        <div class="lobby__stepper-row">
-          <span class="lobby__stepper-label">Auto-start when ready</span>
-          <button class="btn lobby__stepper-btn ${onlineSettings.autoStartOnReady ? 'btn--primary' : 'btn--secondary'}"
-            onclick="window.game.toggleOnlineSetting('autoStartOnReady')">
-            ${onlineSettings.autoStartOnReady ? 'On' : 'Off'}
-          </button>
+    ? (() => {
+        const { rounds, ultraQuickMode, optionalCardPlay } = state.gameSettings;
+        const pc = onlinePlayers.length;
+        const isQuick     = !ultraQuickMode && rounds === 1 && !optionalCardPlay;
+        const isNormal    = !ultraQuickMode && rounds !== 1 && !optionalCardPlay;
+        const isBigGroup  = !ultraQuickMode && rounds === 1 &&  optionalCardPlay;
+        const isHugeGroup =  ultraQuickMode &&                  optionalCardPlay;
+        return `<div class="online-lobby__settings">
+          <h2 class="online-lobby__heading">Room Settings</h2>
+          ${renderToggle(
+            'Auto-start when ready',
+            onlineSettings.autoStartOnReady,
+            "window.game.toggleOnlineSetting('autoStartOnReady')",
+          )}
+          <div class="online-lobby__divider"></div>
+          <h2 class="online-lobby__heading">Game Mode</h2>
+          <div id="lobby-mode-toggle" class="lobby__mode-toggle">
+            <button class="btn lobby__mode-btn ${isQuick ? 'btn--primary' : 'btn--secondary'}"
+              onclick="window.game.setGameMode('quick')">Quick</button>
+            <button class="btn lobby__mode-btn ${isNormal ? 'btn--primary' : 'btn--secondary'}"
+              onclick="window.game.setGameMode('normal')">Normal</button>
+            ${pc > 6 ? `<button class="btn lobby__mode-btn ${isBigGroup ? 'btn--primary' : 'btn--secondary'}"
+              onclick="window.game.setGameMode('big-group')">Big Group</button>` : ''}
+            ${pc > 9 ? `<button class="btn lobby__mode-btn ${isHugeGroup ? 'btn--primary' : 'btn--secondary'}"
+              onclick="window.game.setGameMode('huge-group')">Huge Group</button>` : ''}
+          </div>
+          <div class="lobby__advanced">
+            <button
+              class="btn btn--secondary lobby__advanced-toggle"
+              onclick="window.game.toggleAdvancedSettings()"
+            >
+              Advanced Settings ${state.showAdvancedSettings ? '▲' : '▼'}
+            </button>
+            <div id="advanced-settings-panel">${renderAdvancedPanel(state)}</div>
+          </div>
         </div>
-      </div>
-      <div class="online-lobby__divider"></div>`
+        <div class="online-lobby__divider"></div>`;
+      })()
     : '';
 
   // Find if the local player is ready

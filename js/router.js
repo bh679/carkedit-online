@@ -17,7 +17,9 @@ import {
   leaveRoom as networkLeaveRoom,
   sendMessage,
   onScreenChange,
+  onSettingsChange,
 } from './network/client.js';
+import { onTimerUpdate } from './managers/online-timer.js';
 import {
   startPhase1, doneDying, revealCard,
   startPhase2, startPhase3,
@@ -78,14 +80,14 @@ function refreshAdvancedPanel() {
   if (panel) {
     panel.innerHTML = renderAdvancedPanel(state);
   }
-  const toggleBtn = document.querySelector('#lobby-advanced .lobby__advanced-toggle');
+  const toggleBtn = document.querySelector('.lobby__advanced .lobby__advanced-toggle');
   if (toggleBtn) {
     toggleBtn.textContent = `Advanced Settings ${state.showAdvancedSettings ? '▲' : '▼'}`;
   }
   const modeToggle = document.getElementById('lobby-mode-toggle');
   if (modeToggle) {
     const { rounds, ultraQuickMode, optionalCardPlay } = state.gameSettings;
-    const pc = state.players.length;
+    const pc = state.gameMode === 'online' ? state.onlinePlayers.length : state.players.length;
     const isQuick     = !ultraQuickMode && rounds === 1 && !optionalCardPlay;
     const isNormal    = !ultraQuickMode && rounds !== 1 && !optionalCardPlay;
     const isBigGroup  = !ultraQuickMode && rounds === 1 &&  optionalCardPlay;
@@ -196,13 +198,15 @@ function removePlayer(name) {
 
 function updateSetting(key, rawValue) {
   const state = getState();
+  const playerCount = state.gameMode === 'online'
+    ? Math.max(state.onlinePlayers.length, 2)
+    : Math.max(state.players.length, 2);
   let max, min;
   if (key === 'rounds') {
     max = 10; min = 1;
   } else if (key === 'wildcardCount') {
     max = 10; min = 0;
   } else if (key === 'handSize') {
-    const playerCount = Math.max(state.players.length, 2);
     max = Math.max(1, Math.floor(68 / playerCount)); min = 1;
   } else if (key === 'eulogistCount') {
     max = 10; min = 1;
@@ -210,7 +214,11 @@ function updateSetting(key, rawValue) {
     max = 68; min = 1;
   }
   const value = Math.max(min, Math.min(max, parseInt(rawValue, 10) || min));
-  setState({ gameSettings: { ...state.gameSettings, [key]: value } });
+  if (state.gameMode === 'online') {
+    sendMessage('setting', { key, value });
+  } else {
+    setState({ gameSettings: { ...state.gameSettings, [key]: value } });
+  }
   refreshAdvancedPanel();
 }
 
@@ -224,7 +232,11 @@ function setGameMode(mode) {
   };
   const patch = presets[mode];
   if (!patch) return;
-  setState({ gameSettings: { ...state.gameSettings, ...patch } });
+  if (state.gameMode === 'online') {
+    sendMessage('game_settings', patch);
+  } else {
+    setState({ gameSettings: { ...state.gameSettings, ...patch } });
+  }
   refreshAdvancedPanel();
 }
 
@@ -237,7 +249,11 @@ function setHandRedraws(value) {
   const allowed = ['off', 'once_per_phase', 'once_per_round', 'unlimited'];
   if (!allowed.includes(value)) return;
   const state = getState();
-  setState({ gameSettings: { ...state.gameSettings, handRedraws: value } });
+  if (state.gameMode === 'online') {
+    sendMessage('setting', { key: 'handRedraws', value });
+  } else {
+    setState({ gameSettings: { ...state.gameSettings, handRedraws: value } });
+  }
   refreshAdvancedPanel();
 }
 
@@ -266,28 +282,40 @@ const DEFAULT_GAME_SETTINGS = {
 };
 
 function resetSettings() {
-  setState({ gameSettings: { ...DEFAULT_GAME_SETTINGS } });
-  showScreen('lobby');
+  const state = getState();
+  if (state.gameMode === 'online') {
+    sendMessage('game_settings', { ...DEFAULT_GAME_SETTINGS });
+  } else {
+    setState({ gameSettings: { ...DEFAULT_GAME_SETTINGS } });
+  }
+  refreshAdvancedPanel();
 }
 
 function toggleSetting(key) {
   const state = getState();
-  setState({ gameSettings: { ...state.gameSettings, [key]: !state.gameSettings[key] } });
+  const newValue = !state.gameSettings[key];
+  if (state.gameMode === 'online') {
+    sendMessage('setting', { key, value: newValue });
+  } else {
+    setState({ gameSettings: { ...state.gameSettings, [key]: newValue } });
+  }
   refreshAdvancedPanel();
 }
 
 function toggleUltraQuickMode() {
   const state = getState();
   const enabling = !state.gameSettings.ultraQuickMode;
-  setState({
-    gameSettings: {
-      ...state.gameSettings,
-      ultraQuickMode: enabling,
-      rounds: enabling ? 1 : state.gameSettings.rounds,
-      ...(enabling ? { enableLive: true, enableBye: true } : {}),
-    },
-  });
-  showScreen('lobby');
+  const patch = {
+    ultraQuickMode: enabling,
+    rounds: enabling ? 1 : state.gameSettings.rounds,
+    ...(enabling ? { enableLive: true, enableBye: true } : {}),
+  };
+  if (state.gameMode === 'online') {
+    sendMessage('game_settings', patch);
+  } else {
+    setState({ gameSettings: { ...state.gameSettings, ...patch } });
+  }
+  refreshAdvancedPanel();
 }
 
 function cyclePitchDuration(dir) {
@@ -295,7 +323,11 @@ function cyclePitchDuration(dir) {
   const current = state.gameSettings.pitchDuration ?? 120;
   const idx = PITCH_DURATIONS.indexOf(current);
   const next = PITCH_DURATIONS[Math.max(0, Math.min(PITCH_DURATIONS.length - 1, idx + dir))];
-  setState({ gameSettings: { ...state.gameSettings, pitchDuration: next } });
+  if (state.gameMode === 'online') {
+    sendMessage('setting', { key: 'pitchDuration', value: next });
+  } else {
+    setState({ gameSettings: { ...state.gameSettings, pitchDuration: next } });
+  }
   refreshAdvancedPanel();
 }
 
@@ -307,7 +339,7 @@ function toggleOnlineSetting(key) {
   if (state.connectionStatus === 'connected') {
     sendMessage('setting', { key, value: !current });
   }
-  showScreen('online-lobby');
+  refreshAdvancedPanel();
 }
 
 function revealWinner() {
@@ -498,6 +530,19 @@ document.addEventListener('DOMContentLoaded', () => {
   // Register screen change callback for server-driven transitions
   onScreenChange((screenName) => {
     showScreen(screenName);
+  });
+
+  // Register settings change callback for partial DOM updates (no full re-render)
+  onSettingsChange(() => {
+    refreshAdvancedPanel();
+  });
+
+  // Register timer update callback — re-render current screen when timer ticks
+  onTimerUpdate(() => {
+    const state = getState();
+    if (state.gameMode === 'online' && (state.screen === 'phase2' || state.screen === 'phase3')) {
+      showScreen(state.screen);
+    }
   });
 
   const params = new URLSearchParams(window.location.search);

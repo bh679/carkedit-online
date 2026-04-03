@@ -2,6 +2,7 @@
 'use strict';
 
 import { getState, setState } from '../state.js';
+import { startPlayCardTimer, clearPlayCardTimer, startPitchTimer, clearPitchTimer, clearAllTimers } from '../managers/online-timer.js';
 
 const _origin = window.location.origin;
 let _serverUrl = _origin;
@@ -11,6 +12,7 @@ let _configLoaded = false;
 let _client = null;
 let _room = null;
 let _onScreenChange = null;
+let _onSettingsChange = null;
 
 async function loadConfig() {
   if (_configLoaded) return;
@@ -326,6 +328,29 @@ function setupRoomListeners(room, onUpdate) {
     if (onUpdate) onUpdate(syncPlayersFromRoom(room));
   });
 
+  // Listen for game settings changes (synced from server to local gameSettings)
+  const settingKeys = [
+    'rounds', 'handSize', 'enableDie', 'enableLive', 'enableBye', 'enableEulogy',
+    'forceWildcards', 'playableWildcards', 'wildcardCount', 'eulogistCount',
+    'handRedraws', 'timerEnabled', 'pitchTimerEnabled', 'playCardTimerEnabled',
+    'timerCountUp', 'pitchDuration', 'timerVisible', 'timerAutoAdvance',
+    'ultraQuickMode', 'optionalCardPlay',
+  ];
+  for (const key of settingKeys) {
+    $(room.state).listen(key, (value) => {
+      const state = getState();
+      setState({ gameSettings: { ...state.gameSettings, [key]: value } });
+      if (state.screen === 'online-lobby' && _onSettingsChange) _onSettingsChange();
+    });
+  }
+
+  // Listen for autoStartOnReady changes
+  $(room.state).listen('autoStartOnReady', (value) => {
+    const state = getState();
+    setState({ onlineSettings: { ...state.onlineSettings, autoStartOnReady: value } });
+    if (state.screen === 'online-lobby' && _onSettingsChange) _onSettingsChange();
+  });
+
   // Listen for game phase changes
   $(room.state).listen('phase', (phase) => {
     const state = getState();
@@ -363,12 +388,25 @@ function setupRoomListeners(room, onUpdate) {
         screen: lbState.screenName,
         ...lbState,
       });
+
+      // Start/stop timers based on phase
+      if (lbState.onlinePhase === 'submit' && !lbState.isLivingDead) {
+        clearPitchTimer();
+        startPlayCardTimer();
+      } else if (lbState.onlinePhase === 'convince') {
+        clearPlayCardTimer();
+        startPitchTimer();
+      } else {
+        clearAllTimers();
+      }
+
       if (_onScreenChange) _onScreenChange(lbState.screenName);
     }
 
     // Eulogy / Winner phase transitions
     const eulogyPhases = ['eulogy_intro', 'eulogy_pick', 'eulogy_speech', 'eulogy_judge', 'eulogy_points', 'winner'];
     if (eulogyPhases.includes(phase)) {
+      clearAllTimers();
       const eulogyState = syncEulogyPhaseState(room);
       console.log(`[client] Eulogy phase transition: ${phase} → phase4SubState=${eulogyState.phase4SubState}`);
       setState({
@@ -409,6 +447,8 @@ function setupRoomListeners(room, onUpdate) {
     if (state.onlinePhase === 'convince') {
       const lbState = syncLivingPhaseState(room);
       setState(lbState);
+      // Restart pitch timer for new convincer
+      startPitchTimer();
       if (_onScreenChange) _onScreenChange(state.screen);
     }
   });
@@ -596,6 +636,24 @@ function waitForState(room) {
   });
 }
 
+/** Sync initial game settings from the server room state */
+function syncGameSettingsFromRoom(room) {
+  const keys = [
+    'rounds', 'handSize', 'enableDie', 'enableLive', 'enableBye', 'enableEulogy',
+    'forceWildcards', 'playableWildcards', 'wildcardCount', 'eulogistCount',
+    'handRedraws', 'timerEnabled', 'pitchTimerEnabled', 'playCardTimerEnabled',
+    'timerCountUp', 'pitchDuration', 'timerVisible', 'timerAutoAdvance',
+    'ultraQuickMode', 'optionalCardPlay',
+  ];
+  const settings = {};
+  for (const key of keys) {
+    if (room.state[key] !== undefined) {
+      settings[key] = room.state[key];
+    }
+  }
+  return settings;
+}
+
 export async function createRoom({ name, birthMonth, birthDay, isPrivate = true }, onUpdate) {
   setState({ connectionStatus: 'connecting', onlineError: null });
   try {
@@ -610,6 +668,7 @@ export async function createRoom({ name, birthMonth, birthDay, isPrivate = true 
 
     await waitForState(room);
 
+    const state = getState();
     setState({
       connectionStatus: 'connected',
       isHost: true,
@@ -617,6 +676,7 @@ export async function createRoom({ name, birthMonth, birthDay, isPrivate = true 
       gameMode: 'online',
       onlinePlayers: syncPlayersFromRoom(room),
       mySessionId: room.sessionId,
+      gameSettings: { ...state.gameSettings, ...syncGameSettingsFromRoom(room) },
     });
     setupRoomListeners(room, onUpdate);
     return room;
@@ -651,6 +711,7 @@ export async function joinRoom(code, { name, birthMonth, birthDay }, onUpdate) {
 
     await waitForState(room);
 
+    const state = getState();
     setState({
       connectionStatus: 'connected',
       isHost: false,
@@ -658,6 +719,7 @@ export async function joinRoom(code, { name, birthMonth, birthDay }, onUpdate) {
       gameMode: 'online',
       onlinePlayers: syncPlayersFromRoom(room),
       mySessionId: room.sessionId,
+      gameSettings: { ...state.gameSettings, ...syncGameSettingsFromRoom(room) },
     });
     setupRoomListeners(room, onUpdate);
     return room;
@@ -671,6 +733,7 @@ export async function joinRoom(code, { name, birthMonth, birthDay }, onUpdate) {
 }
 
 export async function leaveRoom() {
+  clearAllTimers();
   if (_room) {
     await _room.leave();
     _room = null;
@@ -703,4 +766,9 @@ export function sendMessage(type, data) {
 /** Register a callback for screen changes triggered by server state */
 export function onScreenChange(callback) {
   _onScreenChange = callback;
+}
+
+/** Register a callback for game settings changes from the server */
+export function onSettingsChange(callback) {
+  _onSettingsChange = callback;
 }

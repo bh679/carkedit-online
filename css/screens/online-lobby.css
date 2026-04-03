@@ -2,6 +2,7 @@
 
 .screen--online-lobby {
   gap: var(--space-md);
+  overflow: hidden;
 }
 
 .online-lobby__forms,
@@ -58,6 +59,18 @@
   padding: var(--space-sm);
   background: rgba(233, 25, 52, 0.08);
   border-radius: var(--radius-sm);
+}
+
+/* ── Gameboard scrolling (match shared-device lobby behavior) ── */
+
+.screen--online-lobby .gameboard {
+  min-height: 0;
+}
+
+.screen--online-lobby .gameboard__card-area {
+  overflow-y: auto;
+  align-items: stretch;
+  container-type: normal;
 }
 
 /* ── Connected lobby ─────────────────────────────────── */
