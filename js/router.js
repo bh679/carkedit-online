@@ -11,6 +11,8 @@ import { render as renderJoinGame } from './screens/join-game.js';
 import { render as renderPhase1 } from './screens/phase1.js';
 import { render as renderPhase23 } from './screens/phase2-3.js';
 import { render as renderPhase4 } from './screens/phase4.js';
+import { render as renderDashboard } from './screens/dashboard.js';
+import { saveGameToHistory } from './managers/game-history.js';
 import { shuffle } from './utils/shuffle.js';
 import {
   createRoom as networkCreateRoom,
@@ -44,6 +46,7 @@ const SCREENS = {
   phase2:        (state) => renderPhase23('live', state),
   phase3:        (state) => renderPhase23('bye', state),
   phase4:        (state) => renderPhase4(state),
+  dashboard:     (state) => renderDashboard(state),
 };
 
 export function showScreen(name, updates = {}) {
@@ -365,6 +368,15 @@ function revealWinner() {
   const state = getState();
   const sorted = [...state.players].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
   const winner = sorted[0]?.name ?? '';
+
+  // Save local game result
+  saveGameToHistory({
+    mode: 'local',
+    rounds: state.gameSettings?.rounds || state.totalRounds || 1,
+    players: sorted,
+    settings: state.gameSettings || null,
+  });
+
   setState({ winner, phase4SubState: 'winner' });
   showScreen('phase4');
 }
@@ -419,6 +431,10 @@ window.game = {
   doneEulogy,
   pickBestEulogy,
   nextWildcard,
+  toggleGameDetail(index) {
+    const el = document.getElementById(`game-detail-${index}`);
+    if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+  },
   setRounds(n) {
     setState({ totalRounds: Math.max(1, Math.min(10, n)) });
     showScreen('lobby');

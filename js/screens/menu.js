@@ -25,6 +25,9 @@ export function render(state) {
         <button class="btn btn--secondary" onclick="window.game.showScreen('join-game')">
           Join Game
         </button>
+        <button class="btn btn--secondary" onclick="window.game.showScreen('dashboard')">
+          Game History
+        </button>
         <a class="btn btn--ghost menu__site-link menu__shop-link" href="https://carkedit.com/shop/all-products/games/carked-it/" target="_blank" rel="noopener noreferrer">Buy Physical Game</a>
         <a class="btn btn--ghost menu__site-link" href="https://carkedit.com" target="_blank" rel="noopener noreferrer">CarkedIt.com</a>
       </div>
