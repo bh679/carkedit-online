@@ -213,6 +213,8 @@ function renderConnectedLobby(state) {
     <path d="M3 2h8l-2 3 2 3H3" fill="#ffffff"/>
   </svg>`;
 
+  const onlineDevMode = onlinePlayers.length > 0 && onlinePlayers.every(p => p.isDevName);
+  const flagClass = `phase-header__flag-btn${onlineDevMode ? ' phase-header__flag-btn--dev' : ''}`;
   const headerHtml = `
     <header class="phase-header">
       <div class="phase-header__left">
@@ -220,7 +222,7 @@ function renderConnectedLobby(state) {
         <span class="phase-header__phase-label">Online Lobby</span>
       </div>
       <div class="phase-header__right">
-        <button class="phase-header__flag-btn" aria-label="Report issue" onclick="window.game.openIssueReport()">
+        <button class="${flagClass}" aria-label="Report issue" onclick="window.game.openIssueReport()">
           ${FLAG_ICON}
         </button>
         <button class="phase-header__settings-btn" aria-label="Copy join link" onclick="window.game.copyJoinLink()" ${roomCode ? '' : 'disabled'}>
