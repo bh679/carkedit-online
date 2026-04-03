@@ -20,7 +20,9 @@ const FLAG_ICON = `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" x
  */
 export function render({ phase = '', label = '' } = {}) {
   const state = getState();
-  const isDev = state.players?.length > 0 && state.players.every(p => p._devName);
+  const localDev = state.players?.length > 0 && state.players.every(p => p._devName);
+  const onlineDev = state.onlinePlayers?.length > 0 && state.onlinePlayers.every(p => p.isDevName);
+  const isDev = localDev || onlineDev;
   const flagClass = `phase-header__flag-btn${isDev ? ' phase-header__flag-btn--dev' : ''}`;
   return `
     <header class="phase-header" data-phase="${phase}">
