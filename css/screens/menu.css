@@ -51,6 +51,10 @@
   text-align: center;
 }
 
+.menu__shop-link:hover {
+  color: var(--color-live);
+}
+
 .menu__version {
   position: absolute;
   bottom: var(--space-md);
