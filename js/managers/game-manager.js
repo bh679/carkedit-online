@@ -29,14 +29,21 @@ function findServerCardIndex(cardId) {
 function findSubmittedCardIndex() {
   const room = getRoom();
   const state = getState();
-  if (!room || !state.selectedCard) return -1;
+  if (!room || !state.selectedCard) {
+    console.warn('[confirmWinner] No room or selectedCard', { hasRoom: !!room, selectedCard: state.selectedCard });
+    return -1;
+  }
   // Match by the playerName stored on selectedCard -> find that player's sessionId -> match submittedBy
   const playerName = state.selectedCard.playerName;
   const player = state.players.find(p => p.name === playerName);
-  if (!player) return -1;
+  if (!player) {
+    console.warn('[confirmWinner] Player not found for name:', playerName, 'players:', state.players.map(p => p.name));
+    return -1;
+  }
   for (let i = 0; i < room.state.submittedCards.length; i++) {
     if (room.state.submittedCards[i].submittedBy === player.sessionId) return i;
   }
+  console.warn('[confirmWinner] No submitted card matches sessionId:', player.sessionId);
   return -1;
 }
 

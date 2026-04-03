@@ -479,15 +479,8 @@ function renderOnlineSelect(config, state, playerListOptions, livingDeadName) {
     };
   });
 
-  // Build submittedCards map for judging card navigation (used by game-manager)
-  const submittedMap = {};
-  for (const entry of entries) {
-    submittedMap[entry.playerName] = entry.card;
-  }
-  // Store in state for judging card inspect/nav (uses submittedCards keyed by name)
-  if (Object.keys(state.submittedCards ?? {}).length === 0 && entries.length > 0) {
-    state.submittedCards = submittedMap;
-  }
+  // submittedCards map (keyed by player name) is now built in syncLivingPhaseState
+  // and stored in state properly via setState — no render-time mutation needed.
 
   if (state.isLivingDead) {
     // Living Dead picks the winner
