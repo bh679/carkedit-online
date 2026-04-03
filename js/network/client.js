@@ -236,11 +236,19 @@ function syncLivingPhaseState(room) {
     round: room.state.round,
     roundWinner: roundWinnerName,
     roundWinnerCard,
-    // Only reset submittedCards/selectedCard when not in select or winner phase
-    // (these are managed locally by the judging UI during those phases)
-    ...(onlinePhase !== 'select' && onlinePhase !== 'winner'
-      ? { submittedCards: {}, selectedCard: null }
-      : {}),
+    // During select/winner phases, build the submittedCards map (keyed by player name)
+    // so that confirmWinner/findSubmittedCardIndex can look up cards reliably.
+    // Outside those phases, reset submittedCards and selectedCard.
+    ...(onlinePhase === 'select' || onlinePhase === 'winner'
+      ? { submittedCards: (() => {
+          const map = {};
+          for (const card of submittedCards) {
+            const p = players.find(pl => pl.sessionId === card.submittedBy);
+            if (p) map[p.name] = card;
+          }
+          return map;
+        })() }
+      : { submittedCards: {}, selectedCard: null }),
     phaseComplete: false,
   };
 }
