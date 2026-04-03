@@ -468,7 +468,7 @@ function renderPhaseCards(gd) {
   }
 
   const phaseCards = Object.values(phases).map(p => {
-    const phaseName = p.phase === 'living' ? 'Live' : p.phase === 'bye' ? 'Bye' : p.phase;
+    const phaseName = p.phase === 'die' ? 'Die' : p.phase === 'living' ? 'Live' : p.phase === 'bye' ? 'Bye' : p.phase;
     const winnerText = p.winner ? `Winner: ${maskName(p.winner.player_name)}` : '';
     const cardsHtml = p.cards.map(c =>
       `<div class="detail__mini-card-wrap ${c.is_winner ? 'detail__mini-card-wrap--winner' : ''}">
