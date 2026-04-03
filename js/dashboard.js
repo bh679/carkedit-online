@@ -490,12 +490,26 @@ function renderGameDetail(gd) {
     </div>`;
 }
 
+function formatTimeAgo(isoDate) {
+  if (!isoDate) return '';
+  const diff = Math.floor((Date.now() - new Date(isoDate).getTime()) / 1000);
+  if (diff < 60) return `${diff}s ago`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
+
 function renderGameCard(game) {
   const cls = rowClass(game);
   const expanded = expandedGameId === game.id;
   const errorFlag = game.has_error ? '<span class="dashboard__flag dashboard__flag--error" title="Error">!</span>' : '';
   const liveLabel = liveStatusLabel(game.live_status);
   const liveBadge = liveLabel ? `<span class="dashboard__badge dashboard__badge--${game.live_status}">${liveLabel}</span>` : '';
+
+  // For live/abandoned games with no finished_at, show started_at and last activity
+  const isLive = game.live_status === 'live';
+  const dateDisplay = (isLive && game.started_at) ? formatDateTime(game.started_at) : formatDateTime(game.finished_at);
+  const lastActivity = (isLive && game.last_activity_at) ? `<span class="dashboard__cell dashboard__cell--activity" title="Last activity">${formatTimeAgo(game.last_activity_at)}</span>` : '';
 
   let detail = '';
   if (expanded) {
@@ -506,10 +520,10 @@ function renderGameCard(game) {
   return `
     <div class="dashboard__card ${cls}" onclick="window.dash.toggleGame('${game.id}')">
       <div class="dashboard__card-row">
-        <span class="dashboard__cell dashboard__cell--date">${formatDateTime(game.finished_at)}</span>
+        <span class="dashboard__cell dashboard__cell--date">${dateDisplay}</span>
         <span class="dashboard__cell dashboard__cell--host">${maskName(game.host_name)}</span>
         <span class="dashboard__cell dashboard__cell--players">${game.player_count} players</span>
-        <span class="dashboard__cell dashboard__cell--time">${formatDuration(game.duration_seconds)}</span>
+        <span class="dashboard__cell dashboard__cell--time">${isLive ? (lastActivity || '—') : formatDuration(game.duration_seconds)}</span>
         <span class="dashboard__cell dashboard__cell--status">${statusLabel(game.status)}</span>
         <span class="dashboard__cell dashboard__cell--live">${liveBadge}</span>
         <span class="dashboard__cell dashboard__cell--error">${errorFlag}</span>
@@ -862,7 +876,7 @@ function renderPage() {
 }
 
 // ── Init ─────────────────────────────────────────────
-window.dash = { cyclePlayTime, cycleGamesCount, toggleGame, setDeckFilter, setCardSort, previewCard, closePreview, scrollCards, loadMoreGames, applyGameFilters, setGameFilter };
+window.dash = { cyclePlayTime, cycleGamesCount, toggleGame, setDeckFilter, setCardSort, previewCard, closePreview, scrollCards, loadMoreGames, applyGameFilters, setGameFilter, cycleDateRange, cycleDev, cycleStatus };
 
 document.addEventListener('DOMContentLoaded', async () => {
   renderPage();
