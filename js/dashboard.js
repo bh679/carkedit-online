@@ -125,7 +125,7 @@ function renderStats() {
   `;
 }
 
-function renderGameRow(game) {
+function renderGameCard(game) {
   const cls = rowClass(game);
   const expanded = expandedGameId === game.id;
   const errorFlag = game.has_error ? '<span class="dashboard__flag dashboard__flag--error" title="Error">!</span>' : '';
@@ -135,11 +135,11 @@ function renderGameRow(game) {
   let detail = '';
   if (expanded) {
     const players = (game.players || []).map(p => `
-      <tr>
-        <td>#${p.rank}</td>
-        <td>${maskName(p.player_name)}</td>
-        <td>${p.score} pts</td>
-      </tr>
+      <div class="dashboard__player-row">
+        <span class="dashboard__player-rank">#${p.rank}</span>
+        <span class="dashboard__player-name">${maskName(p.player_name)}</span>
+        <span class="dashboard__player-score">${p.score} pts</span>
+      </div>
     `).join('');
 
     let settingsHtml = '';
@@ -151,31 +151,26 @@ function renderGameRow(game) {
     }
 
     detail = `
-      <tr class="dashboard__detail-row">
-        <td colspan="7">
-          <div class="dashboard__detail">
-            <table class="dashboard__players-table">
-              <thead><tr><th>Rank</th><th>Player</th><th>Score</th></tr></thead>
-              <tbody>${players}</tbody>
-            </table>
-            ${settingsHtml}
-          </div>
-        </td>
-      </tr>
+      <div class="dashboard__detail">
+        <div class="dashboard__players-list">${players}</div>
+        ${settingsHtml}
+      </div>
     `;
   }
 
   return `
-    <tr class="dashboard__row ${cls}" onclick="window.dash.toggleGame('${game.id}')">
-      <td class="dashboard__cell--date">${formatDateTime(game.finished_at)}</td>
-      <td>${maskName(game.host_name)}</td>
-      <td>${game.player_count}</td>
-      <td>${formatDuration(game.duration_seconds)}</td>
-      <td>${statusLabel(game.status)}</td>
-      <td>${liveBadge}</td>
-      <td>${errorFlag}</td>
-    </tr>
-    ${detail}
+    <div class="dashboard__card ${cls}" onclick="window.dash.toggleGame('${game.id}')">
+      <div class="dashboard__card-row">
+        <span class="dashboard__cell dashboard__cell--date">${formatDateTime(game.finished_at)}</span>
+        <span class="dashboard__cell dashboard__cell--host">${maskName(game.host_name)}</span>
+        <span class="dashboard__cell dashboard__cell--players">${game.player_count} players</span>
+        <span class="dashboard__cell dashboard__cell--time">${formatDuration(game.duration_seconds)}</span>
+        <span class="dashboard__cell dashboard__cell--status">${statusLabel(game.status)}</span>
+        <span class="dashboard__cell dashboard__cell--live">${liveBadge}</span>
+        <span class="dashboard__cell dashboard__cell--error">${errorFlag}</span>
+      </div>
+      ${detail}
+    </div>
   `;
 }
 
@@ -188,23 +183,18 @@ function renderGameList() {
     return;
   }
 
+  // Column header
   el.innerHTML = `
-    <table class="dashboard__table">
-      <thead>
-        <tr>
-          <th>Date/Time</th>
-          <th>Host</th>
-          <th>Players</th>
-          <th>Play Time</th>
-          <th>Status</th>
-          <th></th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        ${games.map(renderGameRow).join('')}
-      </tbody>
-    </table>
+    <div class="dashboard__list-header">
+      <span class="dashboard__cell dashboard__cell--date">Date/Time</span>
+      <span class="dashboard__cell dashboard__cell--host">Host</span>
+      <span class="dashboard__cell dashboard__cell--players">Players</span>
+      <span class="dashboard__cell dashboard__cell--time">Play Time</span>
+      <span class="dashboard__cell dashboard__cell--status">Status</span>
+      <span class="dashboard__cell dashboard__cell--live"></span>
+      <span class="dashboard__cell dashboard__cell--error"></span>
+    </div>
+    ${games.map(renderGameCard).join('')}
   `;
 }
 

@@ -4,9 +4,7 @@
   min-height: 100vh;
   background: var(--color-bg);
   color: var(--color-text);
-  padding: var(--space-md);
-  max-width: 960px;
-  margin: 0 auto;
+  padding: var(--space-md) var(--space-lg);
 }
 
 /* ── Header ─────────────────────────────────────── */
@@ -60,71 +58,107 @@
   margin-top: 2px;
 }
 
-/* ── Table ──────────────────────────────────────── */
+/* ── List Header ────────────────────────────────── */
 
-.dashboard__table {
-  width: 100%;
-  border-collapse: collapse;
+.dashboard__list-header {
+  display: flex;
+  align-items: center;
+  padding: var(--space-xs) var(--space-md);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: var(--space-xs);
+}
+
+/* ── Game Cards ─────────────────────────────────── */
+
+.dashboard__card {
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-xs);
+  cursor: pointer;
+  transition: background 0.1s ease;
+  overflow: hidden;
+}
+
+.dashboard__card:hover {
+  background: var(--color-secondary);
+}
+
+.dashboard__card-row {
+  display: flex;
+  align-items: center;
+  padding: var(--space-sm) var(--space-md);
   font-size: 0.85rem;
 }
 
-.dashboard__table thead th {
-  text-align: left;
-  padding: var(--space-xs) var(--space-sm);
-  color: var(--color-text-muted);
-  font-weight: 600;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  border-bottom: 1px solid var(--color-border);
+/* ── Cells (shared between header and cards) ────── */
+
+.dashboard__cell {
+  flex-shrink: 0;
 }
 
-.dashboard__row {
-  cursor: pointer;
-  transition: background 0.1s ease;
+.dashboard__cell--date {
+  width: 160px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
-.dashboard__row td {
-  padding: var(--space-xs) var(--space-sm);
-  border-bottom: 1px solid var(--color-border);
-  vertical-align: middle;
+.dashboard__cell--host {
+  width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.dashboard__row:hover {
-  background: var(--color-surface);
+.dashboard__cell--players {
+  width: 90px;
+}
+
+.dashboard__cell--time {
+  width: 90px;
+}
+
+.dashboard__cell--status {
+  width: 80px;
+}
+
+.dashboard__cell--live {
+  width: 80px;
+}
+
+.dashboard__cell--error {
+  width: 30px;
+  text-align: center;
 }
 
 /* ── Row status colors ──────────────────────────── */
 
-.dashboard__row--live {
+.dashboard__card.dashboard__row--live {
   background: rgba(77, 158, 77, 0.15);
 }
 
-.dashboard__row--live:hover {
+.dashboard__card.dashboard__row--live:hover {
   background: rgba(77, 158, 77, 0.25);
 }
 
-.dashboard__row--abandoned {
+.dashboard__card.dashboard__row--abandoned {
   opacity: 0.5;
 }
 
-.dashboard__row--error {
+.dashboard__card.dashboard__row--error {
   background: rgba(233, 25, 52, 0.1);
 }
 
-.dashboard__row--error:hover {
+.dashboard__card.dashboard__row--error:hover {
   background: rgba(233, 25, 52, 0.2);
 }
 
-.dashboard__row--dev {
+.dashboard__card.dashboard__row--dev {
   opacity: 0.5;
-}
-
-/* ── Cell helpers ───────────────────────────────── */
-
-.dashboard__cell--date {
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
 }
 
 /* ── Badges & Flags ─────────────────────────────── */
@@ -166,34 +200,36 @@
 
 /* ── Expanded Detail ────────────────────────────── */
 
-.dashboard__detail-row td {
-  padding: 0 !important;
-  border-bottom: 1px solid var(--color-border);
-}
-
 .dashboard__detail {
   padding: var(--space-sm) var(--space-md);
-  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
 }
 
-.dashboard__players-table {
-  width: 100%;
-  border-collapse: collapse;
+.dashboard__players-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dashboard__player-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
   font-size: 0.8rem;
-  margin-bottom: var(--space-xs);
 }
 
-.dashboard__players-table th {
-  text-align: left;
-  padding: 4px var(--space-xs);
+.dashboard__player-rank {
   color: var(--color-text-muted);
   font-weight: 600;
-  font-size: 0.7rem;
-  text-transform: uppercase;
+  min-width: 28px;
 }
 
-.dashboard__players-table td {
-  padding: 4px var(--space-xs);
+.dashboard__player-name {
+  flex: 1;
+}
+
+.dashboard__player-score {
+  color: var(--color-text-muted);
 }
 
 .dashboard__detail-settings {
@@ -214,15 +250,22 @@
 
 /* ── Responsive ─────────────────────────────────── */
 
-@media (max-width: 640px) {
-  .dashboard__table {
+@media (max-width: 768px) {
+  .dashboard {
+    padding: var(--space-sm);
+  }
+
+  .dashboard__card-row,
+  .dashboard__list-header {
     font-size: 0.75rem;
   }
 
-  .dashboard__table thead th,
-  .dashboard__row td {
-    padding: var(--space-xs) 4px;
-  }
+  .dashboard__cell--date { width: 120px; }
+  .dashboard__cell--host { width: 80px; }
+  .dashboard__cell--players { width: 70px; }
+  .dashboard__cell--time { width: 70px; }
+  .dashboard__cell--status { width: 60px; }
+  .dashboard__cell--live { width: 60px; }
 
   .dashboard__stats {
     flex-direction: column;
