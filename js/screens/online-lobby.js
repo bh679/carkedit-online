@@ -171,7 +171,7 @@ function renderConnectedLobby(state) {
         </div>
         <div class="online-lobby__divider"></div>`;
       })()
-    : '';
+    : renderSettingsSummary(state);
 
   // Find if the local player is ready
   const myPlayer = onlinePlayers.find(p => p.sessionId === state.mySessionId);
@@ -238,6 +238,82 @@ function renderConnectedLobby(state) {
       </div>
     </div>
   `;
+}
+
+const REDRAW_LABELS = {
+  off: 'Off', once_per_phase: 'Once / Phase',
+  once_per_round: 'Once / Round', unlimited: 'Unlimited',
+};
+
+const DEFAULTS = {
+  rounds: 2, handSize: 5, enableLive: true, enableBye: true, enableEulogy: true,
+  forceWildcards: false, playableWildcards: true, wildcardCount: 2, eulogistCount: 2,
+  handRedraws: 'once_per_phase', timerEnabled: false, ultraQuickMode: false,
+  optionalCardPlay: false,
+};
+
+const MODE_PRESETS = {
+  Quick:        { rounds: 1, ultraQuickMode: false, optionalCardPlay: false },
+  Normal:       { rounds: 2, ultraQuickMode: false, optionalCardPlay: false },
+  'Big Group':  { rounds: 1, ultraQuickMode: false, optionalCardPlay: true },
+  'Ultra Quick':{ rounds: 1, ultraQuickMode: true,  optionalCardPlay: false },
+  'Huge Group': { rounds: 1, ultraQuickMode: true,  optionalCardPlay: true },
+};
+
+export function renderSettingsSummary(state) {
+  const gs = state.gameSettings;
+
+  // Detect named mode
+  const isQuick      = !gs.ultraQuickMode && gs.rounds === 1 && !gs.optionalCardPlay;
+  const isNormal     = !gs.ultraQuickMode && gs.rounds !== 1 && !gs.optionalCardPlay;
+  const isBigGroup   = !gs.ultraQuickMode && gs.rounds === 1 &&  gs.optionalCardPlay;
+  const isUltraQuick =  gs.ultraQuickMode &&                    !gs.optionalCardPlay;
+  const isHugeGroup  =  gs.ultraQuickMode &&                     gs.optionalCardPlay;
+  const modeName = isQuick ? 'Quick' : isNormal ? 'Normal'
+    : isBigGroup ? 'Big Group' : isUltraQuick ? 'Ultra Quick'
+    : isHugeGroup ? 'Huge Group' : null;
+
+  // Effective defaults = global defaults + mode preset (so mode-set values are hidden)
+  const d = { ...DEFAULTS, ...(modeName ? MODE_PRESETS[modeName] : {}) };
+
+  const cards = [];
+
+  // Show mode chip if not Normal (no label prefix, just the mode name)
+  if (modeName && modeName !== 'Normal') cards.push([null, modeName]);
+
+  // Only show settings that differ from the effective defaults
+  if (gs.rounds !== d.rounds) cards.push(['Rounds', gs.rounds]);
+  if (gs.handSize !== d.handSize) cards.push(['Hand', gs.handSize]);
+
+  // Disabled phases as individual off-state chips
+  if (!gs.enableLive) cards.push([null, 'LIVE', true]);
+  if (!gs.enableBye) cards.push([null, 'BYE', true]);
+  if (!gs.enableEulogy) cards.push([null, 'EULOGY', true]);
+
+  // Toggles: just the name, color shows on/off
+  if (gs.handRedraws !== d.handRedraws) {
+    if (gs.handRedraws === 'off') {
+      cards.push([null, 'Hand Redraws', true]);
+    } else {
+      cards.push(['Redraws', REDRAW_LABELS[gs.handRedraws] ?? gs.handRedraws]);
+    }
+  }
+  if (gs.timerEnabled !== d.timerEnabled) cards.push([null, 'Timer', !gs.timerEnabled]);
+  if (gs.optionalCardPlay !== d.optionalCardPlay) cards.push([null, 'Optional Card Play', !gs.optionalCardPlay]);
+  if (gs.forceWildcards !== d.forceWildcards) cards.push([null, 'Force Wildcards', !gs.forceWildcards]);
+  if (gs.playableWildcards !== d.playableWildcards) cards.push([null, 'Playable Wildcards', !gs.playableWildcards]);
+  if (gs.wildcardCount !== d.wildcardCount) cards.push(['Wildcards', gs.wildcardCount]);
+  if (gs.eulogistCount !== d.eulogistCount) cards.push(['Eulogists', gs.eulogistCount]);
+
+  if (cards.length === 0) {
+    return `<div id="settings-summary-panel"></div>`;
+  }
+
+  return `
+    <div id="settings-summary-panel" class="online-lobby__settings-summary">
+      ${cards.map(([label, value, isOff]) => `<span class="btn ${isOff ? 'btn--secondary' : 'btn--primary'} online-lobby__summary-chip">${label ? `${label}: ${value}` : value}</span>`).join('')}
+    </div>
+    <div class="online-lobby__divider"></div>`;
 }
 
 function escapeHtml(str) {

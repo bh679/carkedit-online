@@ -6,7 +6,7 @@ import { preloadCards } from './preloader.js';
 import { render as renderMenu } from './screens/menu.js';
 import { render as renderModeSelect } from './screens/mode-select.js';
 import { render as renderLobby, renderAdvancedPanel } from './screens/lobby.js';
-import { render as renderOnlineLobby } from './screens/online-lobby.js';
+import { render as renderOnlineLobby, renderSettingsSummary } from './screens/online-lobby.js';
 import { render as renderJoinGame } from './screens/join-game.js';
 import { render as renderPhase1 } from './screens/phase1.js';
 import { render as renderPhase23 } from './screens/phase2-3.js';
@@ -85,6 +85,15 @@ function refreshAdvancedPanel() {
   const toggleBtn = document.querySelector('.lobby__advanced .lobby__advanced-toggle');
   if (toggleBtn) {
     toggleBtn.textContent = `Advanced Settings ${state.showAdvancedSettings ? '▲' : '▼'}`;
+  }
+  const summaryPanel = document.getElementById('settings-summary-panel');
+  if (summaryPanel) {
+    const summary = renderSettingsSummary(state);
+    // Extract just the inner content of the summary container
+    const temp = document.createElement('div');
+    temp.innerHTML = summary;
+    const newPanel = temp.querySelector('#settings-summary-panel');
+    if (newPanel) summaryPanel.innerHTML = newPanel.innerHTML;
   }
   const modeToggle = document.getElementById('lobby-mode-toggle');
   if (modeToggle) {
