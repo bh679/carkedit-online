@@ -326,6 +326,29 @@ function setupRoomListeners(room, onUpdate) {
     if (onUpdate) onUpdate(syncPlayersFromRoom(room));
   });
 
+  // Listen for game settings changes (synced from server to local gameSettings)
+  const settingKeys = [
+    'rounds', 'handSize', 'enableDie', 'enableLive', 'enableBye', 'enableEulogy',
+    'forceWildcards', 'playableWildcards', 'wildcardCount', 'eulogistCount',
+    'handRedraws', 'timerEnabled', 'pitchTimerEnabled', 'playCardTimerEnabled',
+    'timerCountUp', 'pitchDuration', 'timerVisible', 'timerAutoAdvance',
+    'ultraQuickMode', 'optionalCardPlay',
+  ];
+  for (const key of settingKeys) {
+    $(room.state).listen(key, (value) => {
+      const state = getState();
+      setState({ gameSettings: { ...state.gameSettings, [key]: value } });
+      if (state.screen === 'online-lobby' && onUpdate) onUpdate(syncPlayersFromRoom(room));
+    });
+  }
+
+  // Listen for autoStartOnReady changes
+  $(room.state).listen('autoStartOnReady', (value) => {
+    const state = getState();
+    setState({ onlineSettings: { ...state.onlineSettings, autoStartOnReady: value } });
+    if (state.screen === 'online-lobby' && onUpdate) onUpdate(syncPlayersFromRoom(room));
+  });
+
   // Listen for game phase changes
   $(room.state).listen('phase', (phase) => {
     const state = getState();
@@ -596,6 +619,24 @@ function waitForState(room) {
   });
 }
 
+/** Sync initial game settings from the server room state */
+function syncGameSettingsFromRoom(room) {
+  const keys = [
+    'rounds', 'handSize', 'enableDie', 'enableLive', 'enableBye', 'enableEulogy',
+    'forceWildcards', 'playableWildcards', 'wildcardCount', 'eulogistCount',
+    'handRedraws', 'timerEnabled', 'pitchTimerEnabled', 'playCardTimerEnabled',
+    'timerCountUp', 'pitchDuration', 'timerVisible', 'timerAutoAdvance',
+    'ultraQuickMode', 'optionalCardPlay',
+  ];
+  const settings = {};
+  for (const key of keys) {
+    if (room.state[key] !== undefined) {
+      settings[key] = room.state[key];
+    }
+  }
+  return settings;
+}
+
 export async function createRoom({ name, birthMonth, birthDay, isPrivate = true }, onUpdate) {
   setState({ connectionStatus: 'connecting', onlineError: null });
   try {
@@ -610,6 +651,7 @@ export async function createRoom({ name, birthMonth, birthDay, isPrivate = true 
 
     await waitForState(room);
 
+    const state = getState();
     setState({
       connectionStatus: 'connected',
       isHost: true,
@@ -617,6 +659,7 @@ export async function createRoom({ name, birthMonth, birthDay, isPrivate = true 
       gameMode: 'online',
       onlinePlayers: syncPlayersFromRoom(room),
       mySessionId: room.sessionId,
+      gameSettings: { ...state.gameSettings, ...syncGameSettingsFromRoom(room) },
     });
     setupRoomListeners(room, onUpdate);
     return room;
@@ -651,6 +694,7 @@ export async function joinRoom(code, { name, birthMonth, birthDay }, onUpdate) {
 
     await waitForState(room);
 
+    const state = getState();
     setState({
       connectionStatus: 'connected',
       isHost: false,
@@ -658,6 +702,7 @@ export async function joinRoom(code, { name, birthMonth, birthDay }, onUpdate) {
       gameMode: 'online',
       onlinePlayers: syncPlayersFromRoom(room),
       mySessionId: room.sessionId,
+      gameSettings: { ...state.gameSettings, ...syncGameSettingsFromRoom(room) },
     });
     setupRoomListeners(room, onUpdate);
     return room;
