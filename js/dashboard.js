@@ -245,7 +245,7 @@ function renderPhaseCards(gd) {
   return `
     <div class="detail__row">
       <h4 class="detail__row-title">Phases</h4>
-      ${phaseCards}
+      <div class="detail__phases-row">${phaseCards}</div>
     </div>`;
 }
 
