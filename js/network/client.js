@@ -11,6 +11,7 @@ let _configLoaded = false;
 let _client = null;
 let _room = null;
 let _onScreenChange = null;
+let _onSettingsChange = null;
 
 async function loadConfig() {
   if (_configLoaded) return;
@@ -338,7 +339,7 @@ function setupRoomListeners(room, onUpdate) {
     $(room.state).listen(key, (value) => {
       const state = getState();
       setState({ gameSettings: { ...state.gameSettings, [key]: value } });
-      if (state.screen === 'online-lobby' && onUpdate) onUpdate(syncPlayersFromRoom(room));
+      if (state.screen === 'online-lobby' && _onSettingsChange) _onSettingsChange();
     });
   }
 
@@ -346,7 +347,7 @@ function setupRoomListeners(room, onUpdate) {
   $(room.state).listen('autoStartOnReady', (value) => {
     const state = getState();
     setState({ onlineSettings: { ...state.onlineSettings, autoStartOnReady: value } });
-    if (state.screen === 'online-lobby' && onUpdate) onUpdate(syncPlayersFromRoom(room));
+    if (state.screen === 'online-lobby' && _onSettingsChange) _onSettingsChange();
   });
 
   // Listen for game phase changes
@@ -748,4 +749,9 @@ export function sendMessage(type, data) {
 /** Register a callback for screen changes triggered by server state */
 export function onScreenChange(callback) {
   _onScreenChange = callback;
+}
+
+/** Register a callback for game settings changes from the server */
+export function onSettingsChange(callback) {
+  _onSettingsChange = callback;
 }

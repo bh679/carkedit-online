@@ -17,6 +17,7 @@ import {
   leaveRoom as networkLeaveRoom,
   sendMessage,
   onScreenChange,
+  onSettingsChange,
 } from './network/client.js';
 import {
   startPhase1, doneDying, revealCard,
@@ -74,23 +75,18 @@ export function showScreen(name, updates = {}) {
 
 function refreshAdvancedPanel() {
   const state = getState();
-  // If we're in online mode, re-render the whole lobby (settings are inline)
-  if (state.gameMode === 'online' && state.screen === 'online-lobby') {
-    showScreen('online-lobby');
-    return;
-  }
   const panel = document.getElementById('advanced-settings-panel');
   if (panel) {
     panel.innerHTML = renderAdvancedPanel(state);
   }
-  const toggleBtn = document.querySelector('#lobby-advanced .lobby__advanced-toggle');
+  const toggleBtn = document.querySelector('.lobby__advanced .lobby__advanced-toggle');
   if (toggleBtn) {
     toggleBtn.textContent = `Advanced Settings ${state.showAdvancedSettings ? '▲' : '▼'}`;
   }
   const modeToggle = document.getElementById('lobby-mode-toggle');
   if (modeToggle) {
     const { rounds, ultraQuickMode, optionalCardPlay } = state.gameSettings;
-    const pc = state.players.length;
+    const pc = state.gameMode === 'online' ? state.onlinePlayers.length : state.players.length;
     const isQuick     = !ultraQuickMode && rounds === 1 && !optionalCardPlay;
     const isNormal    = !ultraQuickMode && rounds !== 1 && !optionalCardPlay;
     const isBigGroup  = !ultraQuickMode && rounds === 1 &&  optionalCardPlay;
@@ -291,7 +287,7 @@ function resetSettings() {
   } else {
     setState({ gameSettings: { ...DEFAULT_GAME_SETTINGS } });
   }
-  showScreen(state.gameMode === 'online' ? 'online-lobby' : 'lobby');
+  refreshAdvancedPanel();
 }
 
 function toggleSetting(key) {
@@ -318,7 +314,7 @@ function toggleUltraQuickMode() {
   } else {
     setState({ gameSettings: { ...state.gameSettings, ...patch } });
   }
-  showScreen(state.gameMode === 'online' ? 'online-lobby' : 'lobby');
+  refreshAdvancedPanel();
 }
 
 function cyclePitchDuration(dir) {
@@ -342,7 +338,7 @@ function toggleOnlineSetting(key) {
   if (state.connectionStatus === 'connected') {
     sendMessage('setting', { key, value: !current });
   }
-  showScreen('online-lobby');
+  refreshAdvancedPanel();
 }
 
 function revealWinner() {
@@ -533,6 +529,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // Register screen change callback for server-driven transitions
   onScreenChange((screenName) => {
     showScreen(screenName);
+  });
+
+  // Register settings change callback for partial DOM updates (no full re-render)
+  onSettingsChange(() => {
+    refreshAdvancedPanel();
   });
 
   const params = new URLSearchParams(window.location.search);
