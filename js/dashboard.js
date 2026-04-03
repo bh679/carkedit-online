@@ -3,10 +3,20 @@
 
 const API_BASE = '';  // Same origin
 let games = [];
+let gamesTotalCount = 0;
+let gamesPageSize = 5;
+let gamesOffset = 0;
 let stats = {};
 let playTimeMode = 'total'; // 'total' | 'average' | 'median' | 'longest'
 let gamesCountMode = 'finished'; // 'finished' | 'total' | 'unfinished'
 let expandedGameId = null;
+
+// Game filters
+let filterDateFrom = '';
+let filterDateTo = '';
+let filterErrorsOnly = false;
+let filterDev = 'all'; // 'all' | 'dev' | 'nodev'
+let filterStatus = 'all'; // 'all' | 'finished' | 'unfinished'
 
 // Card data lookup (loaded from JSON files for images)
 const cardDataMap = {}; // key: `${deck}-${id}` → card object with illustrationKey
@@ -83,15 +93,54 @@ function rowClass(game) {
 }
 
 // ── Data Fetching ────────────────────────────────────
-async function fetchGames() {
+function buildGamesUrl(limit, offset) {
+  const params = new URLSearchParams();
+  params.set('limit', String(limit));
+  params.set('offset', String(offset));
+  if (filterDateFrom) params.set('dateFrom', new Date(filterDateFrom).toISOString());
+  if (filterDateTo) params.set('dateTo', new Date(filterDateTo + 'T23:59:59').toISOString());
+  if (filterErrorsOnly) params.set('errorsOnly', 'true');
+  if (filterDev !== 'all') params.set('dev', filterDev);
+  if (filterStatus !== 'all') params.set('status', filterStatus);
+  return `${API_BASE}/api/carkedit/games?${params}`;
+}
+
+async function fetchGames(append = false) {
   try {
-    const res = await fetch(`${API_BASE}/api/carkedit/games?limit=100`);
+    const offset = append ? games.length : 0;
+    const res = await fetch(buildGamesUrl(gamesPageSize, offset));
     if (!res.ok) return;
     const data = await res.json();
-    games = data.games || [];
+    if (append) {
+      games = [...games, ...(data.games || [])];
+    } else {
+      games = data.games || [];
+    }
+    gamesTotalCount = data.total || 0;
   } catch (err) {
     console.warn('[dashboard] Failed to fetch games:', err);
   }
+}
+
+async function loadMoreGames() {
+  await fetchGames(true);
+  renderGameList();
+}
+
+async function applyGameFilters() {
+  const from = document.getElementById('filter-date-from');
+  const to = document.getElementById('filter-date-to');
+  filterDateFrom = from?.value || '';
+  filterDateTo = to?.value || '';
+  await fetchGames(false);
+  renderGameList();
+}
+
+function setGameFilter(key, value) {
+  if (key === 'errorsOnly') filterErrorsOnly = value;
+  if (key === 'dev') filterDev = value;
+  if (key === 'status') filterStatus = value;
+  applyGameFilters();
 }
 
 async function fetchStats() {
@@ -392,27 +441,57 @@ function renderGameCard(game) {
   `;
 }
 
+function renderGameFilters() {
+  const statusBtn = (val, label) => {
+    const active = filterStatus === val ? 'dashboard__filter-btn--active' : '';
+    return `<button class="dashboard__filter-btn ${active}" onclick="window.dash.setGameFilter('status','${val}')">${label}</button>`;
+  };
+  const devBtn = (val, label) => {
+    const active = filterDev === val ? 'dashboard__filter-btn--active' : '';
+    return `<button class="dashboard__filter-btn ${active}" onclick="window.dash.setGameFilter('dev','${val}')">${label}</button>`;
+  };
+  const errActive = filterErrorsOnly ? 'dashboard__filter-btn--active' : '';
+
+  return `
+    <div class="dashboard__game-filters">
+      <label>From</label>
+      <input type="date" id="filter-date-from" value="${filterDateFrom}" onchange="window.dash.applyGameFilters()">
+      <label>To</label>
+      <input type="date" id="filter-date-to" value="${filterDateTo}" onchange="window.dash.applyGameFilters()">
+      <button class="dashboard__filter-btn ${errActive}" onclick="window.dash.setGameFilter('errorsOnly', ${!filterErrorsOnly})">Errors</button>
+      ${devBtn('all', 'All')}
+      ${devBtn('nodev', 'No Dev')}
+      ${devBtn('dev', 'Dev Only')}
+      ${statusBtn('all', 'All')}
+      ${statusBtn('finished', 'Finished')}
+      ${statusBtn('unfinished', 'Unfinished')}
+    </div>`;
+}
+
 function renderGameList() {
   const el = document.getElementById('game-list');
   if (!el) return;
 
-  if (games.length === 0) {
-    el.innerHTML = '<p class="dashboard__empty">No games recorded yet.</p>';
-    return;
-  }
+  const hasMore = games.length < gamesTotalCount;
+  const loadMoreBtn = hasMore
+    ? `<button class="dashboard__load-more" onclick="window.dash.loadMoreGames()">Load more (${games.length} of ${gamesTotalCount})</button>`
+    : '';
 
-  // Column header
   el.innerHTML = `
-    <div class="dashboard__list-header">
-      <span class="dashboard__cell dashboard__cell--date">Date/Time</span>
-      <span class="dashboard__cell dashboard__cell--host">Host</span>
-      <span class="dashboard__cell dashboard__cell--players">Players</span>
-      <span class="dashboard__cell dashboard__cell--time">Play Time</span>
-      <span class="dashboard__cell dashboard__cell--status">Status</span>
-      <span class="dashboard__cell dashboard__cell--live"></span>
-      <span class="dashboard__cell dashboard__cell--error"></span>
-    </div>
-    ${games.map(renderGameCard).join('')}
+    ${renderGameFilters()}
+    ${games.length === 0 ? '<p class="dashboard__empty">No games match filters.</p>' : `
+      <div class="dashboard__list-header">
+        <span class="dashboard__cell dashboard__cell--date">Date/Time</span>
+        <span class="dashboard__cell dashboard__cell--host">Host</span>
+        <span class="dashboard__cell dashboard__cell--players">Players</span>
+        <span class="dashboard__cell dashboard__cell--time">Play Time</span>
+        <span class="dashboard__cell dashboard__cell--status">Status</span>
+        <span class="dashboard__cell dashboard__cell--live"></span>
+        <span class="dashboard__cell dashboard__cell--error"></span>
+      </div>
+      ${games.map(renderGameCard).join('')}
+      ${loadMoreBtn}
+    `}
   `;
 }
 
@@ -699,7 +778,7 @@ function renderPage() {
 }
 
 // ── Init ─────────────────────────────────────────────
-window.dash = { cyclePlayTime, cycleGamesCount, toggleGame, setDeckFilter, setCardSort, previewCard, closePreview, scrollCards };
+window.dash = { cyclePlayTime, cycleGamesCount, toggleGame, setDeckFilter, setCardSort, previewCard, closePreview, scrollCards, loadMoreGames, applyGameFilters, setGameFilter };
 
 document.addEventListener('DOMContentLoaded', async () => {
   renderPage();
