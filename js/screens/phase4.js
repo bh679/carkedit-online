@@ -325,7 +325,7 @@ function renderOnlinePointsAwarded(state) {
         </div>
       </div>
     </div>
-    <div class="winner-timer"><div class="winner-timer__bar"></div></div>
+    <div class="winner-timer"><div class="winner-timer__bar"${state.gameSettings?.rounds === 1 ? ' style="animation-duration: 2.5s"' : ''}></div></div>
   `);
 }
 

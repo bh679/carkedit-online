@@ -548,7 +548,7 @@ function renderOnlineWinner(config, state, playerListOptions) {
         <p class="winner-announcement__name">${winnerName} wins this round!</p>
         <p class="winner-announcement__points">+1 point</p>
       </div>
-      <div class="winner-timer"><div class="winner-timer__bar"></div></div>
+      <div class="winner-timer"><div class="winner-timer__bar"${state.gameSettings?.rounds === 1 ? ' style="animation-duration: 2.5s"' : ''}></div></div>
     </div>
   `);
 }
