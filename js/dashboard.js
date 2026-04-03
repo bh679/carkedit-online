@@ -141,12 +141,40 @@ function renderStats() {
   `;
 }
 
+// ── Card Preview Modal ───────────────────────────────
+
+function escAttr(str) {
+  return str.replace(/&/g, '&amp;').replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+}
+
+function previewCard(text, deck) {
+  const deckType = deck === 'living' ? 'live' : deck === 'bye' ? 'bye' : 'die';
+  const overlay = document.getElementById('card-preview-overlay');
+  if (!overlay) return;
+  overlay.innerHTML = `
+    <div class="preview__backdrop" onclick="window.dash.closePreview()"></div>
+    <div class="preview__card-wrap">
+      <div class="card card--${deckType}">
+        <div class="card__image"><div class="card__image-placeholder"></div></div>
+        <div class="card__body">
+          <h3 class="card__title">${text}</h3>
+        </div>
+      </div>
+    </div>`;
+  overlay.style.display = 'flex';
+}
+
+function closePreview() {
+  const overlay = document.getElementById('card-preview-overlay');
+  if (overlay) { overlay.style.display = 'none'; overlay.innerHTML = ''; }
+}
+
 // ── Game Detail Rendering (3-row expanded view) ──────
 
 function renderMiniCard(text, deck) {
   const deckType = deck === 'living' ? 'live' : deck === 'bye' ? 'bye' : 'die';
   return `
-    <div class="card card--${deckType} detail__mini-card">
+    <div class="card card--${deckType} detail__mini-card" onclick="event.stopPropagation(); window.dash.previewCard('${escAttr(text)}', '${escAttr(deck)}')">
       <div class="card__body">
         <h3 class="card__title">${text}</h3>
       </div>
@@ -370,7 +398,7 @@ function deckTypeForCard(deck) {
 function renderStatCard(card) {
   const deckType = deckTypeForCard(card.card_deck);
   return `
-    <div class="dashboard__stat-card-wrap">
+    <div class="dashboard__stat-card-wrap" onclick="window.dash.previewCard('${escAttr(card.card_text)}', '${escAttr(card.card_deck)}')">
       <div class="card card--${deckType}">
         <div class="card__image">
           <div class="card__image-placeholder"></div>
@@ -460,6 +488,7 @@ function renderPage() {
       <div class="dashboard__content" id="game-list"></div>
       <div class="dashboard__content" id="card-analytics"></div>
     </div>
+    <div id="card-preview-overlay" class="preview__overlay" style="display:none"></div>
   `;
   renderStats();
   renderGameList();
@@ -467,7 +496,7 @@ function renderPage() {
 }
 
 // ── Init ─────────────────────────────────────────────
-window.dash = { cyclePlayTime, toggleGame, setDeckFilter, setCardSort };
+window.dash = { cyclePlayTime, toggleGame, setDeckFilter, setCardSort, previewCard, closePreview };
 
 document.addEventListener('DOMContentLoaded', async () => {
   renderPage();
