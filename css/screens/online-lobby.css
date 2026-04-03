@@ -2,6 +2,7 @@
 
 .screen--online-lobby {
   gap: var(--space-md);
+  overflow: hidden;
 }
 
 .online-lobby__forms,
