@@ -51,8 +51,13 @@
   text-align: center;
 }
 
+.menu__shop-link {
+  color: var(--color-white);
+}
+
 .menu__shop-link:hover {
   color: var(--color-live);
+  background: color-mix(in srgb, var(--color-live) 15%, transparent);
 }
 
 .menu__version {
