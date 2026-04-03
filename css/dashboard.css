@@ -1,5 +1,11 @@
 /* CarkedIt Online — Game Dashboard (standalone page) */
 
+/* Override base.css mobile cap — dashboard is full-width */
+#app {
+  max-width: none;
+  overflow: visible;
+}
+
 .dashboard {
   min-height: 100vh;
   background: var(--color-bg);
