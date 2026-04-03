@@ -7,6 +7,7 @@ import { render as renderMenu } from './screens/menu.js';
 import { render as renderModeSelect } from './screens/mode-select.js';
 import { render as renderLobby, renderAdvancedPanel } from './screens/lobby.js';
 import { render as renderOnlineLobby, renderSettingsSummary } from './screens/online-lobby.js';
+import { render as renderJoinGame } from './screens/join-game.js';
 import { render as renderPhase1 } from './screens/phase1.js';
 import { render as renderPhase23 } from './screens/phase2-3.js';
 import { render as renderPhase4 } from './screens/phase4.js';
@@ -38,6 +39,7 @@ const SCREENS = {
   'mode-select': (state) => renderModeSelect(state),
   lobby:         (state) => renderLobby(state),
   'online-lobby': (state) => renderOnlineLobby(state),
+  'join-game':    (state) => renderJoinGame(state),
   phase1:        (state) => renderPhase1(state),
   phase2:        (state) => renderPhase23('live', state),
   phase3:        (state) => renderPhase23('bye', state),
@@ -68,8 +70,8 @@ export function showScreen(name, updates = {}) {
     }
   });
 
-  // Start preloading cards when entering a lobby
-  if ((name === 'lobby' || name === 'online-lobby') && !state.preloadComplete) {
+  // Start preloading cards when entering a lobby or join screen
+  if ((name === 'lobby' || name === 'online-lobby' || name === 'join-game') && !state.preloadComplete) {
     startPreload();
   }
 }
@@ -457,7 +459,7 @@ window.game = {
       const available = DEV_NAME_POOL.filter((n) => !taken.has(n.name));
       if (available.length === 0) {
         setState({ onlineError: 'Please enter your name' });
-        showScreen('online-lobby');
+        showScreen('join-game');
         return;
       }
       const pick = available[Math.floor(Math.random() * available.length)];
@@ -467,7 +469,7 @@ window.game = {
     }
     if (!code) {
       setState({ onlineError: 'Please enter a room code' });
-      showScreen('online-lobby');
+      showScreen('join-game');
       return;
     }
     try {
@@ -478,7 +480,7 @@ window.game = {
       );
       showScreen('online-lobby');
     } catch (err) {
-      showScreen('online-lobby');
+      showScreen('join-game');
     }
   },
   async leaveRoom() {
@@ -558,7 +560,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const joinCode = params.get('join');
   if (joinCode) {
     setState({ roomCode: joinCode.toUpperCase() });
-    showScreen('online-lobby');
+    showScreen('join-game');
     // Pre-fill the room code input after render
     requestAnimationFrame(() => {
       const codeInput = document.getElementById('online-room-code');
