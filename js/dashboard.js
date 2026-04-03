@@ -922,21 +922,37 @@ window.dash = { cyclePlayTime, cycleGamesCount, toggleGame, setDeckFilter, setCa
 document.addEventListener('DOMContentLoaded', async () => {
   renderPage();
 
+  // --- Version tooltip that follows the mouse ---
+  const tooltip = document.createElement('div');
+  tooltip.className = 'dashboard__tooltip';
+  document.body.appendChild(tooltip);
+
+  document.querySelectorAll('.dashboard__version-item').forEach(el => {
+    el.addEventListener('mouseenter', () => {
+      const text = el.getAttribute('data-tooltip');
+      if (text) { tooltip.textContent = text; tooltip.style.display = 'block'; }
+    });
+    el.addEventListener('mousemove', (e) => {
+      tooltip.style.left = e.clientX + 12 + 'px';
+      tooltip.style.top = e.clientY + 12 + 'px';
+    });
+    el.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
+  });
+
   // --- Version display with GitHub sync status ---
   function updateVersionEl(el, label, localVer, ghVer, extra) {
     if (!el) return;
     const dot = el.querySelector('.version-dot');
     el.childNodes[0].textContent = `${label}: v${localVer} `;
     if (ghVer === null) {
-      // still checking or error
       if (dot) { dot.className = 'version-dot version-dot--checking'; }
       el.setAttribute('data-tooltip', extra || 'Checking GitHub...');
     } else if (localVer === ghVer) {
       if (dot) { dot.className = 'version-dot version-dot--current'; }
-      el.setAttribute('data-tooltip', `Up to date with GitHub (v${ghVer})${extra ? ' \u2014 ' + extra : ''}`);
+      el.setAttribute('data-tooltip', `Up to date with GitHub${extra ? ' \u2014 ' + extra : ''}`);
     } else {
       if (dot) { dot.className = 'version-dot version-dot--outdated'; }
-      el.setAttribute('data-tooltip', `Running v${localVer} \u2014 GitHub has v${ghVer}${extra ? ' \u2014 ' + extra : ''}`);
+      el.setAttribute('data-tooltip', `GitHub has v${ghVer}${extra ? ' \u2014 ' + extra : ''}`);
     }
   }
 
