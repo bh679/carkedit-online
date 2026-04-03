@@ -5,6 +5,7 @@ const API_BASE = '';  // Same origin
 let games = [];
 let stats = {};
 let playTimeMode = 'total'; // 'total' | 'average' | 'median' | 'longest'
+let gamesCountMode = 'finished'; // 'finished' | 'total' | 'unfinished'
 let expandedGameId = null;
 
 // Card data lookup (loaded from JSON files for images)
@@ -129,6 +130,29 @@ function cyclePlayTime() {
   renderStats();
 }
 
+function getGamesCountValue() {
+  switch (gamesCountMode) {
+    case 'total': return stats.totalGames || 0;
+    case 'unfinished': return stats.unfinishedGames || 0;
+    default: return stats.finishedGames ?? stats.totalGames ?? 0;
+  }
+}
+
+function getGamesCountLabel() {
+  switch (gamesCountMode) {
+    case 'total': return 'Total Games';
+    case 'unfinished': return 'Unfinished Games';
+    default: return 'Finished Games';
+  }
+}
+
+function cycleGamesCount() {
+  const modes = ['finished', 'total', 'unfinished'];
+  const idx = modes.indexOf(gamesCountMode);
+  gamesCountMode = modes[(idx + 1) % modes.length];
+  renderStats();
+}
+
 // ── Expand/Collapse Game Detail ──────────────────────
 const gameDetailCache = {};
 
@@ -156,9 +180,9 @@ function renderStats() {
   const el = document.getElementById('stats-bar');
   if (!el) return;
   el.innerHTML = `
-    <div class="dashboard__stat">
-      <span class="dashboard__stat-value">${stats.totalGames ?? 0}</span>
-      <span class="dashboard__stat-label">Finished Games</span>
+    <div class="dashboard__stat dashboard__stat--clickable" onclick="window.dash.cycleGamesCount()">
+      <span class="dashboard__stat-value">${getGamesCountValue()}</span>
+      <span class="dashboard__stat-label">${getGamesCountLabel()}</span>
     </div>
     <div class="dashboard__stat">
       <span class="dashboard__stat-value">${stats.totalPlayers ?? 0}</span>
@@ -489,7 +513,15 @@ function renderCardAnalytics() {
 
   const filtered = filterCards(getActiveCards());
   const cardsHtml = filtered.length > 0
-    ? `<div class="dashboard__card-row-scroll">${filtered.map(renderStatCard).join('')}</div>`
+    ? `<div class="dashboard__card-row-wrapper">
+        <button class="dashboard__scroll-btn dashboard__scroll-btn--left" onclick="window.dash.scrollCards(-1)" aria-label="Scroll left">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <div class="dashboard__card-row-scroll" id="card-scroll-row">${filtered.map(renderStatCard).join('')}</div>
+        <button class="dashboard__scroll-btn dashboard__scroll-btn--right" onclick="window.dash.scrollCards(1)" aria-label="Scroll right">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+      </div>`
     : '<p class="dashboard__card-row-empty">No data yet</p>';
 
   el.innerHTML = `
@@ -508,6 +540,11 @@ function renderCardAnalytics() {
     </div>
     ${cardsHtml}
   `;
+}
+
+function scrollCards(direction) {
+  const el = document.getElementById('card-scroll-row');
+  if (el) el.scrollBy({ left: direction * 300, behavior: 'smooth' });
 }
 
 // ── Graphs ───────────────────────────────────────────
@@ -638,7 +675,7 @@ function renderPage() {
 }
 
 // ── Init ─────────────────────────────────────────────
-window.dash = { cyclePlayTime, toggleGame, setDeckFilter, setCardSort, previewCard, closePreview };
+window.dash = { cyclePlayTime, cycleGamesCount, toggleGame, setDeckFilter, setCardSort, previewCard, closePreview, scrollCards };
 
 document.addEventListener('DOMContentLoaded', async () => {
   renderPage();

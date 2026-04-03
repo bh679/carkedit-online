@@ -567,6 +567,39 @@
   border-radius: 2px;
 }
 
+/* Card row with scroll arrows */
+.dashboard__card-row-wrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.dashboard__card-row-wrapper .dashboard__card-row-scroll {
+  flex: 1;
+  min-width: 0;
+}
+
+.dashboard__scroll-btn {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.dashboard__scroll-btn:hover {
+  background: var(--color-secondary);
+  color: var(--color-text);
+  border-color: var(--color-primary);
+}
+
 /* Individual stat card wrapper (card + data below) */
 .dashboard__stat-card-wrap {
   flex-shrink: 0;
