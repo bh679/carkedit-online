@@ -17,7 +17,7 @@ let expandedGameId = null;
 // Game filters
 let filterDateRange = 'today'; // 'all' | 'today' | 'week' | 'month'
 let filterErrorsOnly = false;
-let filterDev = 'all'; // 'all' | 'dev' | 'nodev'
+let filterDev = 'nodev'; // 'all' | 'dev' | 'nodev'
 let filterStatus = 'all'; // 'all' | 'finished' | 'abandoned' | 'live'
 
 // Card data lookup (loaded from JSON files for images)
@@ -161,7 +161,7 @@ function cycleStatus() {
 }
 
 function cycleDev() {
-  const opts = ['all', 'nodev', 'dev'];
+  const opts = ['nodev', 'all', 'dev'];
   const idx = opts.indexOf(filterDev);
   filterDev = opts[(idx + 1) % opts.length];
   applyGameFilters();
@@ -618,7 +618,7 @@ function renderGameCard(game) {
 
 function renderGameFilters() {
   const statusLabels = { all: 'All Status', finished: 'Finished', abandoned: 'Abandon', live: 'Live' };
-  const devLabels = { all: 'All Dev', nodev: 'No Dev', dev: 'Dev Only' };
+  const devLabels = { all: 'With Dev', nodev: 'No Dev', dev: 'Only Dev' };
   const dateLabels = { all: 'All Time', today: 'Today', week: 'This Week', month: 'This Month' };
   const errActive = filterErrorsOnly ? 'dashboard__filter-btn--active' : '';
   const statusActive = filterStatus !== 'all' ? 'dashboard__filter-btn--active' : '';
@@ -665,10 +665,12 @@ function renderGameList() {
 let cardStats = { mostPlayed: [], leastPlayed: [], highestWinRate: [] };
 let cardDeckFilter = 'all'; // 'all' | 'die' | 'living' | 'bye'
 let cardSortMode = 'mostPlayed'; // 'mostPlayed' | 'leastPlayed' | 'highestWinRate'
+let cardDevFilter = 'nodev'; // 'all' | 'dev' | 'nodev'
 
 async function fetchCardStats() {
   try {
-    const res = await fetch(`${API_BASE}/api/carkedit/cards/stats`);
+    const params = cardDevFilter !== 'all' ? `?dev=${cardDevFilter}` : '';
+    const res = await fetch(`${API_BASE}/api/carkedit/cards/stats${params}`);
     if (!res.ok) return;
     cardStats = await res.json();
   } catch (err) {
@@ -688,6 +690,14 @@ function setDeckFilter(filter) {
 
 function setCardSort(mode) {
   cardSortMode = mode;
+  renderCardAnalytics();
+}
+
+async function cycleCardDev() {
+  const opts = ['nodev', 'all', 'dev'];
+  const idx = opts.indexOf(cardDevFilter);
+  cardDevFilter = opts[(idx + 1) % opts.length];
+  await fetchCardStats();
   renderCardAnalytics();
 }
 
@@ -769,6 +779,9 @@ function renderCardAnalytics() {
       </div>`
     : '<p class="dashboard__card-row-empty">No data yet</p>';
 
+  const cardDevLabels = { all: 'With Dev', nodev: 'No Dev', dev: 'Only Dev' };
+  const cardDevActive = cardDevFilter !== 'all' ? 'dashboard__filter-btn--active' : '';
+
   el.innerHTML = `
     <div class="dashboard__card-analytics-header">
       <select class="dashboard__sort-select" onchange="window.dash.setCardSort(this.value)">
@@ -781,6 +794,7 @@ function renderCardAnalytics() {
         ${filterBtn('die', 'Die')}
         ${filterBtn('living', 'Live')}
         ${filterBtn('bye', 'Bye')}
+        <button class="dashboard__filter-btn ${cardDevActive}" onclick="window.dash.cycleCardDev()">${cardDevLabels[cardDevFilter]}</button>
       </div>
     </div>
     ${cardsHtml}
@@ -995,7 +1009,7 @@ function updateRefreshTimer() {
 }
 
 // ── Init ─────────────────────────────────────────────
-window.dash = { cyclePlayTime, cycleGamesCount, toggleGame, setDeckFilter, setCardSort, previewCard, closePreview, scrollCards, loadMoreGames, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange };
+window.dash = { cyclePlayTime, cycleGamesCount, toggleGame, setDeckFilter, setCardSort, cycleCardDev, previewCard, closePreview, scrollCards, loadMoreGames, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange };
 
 document.addEventListener('DOMContentLoaded', async () => {
   renderPage();
