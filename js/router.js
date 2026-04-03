@@ -162,11 +162,13 @@ const DEV_NAME_POOL = [
   { name: 'Rae',       birthMonth: 7,  birthDay: 23 },
   { name: 'Roy',       birthMonth: 2,  birthDay: 8  },
 ];
+const DEV_NAME_SET = new Set(DEV_NAME_POOL.map((p) => p.name));
 
 function addPlayer() {
   const input = document.getElementById('player-name-input');
   let name = input?.value?.trim();
 
+  let isDevName = false;
   if (!name) {
     if (isMobile()) return;
     // TODO (dev only): auto-fill a random name when the field is empty
@@ -176,6 +178,7 @@ function addPlayer() {
     if (available.length === 0) return;
     const pick = available[Math.floor(Math.random() * available.length)];
     name = pick.name;
+    isDevName = true;
     const monthEl = document.getElementById('player-birth-month');
     const dayEl = document.getElementById('player-birth-day');
     if (monthEl) monthEl.value = pick.birthMonth;
@@ -190,7 +193,7 @@ function addPlayer() {
   const birthMonth = parseInt(monthEl?.value ?? '', 10) || 0;
   const birthDay = parseInt(dayEl?.value ?? '', 10) || 0;
 
-  const newPlayers = [...state.players, { name, score: 0, birthMonth, birthDay }];
+  const newPlayers = [...state.players, { name, score: 0, birthMonth, birthDay, _devName: isDevName }];
   const newPlayerCount = Math.max(newPlayers.length, 2);
   const maxHandSize = Math.max(1, Math.floor(68 / newPlayerCount));
   const currentHandSize = state.gameSettings?.handSize ?? 5;
@@ -372,12 +375,14 @@ function revealWinner() {
   const sorted = [...state.players].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
   const winner = sorted[0]?.name ?? '';
 
-  // Save local game result
+  // Save local game result — flag as dev if all players used DEV_NAME_POOL names
+  const isDev = sorted.length > 0 && sorted.every((p) => p._devName);
   saveGameToHistory({
     mode: 'local',
     rounds: state.gameSettings?.rounds || state.totalRounds || 1,
     players: sorted,
     settings: state.gameSettings || null,
+    isDev,
   });
 
   setState({ winner, phase4SubState: 'winner' });
