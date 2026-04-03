@@ -14,6 +14,11 @@
   width: 100%;
 }
 
+.online-lobby__connected {
+  flex: 1;
+  min-height: 100%;
+}
+
 .online-lobby__heading {
   font-size: 1rem;
   font-weight: 700;
@@ -143,6 +148,12 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-md);
+  margin-top: auto;
+  padding-bottom: var(--space-md);
+}
+
+.online-lobby__settings-summary:empty {
+  display: none;
 }
 
 .online-lobby__summary-chip {
