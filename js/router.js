@@ -13,6 +13,8 @@ import { render as renderPhase23 } from './screens/phase2-3.js';
 import { render as renderPhase4 } from './screens/phase4.js';
 import { saveGameToHistory } from './managers/game-history.js';
 import { shuffle } from './utils/shuffle.js';
+import { initErrorLogger } from './utils/error-logger.js';
+import { render as renderIssueReport, submit as submitIssueReport } from './components/issue-report.js';
 import {
   createRoom as networkCreateRoom,
   joinRoom as networkJoinRoom,
@@ -434,6 +436,22 @@ window.game = {
   doneEulogy,
   pickBestEulogy,
   nextWildcard,
+  // Issue reporting
+  openIssueReport() {
+    const overlay = document.getElementById('issue-report-container');
+    if (overlay) { overlay.remove(); }
+    const container = document.createElement('div');
+    container.id = 'issue-report-container';
+    container.innerHTML = renderIssueReport();
+    document.body.appendChild(container);
+  },
+  closeIssueReport() {
+    const overlay = document.getElementById('issue-report-container');
+    if (overlay) overlay.remove();
+  },
+  async submitIssueReport() {
+    await submitIssueReport();
+  },
   setRounds(n) {
     setState({ totalRounds: Math.max(1, Math.min(10, n)) });
     showScreen('lobby');
@@ -567,6 +585,9 @@ window.game = {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Start capturing errors for issue reports
+  initErrorLogger();
+
   // Register screen change callback for server-driven transitions
   onScreenChange((screenName) => {
     showScreen(screenName);
