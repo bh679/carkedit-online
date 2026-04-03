@@ -417,11 +417,12 @@ function renderSettingsCard(gd) {
 
 function renderPlayersCard(gd) {
   const cardPlays = gd.card_plays || [];
+  const isLive = gd.live_status === 'live';
   const players = (gd.players || []).map(p => {
     // Find cards this player played
     const played = cardPlays.filter(c => c.player_name === p.player_name);
     const winningCards = played.filter(c => c.is_winner);
-    const isWinner = p.rank === 1;
+    const isWinner = !isLive && p.rank === 1;
 
     const cardsHtml = played.length > 0
       ? `<div class="detail__player-cards">${played.map(c =>
@@ -431,12 +432,14 @@ function renderPlayersCard(gd) {
         ).join('')}</div>`
       : '';
 
+    const scoreText = isLive ? `${p.score} wins` : `${p.score} pts`;
+
     return `
       <div class="detail__player ${isWinner ? 'detail__player--winner' : ''}">
         <div class="detail__player-header">
           <span class="detail__player-rank">#${p.rank}</span>
           <span class="detail__player-name">${maskName(p.player_name)}${isWinner ? ' ★' : ''}</span>
-          <span class="detail__player-score">${p.score} pts</span>
+          <span class="detail__player-score">${scoreText}</span>
         </div>
         ${cardsHtml}
       </div>`;
