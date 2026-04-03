@@ -466,6 +466,7 @@ window.game = {
     let name = document.getElementById('online-player-name')?.value?.trim();
     let birthMonth = parseInt(document.getElementById('online-birth-month')?.value ?? '', 10) || 0;
     let birthDay = parseInt(document.getElementById('online-birth-day')?.value ?? '', 10) || 0;
+    let isDevName = false;
     if (!name) {
       if (isMobile()) {
         setState({ onlineError: 'Please enter your name' });
@@ -484,10 +485,11 @@ window.game = {
       name = pick.name;
       birthMonth = pick.birthMonth;
       birthDay = pick.birthDay;
+      isDevName = true;
     }
     try {
       await networkCreateRoom(
-        { name, birthMonth, birthDay, isPrivate: true },
+        { name, birthMonth, birthDay, isPrivate: true, isDevName },
         () => { if (getState().screen === 'online-lobby') showScreen('online-lobby'); },
       );
       showScreen('online-lobby');
@@ -500,6 +502,7 @@ window.game = {
     const code = document.getElementById('online-room-code')?.value?.trim();
     let birthMonth = parseInt(document.getElementById('online-birth-month')?.value ?? '', 10) || 0;
     let birthDay = parseInt(document.getElementById('online-birth-day')?.value ?? '', 10) || 0;
+    let isDevName = false;
     if (!name) {
       if (isMobile()) {
         setState({ onlineError: 'Please enter your name' });
@@ -518,6 +521,7 @@ window.game = {
       name = pick.name;
       birthMonth = pick.birthMonth;
       birthDay = pick.birthDay;
+      isDevName = true;
     }
     if (!code) {
       setState({ onlineError: 'Please enter a room code' });
@@ -527,7 +531,7 @@ window.game = {
     try {
       await networkJoinRoom(
         code,
-        { name, birthMonth, birthDay },
+        { name, birthMonth, birthDay, isDevName },
         () => { if (getState().screen === 'online-lobby') showScreen('online-lobby'); },
       );
       showScreen('online-lobby');
