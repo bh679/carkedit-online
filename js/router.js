@@ -19,6 +19,7 @@ import {
   createRoom as networkCreateRoom,
   joinRoom as networkJoinRoom,
   leaveRoom as networkLeaveRoom,
+  lookupRoom as networkLookupRoom,
   sendMessage,
   onScreenChange,
   onSettingsChange,
@@ -166,25 +167,31 @@ const DEV_NAME_POOL = [
 ];
 const DEV_NAME_SET = new Set(DEV_NAME_POOL.map((p) => p.name));
 
-function addPlayer() {
+function addPlayer(event) {
   const input = document.getElementById('player-name-input');
   let name = input?.value?.trim();
 
   let isDevName = false;
+  const shiftHeld = !!(event && event.shiftKey);
   if (!name) {
-    if (isMobile()) return;
-    // TODO (dev only): auto-fill a random name when the field is empty
-    const state = getState();
-    const taken = new Set(state.players.map((p) => p.name));
-    const available = DEV_NAME_POOL.filter((n) => !taken.has(n.name));
-    if (available.length === 0) return;
-    const pick = available[Math.floor(Math.random() * available.length)];
-    name = pick.name;
-    isDevName = true;
+    // Dev names only when Shift is held and fields are empty
     const monthEl = document.getElementById('player-birth-month');
     const dayEl = document.getElementById('player-birth-day');
-    if (monthEl) monthEl.value = pick.birthMonth;
-    if (dayEl) dayEl.value = pick.birthDay;
+    const birthMonthVal = parseInt(monthEl?.value ?? '', 10) || 0;
+    const birthDayVal = parseInt(dayEl?.value ?? '', 10) || 0;
+    if (shiftHeld && !birthMonthVal && !birthDayVal) {
+      const state = getState();
+      const taken = new Set(state.players.map((p) => p.name));
+      const available = DEV_NAME_POOL.filter((n) => !taken.has(n.name));
+      if (available.length === 0) return;
+      const pick = available[Math.floor(Math.random() * available.length)];
+      name = pick.name;
+      isDevName = true;
+      if (monthEl) monthEl.value = pick.birthMonth;
+      if (dayEl) dayEl.value = pick.birthDay;
+    } else {
+      return;
+    }
   }
 
   const state = getState();
@@ -462,34 +469,39 @@ window.game = {
     showScreen('lobby');
   },
   // Online multiplayer actions
-  async createRoom() {
+  async createRoom(event) {
     let name = document.getElementById('online-player-name')?.value?.trim();
     let birthMonth = parseInt(document.getElementById('online-birth-month')?.value ?? '', 10) || 0;
     let birthDay = parseInt(document.getElementById('online-birth-day')?.value ?? '', 10) || 0;
     let isDevName = false;
+    let devMode = false;
+    const shiftHeld = !!(event && event.shiftKey);
     if (!name) {
-      if (isMobile()) {
+      // Dev mode: Shift held + empty "Your Details" fields (name, birth month, birth day all empty)
+      if (shiftHeld && !birthMonth && !birthDay) {
+        devMode = true;
+        const state = getState();
+        const taken = new Set(state.onlinePlayers.map((p) => p.name));
+        const available = DEV_NAME_POOL.filter((n) => !taken.has(n.name));
+        if (available.length === 0) {
+          setState({ onlineError: 'No dev names available' });
+          showScreen('online-lobby');
+          return;
+        }
+        const pick = available[Math.floor(Math.random() * available.length)];
+        name = pick.name;
+        birthMonth = pick.birthMonth;
+        birthDay = pick.birthDay;
+        isDevName = true;
+      } else {
         setState({ onlineError: 'Please enter your name' });
         showScreen('online-lobby');
         return;
       }
-      const state = getState();
-      const taken = new Set(state.onlinePlayers.map((p) => p.name));
-      const available = DEV_NAME_POOL.filter((n) => !taken.has(n.name));
-      if (available.length === 0) {
-        setState({ onlineError: 'Please enter your name' });
-        showScreen('online-lobby');
-        return;
-      }
-      const pick = available[Math.floor(Math.random() * available.length)];
-      name = pick.name;
-      birthMonth = pick.birthMonth;
-      birthDay = pick.birthDay;
-      isDevName = true;
     }
     try {
       await networkCreateRoom(
-        { name, birthMonth, birthDay, isPrivate: true, isDevName },
+        { name, birthMonth, birthDay, isPrivate: true, isDevName, devMode },
         () => { if (getState().screen === 'online-lobby') showScreen('online-lobby'); },
       );
       showScreen('online-lobby');
@@ -503,30 +515,39 @@ window.game = {
     let birthMonth = parseInt(document.getElementById('online-birth-month')?.value ?? '', 10) || 0;
     let birthDay = parseInt(document.getElementById('online-birth-day')?.value ?? '', 10) || 0;
     let isDevName = false;
-    if (!name) {
-      if (isMobile()) {
-        setState({ onlineError: 'Please enter your name' });
-        showScreen('join-game');
-        return;
-      }
-      const state = getState();
-      const taken = new Set(state.onlinePlayers.map((p) => p.name));
-      const available = DEV_NAME_POOL.filter((n) => !taken.has(n.name));
-      if (available.length === 0) {
-        setState({ onlineError: 'Please enter your name' });
-        showScreen('join-game');
-        return;
-      }
-      const pick = available[Math.floor(Math.random() * available.length)];
-      name = pick.name;
-      birthMonth = pick.birthMonth;
-      birthDay = pick.birthDay;
-      isDevName = true;
-    }
     if (!code) {
       setState({ onlineError: 'Please enter a room code' });
       showScreen('join-game');
       return;
+    }
+    if (!name) {
+      // Check if room is in dev mode before auto-assigning a name
+      try {
+        const roomInfo = await networkLookupRoom(code);
+        if (roomInfo.devMode) {
+          const state = getState();
+          const taken = new Set(state.onlinePlayers.map((p) => p.name));
+          const available = DEV_NAME_POOL.filter((n) => !taken.has(n.name));
+          if (available.length === 0) {
+            setState({ onlineError: 'No dev names available' });
+            showScreen('join-game');
+            return;
+          }
+          const pick = available[Math.floor(Math.random() * available.length)];
+          name = pick.name;
+          birthMonth = pick.birthMonth;
+          birthDay = pick.birthDay;
+          isDevName = true;
+        } else {
+          setState({ onlineError: 'Please enter your name' });
+          showScreen('join-game');
+          return;
+        }
+      } catch (err) {
+        setState({ onlineError: err.message || 'Room not found' });
+        showScreen('join-game');
+        return;
+      }
     }
     try {
       await networkJoinRoom(
@@ -534,7 +555,7 @@ window.game = {
         { name, birthMonth, birthDay, isDevName },
         () => { if (getState().screen === 'online-lobby') showScreen('online-lobby'); },
       );
-      showScreen('online-lobby');
+      showScreen('join-game');
     } catch (err) {
       showScreen('join-game');
     }

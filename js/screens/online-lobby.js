@@ -62,7 +62,7 @@ function renderJoinCreate(state, connecting, error) {
       <h2 class="online-lobby__heading">Create a Room</h2>
       <button
         class="btn btn--primary online-lobby__action-btn"
-        onclick="window.game.createRoom()"
+        onclick="window.game.createRoom(event)"
         ${connecting ? 'disabled' : ''}
       >
         ${connecting ? 'Creating...' : 'Create Private Room'}
