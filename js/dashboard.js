@@ -263,8 +263,10 @@ async function toggleGame(gameId) {
     return;
   }
   expandedGameId = gameId;
-  // Fetch full detail if not cached
-  if (!gameDetailCache[gameId]) {
+  // Always re-fetch for live games (data changes during gameplay), cache finished games
+  const cachedGame = gameDetailCache[gameId];
+  const isLive = !cachedGame || cachedGame.live_status === 'live';
+  if (!cachedGame || isLive) {
     try {
       const res = await fetch(`${API_BASE}/api/carkedit/games/${gameId}`);
       if (res.ok) gameDetailCache[gameId] = await res.json();
