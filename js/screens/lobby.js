@@ -248,13 +248,13 @@ export function render(state) {
         >
       </div>
       <div class="lobby__birthday-row">
-        <select id="player-birth-month" class="input lobby__birthday-select">
-          <option value="">Birth Month</option>
-          ${monthOptions}
-        </select>
         <select id="player-birth-day" class="input lobby__birthday-select">
           <option value="">Birth Day</option>
           ${dayOptions}
+        </select>
+        <select id="player-birth-month" class="input lobby__birthday-select">
+          <option value="">Birth Month</option>
+          ${monthOptions}
         </select>
         <button class="btn btn--secondary lobby__add-btn" onclick="window.game.addPlayer()">
           Add
