@@ -150,6 +150,7 @@
   gap: var(--space-md);
   margin-top: auto;
   padding-bottom: var(--space-md);
+  opacity: 0.5;
 }
 
 .online-lobby__settings-summary:empty {
