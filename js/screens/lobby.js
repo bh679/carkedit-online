@@ -256,7 +256,7 @@ export function render(state) {
           <option value="">Birth Month</option>
           ${monthOptions}
         </select>
-        <button class="btn btn--secondary lobby__add-btn" onclick="window.game.addPlayer()">
+        <button class="btn btn--secondary lobby__add-btn" onclick="window.game.addPlayer(event)">
           Add
         </button>
       </div>

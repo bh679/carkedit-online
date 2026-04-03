@@ -786,7 +786,7 @@ function syncGameSettingsFromRoom(room) {
   return settings;
 }
 
-export async function createRoom({ name, birthMonth, birthDay, isPrivate = true, isDevName = false }, onUpdate) {
+export async function createRoom({ name, birthMonth, birthDay, isPrivate = true, isDevName = false, devMode = false }, onUpdate) {
   setState({ connectionStatus: 'connecting', onlineError: null });
   try {
     const client = await getColyseusClient();
@@ -796,6 +796,7 @@ export async function createRoom({ name, birthMonth, birthDay, isPrivate = true,
       birthDay: birthDay || 0,
       private: isPrivate,
       isDevName,
+      devMode,
     });
     _room = room;
 
@@ -833,7 +834,8 @@ export async function joinRoom(code, { name, birthMonth, birthDay, isDevName = f
       const body = await res.json().catch(() => ({}));
       throw new Error(body.error || `Room not found (${res.status})`);
     }
-    const { roomId } = await res.json();
+    const lookupData = await res.json();
+    const { roomId } = lookupData;
 
     const client = await getColyseusClient();
     const room = await client.joinById(roomId, {
@@ -866,6 +868,17 @@ export async function joinRoom(code, { name, birthMonth, birthDay, isDevName = f
     });
     throw err;
   }
+}
+
+export async function lookupRoom(code) {
+  await loadConfig();
+  const lookupUrl = `${_restBaseUrl}/api/carkedit/rooms/lookup?code=${encodeURIComponent(code.toUpperCase())}`;
+  const res = await fetch(lookupUrl);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Room not found (${res.status})`);
+  }
+  return res.json();
 }
 
 export async function leaveRoom() {

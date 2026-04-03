@@ -53,7 +53,7 @@ export function render(state) {
         >
         <button
           class="btn btn--primary"
-          onclick="window.game.joinRoom()"
+          onclick="window.game.joinRoom(event)"
           ${connecting ? 'disabled' : ''}
         >
           ${connecting ? 'Joining...' : 'Join'}
