@@ -210,8 +210,8 @@ function renderConnectedLobby(state) {
         ${playerListHtml}
       </div>
       <div class="online-lobby__divider"></div>
-      ${settingsHtml}
       ${hostControls}
+      ${settingsHtml}
     </div>
   `;
 
@@ -306,14 +306,13 @@ export function renderSettingsSummary(state) {
   if (gs.eulogistCount !== d.eulogistCount) cards.push(['Eulogists', gs.eulogistCount]);
 
   if (cards.length === 0) {
-    return `<div id="settings-summary-panel"></div>`;
+    return `<div id="settings-summary-panel" class="online-lobby__settings-summary"></div>`;
   }
 
   return `
     <div id="settings-summary-panel" class="online-lobby__settings-summary">
       ${cards.map(([label, value, isOff]) => `<span class="btn ${isOff ? 'btn--secondary' : 'btn--primary'} online-lobby__summary-chip">${label ? `${label}: ${value}` : value}</span>`).join('')}
-    </div>
-    <div class="online-lobby__divider"></div>`;
+    </div>`;
 }
 
 function escapeHtml(str) {
