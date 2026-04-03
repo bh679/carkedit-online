@@ -916,6 +916,16 @@ let refreshCountdown = REFRESH_INTERVAL;
 
 async function refreshAll() {
   await Promise.all([fetchGames(), fetchStats(), fetchPeriodStats(), fetchCardStats()]);
+  // Re-fetch detail for expanded live games so phases/players update
+  if (expandedGameId) {
+    const cached = gameDetailCache[expandedGameId];
+    if (!cached || cached.live_status === 'live') {
+      try {
+        const res = await fetch(`${API_BASE}/api/carkedit/games/${expandedGameId}`);
+        if (res.ok) gameDetailCache[expandedGameId] = await res.json();
+      } catch {}
+    }
+  }
   renderStats();
   renderGameList();
   renderCardAnalytics();
