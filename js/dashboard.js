@@ -822,7 +822,12 @@ function renderPage() {
   app.innerHTML = `
     <div class="dashboard">
       <header class="dashboard__header">
-        <h1 class="dashboard__title">CarkedIt — Game Dashboard</h1>
+        <h1 class="dashboard__title">CarkedIt — Game Dashboard
+          <span class="dashboard__versions">
+            <span id="dash-version-client">...</span>
+            <span id="dash-version-server">...</span>
+          </span>
+        </h1>
       </header>
 
       <section class="dashboard__section">
@@ -861,6 +866,16 @@ window.dash = { cyclePlayTime, cycleGamesCount, toggleGame, setDeckFilter, setCa
 
 document.addEventListener('DOMContentLoaded', async () => {
   renderPage();
+
+  fetch('package.json').then(r => r.json()).then(pkg => {
+    const el = document.getElementById('dash-version-client');
+    if (el) el.textContent = `Client: v${pkg.version}`;
+  }).catch(() => {});
+  fetch('/api/carkedit/version').then(r => r.json()).then(data => {
+    const el = document.getElementById('dash-version-server');
+    if (el) el.textContent = `Server: v${data.version}`;
+  }).catch(() => {});
+
   await Promise.all([fetchGames(), fetchStats(), fetchPeriodStats(), fetchCardStats(), loadCardData()]);
   renderStats();
   renderGameList();
