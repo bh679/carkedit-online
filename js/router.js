@@ -144,6 +144,10 @@ function startPreload() {
   });
 }
 
+function isMobile() {
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
+
 // TODO (dev only): placeholder names for quick testing — remove or replace with proper UX before shipping
 const DEV_NAME_POOL = [
   { name: 'Brennan',   birthMonth: 11, birthDay: 1  },
@@ -163,6 +167,7 @@ function addPlayer() {
   let name = input?.value?.trim();
 
   if (!name) {
+    if (isMobile()) return;
     // TODO (dev only): auto-fill a random name when the field is empty
     const state = getState();
     const taken = new Set(state.players.map((p) => p.name));
@@ -429,6 +434,11 @@ window.game = {
     let birthMonth = parseInt(document.getElementById('online-birth-month')?.value ?? '', 10) || 0;
     let birthDay = parseInt(document.getElementById('online-birth-day')?.value ?? '', 10) || 0;
     if (!name) {
+      if (isMobile()) {
+        setState({ onlineError: 'Please enter your name' });
+        showScreen('online-lobby');
+        return;
+      }
       const state = getState();
       const taken = new Set(state.onlinePlayers.map((p) => p.name));
       const available = DEV_NAME_POOL.filter((n) => !taken.has(n.name));
@@ -458,6 +468,11 @@ window.game = {
     let birthMonth = parseInt(document.getElementById('online-birth-month')?.value ?? '', 10) || 0;
     let birthDay = parseInt(document.getElementById('online-birth-day')?.value ?? '', 10) || 0;
     if (!name) {
+      if (isMobile()) {
+        setState({ onlineError: 'Please enter your name' });
+        showScreen('join-game');
+        return;
+      }
       const state = getState();
       const taken = new Set(state.onlinePlayers.map((p) => p.name));
       const available = DEV_NAME_POOL.filter((n) => !taken.has(n.name));
