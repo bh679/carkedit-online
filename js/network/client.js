@@ -57,6 +57,7 @@ function syncPlayersFromRoom(room) {
       birthDay: player.birthDay,
       connected: player.connected,
       ready: player.ready,
+      isDevName: player.isDevName,
     });
   });
   return players;

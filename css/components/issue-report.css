@@ -101,6 +101,11 @@
   flex-shrink: 0;
 }
 
+.phase-header__flag-btn--dev {
+  background: #22c55e;
+  border-radius: 50%;
+}
+
 .phase-header__flag-btn:active {
   opacity: 0.8;
 }
