@@ -137,6 +137,20 @@
   padding: var(--space-sm);
 }
 
+/* ── Non-host settings summary ───────────────────────── */
+
+.online-lobby__settings-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+}
+
+.online-lobby__summary-chip {
+  pointer-events: none;
+  font-size: 0.85rem;
+  padding: 0.5rem 0.75rem;
+}
+
 /* ── Host settings ───────────────────────────────────── */
 
 .online-lobby__settings {
