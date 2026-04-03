@@ -45,15 +45,15 @@ function renderJoinCreate(state, connecting, error) {
         ${connecting ? 'disabled' : ''}
       >
       <div class="online-lobby__birthday-row">
-        <select id="online-birth-month" class="input online-lobby__birthday-select" ${connecting ? 'disabled' : ''}>
-          <option value="">Birth Month</option>
-          ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-            .map((m, i) => `<option value="${i + 1}">${m}</option>`).join('')}
-        </select>
         <select id="online-birth-day" class="input online-lobby__birthday-select" ${connecting ? 'disabled' : ''}>
           <option value="">Birth Day</option>
           ${Array.from({ length: 31 }, (_, i) =>
             `<option value="${i + 1}">${i + 1}</option>`).join('')}
+        </select>
+        <select id="online-birth-month" class="input online-lobby__birthday-select" ${connecting ? 'disabled' : ''}>
+          <option value="">Birth Month</option>
+          ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+            .map((m, i) => `<option value="${i + 1}">${m}</option>`).join('')}
         </select>
       </div>
 
