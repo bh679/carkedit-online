@@ -359,7 +359,7 @@ function renderOnline(phase, config, state) {
 }
 
 function renderOnlineSubmit(config, state, playerListOptions, livingDead, livingDeadName) {
-  const round = state.round ?? 1;
+  const round = (state.round ?? 0) + 1;
   const hint = `Round ${round} — ${livingDeadName} is The Living Dead`;
   const dieCard = state.currentCard;
   const chosenCards = state.playerChosenCards?.[livingDeadName] ?? [];
