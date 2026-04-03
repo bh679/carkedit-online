@@ -1,8 +1,8 @@
 /* CarkedIt Online — Game Dashboard (standalone page) */
 
-/* Override base.css mobile cap — dashboard is full-width */
+/* Override base.css mobile cap — dashboard uses landscape tablet width */
 #app {
-  max-width: none;
+  max-width: 1024px;
   overflow: visible;
 }
 
@@ -245,6 +245,102 @@
   word-break: break-all;
 }
 
+/* ── Card Analytics ─────────────────────────────── */
+
+.dashboard__section-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin: var(--space-lg) 0 var(--space-md);
+}
+
+.dashboard__card-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: var(--space-md);
+}
+
+.dashboard__card-col {
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+}
+
+.dashboard__card-col-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin: 0 0 var(--space-sm);
+  color: var(--color-text);
+}
+
+.dashboard__card-col-empty {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.dashboard__card-stat-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 4px 0;
+  font-size: 0.8rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.dashboard__card-stat-row:last-child {
+  border-bottom: none;
+}
+
+.dashboard__card-stat-rank {
+  color: var(--color-text-muted);
+  font-weight: 600;
+  min-width: 20px;
+}
+
+.dashboard__deck-badge {
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.dashboard__deck--live {
+  background: rgba(77, 158, 77, 0.2);
+  color: var(--color-live);
+}
+
+.dashboard__deck--bye {
+  background: rgba(107, 136, 176, 0.2);
+  color: var(--color-bye);
+}
+
+.dashboard__deck--die {
+  background: rgba(218, 165, 32, 0.2);
+  color: var(--color-die);
+}
+
+.dashboard__card-stat-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard__card-stat-count,
+.dashboard__card-stat-wins {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.dashboard__card-stat-rate {
+  font-weight: 600;
+  color: var(--color-primary);
+  min-width: 35px;
+  text-align: right;
+}
+
 /* ── Empty State ────────────────────────────────── */
 
 .dashboard__empty {
@@ -275,5 +371,9 @@
 
   .dashboard__stats {
     flex-direction: column;
+  }
+
+  .dashboard__card-cols {
+    grid-template-columns: 1fr;
   }
 }

@@ -198,6 +198,54 @@ function renderGameList() {
   `;
 }
 
+// ── Card Analytics ────────────────────────────────
+let cardStats = { mostPlayed: [], leastPlayed: [], highestWinRate: [] };
+
+async function fetchCardStats() {
+  try {
+    const res = await fetch(`${API_BASE}/api/carkedit/cards/stats`);
+    if (!res.ok) return;
+    cardStats = await res.json();
+  } catch (err) {
+    console.warn('[dashboard] Failed to fetch card stats:', err);
+  }
+}
+
+function deckBadge(deck) {
+  const cls = deck === 'living' ? 'dashboard__deck--live' : deck === 'bye' ? 'dashboard__deck--bye' : 'dashboard__deck--die';
+  return `<span class="dashboard__deck-badge ${cls}">${deck}</span>`;
+}
+
+function renderCardColumn(title, cards) {
+  if (!cards || cards.length === 0) {
+    return `<div class="dashboard__card-col"><h3 class="dashboard__card-col-title">${title}</h3><p class="dashboard__card-col-empty">No data yet</p></div>`;
+  }
+  const rows = cards.map((c, i) => `
+    <div class="dashboard__card-stat-row">
+      <span class="dashboard__card-stat-rank">${i + 1}.</span>
+      ${deckBadge(c.card_deck)}
+      <span class="dashboard__card-stat-text">${c.card_text}</span>
+      <span class="dashboard__card-stat-count">${c.play_count} plays</span>
+      <span class="dashboard__card-stat-wins">${c.win_count} wins</span>
+      <span class="dashboard__card-stat-rate">${c.win_rate}%</span>
+    </div>
+  `).join('');
+  return `<div class="dashboard__card-col"><h3 class="dashboard__card-col-title">${title}</h3>${rows}</div>`;
+}
+
+function renderCardAnalytics() {
+  const el = document.getElementById('card-analytics');
+  if (!el) return;
+  el.innerHTML = `
+    <h2 class="dashboard__section-title">Card Analytics</h2>
+    <div class="dashboard__card-cols">
+      ${renderCardColumn('Most Played', cardStats.mostPlayed)}
+      ${renderCardColumn('Least Played', cardStats.leastPlayed)}
+      ${renderCardColumn('Highest Win Rate (3+ plays)', cardStats.highestWinRate)}
+    </div>
+  `;
+}
+
 function renderPage() {
   const app = document.getElementById('app');
   app.innerHTML = `
@@ -207,10 +255,12 @@ function renderPage() {
       </header>
       <div class="dashboard__stats" id="stats-bar"></div>
       <div class="dashboard__content" id="game-list"></div>
+      <div class="dashboard__content" id="card-analytics"></div>
     </div>
   `;
   renderStats();
   renderGameList();
+  renderCardAnalytics();
 }
 
 // ── Init ─────────────────────────────────────────────
@@ -218,7 +268,8 @@ window.dash = { cyclePlayTime, toggleGame };
 
 document.addEventListener('DOMContentLoaded', async () => {
   renderPage();
-  await Promise.all([fetchGames(), fetchStats()]);
+  await Promise.all([fetchGames(), fetchStats(), fetchCardStats()]);
   renderStats();
   renderGameList();
+  renderCardAnalytics();
 });
