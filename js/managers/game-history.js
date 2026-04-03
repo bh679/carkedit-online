@@ -23,6 +23,7 @@ export function saveGameToHistory(gameData) {
     winnerScore: gameData.players?.[0]?.score ?? 0,
     synced: gameData.synced || false,
     settings: gameData.settings || null,
+    isDev: gameData.isDev || false,
   };
 
   // Sort players by score descending and assign ranks
@@ -132,6 +133,7 @@ async function postGameToServer(entry) {
         players: entry.players.map((p) => ({ name: p.name, score: p.score })),
         settings: entry.settings,
         finishedAt: entry.finishedAt,
+        isDev: entry.isDev || false,
       }),
     });
 
