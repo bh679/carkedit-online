@@ -3,6 +3,7 @@
 
 import { getState, setState } from '../state.js';
 import { startPlayCardTimer, clearPlayCardTimer, startPitchTimer, clearPitchTimer, clearAllTimers } from '../managers/online-timer.js';
+import { saveGameToHistory } from '../managers/game-history.js';
 
 const _origin = window.location.origin;
 let _serverUrl = _origin;
@@ -487,6 +488,22 @@ function setupRoomListeners(room, onUpdate) {
         ...eulogyState,
       });
       if (_onScreenChange) _onScreenChange('phase4');
+    }
+
+    // Save online game result to localStorage when game ends
+    if (phase === 'winner') {
+      try {
+        const players = buildPlayersFromOnline(room);
+        const sorted = [...players].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+        saveGameToHistory({
+          mode: 'online',
+          rounds: room.state.rounds || 1,
+          players: sorted,
+          synced: true,  // Server already saved it
+        });
+      } catch (err) {
+        console.warn('[client] Failed to save online game to history:', err);
+      }
     }
 
     if (phase === 'game_over') {

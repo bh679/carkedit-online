@@ -1,0 +1,790 @@
+// CarkedIt Online — Game Dashboard (standalone)
+'use strict';
+
+const API_BASE = '';  // Same origin
+let games = [];
+let gamesTotalCount = 0;
+let gamesPageSize = 5;
+let gamesOffset = 0;
+let stats = {};
+let playTimeMode = 'total'; // 'total' | 'average' | 'median' | 'longest'
+let gamesCountMode = 'finished'; // 'finished' | 'total' | 'unfinished'
+let expandedGameId = null;
+
+// Game filters
+let filterDateFrom = '';
+let filterDateTo = '';
+let filterErrorsOnly = false;
+let filterDev = 'all'; // 'all' | 'dev' | 'nodev'
+let filterStatus = 'all'; // 'all' | 'finished' | 'unfinished'
+
+// Card data lookup (loaded from JSON files for images)
+const cardDataMap = {}; // key: `${deck}-${id}` → card object with illustrationKey
+
+async function loadCardData() {
+  const deckFiles = [
+    { file: 'js/data/cards/die.json', deck: 'die', deckType: 'die' },
+    { file: 'js/data/cards/live.json', deck: 'living', deckType: 'live' },
+    { file: 'js/data/cards/bye.json', deck: 'bye', deckType: 'bye' },
+  ];
+  await Promise.all(deckFiles.map(async ({ file, deck, deckType }) => {
+    try {
+      const res = await fetch(file);
+      if (!res.ok) return;
+      const cards = await res.json();
+      for (const c of cards) {
+        cardDataMap[`${deck}-${c.id}`] = { ...c, deck, deckType };
+      }
+    } catch {}
+  }));
+}
+
+function getCardImage(cardId, cardDeck) {
+  const data = cardDataMap[`${cardDeck}-${cardId}`];
+  if (data?.illustrationKey) {
+    const deckType = cardDeck === 'living' ? 'live' : cardDeck === 'bye' ? 'bye' : 'die';
+    return `assets/illustrations/${deckType}/${data.illustrationKey}.jpg`;
+  }
+  return null;
+}
+
+// ── PII Masking ──────────────────────────────────────
+function maskName(name) {
+  if (!name || name.length <= 1) return '*';
+  return name[0] + '*'.repeat(name.length - 1);
+}
+
+// ── Time Formatting ──────────────────────────────────
+function formatDuration(seconds) {
+  if (!seconds && seconds !== 0) return '—';
+  if (seconds < 60) return `${seconds}s`;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  if (m < 60) return `${m}m ${s}s`;
+  const h = Math.floor(m / 60);
+  return `${h}h ${m % 60}m`;
+}
+
+function formatDateTime(isoDate) {
+  if (!isoDate) return '—';
+  const d = new Date(isoDate);
+  return d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: '2-digit' })
+    + ' ' + d.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
+// ── Status Helpers ───────────────────────────────────
+function statusLabel(status) {
+  const map = { lobby: 'Lobby', die: 'Die', live: 'Live', bye: 'Bye', eulogy: 'Eulogy', finished: 'Finished' };
+  return map[status] || status || 'Finished';
+}
+
+function liveStatusLabel(liveStatus) {
+  if (liveStatus === 'live') return 'Live';
+  if (liveStatus === 'abandoned') return 'Abandon';
+  return '';
+}
+
+function rowClass(game) {
+  if (game.has_error) return 'dashboard__row--error';
+  if (game.live_status === 'live') return 'dashboard__row--live';
+  if (game.live_status === 'abandoned') return 'dashboard__row--abandoned';
+  if (game.is_dev) return 'dashboard__row--dev';
+  return '';
+}
+
+// ── Data Fetching ────────────────────────────────────
+function buildGamesUrl(limit, offset) {
+  const params = new URLSearchParams();
+  params.set('limit', String(limit));
+  params.set('offset', String(offset));
+  if (filterDateFrom) params.set('dateFrom', new Date(filterDateFrom).toISOString());
+  if (filterDateTo) params.set('dateTo', new Date(filterDateTo + 'T23:59:59').toISOString());
+  if (filterErrorsOnly) params.set('errorsOnly', 'true');
+  if (filterDev !== 'all') params.set('dev', filterDev);
+  if (filterStatus !== 'all') params.set('status', filterStatus);
+  return `${API_BASE}/api/carkedit/games?${params}`;
+}
+
+async function fetchGames(append = false) {
+  try {
+    const offset = append ? games.length : 0;
+    const res = await fetch(buildGamesUrl(gamesPageSize, offset));
+    if (!res.ok) return;
+    const data = await res.json();
+    if (append) {
+      games = [...games, ...(data.games || [])];
+    } else {
+      games = data.games || [];
+    }
+    gamesTotalCount = data.total || 0;
+  } catch (err) {
+    console.warn('[dashboard] Failed to fetch games:', err);
+  }
+}
+
+async function loadMoreGames() {
+  await fetchGames(true);
+  renderGameList();
+}
+
+async function applyGameFilters() {
+  const from = document.getElementById('filter-date-from');
+  const to = document.getElementById('filter-date-to');
+  filterDateFrom = from?.value || '';
+  filterDateTo = to?.value || '';
+  await fetchGames(false);
+  renderGameList();
+}
+
+function setGameFilter(key, value) {
+  if (key === 'errorsOnly') filterErrorsOnly = value;
+  if (key === 'dev') filterDev = value;
+  if (key === 'status') filterStatus = value;
+  applyGameFilters();
+}
+
+async function fetchStats() {
+  try {
+    const res = await fetch(`${API_BASE}/api/carkedit/games/stats`);
+    if (!res.ok) return;
+    stats = await res.json();
+  } catch (err) {
+    console.warn('[dashboard] Failed to fetch stats:', err);
+  }
+}
+
+// ── Play Time Display ────────────────────────────────
+function getPlayTimeValue() {
+  switch (playTimeMode) {
+    case 'average': return stats.avgPlayTime || 0;
+    case 'median': return stats.medianPlayTime || 0;
+    case 'longest': return stats.longestPlayTime || 0;
+    default: return stats.totalPlayTime || 0;
+  }
+}
+
+function getPlayTimeLabel() {
+  switch (playTimeMode) {
+    case 'average': return 'Avg Play Time';
+    case 'median': return 'Median Play Time';
+    case 'longest': return 'Longest Game';
+    default: return 'Total Play Time';
+  }
+}
+
+function cyclePlayTime() {
+  const modes = ['total', 'average', 'median', 'longest'];
+  const idx = modes.indexOf(playTimeMode);
+  playTimeMode = modes[(idx + 1) % modes.length];
+  renderStats();
+}
+
+function getGamesCountValue() {
+  switch (gamesCountMode) {
+    case 'total': return stats.totalGames || 0;
+    case 'unfinished': return stats.unfinishedGames || 0;
+    default: return stats.finishedGames ?? stats.totalGames ?? 0;
+  }
+}
+
+function getGamesCountLabel() {
+  switch (gamesCountMode) {
+    case 'total': return 'Total Games';
+    case 'unfinished': return 'Unfinished Games';
+    default: return 'Finished Games';
+  }
+}
+
+function cycleGamesCount() {
+  const modes = ['finished', 'total', 'unfinished'];
+  const idx = modes.indexOf(gamesCountMode);
+  gamesCountMode = modes[(idx + 1) % modes.length];
+  renderStats();
+}
+
+// ── Expand/Collapse Game Detail ──────────────────────
+const gameDetailCache = {};
+
+async function toggleGame(gameId) {
+  if (expandedGameId === gameId) {
+    expandedGameId = null;
+    renderGameList();
+    return;
+  }
+  expandedGameId = gameId;
+  // Fetch full detail if not cached
+  if (!gameDetailCache[gameId]) {
+    try {
+      const res = await fetch(`${API_BASE}/api/carkedit/games/${gameId}`);
+      if (res.ok) gameDetailCache[gameId] = await res.json();
+    } catch (err) {
+      console.warn('[dashboard] Failed to fetch game detail:', err);
+    }
+  }
+  renderGameList();
+}
+
+// ── Rendering ────────────────────────────────────────
+function renderStats() {
+  const el = document.getElementById('stats-bar');
+  if (!el) return;
+  el.innerHTML = `
+    <div class="dashboard__stat dashboard__stat--clickable" onclick="window.dash.cycleGamesCount()">
+      <span class="dashboard__stat-value">${getGamesCountValue()}</span>
+      <span class="dashboard__stat-label">${getGamesCountLabel()}</span>
+    </div>
+    <div class="dashboard__stat">
+      <span class="dashboard__stat-value">${stats.totalPlayers ?? 0}</span>
+      <span class="dashboard__stat-label">Total Players</span>
+    </div>
+    <div class="dashboard__stat dashboard__stat--clickable" onclick="window.dash.cyclePlayTime()">
+      <span class="dashboard__stat-value">${formatDuration(getPlayTimeValue())}</span>
+      <span class="dashboard__stat-label">${getPlayTimeLabel()}</span>
+    </div>
+  `;
+}
+
+// ── Card Preview Modal ───────────────────────────────
+
+function escAttr(str) {
+  return str.replace(/&/g, '&amp;').replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+}
+
+function previewCard(text, deck, cardId) {
+  const deckType = deck === 'living' ? 'live' : deck === 'bye' ? 'bye' : 'die';
+  const imgSrc = cardId ? getCardImage(cardId, deck) : null;
+  const overlay = document.getElementById('card-preview-overlay');
+  if (!overlay) return;
+  overlay.innerHTML = `
+    <div class="preview__backdrop" onclick="window.dash.closePreview()"></div>
+    <div class="preview__card-wrap">
+      <div class="card card--${deckType}">
+        ${imgSrc
+          ? `<img src="${imgSrc}" alt="${text}" class="card__img">`
+          : `<div class="card__image"><div class="card__image-placeholder"></div></div>
+             <div class="card__body"><h3 class="card__title">${text}</h3></div>`}
+      </div>
+    </div>`;
+  overlay.style.display = 'flex';
+}
+
+function closePreview() {
+  const overlay = document.getElementById('card-preview-overlay');
+  if (overlay) { overlay.style.display = 'none'; overlay.innerHTML = ''; }
+}
+
+// ── Game Detail Rendering (3-row expanded view) ──────
+
+function renderMiniCard(text, deck, cardId) {
+  const deckType = deck === 'living' ? 'live' : deck === 'bye' ? 'bye' : 'die';
+  const imgSrc = cardId ? getCardImage(cardId, deck) : null;
+  const idAttr = cardId ? `, '${escAttr(cardId)}'` : '';
+  return `
+    <div class="card card--${deckType} detail__mini-card" onclick="event.stopPropagation(); window.dash.previewCard('${escAttr(text)}', '${escAttr(deck)}'${idAttr})">
+      ${imgSrc
+        ? `<img src="${imgSrc}" alt="${text}" class="card__img">`
+        : `<div class="card__body"><h3 class="card__title">${text}</h3></div>`}
+    </div>`;
+}
+
+function renderSettingsCard(gd) {
+  let settings = {};
+  try { settings = gd.settings_json ? JSON.parse(gd.settings_json) : {}; } catch {}
+
+  const settingRows = Object.entries(settings).map(([k, v]) =>
+    `<div class="detail__setting-row"><span class="detail__setting-key">${k}</span><span class="detail__setting-val">${v}</span></div>`
+  ).join('');
+
+  return `
+    <div class="detail__panel">
+      <h4 class="detail__panel-title">Settings & Versions</h4>
+      <div class="detail__versions">
+        <span>API: ${gd.api_version || '—'}</span>
+        <span>Client: ${gd.client_version || '—'}</span>
+        <span>Mode: ${gd.mode}</span>
+        <span>Rounds: ${gd.rounds}</span>
+        ${gd.room_code ? `<span>Room: ${gd.room_code}</span>` : ''}
+      </div>
+      ${settingRows ? `<div class="detail__settings-grid">${settingRows}</div>` : ''}
+    </div>`;
+}
+
+function renderPlayersCard(gd) {
+  const cardPlays = gd.card_plays || [];
+  const players = (gd.players || []).map(p => {
+    // Find cards this player played
+    const played = cardPlays.filter(c => c.player_name === p.player_name);
+    const winningCards = played.filter(c => c.is_winner);
+    const isWinner = p.rank === 1;
+
+    const cardsHtml = played.length > 0
+      ? `<div class="detail__player-cards">${played.map(c =>
+          `<div class="detail__mini-card-wrap ${c.is_winner ? 'detail__mini-card-wrap--winner' : ''}">
+            ${renderMiniCard(c.card_text, c.card_deck, c.card_id)}
+          </div>`
+        ).join('')}</div>`
+      : '';
+
+    return `
+      <div class="detail__player ${isWinner ? 'detail__player--winner' : ''}">
+        <div class="detail__player-header">
+          <span class="detail__player-rank">#${p.rank}</span>
+          <span class="detail__player-name">${maskName(p.player_name)}${isWinner ? ' ★' : ''}</span>
+          <span class="detail__player-score">${p.score} pts</span>
+        </div>
+        ${cardsHtml}
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="detail__panel detail__panel--wide">
+      <h4 class="detail__panel-title">Players</h4>
+      ${players}
+    </div>`;
+}
+
+function renderPhaseCards(gd) {
+  const cardPlays = gd.card_plays || [];
+  if (cardPlays.length === 0) return '';
+
+  // Group by phase + round
+  const phases = {};
+  for (const cp of cardPlays) {
+    const key = `${cp.phase}-${cp.round}`;
+    if (!phases[key]) phases[key] = { phase: cp.phase, round: cp.round, cards: [], winner: null };
+    phases[key].cards.push(cp);
+    if (cp.is_winner) phases[key].winner = cp;
+  }
+
+  const phaseCards = Object.values(phases).map(p => {
+    const phaseName = p.phase === 'living' ? 'Live' : p.phase === 'bye' ? 'Bye' : p.phase;
+    const winnerText = p.winner ? `Winner: ${maskName(p.winner.player_name)}` : '';
+    const cardsHtml = p.cards.map(c =>
+      `<div class="detail__mini-card-wrap ${c.is_winner ? 'detail__mini-card-wrap--winner' : ''}">
+        ${renderMiniCard(c.card_text, c.card_deck, c.card_id)}
+        <span class="detail__mini-card-player">${maskName(c.player_name)}</span>
+      </div>`
+    ).join('');
+
+    return `
+      <div class="detail__phase-card">
+        <div class="detail__phase-header">
+          <span class="detail__phase-name">${phaseName} — Round ${p.round}</span>
+          <span class="detail__phase-stats">${p.cards.length} cards${winnerText ? ' · ' + winnerText : ''}</span>
+        </div>
+        <div class="detail__phase-cards">${cardsHtml}</div>
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="detail__row">
+      <h4 class="detail__row-title">Phases</h4>
+      <div class="detail__phases-row">${phaseCards}</div>
+    </div>`;
+}
+
+function renderDebugCard(gd) {
+  return `
+    <div class="detail__row detail__row--debug">
+      <h4 class="detail__row-title">Debug</h4>
+      <div class="detail__debug">
+        <span>ID: ${gd.id}</span>
+        <span>Started: ${gd.started_at || '—'}</span>
+        <span>Finished: ${gd.finished_at}</span>
+        <span>Duration: ${formatDuration(gd.duration_seconds)}</span>
+        <span>Status: ${gd.status} / ${gd.live_status}</span>
+        <span>Error: ${gd.has_error ? 'Yes' : 'No'}</span>
+        <span>Dev: ${gd.is_dev ? 'Yes' : 'No'}</span>
+        ${gd.room_code ? `<span>Room code: ${gd.room_code}</span>` : ''}
+      </div>
+    </div>`;
+}
+
+function renderGameDetail(gd) {
+  return `
+    <div class="dashboard__detail" onclick="event.stopPropagation()">
+      <div class="detail__row detail__row--top">
+        ${renderSettingsCard(gd)}
+        ${renderPlayersCard(gd)}
+      </div>
+      ${renderPhaseCards(gd)}
+      ${renderDebugCard(gd)}
+    </div>`;
+}
+
+function renderGameCard(game) {
+  const cls = rowClass(game);
+  const expanded = expandedGameId === game.id;
+  const errorFlag = game.has_error ? '<span class="dashboard__flag dashboard__flag--error" title="Error">!</span>' : '';
+  const liveLabel = liveStatusLabel(game.live_status);
+  const liveBadge = liveLabel ? `<span class="dashboard__badge dashboard__badge--${game.live_status}">${liveLabel}</span>` : '';
+
+  let detail = '';
+  if (expanded) {
+    const gd = gameDetailCache[game.id] || game;
+    detail = renderGameDetail(gd);
+  }
+
+  return `
+    <div class="dashboard__card ${cls}" onclick="window.dash.toggleGame('${game.id}')">
+      <div class="dashboard__card-row">
+        <span class="dashboard__cell dashboard__cell--date">${formatDateTime(game.finished_at)}</span>
+        <span class="dashboard__cell dashboard__cell--host">${maskName(game.host_name)}</span>
+        <span class="dashboard__cell dashboard__cell--players">${game.player_count} players</span>
+        <span class="dashboard__cell dashboard__cell--time">${formatDuration(game.duration_seconds)}</span>
+        <span class="dashboard__cell dashboard__cell--status">${statusLabel(game.status)}</span>
+        <span class="dashboard__cell dashboard__cell--live">${liveBadge}</span>
+        <span class="dashboard__cell dashboard__cell--error">${errorFlag}</span>
+      </div>
+      ${detail}
+    </div>
+  `;
+}
+
+function renderGameFilters() {
+  const statusBtn = (val, label) => {
+    const active = filterStatus === val ? 'dashboard__filter-btn--active' : '';
+    return `<button class="dashboard__filter-btn ${active}" onclick="window.dash.setGameFilter('status','${val}')">${label}</button>`;
+  };
+  const devBtn = (val, label) => {
+    const active = filterDev === val ? 'dashboard__filter-btn--active' : '';
+    return `<button class="dashboard__filter-btn ${active}" onclick="window.dash.setGameFilter('dev','${val}')">${label}</button>`;
+  };
+  const errActive = filterErrorsOnly ? 'dashboard__filter-btn--active' : '';
+
+  return `
+    <div class="dashboard__game-filters">
+      <label>From</label>
+      <input type="date" id="filter-date-from" value="${filterDateFrom}" onchange="window.dash.applyGameFilters()">
+      <label>To</label>
+      <input type="date" id="filter-date-to" value="${filterDateTo}" onchange="window.dash.applyGameFilters()">
+      <button class="dashboard__filter-btn ${errActive}" onclick="window.dash.setGameFilter('errorsOnly', ${!filterErrorsOnly})">Errors</button>
+      ${devBtn('all', 'All')}
+      ${devBtn('nodev', 'No Dev')}
+      ${devBtn('dev', 'Dev Only')}
+      ${statusBtn('all', 'All')}
+      ${statusBtn('finished', 'Finished')}
+      ${statusBtn('unfinished', 'Unfinished')}
+    </div>`;
+}
+
+function renderGameList() {
+  const el = document.getElementById('game-list');
+  if (!el) return;
+
+  const hasMore = games.length < gamesTotalCount;
+  const loadMoreBtn = hasMore
+    ? `<button class="dashboard__load-more" onclick="window.dash.loadMoreGames()">Load more (${games.length} of ${gamesTotalCount})</button>`
+    : '';
+
+  el.innerHTML = `
+    ${renderGameFilters()}
+    ${games.length === 0 ? '<p class="dashboard__empty">No games match filters.</p>' : `
+      <div class="dashboard__list-header">
+        <span class="dashboard__cell dashboard__cell--date">Date/Time</span>
+        <span class="dashboard__cell dashboard__cell--host">Host</span>
+        <span class="dashboard__cell dashboard__cell--players">Players</span>
+        <span class="dashboard__cell dashboard__cell--time">Play Time</span>
+        <span class="dashboard__cell dashboard__cell--status">Status</span>
+        <span class="dashboard__cell dashboard__cell--live"></span>
+        <span class="dashboard__cell dashboard__cell--error"></span>
+      </div>
+      ${games.map(renderGameCard).join('')}
+      ${loadMoreBtn}
+    `}
+  `;
+}
+
+// ── Card Analytics ────────────────────────────────
+let cardStats = { mostPlayed: [], leastPlayed: [], highestWinRate: [] };
+let cardDeckFilter = 'all'; // 'all' | 'die' | 'living' | 'bye'
+let cardSortMode = 'mostPlayed'; // 'mostPlayed' | 'leastPlayed' | 'highestWinRate'
+
+async function fetchCardStats() {
+  try {
+    const res = await fetch(`${API_BASE}/api/carkedit/cards/stats`);
+    if (!res.ok) return;
+    cardStats = await res.json();
+  } catch (err) {
+    console.warn('[dashboard] Failed to fetch card stats:', err);
+  }
+}
+
+function filterCards(cards) {
+  if (cardDeckFilter === 'all') return cards;
+  return cards.filter(c => c.card_deck === cardDeckFilter);
+}
+
+function setDeckFilter(filter) {
+  cardDeckFilter = filter;
+  renderCardAnalytics();
+}
+
+function setCardSort(mode) {
+  cardSortMode = mode;
+  renderCardAnalytics();
+}
+
+function deckTypeForCard(deck) {
+  if (deck === 'living') return 'live';
+  if (deck === 'bye') return 'bye';
+  return 'die';
+}
+
+function renderStatCard(card) {
+  const deckType = deckTypeForCard(card.card_deck);
+  const imgSrc = getCardImage(card.card_id, card.card_deck);
+  const idAttr = card.card_id ? `, '${escAttr(String(card.card_id))}'` : '';
+  return `
+    <div class="dashboard__stat-card-wrap" onclick="window.dash.previewCard('${escAttr(card.card_text)}', '${escAttr(card.card_deck)}'${idAttr})">
+      <div class="card card--${deckType}">
+        ${imgSrc
+          ? `<img src="${imgSrc}" alt="${card.card_text}" class="card__img">`
+          : `<div class="card__image"><div class="card__image-placeholder"></div></div>
+             <div class="card__body"><h3 class="card__title">${card.card_text}</h3></div>`}
+      </div>
+      <div class="dashboard__stat-card-data">
+        <span>${card.play_count} plays</span>
+        <span>${card.win_count} wins</span>
+        <span class="dashboard__stat-card-rate">${card.win_rate}%</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderCardRow(title, cards) {
+  const filtered = filterCards(cards);
+  if (!filtered || filtered.length === 0) {
+    return `
+      <div class="dashboard__card-row-section">
+        <h3 class="dashboard__card-row-title">${title}</h3>
+        <p class="dashboard__card-row-empty">No data yet</p>
+      </div>`;
+  }
+  return `
+    <div class="dashboard__card-row-section">
+      <h3 class="dashboard__card-row-title">${title}</h3>
+      <div class="dashboard__card-row-scroll">
+        ${filtered.map(renderStatCard).join('')}
+      </div>
+    </div>`;
+}
+
+function getActiveCards() {
+  switch (cardSortMode) {
+    case 'leastPlayed': return cardStats.leastPlayed;
+    case 'highestWinRate': return cardStats.highestWinRate;
+    default: return cardStats.mostPlayed;
+  }
+}
+
+function renderCardAnalytics() {
+  const el = document.getElementById('card-analytics');
+  if (!el) return;
+
+  const filterBtn = (value, label) => {
+    const active = cardDeckFilter === value ? 'dashboard__filter-btn--active' : '';
+    return `<button class="dashboard__filter-btn ${active}" onclick="window.dash.setDeckFilter('${value}')">${label}</button>`;
+  };
+
+  const sortOption = (value, label) =>
+    `<option value="${value}" ${cardSortMode === value ? 'selected' : ''}>${label}</option>`;
+
+  const filtered = filterCards(getActiveCards());
+  const cardsHtml = filtered.length > 0
+    ? `<div class="dashboard__card-row-wrapper">
+        <button class="dashboard__scroll-btn dashboard__scroll-btn--left" id="card-scroll-left" onclick="window.dash.scrollCards(-1)" aria-label="Scroll left" style="display:none">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <div class="dashboard__card-row-scroll" id="card-scroll-row">${filtered.map(renderStatCard).join('')}</div>
+        <button class="dashboard__scroll-btn dashboard__scroll-btn--right" id="card-scroll-right" onclick="window.dash.scrollCards(1)" aria-label="Scroll right">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+      </div>`
+    : '<p class="dashboard__card-row-empty">No data yet</p>';
+
+  el.innerHTML = `
+    <div class="dashboard__card-analytics-header">
+      <select class="dashboard__sort-select" onchange="window.dash.setCardSort(this.value)">
+        ${sortOption('mostPlayed', 'Most Played')}
+        ${sortOption('leastPlayed', 'Least Played')}
+        ${sortOption('highestWinRate', 'Highest Win Rate (3+ plays)')}
+      </select>
+      <div class="dashboard__filter-bar">
+        ${filterBtn('all', 'All')}
+        ${filterBtn('die', 'Die')}
+        ${filterBtn('living', 'Live')}
+        ${filterBtn('bye', 'Bye')}
+      </div>
+    </div>
+    ${cardsHtml}
+  `;
+
+  // Check arrow visibility after render, and listen for manual scroll
+  requestAnimationFrame(() => {
+    updateScrollArrows();
+    const row = document.getElementById('card-scroll-row');
+    if (row) row.addEventListener('scroll', updateScrollArrows);
+  });
+}
+
+function scrollCards(direction) {
+  const el = document.getElementById('card-scroll-row');
+  if (el) {
+    el.scrollBy({ left: direction * 300, behavior: 'smooth' });
+    // Update arrows after scroll animation
+    setTimeout(updateScrollArrows, 350);
+  }
+}
+
+function updateScrollArrows() {
+  const el = document.getElementById('card-scroll-row');
+  const left = document.getElementById('card-scroll-left');
+  const right = document.getElementById('card-scroll-right');
+  if (!el || !left || !right) return;
+
+  const atStart = el.scrollLeft <= 5;
+  const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 5;
+
+  left.style.display = atStart ? 'none' : 'flex';
+  right.style.display = atEnd ? 'none' : 'flex';
+}
+
+// ── Graphs ───────────────────────────────────────────
+
+function renderGraph() {
+  const canvas = document.getElementById('games-over-time');
+  if (!canvas || games.length === 0) return;
+
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+  const W = rect.width;
+  const H = rect.height;
+
+  // Group games by date
+  const dayCounts = {};
+  for (const g of games) {
+    const d = new Date(g.finished_at).toISOString().slice(0, 10);
+    dayCounts[d] = (dayCounts[d] || 0) + 1;
+  }
+
+  // Build sorted date range (fill gaps)
+  const dates = Object.keys(dayCounts).sort();
+  if (dates.length === 0) return;
+
+  const start = new Date(dates[0]);
+  const end = new Date(dates[dates.length - 1]);
+  const allDates = [];
+  const allCounts = [];
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    const key = d.toISOString().slice(0, 10);
+    allDates.push(key);
+    allCounts.push(dayCounts[key] || 0);
+  }
+  if (allDates.length === 0) return;
+
+  const maxCount = Math.max(...allCounts, 1);
+  const pad = { top: 20, right: 20, bottom: 30, left: 40 };
+  const plotW = W - pad.left - pad.right;
+  const plotH = H - pad.top - pad.bottom;
+
+  // Background
+  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--color-surface').trim() || '#252540';
+  ctx.fillRect(0, 0, W, H);
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+  ctx.lineWidth = 1;
+  const ySteps = Math.min(maxCount, 5);
+  for (let i = 0; i <= ySteps; i++) {
+    const y = pad.top + plotH - (i / ySteps) * plotH;
+    ctx.beginPath();
+    ctx.moveTo(pad.left, y);
+    ctx.lineTo(pad.left + plotW, y);
+    ctx.stroke();
+    // Y labels
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.font = '10px system-ui';
+    ctx.textAlign = 'right';
+    ctx.fillText(String(Math.round(i / ySteps * maxCount)), pad.left - 6, y + 3);
+  }
+
+  // Bars
+  const barW = Math.max(2, (plotW / allDates.length) - 2);
+  const primary = getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() || '#9842FF';
+  ctx.fillStyle = primary;
+
+  for (let i = 0; i < allCounts.length; i++) {
+    const x = pad.left + (i / allDates.length) * plotW + 1;
+    const barH = (allCounts[i] / maxCount) * plotH;
+    const y = pad.top + plotH - barH;
+    ctx.fillRect(x, y, barW, barH);
+  }
+
+  // X labels (show first, last, and a few in between)
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  ctx.font = '9px system-ui';
+  ctx.textAlign = 'center';
+  const labelCount = Math.min(allDates.length, 6);
+  for (let i = 0; i < labelCount; i++) {
+    const idx = Math.round(i / (labelCount - 1) * (allDates.length - 1));
+    const x = pad.left + (idx / allDates.length) * plotW + barW / 2;
+    const label = allDates[idx].slice(5); // MM-DD
+    ctx.fillText(label, x, H - 8);
+  }
+}
+
+function renderPage() {
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="dashboard">
+      <header class="dashboard__header">
+        <h1 class="dashboard__title">CarkedIt — Game Dashboard</h1>
+      </header>
+
+      <section class="dashboard__section">
+        <h2 class="dashboard__section-title">Key Stats</h2>
+        <div class="dashboard__stats" id="stats-bar"></div>
+      </section>
+
+      <section class="dashboard__section">
+        <h2 class="dashboard__section-title">Games</h2>
+        <div id="game-list"></div>
+      </section>
+
+      <section class="dashboard__section">
+        <h2 class="dashboard__section-title">Cards</h2>
+        <div id="card-analytics"></div>
+      </section>
+
+      <section class="dashboard__section">
+        <h2 class="dashboard__section-title">Graphs</h2>
+        <div class="dashboard__graph-wrap">
+          <h3 class="dashboard__graph-label">Games Over Time</h3>
+          <canvas id="games-over-time" class="dashboard__graph-canvas"></canvas>
+        </div>
+      </section>
+    </div>
+    <div id="card-preview-overlay" class="preview__overlay" style="display:none"></div>
+  `;
+  renderStats();
+  renderGameList();
+  renderCardAnalytics();
+  renderGraph();
+}
+
+// ── Init ─────────────────────────────────────────────
+window.dash = { cyclePlayTime, cycleGamesCount, toggleGame, setDeckFilter, setCardSort, previewCard, closePreview, scrollCards, loadMoreGames, applyGameFilters, setGameFilter };
+
+document.addEventListener('DOMContentLoaded', async () => {
+  renderPage();
+  await Promise.all([fetchGames(), fetchStats(), fetchCardStats(), loadCardData()]);
+  renderStats();
+  renderGameList();
+  renderCardAnalytics();
+  renderGraph();
+});

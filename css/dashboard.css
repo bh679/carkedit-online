@@ -1,0 +1,762 @@
+/* CarkedIt Online — Game Dashboard (standalone page) */
+
+/* Override base.css mobile cap — dashboard uses landscape tablet width */
+#app {
+  max-width: 1024px;
+  overflow: visible;
+}
+
+.dashboard {
+  min-height: 100vh;
+  background: var(--color-bg);
+  color: var(--color-text);
+  padding: var(--space-md) var(--space-lg);
+}
+
+/* ── Header ─────────────────────────────────────── */
+
+.dashboard__header {
+  margin-bottom: var(--space-md);
+}
+
+.dashboard__title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+/* ── Stats Bar ──────────────────────────────────── */
+
+.dashboard__stats {
+  display: flex;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.dashboard__stat {
+  flex: 1;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+  text-align: center;
+}
+
+.dashboard__stat--clickable {
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.dashboard__stat--clickable:hover {
+  background: var(--color-secondary);
+}
+
+.dashboard__stat-value {
+  display: block;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.dashboard__stat-label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+
+/* ── Game Filters ───────────────────────────────── */
+
+.dashboard__game-filters {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.dashboard__game-filters label {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin-left: var(--space-xs);
+}
+
+.dashboard__game-filters input[type="date"] {
+  height: 32px;
+  font-size: 0.8rem;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-xs);
+  -webkit-appearance: none;
+}
+
+.dashboard__game-filters input[type="date"]:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.dashboard__load-more {
+  display: block;
+  width: 100%;
+  padding: var(--space-xs);
+  margin-top: var(--space-xs);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.dashboard__load-more:hover {
+  background: var(--color-secondary);
+  color: var(--color-text);
+}
+
+/* ── List Header ────────────────────────────────── */
+
+.dashboard__list-header {
+  display: flex;
+  align-items: center;
+  padding: var(--space-xs) var(--space-md);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: var(--space-xs);
+}
+
+/* ── Game Cards ─────────────────────────────────── */
+
+.dashboard__card {
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-xs);
+  cursor: pointer;
+  transition: background 0.1s ease;
+  overflow: hidden;
+}
+
+.dashboard__card:hover {
+  background: var(--color-secondary);
+}
+
+.dashboard__card-row {
+  display: flex;
+  align-items: center;
+  padding: var(--space-sm) var(--space-md);
+  font-size: 0.85rem;
+}
+
+/* ── Cells (shared between header and cards) ────── */
+
+.dashboard__cell {
+  flex-shrink: 0;
+}
+
+.dashboard__cell--date {
+  width: 160px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard__cell--host {
+  width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard__cell--players {
+  width: 90px;
+}
+
+.dashboard__cell--time {
+  width: 90px;
+}
+
+.dashboard__cell--status {
+  width: 80px;
+}
+
+.dashboard__cell--live {
+  width: 80px;
+}
+
+.dashboard__cell--error {
+  width: 30px;
+  text-align: center;
+}
+
+/* ── Row status colors ──────────────────────────── */
+
+.dashboard__card.dashboard__row--live {
+  background: rgba(77, 158, 77, 0.15);
+}
+
+.dashboard__card.dashboard__row--live:hover {
+  background: rgba(77, 158, 77, 0.25);
+}
+
+.dashboard__card.dashboard__row--abandoned {
+  opacity: 0.5;
+}
+
+.dashboard__card.dashboard__row--error {
+  background: rgba(233, 25, 52, 0.1);
+}
+
+.dashboard__card.dashboard__row--error:hover {
+  background: rgba(233, 25, 52, 0.2);
+}
+
+.dashboard__card.dashboard__row--dev {
+  opacity: 0.5;
+}
+
+/* ── Badges & Flags ─────────────────────────────── */
+
+.dashboard__badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.dashboard__badge--live {
+  background: rgba(77, 158, 77, 0.2);
+  color: var(--color-live);
+}
+
+.dashboard__badge--abandoned {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--color-text-muted);
+}
+
+.dashboard__flag {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  line-height: 20px;
+  text-align: center;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 0.75rem;
+}
+
+.dashboard__flag--error {
+  background: var(--color-danger);
+  color: var(--color-white);
+}
+
+/* ── Expanded Detail ────────────────────────────── */
+
+.dashboard__detail {
+  padding: var(--space-md);
+  border-top: 1px solid var(--color-border);
+  cursor: default;
+}
+
+/* Row layout */
+.detail__row {
+  margin-bottom: var(--space-md);
+}
+
+.detail__row--top {
+  display: flex;
+  gap: var(--space-md);
+}
+
+.detail__row-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin: 0 0 var(--space-sm);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.7rem;
+}
+
+/* Panels (settings + players in row 1) */
+.detail__panel {
+  background: var(--color-bg);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+  flex-shrink: 0;
+}
+
+.detail__panel--wide {
+  flex: 1;
+  min-width: 0;
+}
+
+.detail__panel-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin: 0 0 var(--space-xs);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Settings */
+.detail__versions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-sm);
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-xs);
+}
+
+.detail__settings-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px var(--space-sm);
+  font-size: 0.7rem;
+}
+
+.detail__setting-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-xs);
+}
+
+.detail__setting-key {
+  color: var(--color-text-muted);
+}
+
+.detail__setting-val {
+  font-weight: 600;
+}
+
+/* Players */
+.detail__player {
+  margin-bottom: var(--space-xs);
+  padding: var(--space-xs) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.detail__player:last-child { border-bottom: none; }
+
+.detail__player--winner .detail__player-name {
+  color: var(--color-highlight);
+}
+
+.detail__player-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: 0.8rem;
+  margin-bottom: 4px;
+}
+
+.detail__player-rank {
+  color: var(--color-text-muted);
+  font-weight: 600;
+  min-width: 24px;
+}
+
+.detail__player-name { flex: 1; }
+
+.detail__player-score {
+  color: var(--color-text-muted);
+}
+
+.detail__player-cards {
+  display: flex;
+  gap: var(--space-xs);
+  padding-left: 28px;
+  overflow-x: auto;
+}
+
+/* Mini cards in detail */
+.detail__mini-card-wrap {
+  flex-shrink: 0;
+  width: 50px;
+  text-align: center;
+}
+
+.detail__mini-card-wrap--winner {
+  outline: 2px solid var(--color-highlight);
+  outline-offset: 1px;
+  border-radius: var(--radius-sm);
+}
+
+.detail__mini-card-wrap .card {
+  width: 50px;
+  font-size: 0.4rem;
+}
+
+.detail__mini-card-wrap .card__body {
+  padding: 2px;
+}
+
+.detail__mini-card-wrap .card__title {
+  font-size: 0.35rem;
+  line-height: 1.15;
+}
+
+.detail__mini-card-player {
+  font-size: 0.6rem;
+  color: var(--color-text-muted);
+  display: block;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Phase cards (row 2) */
+.detail__phases-row {
+  display: flex;
+  gap: var(--space-sm);
+  overflow-x: auto;
+}
+
+.detail__phase-card {
+  background: var(--color-bg);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+  flex: 1;
+  min-width: 0;
+}
+
+.detail__phase-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-xs);
+}
+
+.detail__phase-name {
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+.detail__phase-stats {
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+}
+
+.detail__phase-cards {
+  display: flex;
+  gap: var(--space-xs);
+  overflow-x: auto;
+}
+
+/* Debug (row 3) */
+.detail__row--debug {
+  opacity: 0.6;
+}
+
+.detail__debug {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-md);
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+  font-family: monospace;
+}
+
+/* ── Card Analytics ─────────────────────────────── */
+
+/* ── Sections ───────────────────────────────────── */
+
+.dashboard__section {
+  margin-bottom: var(--space-lg);
+  padding-bottom: var(--space-lg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.dashboard__section:last-of-type {
+  border-bottom: none;
+}
+
+.dashboard__section-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0 0 var(--space-md);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+}
+
+/* ── Graph ──────────────────────────────────────── */
+
+.dashboard__graph-wrap {
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+}
+
+.dashboard__graph-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  margin: 0 0 var(--space-sm);
+}
+
+.dashboard__graph-canvas {
+  width: 100%;
+  height: 200px;
+  border-radius: var(--radius-sm);
+}
+
+.dashboard__card-analytics-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-md);
+}
+
+/* Shared control style for dropdown and filter buttons */
+.dashboard__sort-select,
+.dashboard__filter-btn {
+  height: 32px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.dashboard__sort-select {
+  background: var(--color-surface);
+  color: var(--color-text);
+  padding: 0 28px 0 var(--space-sm);
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239A9AB0' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+}
+
+.dashboard__sort-select:hover {
+  background-color: var(--color-secondary);
+  border-color: var(--color-primary);
+}
+
+.dashboard__sort-select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary-subtle);
+}
+
+.dashboard__sort-select option {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+/* Filter buttons */
+.dashboard__filter-bar {
+  display: flex;
+  gap: var(--space-xs);
+}
+
+.dashboard__filter-btn {
+  padding: 0 var(--space-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+}
+
+.dashboard__filter-btn:hover {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+
+.dashboard__filter-btn--active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-white);
+}
+
+/* Card row sections (full width, horizontal scroll) */
+.dashboard__card-row-section {
+  margin-bottom: var(--space-md);
+}
+
+.dashboard__card-row-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin: 0 0 var(--space-sm);
+  color: var(--color-text);
+}
+
+.dashboard__card-row-empty {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  padding: var(--space-sm) 0;
+}
+
+.dashboard__card-row-scroll {
+  display: flex;
+  gap: var(--space-sm);
+  overflow-x: auto;
+  padding-bottom: var(--space-xs);
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Hide scrollbar but keep scrollable */
+.dashboard__card-row-scroll::-webkit-scrollbar {
+  height: 4px;
+}
+.dashboard__card-row-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.dashboard__card-row-scroll::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 2px;
+}
+
+/* Card row with scroll arrows */
+.dashboard__card-row-wrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.dashboard__card-row-wrapper .dashboard__card-row-scroll {
+  flex: 1;
+  min-width: 0;
+}
+
+.dashboard__scroll-btn {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.dashboard__scroll-btn:hover {
+  background: var(--color-secondary);
+  color: var(--color-text);
+  border-color: var(--color-primary);
+}
+
+/* Individual stat card wrapper (card + data below) */
+.dashboard__stat-card-wrap {
+  flex-shrink: 0;
+  width: 85px;
+}
+
+.dashboard__stat-card-wrap .card {
+  width: 85px;
+  font-size: 0.55rem;
+}
+
+.dashboard__stat-card-wrap .card__body {
+  padding: 4px;
+}
+
+.dashboard__stat-card-wrap .card__title {
+  font-size: 0.5rem;
+}
+
+.dashboard__stat-card-data {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding-top: 3px;
+  font-size: 0.6rem;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.dashboard__stat-card-rate {
+  font-weight: 700;
+  color: var(--color-primary);
+  font-size: 0.75rem;
+}
+
+/* ── Card Preview Modal ─────────────────────────── */
+
+.preview__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.preview__backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--color-overlay-dim);
+}
+
+.preview__card-wrap {
+  position: relative;
+  z-index: 1;
+  width: 240px;
+}
+
+.preview__card-wrap .card {
+  width: 240px;
+}
+
+/* Make all rendered cards show pointer cursor */
+.dashboard__stat-card-wrap,
+.detail__mini-card-wrap .card {
+  cursor: pointer;
+}
+
+/* ── Empty State ────────────────────────────────── */
+
+.dashboard__empty {
+  text-align: center;
+  padding: var(--space-xl);
+  color: var(--color-text-muted);
+  font-size: 1rem;
+}
+
+/* ── Responsive ─────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .dashboard {
+    padding: var(--space-sm);
+  }
+
+  .dashboard__card-row,
+  .dashboard__list-header {
+    font-size: 0.75rem;
+  }
+
+  .dashboard__cell--date { width: 120px; }
+  .dashboard__cell--host { width: 80px; }
+  .dashboard__cell--players { width: 70px; }
+  .dashboard__cell--time { width: 70px; }
+  .dashboard__cell--status { width: 60px; }
+  .dashboard__cell--live { width: 60px; }
+
+  .dashboard__stats {
+    flex-direction: column;
+  }
+
+  .dashboard__stat-card-wrap {
+    width: 70px;
+  }
+
+  .dashboard__stat-card-wrap .card {
+    width: 70px;
+  }
+}
