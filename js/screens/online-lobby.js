@@ -210,7 +210,7 @@ function renderConnectedLobby(state) {
         ${playerListHtml}
       </div>
       <div class="online-lobby__divider"></div>
-      ${settingsHtml}
+      ${isHost ? settingsHtml : ''}
       ${hostControls}
     </div>
   `;
@@ -231,6 +231,7 @@ function renderConnectedLobby(state) {
     <div class="screen screen--online-lobby">
       ${headerHtml}
       ${renderGameboard(boardContent)}
+      ${!isHost ? settingsHtml : ''}
       <div class="online-lobby__actions">
         <button class="btn btn--secondary" onclick="window.game.leaveRoom()">
           Leave Room
@@ -312,8 +313,7 @@ export function renderSettingsSummary(state) {
   return `
     <div id="settings-summary-panel" class="online-lobby__settings-summary">
       ${cards.map(([label, value, isOff]) => `<span class="btn ${isOff ? 'btn--secondary' : 'btn--primary'} online-lobby__summary-chip">${label ? `${label}: ${value}` : value}</span>`).join('')}
-    </div>
-    <div class="online-lobby__divider"></div>`;
+    </div>`;
 }
 
 function escapeHtml(str) {
