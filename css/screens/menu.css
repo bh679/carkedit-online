@@ -60,9 +60,14 @@
   background: color-mix(in srgb, var(--color-live) 15%, transparent);
 }
 
-.menu__version {
+.menu__versions {
   position: absolute;
   bottom: var(--space-md);
+  display: flex;
+  gap: var(--space-md);
+}
+
+.menu__version {
   font-size: 0.7rem;
   color: var(--color-text-muted);
   opacity: 0.4;
