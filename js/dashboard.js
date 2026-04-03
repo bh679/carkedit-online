@@ -15,8 +15,7 @@ let gamesCountMode = 'finished'; // 'finished' | 'total' | 'abandoned' | 'live'
 let expandedGameId = null;
 
 // Game filters
-let filterDateFrom = '';
-let filterDateTo = '';
+let filterDateRange = 'today'; // 'all' | 'today' | 'week' | 'month'
 let filterErrorsOnly = false;
 let filterDev = 'all'; // 'all' | 'dev' | 'nodev'
 let filterStatus = 'all'; // 'all' | 'finished' | 'abandoned' | 'live'
@@ -100,8 +99,20 @@ function buildGamesUrl(limit, offset) {
   const params = new URLSearchParams();
   params.set('limit', String(limit));
   params.set('offset', String(offset));
-  if (filterDateFrom) params.set('dateFrom', new Date(filterDateFrom).toISOString());
-  if (filterDateTo) params.set('dateTo', new Date(filterDateTo + 'T23:59:59').toISOString());
+  if (filterDateRange !== 'all') {
+    const now = new Date();
+    let dateFrom;
+    if (filterDateRange === 'today') {
+      dateFrom = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    } else if (filterDateRange === 'week') {
+      const day = now.getDay();
+      const diff = day === 0 ? 6 : day - 1; // Monday = start of week
+      dateFrom = new Date(now.getFullYear(), now.getMonth(), now.getDate() - diff);
+    } else if (filterDateRange === 'month') {
+      dateFrom = new Date(now.getFullYear(), now.getMonth(), 1);
+    }
+    if (dateFrom) params.set('dateFrom', dateFrom.toISOString());
+  }
   if (filterErrorsOnly) params.set('errorsOnly', 'true');
   if (filterDev !== 'all') params.set('dev', filterDev);
   if (filterStatus !== 'all') params.set('status', filterStatus);
@@ -131,10 +142,6 @@ async function loadMoreGames() {
 }
 
 async function applyGameFilters() {
-  const from = document.getElementById('filter-date-from');
-  const to = document.getElementById('filter-date-to');
-  filterDateFrom = from?.value || '';
-  filterDateTo = to?.value || '';
   await fetchGames(false);
   renderGameList();
 }
@@ -157,6 +164,13 @@ function cycleDev() {
   const opts = ['all', 'nodev', 'dev'];
   const idx = opts.indexOf(filterDev);
   filterDev = opts[(idx + 1) % opts.length];
+  applyGameFilters();
+}
+
+function cycleDateRange() {
+  const opts = ['all', 'today', 'week', 'month'];
+  const idx = opts.indexOf(filterDateRange);
+  filterDateRange = opts[(idx + 1) % opts.length];
   applyGameFilters();
 }
 
@@ -550,16 +564,15 @@ function renderGameCard(game) {
 function renderGameFilters() {
   const statusLabels = { all: 'All Status', finished: 'Finished', abandoned: 'Abandon', live: 'Live' };
   const devLabels = { all: 'All Dev', nodev: 'No Dev', dev: 'Dev Only' };
+  const dateLabels = { all: 'All Time', today: 'Today', week: 'This Week', month: 'This Month' };
   const errActive = filterErrorsOnly ? 'dashboard__filter-btn--active' : '';
   const statusActive = filterStatus !== 'all' ? 'dashboard__filter-btn--active' : '';
   const devActive = filterDev !== 'all' ? 'dashboard__filter-btn--active' : '';
+  const dateActive = filterDateRange !== 'all' ? 'dashboard__filter-btn--active' : '';
 
   return `
     <div class="dashboard__game-filters">
-      <label>From</label>
-      <input type="date" id="filter-date-from" value="${filterDateFrom}" onchange="window.dash.applyGameFilters()">
-      <label>To</label>
-      <input type="date" id="filter-date-to" value="${filterDateTo}" onchange="window.dash.applyGameFilters()">
+      <button class="dashboard__filter-btn ${dateActive}" onclick="window.dash.cycleDateRange()">${dateLabels[filterDateRange]}</button>
       <button class="dashboard__filter-btn ${errActive}" onclick="window.dash.setGameFilter('errorsOnly', ${!filterErrorsOnly})">Errors</button>
       <button class="dashboard__filter-btn ${devActive}" onclick="window.dash.cycleDev()">${devLabels[filterDev]}</button>
       <button class="dashboard__filter-btn ${statusActive}" onclick="window.dash.cycleStatus()">${statusLabels[filterStatus]}</button>
@@ -917,7 +930,7 @@ function updateRefreshTimer() {
 }
 
 // ── Init ─────────────────────────────────────────────
-window.dash = { cyclePlayTime, cycleGamesCount, toggleGame, setDeckFilter, setCardSort, previewCard, closePreview, scrollCards, loadMoreGames, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev };
+window.dash = { cyclePlayTime, cycleGamesCount, toggleGame, setDeckFilter, setCardSort, previewCard, closePreview, scrollCards, loadMoreGames, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange };
 
 document.addEventListener('DOMContentLoaded', async () => {
   renderPage();
