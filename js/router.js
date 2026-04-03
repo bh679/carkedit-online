@@ -11,7 +11,6 @@ import { render as renderJoinGame } from './screens/join-game.js';
 import { render as renderPhase1 } from './screens/phase1.js';
 import { render as renderPhase23 } from './screens/phase2-3.js';
 import { render as renderPhase4 } from './screens/phase4.js';
-import { render as renderDashboard } from './screens/dashboard.js';
 import { saveGameToHistory } from './managers/game-history.js';
 import { shuffle } from './utils/shuffle.js';
 import {
@@ -46,7 +45,6 @@ const SCREENS = {
   phase2:        (state) => renderPhase23('live', state),
   phase3:        (state) => renderPhase23('bye', state),
   phase4:        (state) => renderPhase4(state),
-  dashboard:     (state) => renderDashboard(state),
 };
 
 export function showScreen(name, updates = {}) {
@@ -431,10 +429,6 @@ window.game = {
   doneEulogy,
   pickBestEulogy,
   nextWildcard,
-  toggleGameDetail(index) {
-    const el = document.getElementById(`game-detail-${index}`);
-    if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
-  },
   setRounds(n) {
     setState({ totalRounds: Math.max(1, Math.min(10, n)) });
     showScreen('lobby');
@@ -578,7 +572,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const params = new URLSearchParams(window.location.search);
   const joinCode = params.get('join');
-  const screenParam = params.get('screen');
   if (joinCode) {
     setState({ roomCode: joinCode.toUpperCase() });
     showScreen('join-game');
@@ -587,8 +580,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const codeInput = document.getElementById('online-room-code');
       if (codeInput) codeInput.value = joinCode.toUpperCase();
     });
-  } else if (screenParam && SCREENS[screenParam]) {
-    showScreen(screenParam);
   } else {
     showScreen('menu');
   }

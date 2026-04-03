@@ -1,0 +1,230 @@
+/* CarkedIt Online — Game Dashboard (standalone page) */
+
+.dashboard {
+  min-height: 100vh;
+  background: var(--color-bg);
+  color: var(--color-text);
+  padding: var(--space-md);
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+/* ── Header ─────────────────────────────────────── */
+
+.dashboard__header {
+  margin-bottom: var(--space-md);
+}
+
+.dashboard__title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+/* ── Stats Bar ──────────────────────────────────── */
+
+.dashboard__stats {
+  display: flex;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.dashboard__stat {
+  flex: 1;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+  text-align: center;
+}
+
+.dashboard__stat--clickable {
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.dashboard__stat--clickable:hover {
+  background: var(--color-secondary);
+}
+
+.dashboard__stat-value {
+  display: block;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.dashboard__stat-label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+
+/* ── Table ──────────────────────────────────────── */
+
+.dashboard__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.dashboard__table thead th {
+  text-align: left;
+  padding: var(--space-xs) var(--space-sm);
+  color: var(--color-text-muted);
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.dashboard__row {
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+.dashboard__row td {
+  padding: var(--space-xs) var(--space-sm);
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: middle;
+}
+
+.dashboard__row:hover {
+  background: var(--color-surface);
+}
+
+/* ── Row status colors ──────────────────────────── */
+
+.dashboard__row--live {
+  background: rgba(77, 158, 77, 0.15);
+}
+
+.dashboard__row--live:hover {
+  background: rgba(77, 158, 77, 0.25);
+}
+
+.dashboard__row--abandoned {
+  opacity: 0.5;
+}
+
+.dashboard__row--error {
+  background: rgba(233, 25, 52, 0.1);
+}
+
+.dashboard__row--error:hover {
+  background: rgba(233, 25, 52, 0.2);
+}
+
+.dashboard__row--dev {
+  opacity: 0.5;
+}
+
+/* ── Cell helpers ───────────────────────────────── */
+
+.dashboard__cell--date {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Badges & Flags ─────────────────────────────── */
+
+.dashboard__badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.dashboard__badge--live {
+  background: rgba(77, 158, 77, 0.2);
+  color: var(--color-live);
+}
+
+.dashboard__badge--abandoned {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--color-text-muted);
+}
+
+.dashboard__flag {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  line-height: 20px;
+  text-align: center;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 0.75rem;
+}
+
+.dashboard__flag--error {
+  background: var(--color-danger);
+  color: var(--color-white);
+}
+
+/* ── Expanded Detail ────────────────────────────── */
+
+.dashboard__detail-row td {
+  padding: 0 !important;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.dashboard__detail {
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-surface);
+}
+
+.dashboard__players-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  margin-bottom: var(--space-xs);
+}
+
+.dashboard__players-table th {
+  text-align: left;
+  padding: 4px var(--space-xs);
+  color: var(--color-text-muted);
+  font-weight: 600;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+}
+
+.dashboard__players-table td {
+  padding: 4px var(--space-xs);
+}
+
+.dashboard__detail-settings {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin-top: var(--space-xs);
+  word-break: break-all;
+}
+
+/* ── Empty State ────────────────────────────────── */
+
+.dashboard__empty {
+  text-align: center;
+  padding: var(--space-xl);
+  color: var(--color-text-muted);
+  font-size: 1rem;
+}
+
+/* ── Responsive ─────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .dashboard__table {
+    font-size: 0.75rem;
+  }
+
+  .dashboard__table thead th,
+  .dashboard__row td {
+    padding: var(--space-xs) 4px;
+  }
+
+  .dashboard__stats {
+    flex-direction: column;
+  }
+}
