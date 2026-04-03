@@ -525,7 +525,27 @@
   padding: var(--space-sm) var(--space-md);
   flex: 1;
   min-width: 0;
+  border-left: 3px solid transparent;
+  transition: opacity 0.2s;
 }
+
+.detail__phase-card--pending {
+  opacity: 0.4;
+}
+
+.detail__phase-card--disabled {
+  opacity: 0.2;
+}
+
+.detail__phase-card--active {
+  border-left-width: 3px;
+  border-left-style: solid;
+}
+
+.detail__phase-card--active-die    { border-left-color: var(--color-die); }
+.detail__phase-card--active-live   { border-left-color: var(--color-live); }
+.detail__phase-card--active-bye    { border-left-color: var(--color-bye); }
+.detail__phase-card--active-eulogy { border-left-color: #222; }
 
 .detail__phase-header {
   display: flex;
