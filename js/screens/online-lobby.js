@@ -72,14 +72,7 @@ function renderJoinCreate(state, connecting, error) {
     </div>
   `;
 
-  const headerHtml = `
-    <header class="phase-header">
-      <div class="phase-header__left">
-        <span class="phase-header__app-name">CarkedIt</span>
-        <span class="phase-header__phase-label">Online</span>
-      </div>
-    </header>
-  `;
+  const headerHtml = renderPhaseHeader({ phase: 'online', label: 'Online' });
 
   return `
     <div class="screen screen--online-lobby">
@@ -215,15 +208,25 @@ function renderConnectedLobby(state) {
     </div>
   `;
 
+  const FLAG_ICON = `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M3 2v12" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"/>
+    <path d="M3 2h8l-2 3 2 3H3" fill="#ffffff"/>
+  </svg>`;
+
   const headerHtml = `
     <header class="phase-header">
       <div class="phase-header__left">
         <span class="phase-header__app-name">CarkedIt</span>
         <span class="phase-header__phase-label">Online Lobby</span>
       </div>
-      <button class="phase-header__settings-btn" aria-label="Copy join link" onclick="window.game.copyJoinLink()" ${roomCode ? '' : 'disabled'}>
-        ${LINK_ICON}
-      </button>
+      <div class="phase-header__right">
+        <button class="phase-header__flag-btn" aria-label="Report issue" onclick="window.game.openIssueReport()">
+          ${FLAG_ICON}
+        </button>
+        <button class="phase-header__settings-btn" aria-label="Copy join link" onclick="window.game.copyJoinLink()" ${roomCode ? '' : 'disabled'}>
+          ${LINK_ICON}
+        </button>
+      </div>
     </header>
   `;
 
