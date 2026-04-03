@@ -170,6 +170,32 @@ export function createPhase4Manager({ onStateChange, onPhaseComplete }) {
     });
   }
 
+  function getProfileCards() {
+    const state = getState();
+    const wildcardPlayerName = state.wildcardPlayers?.[state.currentWildcardIndex];
+    if (!wildcardPlayerName) return [];
+    const dieCard = state.playerDieCards?.[wildcardPlayerName];
+    const chosen = state.playerChosenCards?.[wildcardPlayerName] ?? [];
+    const liveCards = chosen.filter(c => c.deckType === 'live').map(c => ({ ...c }));
+    const byeCards = chosen.filter(c => c.deckType === 'bye').map(c => ({ ...c }));
+    return [
+      ...liveCards,
+      ...(dieCard ? [{ ...dieCard, deckType: 'die' }] : []),
+      ...byeCards,
+    ];
+  }
+
+  function inspectProfileCard(index) {
+    const card = getProfileCards()[index];
+    if (card) {
+      onStateChange({ profileInspectCard: card });
+    }
+  }
+
+  function dismissProfileCard() {
+    onStateChange({ profileInspectCard: null });
+  }
+
   function nextWildcard() {
     const state = getState();
     const nextIndex = state.currentWildcardIndex + 1;
@@ -203,5 +229,7 @@ export function createPhase4Manager({ onStateChange, onPhaseComplete }) {
     doneEulogy,
     pickBestEulogy,
     nextWildcard,
+    inspectProfileCard,
+    dismissProfileCard,
   };
 }
