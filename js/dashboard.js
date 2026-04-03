@@ -454,23 +454,73 @@ function renderPlayersCard(gd) {
     </div>`;
 }
 
+function getActivePhaseKey(status) {
+  if (!status) return null;
+  if (status.startsWith('die')) return 'die';
+  if (status.startsWith('living')) return 'living';
+  if (status.startsWith('bye')) return 'bye';
+  if (status.startsWith('eulogy')) return 'eulogy';
+  return null;
+}
+
+// Phase order for display — key matches card_plays phase values
+const PHASE_DEFS = [
+  { key: 'die',     label: 'Die',    settingKey: 'enableDie',    color: 'die' },
+  { key: 'living',  label: 'Live',   settingKey: 'enableLive',   color: 'live' },
+  { key: 'bye',     label: 'Bye',    settingKey: 'enableBye',    color: 'bye' },
+  { key: 'eulogy',  label: 'Eulogy', settingKey: 'enableEulogy', color: 'eulogy' },
+];
+
+const PHASE_ORDER = ['die', 'living', 'bye', 'eulogy'];
+
 function renderPhaseCards(gd) {
   const cardPlays = gd.card_plays || [];
-  if (cardPlays.length === 0) return '';
+  const isLive = gd.live_status === 'live';
+  const activePhase = isLive ? getActivePhaseKey(gd.status) : null;
 
-  // Group by phase + round
-  const phases = {};
-  for (const cp of cardPlays) {
-    const key = `${cp.phase}-${cp.round}`;
-    if (!phases[key]) phases[key] = { phase: cp.phase, round: cp.round, cards: [], winner: null };
-    phases[key].cards.push(cp);
-    if (cp.is_winner) phases[key].winner = cp;
+  // Parse settings to know which phases are enabled
+  let settings = {};
+  if (gd.settings_json) {
+    try { settings = JSON.parse(gd.settings_json); } catch {}
   }
 
-  const phaseCards = Object.values(phases).map(p => {
-    const phaseName = p.phase === 'die' ? 'Die' : p.phase === 'living' ? 'Live' : p.phase === 'bye' ? 'Bye' : p.phase;
-    const winnerText = p.winner ? `Winner: ${maskName(p.winner.player_name)}` : '';
-    const cardsHtml = p.cards.map(c =>
+  // Group card_plays by phase key
+  const playsByPhase = {};
+  for (const cp of cardPlays) {
+    if (!playsByPhase[cp.phase]) playsByPhase[cp.phase] = [];
+    playsByPhase[cp.phase].push(cp);
+  }
+
+  // Count distinct rounds per phase
+  function roundCount(plays) {
+    return new Set(plays.map(c => c.round)).size;
+  }
+
+  const phaseCards = PHASE_DEFS.map(def => {
+    const plays = playsByPhase[def.key] || [];
+    const hasPlays = plays.length > 0;
+    const enabled = settings[def.settingKey] !== false; // default true if setting unknown
+    const isActive = activePhase === def.key;
+
+    // Determine state: for finished games all played phases show normally
+    const activeIdx = activePhase ? PHASE_ORDER.indexOf(activePhase) : PHASE_ORDER.length;
+    const thisIdx = PHASE_ORDER.indexOf(def.key);
+    const isPast = thisIdx < activeIdx || !isLive;
+
+    let stateClass = '';
+    if (!enabled) {
+      stateClass = 'detail__phase-card--disabled';
+    } else if (isActive) {
+      stateClass = `detail__phase-card--active detail__phase-card--active-${def.color}`;
+    } else if (!isPast && !hasPlays) {
+      stateClass = 'detail__phase-card--pending';
+    }
+
+    const rounds = roundCount(plays);
+    const roundLabel = rounds > 0 ? `${rounds} round${rounds !== 1 ? 's' : ''}` : '';
+    const statsText = hasPlays ? `${plays.length} cards${roundLabel ? ' · ' + roundLabel : ''}` : (enabled ? 'Not yet' : 'Off');
+
+    const cardsHtml = plays.map(c =>
       `<div class="detail__mini-card-wrap ${c.is_winner ? 'detail__mini-card-wrap--winner' : ''}">
         ${renderMiniCard(c.card_text, c.card_deck, c.card_id)}
         <span class="detail__mini-card-player">${maskName(c.player_name)}</span>
@@ -478,12 +528,12 @@ function renderPhaseCards(gd) {
     ).join('');
 
     return `
-      <div class="detail__phase-card">
+      <div class="detail__phase-card ${stateClass}">
         <div class="detail__phase-header">
-          <span class="detail__phase-name">${phaseName} — Round ${p.round}</span>
-          <span class="detail__phase-stats">${p.cards.length} cards${winnerText ? ' · ' + winnerText : ''}</span>
+          <span class="detail__phase-name">${def.label}</span>
+          <span class="detail__phase-stats">${statsText}</span>
         </div>
-        <div class="detail__phase-cards">${cardsHtml}</div>
+        ${hasPlays ? `<div class="detail__phase-cards">${cardsHtml}</div>` : ''}
       </div>`;
   }).join('');
 
