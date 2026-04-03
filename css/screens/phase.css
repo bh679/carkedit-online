@@ -521,7 +521,7 @@
   width: 100%;
   background: var(--color-live, #30aa30);
   border-radius: 3px;
-  animation: winner-timer-fill 5s linear forwards;
+  animation: winner-timer-fill var(--winner-timer-duration, 5s) linear forwards;
   transform-origin: left;
 }
 
