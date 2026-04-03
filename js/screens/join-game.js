@@ -1,0 +1,92 @@
+// CarkedIt Online — Join Game Screen
+'use strict';
+
+import { render as renderGameboard } from '../components/gameboard.js';
+
+/**
+ * @param {object} state
+ * @returns {string} HTML string
+ */
+export function render(state) {
+  const { connectionStatus, onlineError } = state;
+  const connecting = connectionStatus === 'connecting';
+  const errorHtml = onlineError
+    ? `<p class="online-lobby__error">${escapeHtml(onlineError)}</p>`
+    : '';
+
+  const boardContent = `
+    <div class="online-lobby__forms">
+      <h2 class="online-lobby__heading">Your Details</h2>
+      <input
+        type="text"
+        id="online-player-name"
+        placeholder="Your name"
+        class="input"
+        maxlength="24"
+        ${connecting ? 'disabled' : ''}
+      >
+      <div class="online-lobby__birthday-row">
+        <select id="online-birth-month" class="input online-lobby__birthday-select" ${connecting ? 'disabled' : ''}>
+          <option value="">Birth Month</option>
+          ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+            .map((m, i) => `<option value="${i + 1}">${m}</option>`).join('')}
+        </select>
+        <select id="online-birth-day" class="input online-lobby__birthday-select" ${connecting ? 'disabled' : ''}>
+          <option value="">Birth Day</option>
+          ${Array.from({ length: 31 }, (_, i) =>
+            `<option value="${i + 1}">${i + 1}</option>`).join('')}
+        </select>
+      </div>
+
+      <div class="online-lobby__divider"></div>
+
+      <h2 class="online-lobby__heading">Join a Room</h2>
+      <div class="online-lobby__join-row">
+        <input
+          type="text"
+          id="online-room-code"
+          placeholder="Room code"
+          class="input online-lobby__code-input"
+          maxlength="5"
+          ${connecting ? 'disabled' : ''}
+        >
+        <button
+          class="btn btn--primary"
+          onclick="window.game.joinRoom()"
+          ${connecting ? 'disabled' : ''}
+        >
+          ${connecting ? 'Joining...' : 'Join'}
+        </button>
+      </div>
+
+      ${errorHtml}
+    </div>
+  `;
+
+  const headerHtml = `
+    <header class="phase-header">
+      <div class="phase-header__left">
+        <span class="phase-header__app-name">CarkedIt</span>
+        <span class="phase-header__phase-label">Join Game</span>
+      </div>
+    </header>
+  `;
+
+  return `
+    <div class="screen screen--online-lobby">
+      ${headerHtml}
+      ${renderGameboard(boardContent)}
+      <div class="online-lobby__actions">
+        <button class="btn btn--secondary" onclick="window.game.showScreen('menu')">
+          &larr; Back
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
