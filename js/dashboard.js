@@ -7,6 +7,36 @@ let stats = {};
 let playTimeMode = 'total'; // 'total' | 'average' | 'median' | 'longest'
 let expandedGameId = null;
 
+// Card data lookup (loaded from JSON files for images)
+const cardDataMap = {}; // key: `${deck}-${id}` → card object with illustrationKey
+
+async function loadCardData() {
+  const deckFiles = [
+    { file: 'js/data/cards/die.json', deck: 'die', deckType: 'die' },
+    { file: 'js/data/cards/live.json', deck: 'living', deckType: 'live' },
+    { file: 'js/data/cards/bye.json', deck: 'bye', deckType: 'bye' },
+  ];
+  await Promise.all(deckFiles.map(async ({ file, deck, deckType }) => {
+    try {
+      const res = await fetch(file);
+      if (!res.ok) return;
+      const cards = await res.json();
+      for (const c of cards) {
+        cardDataMap[`${deck}-${c.id}`] = { ...c, deck, deckType };
+      }
+    } catch {}
+  }));
+}
+
+function getCardImage(cardId, cardDeck) {
+  const data = cardDataMap[`${cardDeck}-${cardId}`];
+  if (data?.illustrationKey) {
+    const deckType = cardDeck === 'living' ? 'live' : cardDeck === 'bye' ? 'bye' : 'die';
+    return `assets/illustrations/${deckType}/${data.illustrationKey}.jpg`;
+  }
+  return null;
+}
+
 // ── PII Masking ──────────────────────────────────────
 function maskName(name) {
   if (!name || name.length <= 1) return '*';
@@ -147,18 +177,19 @@ function escAttr(str) {
   return str.replace(/&/g, '&amp;').replace(/'/g, '&#39;').replace(/"/g, '&quot;');
 }
 
-function previewCard(text, deck) {
+function previewCard(text, deck, cardId) {
   const deckType = deck === 'living' ? 'live' : deck === 'bye' ? 'bye' : 'die';
+  const imgSrc = cardId ? getCardImage(cardId, deck) : null;
   const overlay = document.getElementById('card-preview-overlay');
   if (!overlay) return;
   overlay.innerHTML = `
     <div class="preview__backdrop" onclick="window.dash.closePreview()"></div>
     <div class="preview__card-wrap">
       <div class="card card--${deckType}">
-        <div class="card__image"><div class="card__image-placeholder"></div></div>
-        <div class="card__body">
-          <h3 class="card__title">${text}</h3>
-        </div>
+        ${imgSrc
+          ? `<img src="${imgSrc}" alt="${text}" class="card__img">`
+          : `<div class="card__image"><div class="card__image-placeholder"></div></div>
+             <div class="card__body"><h3 class="card__title">${text}</h3></div>`}
       </div>
     </div>`;
   overlay.style.display = 'flex';
@@ -171,13 +202,15 @@ function closePreview() {
 
 // ── Game Detail Rendering (3-row expanded view) ──────
 
-function renderMiniCard(text, deck) {
+function renderMiniCard(text, deck, cardId) {
   const deckType = deck === 'living' ? 'live' : deck === 'bye' ? 'bye' : 'die';
+  const imgSrc = cardId ? getCardImage(cardId, deck) : null;
+  const idAttr = cardId ? `, '${escAttr(cardId)}'` : '';
   return `
-    <div class="card card--${deckType} detail__mini-card" onclick="event.stopPropagation(); window.dash.previewCard('${escAttr(text)}', '${escAttr(deck)}')">
-      <div class="card__body">
-        <h3 class="card__title">${text}</h3>
-      </div>
+    <div class="card card--${deckType} detail__mini-card" onclick="event.stopPropagation(); window.dash.previewCard('${escAttr(text)}', '${escAttr(deck)}'${idAttr})">
+      ${imgSrc
+        ? `<img src="${imgSrc}" alt="${text}" class="card__img">`
+        : `<div class="card__body"><h3 class="card__title">${text}</h3></div>`}
     </div>`;
 }
 
@@ -214,7 +247,7 @@ function renderPlayersCard(gd) {
     const cardsHtml = played.length > 0
       ? `<div class="detail__player-cards">${played.map(c =>
           `<div class="detail__mini-card-wrap ${c.is_winner ? 'detail__mini-card-wrap--winner' : ''}">
-            ${renderMiniCard(c.card_text, c.card_deck)}
+            ${renderMiniCard(c.card_text, c.card_deck, c.card_id)}
           </div>`
         ).join('')}</div>`
       : '';
@@ -255,7 +288,7 @@ function renderPhaseCards(gd) {
     const winnerText = p.winner ? `Winner: ${maskName(p.winner.player_name)}` : '';
     const cardsHtml = p.cards.map(c =>
       `<div class="detail__mini-card-wrap ${c.is_winner ? 'detail__mini-card-wrap--winner' : ''}">
-        ${renderMiniCard(c.card_text, c.card_deck)}
+        ${renderMiniCard(c.card_text, c.card_deck, c.card_id)}
         <span class="detail__mini-card-player">${maskName(c.player_name)}</span>
       </div>`
     ).join('');
@@ -397,15 +430,15 @@ function deckTypeForCard(deck) {
 
 function renderStatCard(card) {
   const deckType = deckTypeForCard(card.card_deck);
+  const imgSrc = getCardImage(card.card_id, card.card_deck);
+  const idAttr = card.card_id ? `, '${escAttr(String(card.card_id))}'` : '';
   return `
-    <div class="dashboard__stat-card-wrap" onclick="window.dash.previewCard('${escAttr(card.card_text)}', '${escAttr(card.card_deck)}')">
+    <div class="dashboard__stat-card-wrap" onclick="window.dash.previewCard('${escAttr(card.card_text)}', '${escAttr(card.card_deck)}'${idAttr})">
       <div class="card card--${deckType}">
-        <div class="card__image">
-          <div class="card__image-placeholder"></div>
-        </div>
-        <div class="card__body">
-          <h3 class="card__title">${card.card_text}</h3>
-        </div>
+        ${imgSrc
+          ? `<img src="${imgSrc}" alt="${card.card_text}" class="card__img">`
+          : `<div class="card__image"><div class="card__image-placeholder"></div></div>
+             <div class="card__body"><h3 class="card__title">${card.card_text}</h3></div>`}
       </div>
       <div class="dashboard__stat-card-data">
         <span>${card.play_count} plays</span>
@@ -477,6 +510,94 @@ function renderCardAnalytics() {
   `;
 }
 
+// ── Graphs ───────────────────────────────────────────
+
+function renderGraph() {
+  const canvas = document.getElementById('games-over-time');
+  if (!canvas || games.length === 0) return;
+
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+  const W = rect.width;
+  const H = rect.height;
+
+  // Group games by date
+  const dayCounts = {};
+  for (const g of games) {
+    const d = new Date(g.finished_at).toISOString().slice(0, 10);
+    dayCounts[d] = (dayCounts[d] || 0) + 1;
+  }
+
+  // Build sorted date range (fill gaps)
+  const dates = Object.keys(dayCounts).sort();
+  if (dates.length === 0) return;
+
+  const start = new Date(dates[0]);
+  const end = new Date(dates[dates.length - 1]);
+  const allDates = [];
+  const allCounts = [];
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    const key = d.toISOString().slice(0, 10);
+    allDates.push(key);
+    allCounts.push(dayCounts[key] || 0);
+  }
+  if (allDates.length === 0) return;
+
+  const maxCount = Math.max(...allCounts, 1);
+  const pad = { top: 20, right: 20, bottom: 30, left: 40 };
+  const plotW = W - pad.left - pad.right;
+  const plotH = H - pad.top - pad.bottom;
+
+  // Background
+  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--color-surface').trim() || '#252540';
+  ctx.fillRect(0, 0, W, H);
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+  ctx.lineWidth = 1;
+  const ySteps = Math.min(maxCount, 5);
+  for (let i = 0; i <= ySteps; i++) {
+    const y = pad.top + plotH - (i / ySteps) * plotH;
+    ctx.beginPath();
+    ctx.moveTo(pad.left, y);
+    ctx.lineTo(pad.left + plotW, y);
+    ctx.stroke();
+    // Y labels
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.font = '10px system-ui';
+    ctx.textAlign = 'right';
+    ctx.fillText(String(Math.round(i / ySteps * maxCount)), pad.left - 6, y + 3);
+  }
+
+  // Bars
+  const barW = Math.max(2, (plotW / allDates.length) - 2);
+  const primary = getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() || '#9842FF';
+  ctx.fillStyle = primary;
+
+  for (let i = 0; i < allCounts.length; i++) {
+    const x = pad.left + (i / allDates.length) * plotW + 1;
+    const barH = (allCounts[i] / maxCount) * plotH;
+    const y = pad.top + plotH - barH;
+    ctx.fillRect(x, y, barW, barH);
+  }
+
+  // X labels (show first, last, and a few in between)
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  ctx.font = '9px system-ui';
+  ctx.textAlign = 'center';
+  const labelCount = Math.min(allDates.length, 6);
+  for (let i = 0; i < labelCount; i++) {
+    const idx = Math.round(i / (labelCount - 1) * (allDates.length - 1));
+    const x = pad.left + (idx / allDates.length) * plotW + barW / 2;
+    const label = allDates[idx].slice(5); // MM-DD
+    ctx.fillText(label, x, H - 8);
+  }
+}
+
 function renderPage() {
   const app = document.getElementById('app');
   app.innerHTML = `
@@ -484,15 +605,36 @@ function renderPage() {
       <header class="dashboard__header">
         <h1 class="dashboard__title">CarkedIt — Game Dashboard</h1>
       </header>
-      <div class="dashboard__stats" id="stats-bar"></div>
-      <div class="dashboard__content" id="game-list"></div>
-      <div class="dashboard__content" id="card-analytics"></div>
+
+      <section class="dashboard__section">
+        <h2 class="dashboard__section-title">Key Stats</h2>
+        <div class="dashboard__stats" id="stats-bar"></div>
+      </section>
+
+      <section class="dashboard__section">
+        <h2 class="dashboard__section-title">Games</h2>
+        <div id="game-list"></div>
+      </section>
+
+      <section class="dashboard__section">
+        <h2 class="dashboard__section-title">Cards</h2>
+        <div id="card-analytics"></div>
+      </section>
+
+      <section class="dashboard__section">
+        <h2 class="dashboard__section-title">Graphs</h2>
+        <div class="dashboard__graph-wrap">
+          <h3 class="dashboard__graph-label">Games Over Time</h3>
+          <canvas id="games-over-time" class="dashboard__graph-canvas"></canvas>
+        </div>
+      </section>
     </div>
     <div id="card-preview-overlay" class="preview__overlay" style="display:none"></div>
   `;
   renderStats();
   renderGameList();
   renderCardAnalytics();
+  renderGraph();
 }
 
 // ── Init ─────────────────────────────────────────────
@@ -500,8 +642,9 @@ window.dash = { cyclePlayTime, toggleGame, setDeckFilter, setCardSort, previewCa
 
 document.addEventListener('DOMContentLoaded', async () => {
   renderPage();
-  await Promise.all([fetchGames(), fetchStats(), fetchCardStats()]);
+  await Promise.all([fetchGames(), fetchStats(), fetchCardStats(), loadCardData()]);
   renderStats();
   renderGameList();
   renderCardAnalytics();
+  renderGraph();
 });
