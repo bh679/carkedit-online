@@ -19,11 +19,11 @@ export function render(state) {
         <p class="menu__subtitle">How do you want to play?</p>
       </div>
       <div class="menu__actions">
-        <button class="btn btn--primary" onclick="window.game.showScreen('lobby')">
-          Shared Device
-        </button>
-        <button class="btn btn--secondary" onclick="window.game.showScreen('online-lobby')">
+        <button class="btn btn--primary" onclick="window.game.showScreen('online-lobby')">
           Online
+        </button>
+        <button class="btn btn--secondary" onclick="window.game.showScreen('lobby')">
+          Shared Device
         </button>
         <button class="btn mode-select__back-btn" onclick="window.game.showScreen('menu')">
           &larr; Back
