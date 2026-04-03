@@ -19,6 +19,7 @@ import {
   onScreenChange,
   onSettingsChange,
 } from './network/client.js';
+import { onTimerUpdate } from './managers/online-timer.js';
 import {
   startPhase1, doneDying, revealCard,
   startPhase2, startPhase3,
@@ -534,6 +535,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // Register settings change callback for partial DOM updates (no full re-render)
   onSettingsChange(() => {
     refreshAdvancedPanel();
+  });
+
+  // Register timer update callback — re-render current screen when timer ticks
+  onTimerUpdate(() => {
+    const state = getState();
+    if (state.gameMode === 'online' && (state.screen === 'phase2' || state.screen === 'phase3')) {
+      showScreen(state.screen);
+    }
   });
 
   const params = new URLSearchParams(window.location.search);

@@ -2,6 +2,7 @@
 'use strict';
 
 import { getState, setState } from '../state.js';
+import { startPlayCardTimer, clearPlayCardTimer, startPitchTimer, clearPitchTimer, clearAllTimers } from '../managers/online-timer.js';
 
 const _origin = window.location.origin;
 let _serverUrl = _origin;
@@ -387,12 +388,25 @@ function setupRoomListeners(room, onUpdate) {
         screen: lbState.screenName,
         ...lbState,
       });
+
+      // Start/stop timers based on phase
+      if (lbState.onlinePhase === 'submit' && !lbState.isLivingDead) {
+        clearPitchTimer();
+        startPlayCardTimer();
+      } else if (lbState.onlinePhase === 'convince') {
+        clearPlayCardTimer();
+        startPitchTimer();
+      } else {
+        clearAllTimers();
+      }
+
       if (_onScreenChange) _onScreenChange(lbState.screenName);
     }
 
     // Eulogy / Winner phase transitions
     const eulogyPhases = ['eulogy_intro', 'eulogy_pick', 'eulogy_speech', 'eulogy_judge', 'eulogy_points', 'winner'];
     if (eulogyPhases.includes(phase)) {
+      clearAllTimers();
       const eulogyState = syncEulogyPhaseState(room);
       console.log(`[client] Eulogy phase transition: ${phase} → phase4SubState=${eulogyState.phase4SubState}`);
       setState({
@@ -433,6 +447,8 @@ function setupRoomListeners(room, onUpdate) {
     if (state.onlinePhase === 'convince') {
       const lbState = syncLivingPhaseState(room);
       setState(lbState);
+      // Restart pitch timer for new convincer
+      startPitchTimer();
       if (_onScreenChange) _onScreenChange(state.screen);
     }
   });
@@ -717,6 +733,7 @@ export async function joinRoom(code, { name, birthMonth, birthDay }, onUpdate) {
 }
 
 export async function leaveRoom() {
+  clearAllTimers();
   if (_room) {
     await _room.leave();
     _room = null;
