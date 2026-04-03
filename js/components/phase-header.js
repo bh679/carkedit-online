@@ -8,8 +8,8 @@ const SETTINGS_ICON = `<svg width="16" height="16" viewBox="0 0 16 16" fill="non
 </svg>`;
 
 const FLAG_ICON = `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-  <path d="M3 2v12" stroke="#374151" stroke-width="1.5" stroke-linecap="round"/>
-  <path d="M3 2h8l-2 3 2 3H3" fill="#374151"/>
+  <path d="M3 2v12" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M3 2h8l-2 3 2 3H3" fill="#ffffff"/>
 </svg>`;
 
 /**

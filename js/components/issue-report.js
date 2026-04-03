@@ -9,7 +9,6 @@ const CATEGORIES = [
   { id: 'gameplay',    label: 'Gameplay Issue' },
   { id: 'card',        label: 'Card / Content Issue' },
   { id: 'ui',          label: 'UI / Display Issue' },
-  { id: 'performance', label: 'Performance Issue' },
   { id: 'other',       label: 'Other' },
 ];
 
