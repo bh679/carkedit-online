@@ -324,12 +324,21 @@
 /* Individual stat card wrapper (card + data below) */
 .dashboard__stat-card-wrap {
   flex-shrink: 0;
-  width: 120px;
+  width: calc((100% - 9 * var(--space-sm)) / 10);
+  min-width: 70px;
 }
 
 .dashboard__stat-card-wrap .card {
-  width: 120px;
-  font-size: 0.65rem;
+  width: 100%;
+  font-size: 0.55rem;
+}
+
+.dashboard__stat-card-wrap .card__body {
+  padding: 4px;
+}
+
+.dashboard__stat-card-wrap .card__title {
+  font-size: 0.5rem;
 }
 
 .dashboard__stat-card-data {
@@ -337,8 +346,8 @@
   flex-direction: column;
   align-items: center;
   gap: 1px;
-  padding-top: var(--space-xs);
-  font-size: 0.7rem;
+  padding-top: 3px;
+  font-size: 0.6rem;
   color: var(--color-text-muted);
   text-align: center;
 }
@@ -346,7 +355,7 @@
 .dashboard__stat-card-rate {
   font-weight: 700;
   color: var(--color-primary);
-  font-size: 0.85rem;
+  font-size: 0.75rem;
 }
 
 /* ── Empty State ────────────────────────────────── */
@@ -382,10 +391,6 @@
   }
 
   .dashboard__stat-card-wrap {
-    width: 100px;
-  }
-
-  .dashboard__stat-card-wrap .card {
-    width: 100px;
+    min-width: 60px;
   }
 }
