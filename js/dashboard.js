@@ -11,7 +11,7 @@ let weekStats = {};
 let monthStats = {};
 let liveStats = { activeGames: 0, activePlayers: 0 };
 let playTimeMode = 'total'; // 'total' | 'average' | 'median' | 'longest'
-let gamesCountMode = 'finished'; // 'finished' | 'total' | 'unfinished'
+let gamesCountMode = 'finished'; // 'finished' | 'total' | 'abandoned' | 'live'
 let expandedGameId = null;
 
 // Game filters
@@ -19,7 +19,7 @@ let filterDateFrom = '';
 let filterDateTo = '';
 let filterErrorsOnly = false;
 let filterDev = 'all'; // 'all' | 'dev' | 'nodev'
-let filterStatus = 'all'; // 'all' | 'finished' | 'unfinished'
+let filterStatus = 'all'; // 'all' | 'finished' | 'abandoned' | 'live'
 
 // Card data lookup (loaded from JSON files for images)
 const cardDataMap = {}; // key: `${deck}-${id}` → card object with illustrationKey
@@ -203,7 +203,8 @@ function cyclePlayTime() {
 function getGamesCountValue() {
   switch (gamesCountMode) {
     case 'total': return stats.totalGames || 0;
-    case 'unfinished': return stats.unfinishedGames || 0;
+    case 'abandoned': return stats.abandonedGames || 0;
+    case 'live': return stats.liveGames || 0;
     default: return stats.finishedGames ?? stats.totalGames ?? 0;
   }
 }
@@ -211,13 +212,14 @@ function getGamesCountValue() {
 function getGamesCountLabel() {
   switch (gamesCountMode) {
     case 'total': return 'Total Games';
-    case 'unfinished': return 'Unfinished Games';
+    case 'abandoned': return 'Abandoned Games';
+    case 'live': return 'Live Games';
     default: return 'Finished Games';
   }
 }
 
 function cycleGamesCount() {
-  const modes = ['finished', 'total', 'unfinished'];
+  const modes = ['finished', 'total', 'abandoned', 'live'];
   const idx = modes.indexOf(gamesCountMode);
   gamesCountMode = modes[(idx + 1) % modes.length];
   renderStats();
@@ -249,7 +251,8 @@ async function toggleGame(gameId) {
 function getGamesCountFromStats(s) {
   switch (gamesCountMode) {
     case 'total': return s.totalGames || 0;
-    case 'unfinished': return s.unfinishedGames || 0;
+    case 'abandoned': return s.abandonedGames || 0;
+    case 'live': return s.liveGames || 0;
     default: return s.finishedGames ?? s.totalGames ?? 0;
   }
 }
@@ -539,7 +542,8 @@ function renderGameFilters() {
       ${devBtn('dev', 'Dev Only')}
       ${statusBtn('all', 'All')}
       ${statusBtn('finished', 'Finished')}
-      ${statusBtn('unfinished', 'Unfinished')}
+      ${statusBtn('abandoned', 'Abandon')}
+      ${statusBtn('live', 'Live')}
     </div>`;
 }
 
