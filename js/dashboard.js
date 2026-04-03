@@ -200,6 +200,7 @@ function renderGameList() {
 
 // ── Card Analytics ────────────────────────────────
 let cardStats = { mostPlayed: [], leastPlayed: [], highestWinRate: [] };
+let cardDeckFilter = 'all'; // 'all' | 'die' | 'living' | 'bye'
 
 async function fetchCardStats() {
   try {
@@ -211,38 +212,81 @@ async function fetchCardStats() {
   }
 }
 
-function deckBadge(deck) {
-  const cls = deck === 'living' ? 'dashboard__deck--live' : deck === 'bye' ? 'dashboard__deck--bye' : 'dashboard__deck--die';
-  return `<span class="dashboard__deck-badge ${cls}">${deck}</span>`;
+function filterCards(cards) {
+  if (cardDeckFilter === 'all') return cards;
+  return cards.filter(c => c.card_deck === cardDeckFilter);
 }
 
-function renderCardColumn(title, cards) {
-  if (!cards || cards.length === 0) {
-    return `<div class="dashboard__card-col"><h3 class="dashboard__card-col-title">${title}</h3><p class="dashboard__card-col-empty">No data yet</p></div>`;
-  }
-  const rows = cards.map((c, i) => `
-    <div class="dashboard__card-stat-row">
-      <span class="dashboard__card-stat-rank">${i + 1}.</span>
-      ${deckBadge(c.card_deck)}
-      <span class="dashboard__card-stat-text">${c.card_text}</span>
-      <span class="dashboard__card-stat-count">${c.play_count} plays</span>
-      <span class="dashboard__card-stat-wins">${c.win_count} wins</span>
-      <span class="dashboard__card-stat-rate">${c.win_rate}%</span>
+function setDeckFilter(filter) {
+  cardDeckFilter = filter;
+  renderCardAnalytics();
+}
+
+function deckTypeForCard(deck) {
+  if (deck === 'living') return 'live';
+  if (deck === 'bye') return 'bye';
+  return 'die';
+}
+
+function renderStatCard(card) {
+  const deckType = deckTypeForCard(card.card_deck);
+  return `
+    <div class="dashboard__stat-card-wrap">
+      <div class="card card--${deckType}">
+        <div class="card__image">
+          <div class="card__image-placeholder"></div>
+        </div>
+        <div class="card__body">
+          <h3 class="card__title">${card.card_text}</h3>
+        </div>
+      </div>
+      <div class="dashboard__stat-card-data">
+        <span>${card.play_count} plays</span>
+        <span>${card.win_count} wins</span>
+        <span class="dashboard__stat-card-rate">${card.win_rate}%</span>
+      </div>
     </div>
-  `).join('');
-  return `<div class="dashboard__card-col"><h3 class="dashboard__card-col-title">${title}</h3>${rows}</div>`;
+  `;
+}
+
+function renderCardRow(title, cards) {
+  const filtered = filterCards(cards);
+  if (!filtered || filtered.length === 0) {
+    return `
+      <div class="dashboard__card-row-section">
+        <h3 class="dashboard__card-row-title">${title}</h3>
+        <p class="dashboard__card-row-empty">No data yet</p>
+      </div>`;
+  }
+  return `
+    <div class="dashboard__card-row-section">
+      <h3 class="dashboard__card-row-title">${title}</h3>
+      <div class="dashboard__card-row-scroll">
+        ${filtered.map(renderStatCard).join('')}
+      </div>
+    </div>`;
 }
 
 function renderCardAnalytics() {
   const el = document.getElementById('card-analytics');
   if (!el) return;
+
+  const filterBtn = (value, label) => {
+    const active = cardDeckFilter === value ? 'dashboard__filter-btn--active' : '';
+    return `<button class="dashboard__filter-btn ${active}" onclick="window.dash.setDeckFilter('${value}')">${label}</button>`;
+  };
+
   el.innerHTML = `
     <h2 class="dashboard__section-title">Card Analytics</h2>
-    <div class="dashboard__card-cols">
-      ${renderCardColumn('Most Played', cardStats.mostPlayed)}
-      ${renderCardColumn('Least Played', cardStats.leastPlayed)}
-      ${renderCardColumn('Highest Win Rate (3+ plays)', cardStats.highestWinRate)}
+    <div class="dashboard__filter-bar">
+      ${filterBtn('all', 'All')}
+      ${filterBtn('die', 'Die')}
+      ${filterBtn('living', 'Live')}
+      ${filterBtn('bye', 'Bye')}
     </div>
+    ${renderCardRow('Most Played', cardStats.mostPlayed)}
+    ${renderCardRow('Least Played', cardStats.leastPlayed)}
+    ${renderCardRow('Highest Win Rate (3+ plays)', cardStats.highestWinRate)}
   `;
 }
 
@@ -264,7 +308,7 @@ function renderPage() {
 }
 
 // ── Init ─────────────────────────────────────────────
-window.dash = { cyclePlayTime, toggleGame };
+window.dash = { cyclePlayTime, toggleGame, setDeckFilter };
 
 document.addEventListener('DOMContentLoaded', async () => {
   renderPage();
