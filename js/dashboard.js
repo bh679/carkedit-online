@@ -146,6 +146,20 @@ function setGameFilter(key, value) {
   applyGameFilters();
 }
 
+function cycleStatus() {
+  const opts = ['all', 'finished', 'abandoned', 'live'];
+  const idx = opts.indexOf(filterStatus);
+  filterStatus = opts[(idx + 1) % opts.length];
+  applyGameFilters();
+}
+
+function cycleDev() {
+  const opts = ['all', 'nodev', 'dev'];
+  const idx = opts.indexOf(filterDev);
+  filterDev = opts[(idx + 1) % opts.length];
+  applyGameFilters();
+}
+
 async function fetchStats() {
   try {
     const res = await fetch(`${API_BASE}/api/carkedit/games/stats`);
@@ -534,15 +548,11 @@ function renderGameCard(game) {
 }
 
 function renderGameFilters() {
-  const statusBtn = (val, label) => {
-    const active = filterStatus === val ? 'dashboard__filter-btn--active' : '';
-    return `<button class="dashboard__filter-btn ${active}" onclick="window.dash.setGameFilter('status','${val}')">${label}</button>`;
-  };
-  const devBtn = (val, label) => {
-    const active = filterDev === val ? 'dashboard__filter-btn--active' : '';
-    return `<button class="dashboard__filter-btn ${active}" onclick="window.dash.setGameFilter('dev','${val}')">${label}</button>`;
-  };
+  const statusLabels = { all: 'All Status', finished: 'Finished', abandoned: 'Abandon', live: 'Live' };
+  const devLabels = { all: 'All Dev', nodev: 'No Dev', dev: 'Dev Only' };
   const errActive = filterErrorsOnly ? 'dashboard__filter-btn--active' : '';
+  const statusActive = filterStatus !== 'all' ? 'dashboard__filter-btn--active' : '';
+  const devActive = filterDev !== 'all' ? 'dashboard__filter-btn--active' : '';
 
   return `
     <div class="dashboard__game-filters">
@@ -551,13 +561,8 @@ function renderGameFilters() {
       <label>To</label>
       <input type="date" id="filter-date-to" value="${filterDateTo}" onchange="window.dash.applyGameFilters()">
       <button class="dashboard__filter-btn ${errActive}" onclick="window.dash.setGameFilter('errorsOnly', ${!filterErrorsOnly})">Errors</button>
-      ${devBtn('all', 'All')}
-      ${devBtn('nodev', 'No Dev')}
-      ${devBtn('dev', 'Dev Only')}
-      ${statusBtn('all', 'All')}
-      ${statusBtn('finished', 'Finished')}
-      ${statusBtn('abandoned', 'Abandon')}
-      ${statusBtn('live', 'Live')}
+      <button class="dashboard__filter-btn ${devActive}" onclick="window.dash.cycleDev()">${devLabels[filterDev]}</button>
+      <button class="dashboard__filter-btn ${statusActive}" onclick="window.dash.cycleStatus()">${statusLabels[filterStatus]}</button>
     </div>`;
 }
 
@@ -761,8 +766,12 @@ function renderGraph() {
   // Group games by date
   const dayCounts = {};
   for (const g of games) {
-    const d = new Date(g.finished_at).toISOString().slice(0, 10);
-    dayCounts[d] = (dayCounts[d] || 0) + 1;
+    const dateStr = g.finished_at || g.started_at;
+    if (!dateStr) continue;
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) continue;
+    const key = d.toISOString().slice(0, 10);
+    dayCounts[key] = (dayCounts[key] || 0) + 1;
   }
 
   // Build sorted date range (fill gaps)
@@ -823,11 +832,17 @@ function renderGraph() {
   ctx.font = '9px system-ui';
   ctx.textAlign = 'center';
   const labelCount = Math.min(allDates.length, 6);
-  for (let i = 0; i < labelCount; i++) {
-    const idx = Math.round(i / (labelCount - 1) * (allDates.length - 1));
-    const x = pad.left + (idx / allDates.length) * plotW + barW / 2;
-    const label = allDates[idx].slice(5); // MM-DD
-    ctx.fillText(label, x, H - 8);
+  if (labelCount <= 1) {
+    if (allDates.length > 0) {
+      ctx.fillText(allDates[0].slice(5), pad.left + plotW / 2, H - 8);
+    }
+  } else {
+    for (let i = 0; i < labelCount; i++) {
+      const idx = Math.round(i / (labelCount - 1) * (allDates.length - 1));
+      const x = pad.left + (idx / allDates.length) * plotW + barW / 2;
+      const label = allDates[idx].slice(5); // MM-DD
+      ctx.fillText(label, x, H - 8);
+    }
   }
 }
 
@@ -840,6 +855,8 @@ function renderPage() {
           <span class="dashboard__versions">
             <span id="dash-version-client">...</span>
             <span id="dash-version-server">...</span>
+            <span id="dash-refresh-timer" class="dashboard__refresh-timer">${REFRESH_INTERVAL}s</span>
+            <button class="dashboard__refresh-btn" onclick="window.dash.refreshNow()" title="Refresh now">&#x21bb;</button>
           </span>
         </h1>
       </header>
@@ -875,8 +892,32 @@ function renderPage() {
   renderGraph();
 }
 
+// ── Auto-Refresh ────────────────────────────────────
+const REFRESH_INTERVAL = 30;
+let refreshCountdown = REFRESH_INTERVAL;
+
+async function refreshAll() {
+  await Promise.all([fetchGames(), fetchStats(), fetchPeriodStats(), fetchCardStats()]);
+  renderStats();
+  renderGameList();
+  renderCardAnalytics();
+  renderGraph();
+  refreshCountdown = REFRESH_INTERVAL;
+}
+
+function refreshNow() {
+  refreshCountdown = REFRESH_INTERVAL;
+  updateRefreshTimer();
+  refreshAll();
+}
+
+function updateRefreshTimer() {
+  const el = document.getElementById('dash-refresh-timer');
+  if (el) el.textContent = `${refreshCountdown}s`;
+}
+
 // ── Init ─────────────────────────────────────────────
-window.dash = { cyclePlayTime, cycleGamesCount, toggleGame, setDeckFilter, setCardSort, previewCard, closePreview, scrollCards, loadMoreGames, applyGameFilters, setGameFilter };
+window.dash = { cyclePlayTime, cycleGamesCount, toggleGame, setDeckFilter, setCardSort, previewCard, closePreview, scrollCards, loadMoreGames, applyGameFilters, setGameFilter, refreshNow };
 
 document.addEventListener('DOMContentLoaded', async () => {
   renderPage();
@@ -895,4 +936,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   renderGameList();
   renderCardAnalytics();
   renderGraph();
+
+  // Countdown timer — tick every second, refresh at 0
+  setInterval(() => {
+    refreshCountdown--;
+    updateRefreshTimer();
+    if (refreshCountdown <= 0) {
+      refreshAll();
+    }
+  }, 1000);
 });
