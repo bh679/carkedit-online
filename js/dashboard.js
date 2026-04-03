@@ -514,11 +514,11 @@ function renderCardAnalytics() {
   const filtered = filterCards(getActiveCards());
   const cardsHtml = filtered.length > 0
     ? `<div class="dashboard__card-row-wrapper">
-        <button class="dashboard__scroll-btn dashboard__scroll-btn--left" onclick="window.dash.scrollCards(-1)" aria-label="Scroll left">
+        <button class="dashboard__scroll-btn dashboard__scroll-btn--left" id="card-scroll-left" onclick="window.dash.scrollCards(-1)" aria-label="Scroll left" style="display:none">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
         </button>
         <div class="dashboard__card-row-scroll" id="card-scroll-row">${filtered.map(renderStatCard).join('')}</div>
-        <button class="dashboard__scroll-btn dashboard__scroll-btn--right" onclick="window.dash.scrollCards(1)" aria-label="Scroll right">
+        <button class="dashboard__scroll-btn dashboard__scroll-btn--right" id="card-scroll-right" onclick="window.dash.scrollCards(1)" aria-label="Scroll right">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
         </button>
       </div>`
@@ -540,11 +540,35 @@ function renderCardAnalytics() {
     </div>
     ${cardsHtml}
   `;
+
+  // Check arrow visibility after render, and listen for manual scroll
+  requestAnimationFrame(() => {
+    updateScrollArrows();
+    const row = document.getElementById('card-scroll-row');
+    if (row) row.addEventListener('scroll', updateScrollArrows);
+  });
 }
 
 function scrollCards(direction) {
   const el = document.getElementById('card-scroll-row');
-  if (el) el.scrollBy({ left: direction * 300, behavior: 'smooth' });
+  if (el) {
+    el.scrollBy({ left: direction * 300, behavior: 'smooth' });
+    // Update arrows after scroll animation
+    setTimeout(updateScrollArrows, 350);
+  }
+}
+
+function updateScrollArrows() {
+  const el = document.getElementById('card-scroll-row');
+  const left = document.getElementById('card-scroll-left');
+  const right = document.getElementById('card-scroll-right');
+  if (!el || !left || !right) return;
+
+  const atStart = el.scrollLeft <= 5;
+  const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 5;
+
+  left.style.display = atStart ? 'none' : 'flex';
+  right.style.display = atEnd ? 'none' : 'flex';
 }
 
 // ── Graphs ───────────────────────────────────────────
