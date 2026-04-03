@@ -7,6 +7,9 @@ let gamesTotalCount = 0;
 let gamesPageSize = 5;
 let gamesOffset = 0;
 let stats = {};
+let weekStats = {};
+let monthStats = {};
+let liveStats = { activeGames: 0, activePlayers: 0 };
 let playTimeMode = 'total'; // 'total' | 'average' | 'median' | 'longest'
 let gamesCountMode = 'finished'; // 'finished' | 'total' | 'unfinished'
 let expandedGameId = null;
@@ -153,6 +156,24 @@ async function fetchStats() {
   }
 }
 
+async function fetchPeriodStats() {
+  const now = new Date();
+  const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const monthAgo = new Date(now - 30 * 24 * 60 * 60 * 1000).toISOString();
+  try {
+    const [weekRes, monthRes, liveRes] = await Promise.all([
+      fetch(`${API_BASE}/api/carkedit/games/stats?since=${weekAgo}`),
+      fetch(`${API_BASE}/api/carkedit/games/stats?since=${monthAgo}`),
+      fetch(`${API_BASE}/api/carkedit/games/stats/live`),
+    ]);
+    if (weekRes.ok) weekStats = await weekRes.json();
+    if (monthRes.ok) monthStats = await monthRes.json();
+    if (liveRes.ok) liveStats = await liveRes.json();
+  } catch (err) {
+    console.warn('[dashboard] Failed to fetch period stats:', err);
+  }
+}
+
 // ── Play Time Display ────────────────────────────────
 function getPlayTimeValue() {
   switch (playTimeMode) {
@@ -224,22 +245,76 @@ async function toggleGame(gameId) {
   renderGameList();
 }
 
+// ── Period Sub-Card Helpers ──────────────────────────
+function getGamesCountFromStats(s) {
+  switch (gamesCountMode) {
+    case 'total': return s.totalGames || 0;
+    case 'unfinished': return s.unfinishedGames || 0;
+    default: return s.finishedGames ?? s.totalGames ?? 0;
+  }
+}
+
+function getPlayTimeFromStats(s) {
+  switch (playTimeMode) {
+    case 'average': return s.avgPlayTime || 0;
+    case 'median': return s.medianPlayTime || 0;
+    case 'longest': return s.longestPlayTime || 0;
+    default: return s.totalPlayTime || 0;
+  }
+}
+
+function getLiveGamesCount() {
+  return liveStats.activeGames || 0;
+}
+
+function getLivePlayers() {
+  return liveStats.activePlayers || 0;
+}
+
+function renderSubCards(liveVal, weekVal, monthVal, isTime) {
+  const fmt = v => isTime ? formatDuration(v) : v;
+  return `
+    <div class="dashboard__stat-breakdown">
+      <div class="dashboard__stat-sub">
+        <span class="dashboard__stat-sub-value">${fmt(liveVal)}</span>
+        <span class="dashboard__stat-sub-label">Live</span>
+      </div>
+      <div class="dashboard__stat-sub">
+        <span class="dashboard__stat-sub-value">${fmt(weekVal)}</span>
+        <span class="dashboard__stat-sub-label">Week</span>
+      </div>
+      <div class="dashboard__stat-sub">
+        <span class="dashboard__stat-sub-value">${fmt(monthVal)}</span>
+        <span class="dashboard__stat-sub-label">Month</span>
+      </div>
+    </div>`;
+}
+
 // ── Rendering ────────────────────────────────────────
 function renderStats() {
   const el = document.getElementById('stats-bar');
   if (!el) return;
   el.innerHTML = `
-    <div class="dashboard__stat dashboard__stat--clickable" onclick="window.dash.cycleGamesCount()">
-      <span class="dashboard__stat-value">${getGamesCountValue()}</span>
-      <span class="dashboard__stat-label">${getGamesCountLabel()}</span>
+    <div class="dashboard__stat-group">
+      <div class="dashboard__stat dashboard__stat--clickable" onclick="window.dash.cycleGamesCount()">
+        <span class="dashboard__stat-value">${getGamesCountValue()}</span>
+        <span class="dashboard__stat-label">${getGamesCountLabel()}</span>
+      </div>
+      ${renderSubCards(getLiveGamesCount(), getGamesCountFromStats(weekStats), getGamesCountFromStats(monthStats), false)}
     </div>
-    <div class="dashboard__stat">
-      <span class="dashboard__stat-value">${stats.totalPlayers ?? 0}</span>
-      <span class="dashboard__stat-label">Total Players</span>
+    <div class="dashboard__stat-group">
+      <div class="dashboard__stat">
+        <span class="dashboard__stat-value">${stats.totalPlayers ?? 0}</span>
+        <span class="dashboard__stat-label">Total Players</span>
+      </div>
+      ${renderSubCards(getLivePlayers(), weekStats.totalPlayers ?? 0, monthStats.totalPlayers ?? 0, false)}
     </div>
-    <div class="dashboard__stat dashboard__stat--clickable" onclick="window.dash.cyclePlayTime()">
-      <span class="dashboard__stat-value">${formatDuration(getPlayTimeValue())}</span>
-      <span class="dashboard__stat-label">${getPlayTimeLabel()}</span>
+    <div class="dashboard__stat-group">
+      <div class="dashboard__stat dashboard__stat--clickable" onclick="window.dash.cyclePlayTime()">
+        <span class="dashboard__stat-value">${formatDuration(getPlayTimeValue())}</span>
+        <span class="dashboard__stat-label">${getPlayTimeLabel()}</span>
+      </div>
+      ${renderSubCards(0, getPlayTimeFromStats(weekStats), getPlayTimeFromStats(monthStats), true)}
     </div>
   `;
 }
@@ -782,7 +857,7 @@ window.dash = { cyclePlayTime, cycleGamesCount, toggleGame, setDeckFilter, setCa
 
 document.addEventListener('DOMContentLoaded', async () => {
   renderPage();
-  await Promise.all([fetchGames(), fetchStats(), fetchCardStats(), loadCardData()]);
+  await Promise.all([fetchGames(), fetchStats(), fetchPeriodStats(), fetchCardStats(), loadCardData()]);
   renderStats();
   renderGameList();
   renderCardAnalytics();
