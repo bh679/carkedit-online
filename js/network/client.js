@@ -13,6 +13,8 @@ let _client = null;
 let _room = null;
 let _onScreenChange = null;
 let _onSettingsChange = null;
+let _lastOnUpdate = null;
+let _reconnecting = false;
 
 async function loadConfig() {
   if (_configLoaded) return;
@@ -314,6 +316,76 @@ function syncEulogyPhaseState(room) {
   };
 }
 
+/**
+ * Re-derive the correct screen from the current room state.
+ * Called when the tab becomes visible again or after reconnection
+ * to ensure the client is on the right screen.
+ */
+function resyncFromRoomState() {
+  if (!_room || !_room.state) return;
+  const room = _room;
+  const phase = room.state.phase;
+  const state = getState();
+
+  if (phase === 'lobby') {
+    if (state.screen !== 'online-lobby') {
+      setState({ screen: 'online-lobby', onlinePlayers: syncPlayersFromRoom(room) });
+      if (_onScreenChange) _onScreenChange('online-lobby');
+    }
+    return;
+  }
+
+  if (phase === 'die_phase') {
+    const dieState = syncDiePhaseState(room);
+    setState({ phase: 1, ...dieState });
+    if (_onScreenChange) _onScreenChange('phase1');
+    return;
+  }
+
+  const livingBye = ['living_submit', 'living_convince', 'living_select', 'living_winner',
+                     'bye_submit', 'bye_convince', 'bye_select', 'bye_winner'];
+  if (livingBye.includes(phase)) {
+    const lbState = syncLivingPhaseState(room);
+    const phaseNum = phase.startsWith('living') ? 2 : 3;
+    setState({ phase: phaseNum, screen: lbState.screenName, ...lbState });
+
+    if (lbState.onlinePhase === 'submit' && !lbState.isLivingDead) {
+      clearPitchTimer();
+      startPlayCardTimer();
+    } else if (lbState.onlinePhase === 'convince') {
+      clearPlayCardTimer();
+      startPitchTimer();
+    } else {
+      clearAllTimers();
+    }
+    if (_onScreenChange) _onScreenChange(lbState.screenName);
+    return;
+  }
+
+  const eulogyPhases = ['eulogy_intro', 'eulogy_pick', 'eulogy_speech', 'eulogy_judge', 'eulogy_points', 'winner'];
+  if (eulogyPhases.includes(phase)) {
+    clearAllTimers();
+    const eulogyState = syncEulogyPhaseState(room);
+    setState({ phase: 4, screen: 'phase4', ...eulogyState });
+    if (_onScreenChange) _onScreenChange('phase4');
+    return;
+  }
+
+  if (phase === 'game_over') {
+    const players = buildPlayersFromOnline(room);
+    setState({ onlinePhase: 'game_over', players, phaseComplete: true });
+    if (_onScreenChange) _onScreenChange(state.screen);
+  }
+}
+
+// Resync when the tab becomes visible again
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && _room) {
+    console.log('[client] Tab became visible — resyncing from room state');
+    resyncFromRoomState();
+  }
+});
+
 function setupRoomListeners(room, onUpdate) {
   const $ = window.Colyseus.getStateCallbacks(room);
 
@@ -604,12 +676,45 @@ function setupRoomListeners(room, onUpdate) {
   });
 
   // Room lifecycle events
-  room.onLeave((code) => {
-    setState({
-      connectionStatus: 'disconnected',
-      onlineError: code === 1000 ? null : `Disconnected (code: ${code})`,
-    });
-    _room = null;
+  room.onLeave(async (code) => {
+    // Code 1000 = intentional leave (e.g. leaveRoom()), don't reconnect
+    if (code === 1000 || _reconnecting) {
+      setState({ connectionStatus: 'disconnected', onlineError: null });
+      _room = null;
+      return;
+    }
+
+    console.log(`[client] Unexpected disconnect (code: ${code}), attempting reconnect...`);
+    setState({ connectionStatus: 'reconnecting', onlineError: null });
+    _reconnecting = true;
+
+    // Attempt reconnection using Colyseus SDK's built-in reconnect
+    // The SDK stores the reconnection token internally
+    try {
+      const client = await getColyseusClient();
+      const reconnectedRoom = await client.reconnect(room.reconnectionToken);
+      _room = reconnectedRoom;
+      _reconnecting = false;
+
+      await waitForState(reconnectedRoom);
+
+      setState({
+        connectionStatus: 'connected',
+        onlinePlayers: syncPlayersFromRoom(reconnectedRoom),
+        mySessionId: reconnectedRoom.sessionId,
+      });
+      setupRoomListeners(reconnectedRoom, _lastOnUpdate);
+      resyncFromRoomState();
+      console.log('[client] Reconnected successfully');
+    } catch (err) {
+      console.log(`[client] Reconnection failed: ${err.message}`);
+      _reconnecting = false;
+      _room = null;
+      setState({
+        connectionStatus: 'disconnected',
+        onlineError: `Disconnected — could not reconnect`,
+      });
+    }
   });
 
   room.onError((code, message) => {
@@ -678,6 +783,7 @@ export async function createRoom({ name, birthMonth, birthDay, isPrivate = true 
       mySessionId: room.sessionId,
       gameSettings: { ...state.gameSettings, ...syncGameSettingsFromRoom(room) },
     });
+    _lastOnUpdate = onUpdate;
     setupRoomListeners(room, onUpdate);
     return room;
   } catch (err) {
@@ -721,6 +827,7 @@ export async function joinRoom(code, { name, birthMonth, birthDay }, onUpdate) {
       mySessionId: room.sessionId,
       gameSettings: { ...state.gameSettings, ...syncGameSettingsFromRoom(room) },
     });
+    _lastOnUpdate = onUpdate;
     setupRoomListeners(room, onUpdate);
     return room;
   } catch (err) {
