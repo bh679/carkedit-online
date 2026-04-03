@@ -16,10 +16,11 @@ import { render as renderPlayerList } from './player-list.js';
  * @param {string} options.children - Inner HTML content unique to this screen
  * @returns {string} HTML string
  */
-export function render({ phase, label, players, playerListOptions = {}, children }) {
+export function render({ phase, label, players, playerListOptions = {}, children, roundLabel = '' }) {
+  const fullLabel = roundLabel ? `${label} - ${roundLabel}` : label;
   return `
     <div class="screen screen--phase" data-phase="${phase}">
-      ${renderPhaseHeader({ phase, label })}
+      ${renderPhaseHeader({ phase, label: fullLabel })}
       ${renderPlayerList(players, playerListOptions)}
       ${children}
     </div>

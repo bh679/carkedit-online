@@ -18,12 +18,26 @@ const PHASE_CONFIG = {
  * Shorthand for wrapping phase content in the standard layout.
  */
 function layout(config, state, playerListOptions, children) {
+  // Build round label: "Round 1 / 2 - Brennan's Dead"
+  const totalRounds = state.gameMode === 'online'
+    ? (state.rounds ?? 1)
+    : (state.totalRounds ?? 1);
+  const currentRound = state.gameMode === 'online'
+    ? (state.round ?? 0) + 1
+    : (state.phase23Round ?? 0) + 1;
+  const livingDead = state.players[state.livingDeadIndex];
+  const livingDeadName = livingDead?.name ?? '';
+  const roundLabel = livingDeadName
+    ? `Round ${currentRound} / ${totalRounds} - ${livingDeadName}'s Dead`
+    : '';
+
   return renderPhaseLayout({
     phase: config.number,
     label: config.label,
     players: state.players,
     playerListOptions,
     children,
+    roundLabel,
   });
 }
 

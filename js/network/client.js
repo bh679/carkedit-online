@@ -234,6 +234,7 @@ function syncLivingPhaseState(room) {
     myCardRevealed,
     currentCard,
     round: room.state.round,
+    rounds: room.state.rounds || 1,
     roundWinner: roundWinnerName,
     roundWinnerCard,
     // During select/winner phases, build the submittedCards map (keyed by player name)
