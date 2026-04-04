@@ -423,12 +423,11 @@ function renderSettingsCard(gd) {
 
 function renderPlayersCard(gd) {
   const cardPlays = gd.card_plays || [];
-  const isLive = gd.live_status === 'live';
   const players = (gd.players || []).map(p => {
     // Find cards this player played
     const played = cardPlays.filter(c => c.player_name === p.player_name);
     const winningCards = played.filter(c => c.is_winner);
-    const isWinner = !isLive && p.rank === 1;
+    const isWinner = false;
 
     const cardsHtml = played.length > 0
       ? `<div class="detail__player-cards">${played.map(c =>
@@ -438,7 +437,7 @@ function renderPlayersCard(gd) {
         ).join('')}</div>`
       : '';
 
-    const scoreText = isLive ? `${p.score} wins` : `${p.score} pts`;
+    const scoreText = `${p.score} wins`;
 
     return `
       <div class="detail__player ${isWinner ? 'detail__player--winner' : ''}">
@@ -506,10 +505,11 @@ function renderPhaseCards(gd) {
     const enabled = settings[def.settingKey] !== false; // default true if setting unknown
     const isActive = activePhase === def.key;
 
-    // Determine state: for finished games all played phases show normally
-    const activeIdx = activePhase ? PHASE_ORDER.indexOf(activePhase) : PHASE_ORDER.length;
+    // Determine which phases are past based on game status position
+    const statusPhase = getActivePhaseKey(gd.status);
+    const statusIdx = statusPhase ? PHASE_ORDER.indexOf(statusPhase) : PHASE_ORDER.length;
     const thisIdx = PHASE_ORDER.indexOf(def.key);
-    const isPast = thisIdx < activeIdx || !isLive;
+    const isPast = thisIdx < statusIdx;
 
     let stateClass = '';
     if (!enabled) {
