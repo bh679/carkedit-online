@@ -1,6 +1,11 @@
 /* CarkedIt Online — Game Dashboard (standalone page) */
 
 /* Override base.css mobile cap — dashboard uses landscape tablet width */
+body {
+  overflow-y: auto;
+  height: auto;
+}
+
 #app {
   max-width: 1024px;
   overflow: visible;
