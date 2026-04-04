@@ -9,9 +9,10 @@ let gamesOffset = 0;
 let stats = {};
 let weekStats = {};
 let monthStats = {};
+let dayStats = {};
 let liveStats = { activeGames: 0, activePlayers: 0 };
 let playTimeMode = 'total'; // 'total' | 'average' | 'median' | 'longest'
-let gamesCountMode = 'finished'; // 'finished' | 'total' | 'abandoned' | 'live'
+let gamesCountMode = 'finished'; // 'finished' | 'total' | 'abandoned' | 'day'
 let expandedGameId = null;
 
 // Game filters
@@ -186,14 +187,17 @@ async function fetchStats() {
 
 async function fetchPeriodStats() {
   const now = new Date();
+  const dayAgo = new Date(now - 24 * 60 * 60 * 1000).toISOString();
   const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString();
   const monthAgo = new Date(now - 30 * 24 * 60 * 60 * 1000).toISOString();
   try {
-    const [weekRes, monthRes, liveRes] = await Promise.all([
+    const [dayRes, weekRes, monthRes, liveRes] = await Promise.all([
+      fetch(`${API_BASE}/api/carkedit/games/stats?since=${dayAgo}`),
       fetch(`${API_BASE}/api/carkedit/games/stats?since=${weekAgo}`),
       fetch(`${API_BASE}/api/carkedit/games/stats?since=${monthAgo}`),
       fetch(`${API_BASE}/api/carkedit/games/stats/live`),
     ]);
+    if (dayRes.ok) dayStats = await dayRes.json();
     if (weekRes.ok) weekStats = await weekRes.json();
     if (monthRes.ok) monthStats = await monthRes.json();
     if (liveRes.ok) liveStats = await liveRes.json();
@@ -232,7 +236,7 @@ function getGamesCountValue() {
   switch (gamesCountMode) {
     case 'total': return stats.totalGames || 0;
     case 'abandoned': return stats.abandonedGames || 0;
-    case 'live': return stats.liveGames || 0;
+    case 'day': return dayStats.finishedGames ?? dayStats.totalGames ?? 0;
     default: return stats.finishedGames ?? stats.totalGames ?? 0;
   }
 }
@@ -241,13 +245,13 @@ function getGamesCountLabel() {
   switch (gamesCountMode) {
     case 'total': return 'Total Games';
     case 'abandoned': return 'Abandoned Games';
-    case 'live': return 'Live Games';
+    case 'day': return 'Games Today';
     default: return 'Finished Games';
   }
 }
 
 function cycleGamesCount() {
-  const modes = ['finished', 'total', 'abandoned', 'live'];
+  const modes = ['finished', 'total', 'abandoned', 'day'];
   const idx = modes.indexOf(gamesCountMode);
   gamesCountMode = modes[(idx + 1) % modes.length];
   renderStats();
@@ -282,7 +286,7 @@ function getGamesCountFromStats(s) {
   switch (gamesCountMode) {
     case 'total': return s.totalGames || 0;
     case 'abandoned': return s.abandonedGames || 0;
-    case 'live': return s.liveGames || 0;
+    case 'day': return s.finishedGames ?? s.totalGames ?? 0;
     default: return s.finishedGames ?? s.totalGames ?? 0;
   }
 }
@@ -683,8 +687,10 @@ function filterCards(cards) {
   return cards.filter(c => c.card_deck === cardDeckFilter);
 }
 
-function setDeckFilter(filter) {
-  cardDeckFilter = filter;
+function cycleDeckFilter() {
+  const opts = ['all', 'die', 'living', 'bye'];
+  const idx = opts.indexOf(cardDeckFilter);
+  cardDeckFilter = opts[(idx + 1) % opts.length];
   renderCardAnalytics();
 }
 
@@ -758,10 +764,8 @@ function renderCardAnalytics() {
   const el = document.getElementById('card-analytics');
   if (!el) return;
 
-  const filterBtn = (value, label) => {
-    const active = cardDeckFilter === value ? 'dashboard__filter-btn--active' : '';
-    return `<button class="dashboard__filter-btn ${active}" onclick="window.dash.setDeckFilter('${value}')">${label}</button>`;
-  };
+  const deckLabels = { all: 'All Decks', die: 'Die', living: 'Live', bye: 'Bye' };
+  const deckActive = cardDeckFilter !== 'all' ? 'dashboard__filter-btn--active' : '';
 
   const sortOption = (value, label) =>
     `<option value="${value}" ${cardSortMode === value ? 'selected' : ''}>${label}</option>`;
@@ -790,10 +794,7 @@ function renderCardAnalytics() {
         ${sortOption('highestWinRate', 'Highest Win Rate (3+ plays)')}
       </select>
       <div class="dashboard__filter-bar">
-        ${filterBtn('all', 'All')}
-        ${filterBtn('die', 'Die')}
-        ${filterBtn('living', 'Live')}
-        ${filterBtn('bye', 'Bye')}
+        <button class="dashboard__filter-btn ${deckActive}" onclick="window.dash.cycleDeckFilter()">${deckLabels[cardDeckFilter]}</button>
         <button class="dashboard__filter-btn ${cardDevActive}" onclick="window.dash.cycleCardDev()">${cardDevLabels[cardDevFilter]}</button>
       </div>
     </div>
@@ -1009,7 +1010,7 @@ function updateRefreshTimer() {
 }
 
 // ── Init ─────────────────────────────────────────────
-window.dash = { cyclePlayTime, cycleGamesCount, toggleGame, setDeckFilter, setCardSort, cycleCardDev, previewCard, closePreview, scrollCards, loadMoreGames, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange };
+window.dash = { cyclePlayTime, cycleGamesCount, toggleGame, cycleDeckFilter, setCardSort, cycleCardDev, previewCard, closePreview, scrollCards, loadMoreGames, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange };
 
 document.addEventListener('DOMContentLoaded', async () => {
   renderPage();
