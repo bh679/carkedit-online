@@ -938,7 +938,7 @@ function renderPage() {
           <span class="dashboard__versions">
             <span id="dash-version-client" class="dashboard__version-item" data-tooltip="Checking...">...<span class="version-dot version-dot--checking"></span></span>
             <span id="dash-version-server" class="dashboard__version-item" data-tooltip="Checking...">...<span class="version-dot version-dot--checking"></span></span>
-            <span id="dash-refresh-timer" class="dashboard__refresh-timer">${REFRESH_INTERVAL}s</span>
+            <span id="dash-refresh-timer" class="dashboard__refresh-timer">${REFRESH_INTERVAL_IDLE}s</span>
             <button class="dashboard__refresh-btn" onclick="window.dash.refreshNow()" title="Refresh now">&#x21bb;</button>
           </span>
         </h1>
