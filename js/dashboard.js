@@ -938,7 +938,7 @@ function renderPage() {
           <span class="dashboard__versions">
             <span id="dash-version-client" class="dashboard__version-item" data-tooltip="Checking...">...<span class="version-dot version-dot--checking"></span></span>
             <span id="dash-version-server" class="dashboard__version-item" data-tooltip="Checking...">...<span class="version-dot version-dot--checking"></span></span>
-            <span id="dash-refresh-timer" class="dashboard__refresh-timer">${REFRESH_INTERVAL}s</span>
+            <span id="dash-refresh-timer" class="dashboard__refresh-timer">${REFRESH_INTERVAL_IDLE}s</span>
             <button class="dashboard__refresh-btn" onclick="window.dash.refreshNow()" title="Refresh now">&#x21bb;</button>
           </span>
         </h1>
@@ -976,8 +976,14 @@ function renderPage() {
 }
 
 // ── Auto-Refresh ────────────────────────────────────
-const REFRESH_INTERVAL = 30;
-let refreshCountdown = REFRESH_INTERVAL;
+const REFRESH_INTERVAL_LIVE = 15;
+const REFRESH_INTERVAL_IDLE = 60;
+
+function getRefreshInterval() {
+  return liveStats.activeGames > 0 ? REFRESH_INTERVAL_LIVE : REFRESH_INTERVAL_IDLE;
+}
+
+let refreshCountdown = REFRESH_INTERVAL_IDLE;
 
 async function refreshAll() {
   await Promise.all([fetchGames(), fetchStats(), fetchPeriodStats(), fetchCardStats()]);
@@ -995,11 +1001,11 @@ async function refreshAll() {
   renderGameList();
   renderCardAnalytics();
   renderGraph();
-  refreshCountdown = REFRESH_INTERVAL;
+  refreshCountdown = getRefreshInterval();
 }
 
 function refreshNow() {
-  refreshCountdown = REFRESH_INTERVAL;
+  refreshCountdown = getRefreshInterval();
   updateRefreshTimer();
   refreshAll();
 }
@@ -1084,4 +1090,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       refreshAll();
     }
   }, 1000);
+
+  // Refresh immediately when tab/window regains focus
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      refreshAll();
+    }
+  });
 });
