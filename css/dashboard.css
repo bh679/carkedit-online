@@ -442,8 +442,8 @@ body {
 
 /* Players */
 .detail__player {
-  margin-bottom: var(--space-xs);
-  padding: var(--space-xs) 0;
+  margin-bottom: 2px;
+  padding: 2px 0;
   border-bottom: 1px solid var(--color-border);
 }
 
@@ -456,15 +456,15 @@ body {
 .detail__player-header {
   display: flex;
   align-items: center;
-  gap: var(--space-xs);
-  font-size: 0.8rem;
-  margin-bottom: 4px;
+  gap: 4px;
+  font-size: 0.7rem;
+  margin-bottom: 2px;
 }
 
 .detail__player-rank {
   color: var(--color-text-muted);
   font-weight: 600;
-  min-width: 24px;
+  min-width: 18px;
 }
 
 .detail__player-name { flex: 1; }
@@ -475,15 +475,15 @@ body {
 
 .detail__player-cards {
   display: flex;
-  gap: var(--space-xs);
-  padding-left: 28px;
+  gap: 4px;
+  padding-left: 20px;
   overflow-x: auto;
 }
 
 /* Mini cards in detail */
 .detail__mini-card-wrap {
   flex-shrink: 0;
-  width: 50px;
+  width: 40px;
   text-align: center;
 }
 
@@ -494,8 +494,8 @@ body {
 }
 
 .detail__mini-card-wrap .card {
-  width: 50px;
-  font-size: 0.4rem;
+  width: 40px;
+  font-size: 0.35rem;
 }
 
 .detail__mini-card-wrap .card__body {
@@ -503,15 +503,15 @@ body {
 }
 
 .detail__mini-card-wrap .card__title {
-  font-size: 0.35rem;
+  font-size: 0.3rem;
   line-height: 1.15;
 }
 
 .detail__mini-card-player {
-  font-size: 0.6rem;
+  font-size: 0.5rem;
   color: var(--color-text-muted);
   display: block;
-  margin-top: 2px;
+  margin-top: 1px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
