@@ -726,9 +726,11 @@ function renderStatCard(card) {
              <div class="card__body"><h3 class="card__title">${card.card_text}</h3></div>`}
       </div>
       <div class="dashboard__stat-card-data">
-        <span>${card.play_count} plays</span>
+        ${card.draw_count > 0
+          ? `<span>${card.play_rate}% played (${card.play_count}/${card.draw_count})</span>`
+          : `<span>${card.play_count} plays</span>`}
         <span>${card.win_count} wins</span>
-        <span class="dashboard__stat-card-rate">${card.win_rate}%</span>
+        <span class="dashboard__stat-card-rate">${card.win_rate}% win</span>
       </div>
     </div>
   `;
