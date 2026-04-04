@@ -683,8 +683,10 @@ function filterCards(cards) {
   return cards.filter(c => c.card_deck === cardDeckFilter);
 }
 
-function setDeckFilter(filter) {
-  cardDeckFilter = filter;
+function cycleDeckFilter() {
+  const opts = ['all', 'die', 'living', 'bye'];
+  const idx = opts.indexOf(cardDeckFilter);
+  cardDeckFilter = opts[(idx + 1) % opts.length];
   renderCardAnalytics();
 }
 
@@ -758,10 +760,8 @@ function renderCardAnalytics() {
   const el = document.getElementById('card-analytics');
   if (!el) return;
 
-  const filterBtn = (value, label) => {
-    const active = cardDeckFilter === value ? 'dashboard__filter-btn--active' : '';
-    return `<button class="dashboard__filter-btn ${active}" onclick="window.dash.setDeckFilter('${value}')">${label}</button>`;
-  };
+  const deckLabels = { all: 'All Decks', die: 'Die', living: 'Live', bye: 'Bye' };
+  const deckActive = cardDeckFilter !== 'all' ? 'dashboard__filter-btn--active' : '';
 
   const sortOption = (value, label) =>
     `<option value="${value}" ${cardSortMode === value ? 'selected' : ''}>${label}</option>`;
@@ -790,10 +790,7 @@ function renderCardAnalytics() {
         ${sortOption('highestWinRate', 'Highest Win Rate (3+ plays)')}
       </select>
       <div class="dashboard__filter-bar">
-        ${filterBtn('all', 'All')}
-        ${filterBtn('die', 'Die')}
-        ${filterBtn('living', 'Live')}
-        ${filterBtn('bye', 'Bye')}
+        <button class="dashboard__filter-btn ${deckActive}" onclick="window.dash.cycleDeckFilter()">${deckLabels[cardDeckFilter]}</button>
         <button class="dashboard__filter-btn ${cardDevActive}" onclick="window.dash.cycleCardDev()">${cardDevLabels[cardDevFilter]}</button>
       </div>
     </div>
@@ -1009,7 +1006,7 @@ function updateRefreshTimer() {
 }
 
 // ── Init ─────────────────────────────────────────────
-window.dash = { cyclePlayTime, cycleGamesCount, toggleGame, setDeckFilter, setCardSort, cycleCardDev, previewCard, closePreview, scrollCards, loadMoreGames, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange };
+window.dash = { cyclePlayTime, cycleGamesCount, toggleGame, cycleDeckFilter, setCardSort, cycleCardDev, previewCard, closePreview, scrollCards, loadMoreGames, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange };
 
 document.addEventListener('DOMContentLoaded', async () => {
   renderPage();
