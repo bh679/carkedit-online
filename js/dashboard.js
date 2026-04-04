@@ -57,6 +57,9 @@ function maskName(name) {
   return name[0] + '*'.repeat(name.length - 1);
 }
 
+// ── Responsive Helper ───────────────────────────────────
+const isMobile = () => window.matchMedia('(max-width: 768px)').matches;
+
 // ── Time Formatting ──────────────────────────────────
 function formatDuration(seconds) {
   if (!seconds && seconds !== 0) return '—';
@@ -64,6 +67,15 @@ function formatDuration(seconds) {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   if (m < 60) return `${m}m ${s}s`;
+  const h = Math.floor(m / 60);
+  return `${h}h ${m % 60}m`;
+}
+
+function formatDurationCompact(seconds) {
+  if (!seconds && seconds !== 0) return '—';
+  if (seconds < 60) return `${seconds}s`;
+  const m = Math.floor(seconds / 60);
+  if (m < 60) return `${m}m`;
   const h = Math.floor(m / 60);
   return `${h}h ${m % 60}m`;
 }
@@ -586,17 +598,45 @@ function formatTimeAgo(isoDate) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
+// Person icon SVG for player count
+const ICON_PERSON = '<svg class="dashboard__icon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>';
+
+// Colored dot for merged status-live column on mobile
+function statusDot(liveStatus) {
+  if (liveStatus === 'live') return '<span class="dashboard__dot dashboard__dot--live"></span>';
+  if (liveStatus === 'abandoned') return '<span class="dashboard__dot dashboard__dot--abandoned"></span>';
+  return '';
+}
+
 function renderGameCard(game) {
   const cls = rowClass(game);
   const expanded = expandedGameId === game.id;
   const errorFlag = game.has_error ? '<span class="dashboard__flag dashboard__flag--error" title="Error">!</span>' : '';
+  const devFlag = game.is_dev ? '<span class="dashboard__badge dashboard__badge--dev" title="Dev game">DEV</span>' : '';
   const liveLabel = liveStatusLabel(game.live_status);
   const liveBadge = liveLabel ? `<span class="dashboard__badge dashboard__badge--${game.live_status}">${liveLabel}</span>` : '';
 
   // For live/abandoned games with no finished_at, show started_at and last activity
   const isLive = game.live_status === 'live';
-  const dateDisplay = (isLive && game.started_at) ? formatDateTime(game.started_at) : formatDateTime(game.finished_at);
+  const mobile = isMobile();
+
+  // Date: relative on mobile, full on desktop
+  const dateDisplay = mobile
+    ? formatTimeAgo(game.finished_at || game.started_at)
+    : ((isLive && game.started_at) ? formatDateTime(game.started_at) : formatDateTime(game.finished_at));
+
   const lastActivity = (isLive && game.last_activity_at) ? `<span class="dashboard__cell dashboard__cell--activity" title="Last activity">${formatTimeAgo(game.last_activity_at)}</span>` : '';
+
+  // Play time: compact (no seconds) on mobile
+  const playTime = isLive
+    ? (lastActivity || '—')
+    : (mobile ? formatDurationCompact(game.duration_seconds) : formatDuration(game.duration_seconds));
+
+  // Players: number + icon (no "players" text)
+  const playersDisplay = `${game.player_count} ${ICON_PERSON}`;
+
+  // Merged status+live column for mobile
+  const statusLiveDisplay = `${statusDot(game.live_status)}${statusLabel(game.status)}`;
 
   let detail = '';
   if (expanded) {
@@ -609,10 +649,12 @@ function renderGameCard(game) {
       <div class="dashboard__card-row">
         <span class="dashboard__cell dashboard__cell--date">${dateDisplay}</span>
         <span class="dashboard__cell dashboard__cell--host">${maskName(game.host_name)}</span>
-        <span class="dashboard__cell dashboard__cell--players">${game.player_count} players</span>
-        <span class="dashboard__cell dashboard__cell--time">${isLive ? (lastActivity || '—') : formatDuration(game.duration_seconds)}</span>
+        <span class="dashboard__cell dashboard__cell--players">${playersDisplay}</span>
+        <span class="dashboard__cell dashboard__cell--time">${playTime}</span>
         <span class="dashboard__cell dashboard__cell--status">${statusLabel(game.status)}</span>
         <span class="dashboard__cell dashboard__cell--live">${liveBadge}</span>
+        <span class="dashboard__cell dashboard__cell--status-live">${statusLiveDisplay}</span>
+        <span class="dashboard__cell dashboard__cell--dev">${devFlag}</span>
         <span class="dashboard__cell dashboard__cell--error">${errorFlag}</span>
       </div>
       ${detail}
@@ -657,6 +699,7 @@ function renderGameList() {
         <span class="dashboard__cell dashboard__cell--time">Play Time</span>
         <span class="dashboard__cell dashboard__cell--status">Status</span>
         <span class="dashboard__cell dashboard__cell--live"></span>
+        <span class="dashboard__cell dashboard__cell--dev"></span>
         <span class="dashboard__cell dashboard__cell--error"></span>
       </div>
       ${games.map(renderGameCard).join('')}
