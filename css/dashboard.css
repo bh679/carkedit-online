@@ -291,6 +291,11 @@ body {
   width: 80px;
 }
 
+.dashboard__cell--dev {
+  width: 40px;
+  text-align: center;
+}
+
 .dashboard__cell--error {
   width: 30px;
   text-align: center;
@@ -373,6 +378,11 @@ body {
 .dashboard__badge--abandoned {
   background: rgba(255, 255, 255, 0.08);
   color: var(--color-text-muted);
+}
+
+.dashboard__badge--dev {
+  background: rgba(152, 66, 255, 0.2);
+  color: var(--color-primary);
 }
 
 .dashboard__flag {
@@ -908,9 +918,10 @@ body {
   .dashboard__cell--time { width: 40px; }
   .dashboard__cell--error { width: 24px; }
 
-  /* Hide separate status and live columns */
+  /* Hide separate status, live, and dev columns */
   .dashboard__cell--status { display: none; }
   .dashboard__cell--live { display: none; }
+  .dashboard__cell--dev { display: none; }
 
   /* Show merged status+live column */
   .dashboard__cell--status-live { display: inline-flex; }

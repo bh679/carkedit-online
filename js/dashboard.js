@@ -612,6 +612,7 @@ function renderGameCard(game) {
   const cls = rowClass(game);
   const expanded = expandedGameId === game.id;
   const errorFlag = game.has_error ? '<span class="dashboard__flag dashboard__flag--error" title="Error">!</span>' : '';
+  const devFlag = game.is_dev ? '<span class="dashboard__badge dashboard__badge--dev" title="Dev game">DEV</span>' : '';
   const liveLabel = liveStatusLabel(game.live_status);
   const liveBadge = liveLabel ? `<span class="dashboard__badge dashboard__badge--${game.live_status}">${liveLabel}</span>` : '';
 
@@ -653,6 +654,7 @@ function renderGameCard(game) {
         <span class="dashboard__cell dashboard__cell--status">${statusLabel(game.status)}</span>
         <span class="dashboard__cell dashboard__cell--live">${liveBadge}</span>
         <span class="dashboard__cell dashboard__cell--status-live">${statusLiveDisplay}</span>
+        <span class="dashboard__cell dashboard__cell--dev">${devFlag}</span>
         <span class="dashboard__cell dashboard__cell--error">${errorFlag}</span>
       </div>
       ${detail}
@@ -697,6 +699,7 @@ function renderGameList() {
         <span class="dashboard__cell dashboard__cell--time">Play Time</span>
         <span class="dashboard__cell dashboard__cell--status">Status</span>
         <span class="dashboard__cell dashboard__cell--live"></span>
+        <span class="dashboard__cell dashboard__cell--dev"></span>
         <span class="dashboard__cell dashboard__cell--error"></span>
       </div>
       ${games.map(renderGameCard).join('')}
