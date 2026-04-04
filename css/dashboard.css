@@ -296,6 +296,38 @@ body {
   text-align: center;
 }
 
+/* Merged status+live column — hidden on desktop */
+.dashboard__cell--status-live {
+  display: none;
+  align-items: center;
+  gap: 4px;
+  width: 70px;
+  white-space: nowrap;
+}
+
+/* Status dot indicators */
+.dashboard__dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dashboard__dot--live {
+  background: var(--color-live);
+}
+
+.dashboard__dot--abandoned {
+  background: var(--color-text-muted);
+}
+
+/* Person icon in player count */
+.dashboard__icon {
+  vertical-align: -2px;
+  opacity: 0.7;
+}
+
 /* ── Row status colors ──────────────────────────── */
 
 .dashboard__card.dashboard__row--live {
@@ -860,17 +892,28 @@ body {
     padding: var(--space-sm);
   }
 
-  .dashboard__card-row,
+  /* Hide header row — icons make columns self-describing */
   .dashboard__list-header {
+    display: none;
+  }
+
+  .dashboard__card-row {
     font-size: 0.75rem;
   }
 
-  .dashboard__cell--date { width: 120px; }
-  .dashboard__cell--host { width: 80px; }
-  .dashboard__cell--players { width: 70px; }
-  .dashboard__cell--time { width: 70px; }
-  .dashboard__cell--status { width: 60px; }
-  .dashboard__cell--live { width: 60px; }
+  /* Compact column widths */
+  .dashboard__cell--date { width: 55px; }
+  .dashboard__cell--host { width: 70px; }
+  .dashboard__cell--players { width: 40px; }
+  .dashboard__cell--time { width: 40px; }
+  .dashboard__cell--error { width: 24px; }
+
+  /* Hide separate status and live columns */
+  .dashboard__cell--status { display: none; }
+  .dashboard__cell--live { display: none; }
+
+  /* Show merged status+live column */
+  .dashboard__cell--status-live { display: inline-flex; }
 
   .dashboard__stats {
     flex-direction: column;
