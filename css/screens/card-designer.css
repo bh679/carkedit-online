@@ -1,0 +1,288 @@
+/* CarkedIt Online — Card Designer Screen */
+
+/* Override base.css body/app overflow for standalone page scrolling */
+body.page--card-designer {
+  overflow-y: auto;
+  height: auto;
+  min-height: 100dvh;
+}
+
+body.page--card-designer #app {
+  overflow: visible;
+  height: auto;
+  min-height: 100dvh;
+}
+
+.screen--card-designer {
+  overflow-y: auto;
+  padding-bottom: var(--space-xl);
+  gap: var(--space-md);
+  max-width: 480px;
+}
+
+/* Header */
+.designer__header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+}
+
+.designer__header .btn--ghost {
+  align-self: flex-start;
+}
+
+.designer__title {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--color-primary);
+}
+
+/* Error & loading */
+.designer__error {
+  color: var(--color-danger);
+  background: var(--color-danger-subtle);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  width: 100%;
+}
+
+.designer__loading {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+/* Pack list */
+.designer__pack-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  width: 100%;
+}
+
+.designer__pack-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  gap: var(--space-sm);
+}
+
+.designer__pack-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.designer__pack-title {
+  font-weight: 600;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.designer__pack-meta {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.designer__pack-actions {
+  display: flex;
+  gap: var(--space-xs);
+  flex-shrink: 0;
+}
+
+.designer__empty,
+.designer__empty-section {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  text-align: center;
+  padding: var(--space-md);
+}
+
+/* Editor */
+.designer__editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  width: 100%;
+}
+
+.designer__label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  font-weight: 600;
+  width: 100%;
+}
+
+.designer__input {
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-input-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  font-size: 0.95rem;
+  font-family: inherit;
+}
+
+.designer__input:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -1px;
+}
+
+.designer__textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+/* Section headers for deck types */
+.designer__section {
+  width: 100%;
+}
+
+.designer__section-header {
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: var(--space-xs) 0;
+  margin-top: var(--space-sm);
+  border-bottom: 2px solid var(--color-border);
+}
+
+.designer__section-header--die  { color: var(--color-die); border-color: var(--color-die); }
+.designer__section-header--live { color: var(--color-live); border-color: var(--color-live); }
+.designer__section-header--bye  { color: var(--color-bye); border-color: var(--color-bye); }
+
+/* Card rows in editor */
+.designer__card-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-xs);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.designer__card-text {
+  flex: 1;
+  font-size: 0.9rem;
+  color: var(--color-text);
+  overflow-wrap: break-word;
+  min-width: 0;
+}
+
+.designer__editor-actions {
+  display: flex;
+  gap: var(--space-sm);
+  width: 100%;
+}
+
+/* Icon buttons */
+.btn--icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 1.1rem;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+
+.btn--icon:hover {
+  background: var(--color-input-bg);
+  color: var(--color-text);
+}
+
+.btn--icon.btn--danger:hover {
+  color: var(--color-danger);
+  background: var(--color-danger-subtle);
+}
+
+/* Small button variant */
+.btn--small {
+  padding: var(--space-xs) var(--space-sm);
+  font-size: 0.8rem;
+}
+
+/* Danger button variant */
+.btn--danger {
+  color: var(--color-danger);
+}
+
+/* Card form */
+.designer__card-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  width: 100%;
+}
+
+.designer__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  width: 100%;
+}
+
+.designer__deck-picker {
+  display: flex;
+  gap: var(--space-xs);
+}
+
+.designer__deck-btn {
+  flex: 1;
+  text-align: center;
+}
+
+.designer__deck-btn--active {
+  background: var(--color-primary);
+  color: var(--color-white);
+  border-color: var(--color-primary);
+}
+
+.designer__char-count {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  text-align: right;
+  margin-top: calc(-1 * var(--space-sm));
+}
+
+/* Card preview */
+.designer__preview-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  align-items: center;
+  width: 100%;
+}
+
+.designer__preview {
+  max-width: 200px;
+  width: 100%;
+}
+
+.designer__preview .card {
+  width: 100%;
+}
+
+/* Form actions */
+.designer__form-actions {
+  display: flex;
+  gap: var(--space-sm);
+  justify-content: flex-end;
+  width: 100%;
+}
