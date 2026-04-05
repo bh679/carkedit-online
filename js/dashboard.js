@@ -374,27 +374,95 @@ function escAttr(str) {
   return str.replace(/&/g, '&amp;').replace(/'/g, '&#39;').replace(/"/g, '&quot;');
 }
 
-function previewCard(text, deck, cardId) {
-  const deckType = deck === 'living' ? 'live' : deck === 'bye' ? 'bye' : 'die';
-  const imgSrc = cardId ? getCardImage(cardId, deck) : null;
+let previewIndex = -1;
+
+function getPreviewCards() {
+  return filterCards(getActiveCards());
+}
+
+function renderPreview() {
   const overlay = document.getElementById('card-preview-overlay');
   if (!overlay) return;
+  const cards = getPreviewCards();
+  if (previewIndex < 0 || previewIndex >= cards.length) { closePreview(); return; }
+
+  const card = cards[previewIndex];
+  const deckType = deckTypeForCard(card.card_deck);
+  const imgSrc = getCardImage(card.card_id, card.card_deck);
+
+  const cardHtml = imgSrc
+    ? `<div class="card card--${deckType}"><img src="${imgSrc}" alt="${card.card_text}" class="card__img"></div>`
+    : `<div class="card card--${deckType}">
+        <div class="card__image"><div class="card__image-placeholder"></div></div>
+        <div class="card__body"><h3 class="card__title">${card.card_text}</h3></div>
+      </div>`;
+
+  const showNav = cards.length > 1;
+  const prevBtn = showNav
+    ? `<button class="hand__nav-btn hand__nav-btn--prev" onclick="event.stopPropagation(); window.dash.prevPreviewCard()">&#8249;</button>`
+    : '';
+  const nextBtn = showNav
+    ? `<button class="hand__nav-btn hand__nav-btn--next" onclick="event.stopPropagation(); window.dash.nextPreviewCard()">&#8250;</button>`
+    : '';
+
   overlay.innerHTML = `
-    <div class="preview__backdrop" onclick="window.dash.closePreview()"></div>
-    <div class="preview__card-wrap">
-      <div class="card card--${deckType}">
-        ${imgSrc
-          ? `<img src="${imgSrc}" alt="${text}" class="card__img">`
-          : `<div class="card__image"><div class="card__image-placeholder"></div></div>
-             <div class="card__body"><h3 class="card__title">${text}</h3></div>`}
+    <div class="hand__inspect-overlay hand__inspect-overlay--${deckType}" onclick="window.dash.closePreview()">
+      ${prevBtn}
+      <div class="hand__inspect-card-wrapper" onclick="event.stopPropagation()">
+        ${cardHtml}
+        <button class="btn btn--secondary hand__submit-btn" onclick="window.dash.closePreview()">Close</button>
       </div>
+      ${nextBtn}
     </div>`;
-  overlay.style.display = 'flex';
+  overlay.style.display = 'block';
+}
+
+function previewCard(text, deck, cardId) {
+  const cards = getPreviewCards();
+  previewIndex = cards.findIndex(c => String(c.card_id) === String(cardId) && c.card_deck === deck);
+  if (previewIndex === -1) {
+    // Card not in the analytics list (e.g. from game detail mini-cards) — show standalone
+    const overlay = document.getElementById('card-preview-overlay');
+    if (!overlay) return;
+    const deckType = deckTypeForCard(deck);
+    const imgSrc = cardId ? getCardImage(cardId, deck) : null;
+    const cardHtml = imgSrc
+      ? `<div class="card card--${deckType}"><img src="${imgSrc}" alt="${text}" class="card__img"></div>`
+      : `<div class="card card--${deckType}">
+          <div class="card__image"><div class="card__image-placeholder"></div></div>
+          <div class="card__body"><h3 class="card__title">${text}</h3></div>
+        </div>`;
+    overlay.innerHTML = `
+      <div class="hand__inspect-overlay hand__inspect-overlay--${deckType}" onclick="window.dash.closePreview()">
+        <div class="hand__inspect-card-wrapper" onclick="event.stopPropagation()">
+          ${cardHtml}
+          <button class="btn btn--secondary hand__submit-btn" onclick="window.dash.closePreview()">Close</button>
+        </div>
+      </div>`;
+    overlay.style.display = 'block';
+    return;
+  }
+  renderPreview();
+}
+
+function prevPreviewCard() {
+  const cards = getPreviewCards();
+  if (!cards.length) return;
+  previewIndex = (previewIndex - 1 + cards.length) % cards.length;
+  renderPreview();
+}
+
+function nextPreviewCard() {
+  const cards = getPreviewCards();
+  if (!cards.length) return;
+  previewIndex = (previewIndex + 1) % cards.length;
+  renderPreview();
 }
 
 function closePreview() {
   const overlay = document.getElementById('card-preview-overlay');
   if (overlay) { overlay.style.display = 'none'; overlay.innerHTML = ''; }
+  previewIndex = -1;
 }
 
 // ── Game Detail Rendering (3-row expanded view) ──────
@@ -1028,7 +1096,7 @@ function renderPage() {
         </div>
       </section>
     </div>
-    <div id="card-preview-overlay" class="preview__overlay" style="display:none"></div>
+    <div id="card-preview-overlay" style="display:none"></div>
   `;
   renderStats();
   renderGameList();
@@ -1077,7 +1145,7 @@ function updateRefreshTimer() {
 }
 
 // ── Init ─────────────────────────────────────────────
-window.dash = { cyclePlayTime, cycleGamesCount, toggleGame, cycleDeckFilter, setCardSort, toggleCardSortDir, cycleCardDev, previewCard, closePreview, scrollCards, loadMoreGames, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange };
+window.dash = { cyclePlayTime, cycleGamesCount, toggleGame, cycleDeckFilter, setCardSort, toggleCardSortDir, cycleCardDev, previewCard, closePreview, prevPreviewCard, nextPreviewCard, scrollCards, loadMoreGames, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange };
 
 document.addEventListener('DOMContentLoaded', async () => {
   renderPage();

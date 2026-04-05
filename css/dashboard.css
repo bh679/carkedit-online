@@ -853,33 +853,6 @@ body {
   font-size: 0.75rem;
 }
 
-/* ── Card Preview Modal ─────────────────────────── */
-
-.preview__overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.preview__backdrop {
-  position: absolute;
-  inset: 0;
-  background: var(--color-overlay-dim);
-}
-
-.preview__card-wrap {
-  position: relative;
-  z-index: 1;
-  width: 240px;
-}
-
-.preview__card-wrap .card {
-  width: 240px;
-}
-
 /* Make all rendered cards show pointer cursor */
 .dashboard__stat-card-wrap,
 .detail__mini-card-wrap .card {
