@@ -3,6 +3,7 @@
 
 import { getState, setState } from '../state.js';
 import { startPlayCardTimer, clearPlayCardTimer, startPitchTimer, clearPitchTimer, clearAllTimers } from '../managers/online-timer.js';
+import { startRevealSequence, clearRevealTimer } from '../managers/reveal-timer.js';
 import { saveGameToHistory } from '../managers/game-history.js';
 
 const _origin = window.location.origin;
@@ -146,6 +147,9 @@ function syncLivingPhaseState(room) {
   let screenName = null;
   if (serverPhase === 'living_submit' || serverPhase === 'bye_submit') {
     onlinePhase = 'submit';
+    screenName = serverPhase.startsWith('living') ? 'phase2' : 'phase3';
+  } else if (serverPhase === 'living_reveal' || serverPhase === 'bye_reveal') {
+    onlinePhase = 'reveal';
     screenName = serverPhase.startsWith('living') ? 'phase2' : 'phase3';
   } else if (serverPhase === 'living_convince' || serverPhase === 'bye_convince') {
     onlinePhase = 'convince';
@@ -353,8 +357,8 @@ function resyncFromRoomState() {
     return;
   }
 
-  const livingBye = ['living_submit', 'living_convince', 'living_select', 'living_winner',
-                     'bye_submit', 'bye_convince', 'bye_select', 'bye_winner'];
+  const livingBye = ['living_submit', 'living_reveal', 'living_convince', 'living_select', 'living_winner',
+                     'bye_submit', 'bye_reveal', 'bye_convince', 'bye_select', 'bye_winner'];
   if (livingBye.includes(phase)) {
     const lbState = syncLivingPhaseState(room);
     const phaseNum = phase.startsWith('living') ? 2 : 3;
@@ -362,12 +366,19 @@ function resyncFromRoomState() {
 
     if (lbState.onlinePhase === 'submit' && !lbState.isLivingDead) {
       clearPitchTimer();
+      clearRevealTimer();
       startPlayCardTimer();
+    } else if (lbState.onlinePhase === 'reveal') {
+      clearAllTimers();
+      // Start reveal animation after DOM renders
+      requestAnimationFrame(() => startRevealSequence());
     } else if (lbState.onlinePhase === 'convince') {
       clearPlayCardTimer();
+      clearRevealTimer();
       startPitchTimer();
     } else {
       clearAllTimers();
+      clearRevealTimer();
     }
     if (_onScreenChange) _onScreenChange(lbState.screenName);
     return;
@@ -460,8 +471,8 @@ function setupRoomListeners(room, onUpdate) {
     }
 
     // Living / Bye phase transitions
-    const livingBye = ['living_submit', 'living_convince', 'living_select', 'living_winner',
-                       'bye_submit', 'bye_convince', 'bye_select', 'bye_winner'];
+    const livingBye = ['living_submit', 'living_reveal', 'living_convince', 'living_select', 'living_winner',
+                       'bye_submit', 'bye_reveal', 'bye_convince', 'bye_select', 'bye_winner'];
     if (livingBye.includes(phase)) {
       const lbState = syncLivingPhaseState(room);
       const phaseNum = phase.startsWith('living') ? 2 : 3;
@@ -475,12 +486,21 @@ function setupRoomListeners(room, onUpdate) {
       // Start/stop timers based on phase
       if (lbState.onlinePhase === 'submit' && !lbState.isLivingDead) {
         clearPitchTimer();
+        clearRevealTimer();
         startPlayCardTimer();
+      } else if (lbState.onlinePhase === 'reveal') {
+        clearAllTimers();
+        // Start reveal animation after DOM renders
+        if (_onScreenChange) _onScreenChange(lbState.screenName);
+        requestAnimationFrame(() => startRevealSequence());
+        return;
       } else if (lbState.onlinePhase === 'convince') {
         clearPlayCardTimer();
+        clearRevealTimer();
         startPitchTimer();
       } else {
         clearAllTimers();
+        clearRevealTimer();
       }
 
       if (_onScreenChange) _onScreenChange(lbState.screenName);

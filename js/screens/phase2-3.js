@@ -8,6 +8,7 @@ import { render as renderCard } from '../components/card.js';
 import { render as renderCardGrid } from '../components/card-grid.js';
 import { render as renderLivingDeadProfile } from '../components/living-dead-profile.js';
 import { render as renderPassPhone } from '../components/pass-phone.js';
+import { render as renderCardBack } from '../components/cardBack.js';
 
 const PHASE_CONFIG = {
   live: { number: '2', label: 'Phase 2 - LIVE', deckType: 'live', nextScreen: 'phase3' },
@@ -361,6 +362,8 @@ function renderOnline(phase, config, state) {
   switch (state.onlinePhase) {
     case 'submit':
       return renderOnlineSubmit(config, state, playerListOptions, livingDead, livingDeadName);
+    case 'reveal':
+      return renderOnlineReveal(config, state, playerListOptions);
     case 'convince':
       return renderOnlineConvince(config, state, playerListOptions, livingDeadName);
     case 'select':
@@ -423,6 +426,41 @@ function renderOnlineSubmit(config, state, playerListOptions, livingDead, living
     })}
     ${playCardTimerHtml}
     ${renderHand(state.hand ?? [], { selectedCard: state.selectedCard, deckType: config.deckType })}
+  `);
+}
+
+function renderOnlineReveal(config, state, playerListOptions) {
+  const revealIndex = state.revealIndex ?? 0;
+  const cards = state.onlineSubmittedCards ?? [];
+
+  const items = cards.map((card, i) => {
+    const alreadyRevealed = i < revealIndex;
+    if (alreadyRevealed) {
+      // Already flipped — show face-up directly (no animation)
+      return `
+        <div class="card-grid__item">
+          ${renderCard({ ...card, deckType: card.deckType || config.deckType })}
+          <span class="card-grid__label">Card ${i + 1}</span>
+        </div>
+      `;
+    }
+    // Not yet revealed — flip container (back showing, front hidden)
+    return `
+      <div class="card-grid__item card-flip" data-reveal-index="${i}">
+        <div class="card-flip__inner">
+          <div class="card-flip__back">${renderCardBack({ deckType: config.deckType })}</div>
+          <div class="card-flip__front">${renderCard({ ...card, deckType: card.deckType || config.deckType })}</div>
+        </div>
+        <span class="card-grid__label">Card ${i + 1}</span>
+      </div>
+    `;
+  }).join('');
+
+  return layout(config, state, playerListOptions, `
+    <div class="judging">
+      <h2 class="judging__title">Revealing cards...</h2>
+      <div class="card-grid card-grid--cols-2">${items}</div>
+    </div>
   `);
 }
 
