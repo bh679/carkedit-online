@@ -15,14 +15,14 @@ export function renderAuthButton(state) {
       <div class="auth-bar">
         ${avatar}
         <span class="auth-bar__name">${name}</span>
-        <button class="btn btn--small" onclick="window.game.logOut()">Log Out</button>
+        <button class="btn btn--ghost" onclick="window.game.logOut()">Log Out</button>
       </div>
     `;
   }
 
   return `
     <div class="auth-bar">
-      <button class="btn btn--small btn--primary" onclick="window.game.showLogin()">Sign In</button>
+      <button class="btn btn--ghost" onclick="window.game.showLogin()">Sign In</button>
     </div>
   `;
 }

@@ -15,6 +15,10 @@ export function render(state) {
     ? `<p class="online-lobby__error">${escapeHtml(onlineError)}</p>`
     : '';
 
+  const prefillName = state.authUser?.display_name || '';
+  const prefillBM = state.authUser?.birth_month || 0;
+  const prefillBD = state.authUser?.birth_day || 0;
+
   const boardContent = `
     <div class="online-lobby__forms">
       <h2 class="online-lobby__heading">Your Details</h2>
@@ -24,18 +28,19 @@ export function render(state) {
         placeholder="Your name"
         class="input"
         maxlength="24"
+        value="${escapeHtml(prefillName)}"
         ${connecting ? 'disabled' : ''}
       >
       <div class="online-lobby__birthday-row">
         <select id="online-birth-month" class="input online-lobby__birthday-select" ${connecting ? 'disabled' : ''}>
           <option value="">Birth Month</option>
           ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-            .map((m, i) => `<option value="${i + 1}">${m}</option>`).join('')}
+            .map((m, i) => `<option value="${i + 1}"${prefillBM === i + 1 ? ' selected' : ''}>${m}</option>`).join('')}
         </select>
         <select id="online-birth-day" class="input online-lobby__birthday-select" ${connecting ? 'disabled' : ''}>
           <option value="">Birth Day</option>
           ${Array.from({ length: 31 }, (_, i) =>
-            `<option value="${i + 1}">${i + 1}</option>`).join('')}
+            `<option value="${i + 1}"${prefillBD === i + 1 ? ' selected' : ''}>${i + 1}</option>`).join('')}
         </select>
       </div>
 

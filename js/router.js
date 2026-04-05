@@ -537,9 +537,10 @@ window.game = {
         return;
       }
     }
+    const userId = getState().authUser?.id || '';
     try {
       await networkCreateRoom(
-        { name, birthMonth, birthDay, isPrivate: true, isDevName, devMode },
+        { name, birthMonth, birthDay, isPrivate: true, isDevName, devMode, userId },
         () => { if (getState().screen === 'online-lobby') showScreen('online-lobby'); },
       );
       showScreen('online-lobby');
@@ -587,10 +588,11 @@ window.game = {
         return;
       }
     }
+    const userId = getState().authUser?.id || '';
     try {
       await networkJoinRoom(
         code,
-        { name, birthMonth, birthDay, isDevName },
+        { name, birthMonth, birthDay, isDevName, userId },
         () => { if (getState().screen === 'online-lobby') showScreen('online-lobby'); },
       );
       showScreen('online-lobby');
@@ -663,13 +665,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Initialize Firebase Auth (async, non-blocking)
   initAuth(() => {
-    // Re-render current screen when auth state changes
+    // Re-render current screen and login modal when auth state changes
     const state = getState();
     showScreen(state.screen);
-    // Close login modal on successful auth
-    if (state.authUser && state.showLoginModal) {
-      window.game.hideLogin();
-    }
+    renderLoginModalOverlay();
   });
 
   // Register screen change callback for server-driven transitions

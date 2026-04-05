@@ -786,7 +786,7 @@ function syncGameSettingsFromRoom(room) {
   return settings;
 }
 
-export async function createRoom({ name, birthMonth, birthDay, isPrivate = true, isDevName = false, devMode = false }, onUpdate) {
+export async function createRoom({ name, birthMonth, birthDay, isPrivate = true, isDevName = false, devMode = false, userId = '' }, onUpdate) {
   setState({ connectionStatus: 'connecting', onlineError: null });
   try {
     const client = await getColyseusClient();
@@ -797,6 +797,7 @@ export async function createRoom({ name, birthMonth, birthDay, isPrivate = true,
       private: isPrivate,
       isDevName,
       devMode,
+      userId,
     });
     _room = room;
 
@@ -824,7 +825,7 @@ export async function createRoom({ name, birthMonth, birthDay, isPrivate = true,
   }
 }
 
-export async function joinRoom(code, { name, birthMonth, birthDay, isDevName = false }, onUpdate) {
+export async function joinRoom(code, { name, birthMonth, birthDay, isDevName = false, userId = '' }, onUpdate) {
   setState({ connectionStatus: 'connecting', onlineError: null });
   try {
     await loadConfig();
@@ -843,6 +844,7 @@ export async function joinRoom(code, { name, birthMonth, birthDay, isDevName = f
       birthMonth: birthMonth || 0,
       birthDay: birthDay || 0,
       isDevName,
+      userId,
     });
     _room = room;
 
