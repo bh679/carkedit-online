@@ -380,6 +380,30 @@ function getPreviewCards() {
   return filterCards(getActiveCards());
 }
 
+function renderPreviewStats(card) {
+  if (!card) return '';
+  const draws = card.draw_count || 0;
+  return `
+    <div class="preview__stats">
+      <div class="preview__stat">
+        <span class="preview__stat-value">${card.play_count}/${draws}</span>
+        <span class="preview__stat-label">Plays / Draws</span>
+      </div>
+      <div class="preview__stat">
+        <span class="preview__stat-value">${draws > 0 ? card.play_rate + '%' : '—'}</span>
+        <span class="preview__stat-label">Play Rate</span>
+      </div>
+      <div class="preview__stat">
+        <span class="preview__stat-value">${card.win_count}</span>
+        <span class="preview__stat-label">Wins</span>
+      </div>
+      <div class="preview__stat">
+        <span class="preview__stat-value">${card.win_rate}%</span>
+        <span class="preview__stat-label">Win Rate</span>
+      </div>
+    </div>`;
+}
+
 function renderPreview() {
   const overlay = document.getElementById('card-preview-overlay');
   if (!overlay) return;
@@ -410,6 +434,7 @@ function renderPreview() {
       ${prevBtn}
       <div class="hand__inspect-card-wrapper" onclick="event.stopPropagation()">
         ${cardHtml}
+        ${renderPreviewStats(card)}
         <button class="btn btn--secondary hand__submit-btn" onclick="window.dash.closePreview()">Close</button>
       </div>
       ${nextBtn}
