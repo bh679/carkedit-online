@@ -48,6 +48,11 @@
   --color-live-light: #A8D5A8;
   --color-bye-light:  #B0C4DE;
 
+  /* ── Deck dark variants ──────────────────────────────── */
+  --color-die-dark:   #B8860B;
+  --color-live-dark:  #2E6E2E;
+  --color-bye-dark:   #4A6A8A;
+
   /* ── Prompt card ────────────────────────────────────── */
   --color-prompt-bg:          #000000;
   --color-prompt-border:      #000000;
