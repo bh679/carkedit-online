@@ -14,6 +14,7 @@ const FIREBASE_CONFIG = {
 let firebaseAuth = null;
 let authToken = null;
 let authUser = null; // local user from /users/me
+let firebaseUserInfo = null; // { displayName, photoURL, email }
 
 async function loadFirebaseAuth() {
   const [appMod, authMod] = await Promise.all([
@@ -1115,12 +1116,27 @@ function renderGraph() {
   }
 }
 
+function renderAuthBar() {
+  const name = authUser?.display_name || firebaseUserInfo?.displayName || 'Admin';
+  const avatar = firebaseUserInfo?.photoURL
+    ? `<img class="auth-bar__avatar" src="${firebaseUserInfo.photoURL}" alt="" />`
+    : '';
+  return `
+    <div class="auth-bar" style="position:absolute;top:var(--space-md,1rem);right:var(--space-md,1rem);z-index:10">
+      ${avatar}
+      <span class="auth-bar__name">${name}</span>
+      <a href="/admin-users.html" class="btn btn--ghost" style="font-size:0.85em;text-decoration:none">Users</a>
+      <button class="btn btn--ghost" style="font-size:0.85em" onclick="window.dash.signOut()">Sign Out</button>
+    </div>`;
+}
+
 function renderPage() {
   const app = document.getElementById('app');
   app.innerHTML = `
-    <div class="dashboard">
+    <div class="dashboard" style="position:relative">
+      ${renderAuthBar()}
       <header class="dashboard__header">
-        <h1 class="dashboard__title"><a href="/" class="dashboard__play-link">&#9654; Play</a> CarkedIt — Game Dashboard <a href="/admin-users.html" class="btn btn--ghost" style="font-size:0.5em;vertical-align:middle;margin-left:0.5em;text-decoration:none">Users</a> <button class="btn btn--ghost" onclick="window.dash.signOut()" style="font-size:0.5em;vertical-align:middle">Sign Out</button>
+        <h1 class="dashboard__title"><a href="/" class="dashboard__play-link">&#9654; Play</a> CarkedIt — Game Dashboard
           <span class="dashboard__versions">
             <span id="dash-version-client" class="dashboard__version-item" data-tooltip="Checking...">...<span class="version-dot version-dot--checking"></span></span>
             <span id="dash-version-server" class="dashboard__version-item" data-tooltip="Checking...">...<span class="version-dot version-dot--checking"></span></span>
@@ -1376,10 +1392,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     authMod.onAuthStateChanged(firebaseAuth, async (user) => {
       if (user) {
         authToken = await user.getIdToken();
+        firebaseUserInfo = { displayName: user.displayName, photoURL: user.photoURL, email: user.email };
         await checkAdminAndBoot();
       } else {
         authToken = null;
         authUser = null;
+        firebaseUserInfo = null;
         renderAuthGate('Sign in to access the dashboard.');
       }
     });

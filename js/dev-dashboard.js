@@ -955,6 +955,32 @@ async function init() {
 window.devDash = { switchDeck: miniSwitchDeck, nextCard: miniNextCard, showMore, toggleDoc };
 
 // ── Admin Auth Gate ─────────────────────────────────
+let _fbAuth = null;
+let _fbUserInfo = null;
+
+function injectAuthBar() {
+  const meta = document.querySelector('.dash-header__meta');
+  if (!meta || !_fbUserInfo) return;
+  const name = _fbUserInfo.displayName || 'Admin';
+  const avatar = _fbUserInfo.photoURL
+    ? `<img class="auth-bar__avatar" src="${_fbUserInfo.photoURL}" alt="" />`
+    : '';
+  const bar = document.createElement('div');
+  bar.className = 'auth-bar';
+  bar.style.cssText = 'margin-left:auto;';
+  bar.innerHTML = `${avatar}<span class="auth-bar__name">${name}</span>
+    <a href="/admin-users.html" class="btn btn--ghost" style="font-size:0.75rem;text-decoration:none;padding:0.3rem 0.6rem">Users</a>
+    <button class="btn btn--ghost" style="font-size:0.75rem;padding:0.3rem 0.6rem" id="dev-sign-out">Sign Out</button>`;
+  meta.appendChild(bar);
+  document.getElementById('dev-sign-out')?.addEventListener('click', async () => {
+    if (_fbAuth) {
+      const { signOut } = await import('https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js');
+      await signOut(_fbAuth);
+    }
+    window.location.href = '/';
+  });
+}
+
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyC6QJz6jTzJkBWV7Shd9XpCfHWrovJ9vaI",
   authDomain: "carkedit-5cc8e.firebaseapp.com",
@@ -984,6 +1010,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     ]);
     const fbApp = appMod.initializeApp(FIREBASE_CONFIG);
     const fbAuth = authMod.getAuth(fbApp);
+    _fbAuth = fbAuth;
 
     authMod.onAuthStateChanged(fbAuth, async (user) => {
       if (!user) {
@@ -1005,7 +1032,9 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (!bRes.ok) { window.location.href = '/'; return; }
         }
       } catch { window.location.href = '/'; return; }
-      init();
+      _fbUserInfo = { displayName: user.displayName, photoURL: user.photoURL, email: user.email };
+      await init();
+      injectAuthBar();
     });
   } catch (err) {
     console.warn('[dev-dashboard] Firebase init failed:', err);

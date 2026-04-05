@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CarkedIt — User Management</title>
-    <link rel="stylesheet" href="css/base.css?v=1.06.0050">
-    <link rel="stylesheet" href="css/dashboard.css?v=1.06.0050">
+    <link rel="stylesheet" href="css/base.css?v=1.06.0051">
+    <link rel="stylesheet" href="css/components/auth.css?v=1.06.0051">
+    <link rel="stylesheet" href="css/dashboard.css?v=1.06.0051">
     <style>
         .admin-users { max-width: 900px; margin: 0 auto; padding: 1.5rem; }
         .admin-users__header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.5rem; }
@@ -44,6 +45,7 @@
 
     let firebaseAuth = null;
     let authToken = null;
+    let fbUserInfo = null;
 
     async function loadFirebaseAuth() {
       const [appMod, authMod] = await Promise.all([
@@ -107,7 +109,9 @@
         <div class="admin-users">
           <div class="admin-users__header">
             <h1 class="admin-users__title">User Management <span class="admin-users__count">(${users.length} users)</span></h1>
-            <div class="admin-users__nav">
+            <div class="auth-bar">
+              ${fbUserInfo?.photoURL ? `<img class="auth-bar__avatar" src="${fbUserInfo.photoURL}" alt="" />` : ''}
+              <span class="auth-bar__name">${fbUserInfo?.displayName || 'Admin'}</span>
               <a href="/dashboard.html" class="btn btn--ghost">Dashboard</a>
               <button class="btn btn--ghost" id="sign-out-btn">Sign Out</button>
             </div>
@@ -203,9 +207,11 @@
       authMod.onAuthStateChanged(firebaseAuth, async (user) => {
         if (user) {
           authToken = await user.getIdToken();
+          fbUserInfo = { displayName: user.displayName, photoURL: user.photoURL, email: user.email };
           await boot();
         } else {
           authToken = null;
+          fbUserInfo = null;
           renderGate('Sign in to access user management.', true);
         }
       });
