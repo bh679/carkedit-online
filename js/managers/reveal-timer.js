@@ -7,20 +7,26 @@ import { sendMessage } from '../network/client.js';
 
 let _revealTimer = null;
 let _revealIndex = 0;
+let _revealStarted = false;
 
 /**
- * Start the card reveal sequence.
+ * Start the card reveal sequence (idempotent — safe to call multiple times).
  * Flips one card every 1.5s via CSS class, then sends reveal_complete after a 2s pause.
  * Does NOT trigger re-renders — the flip is pure CSS class toggling on existing DOM.
  * revealIndex is stored in state so that if a Colyseus sync triggers a re-render,
  * already-flipped cards are rendered face-up directly (no animation wrapper).
  */
 export function startRevealSequence() {
-  clearRevealTimer();
+  if (_revealStarted) return; // already running — don't restart
+  _revealStarted = true;
+
   _revealIndex = 0;
   const state = getState();
   const totalCards = (state.onlineSubmittedCards ?? []).length;
-  if (totalCards === 0) return;
+  if (totalCards === 0) {
+    _revealStarted = false;
+    return;
+  }
 
   setState({ revealIndex: 0 });
 
@@ -30,15 +36,14 @@ export function startRevealSequence() {
       el.classList.add('card-flip--revealed');
     }
     _revealIndex++;
-    // Update state silently (no re-render) — only used if DOM is rebuilt mid-animation
     setState({ revealIndex: _revealIndex });
 
     if (_revealIndex >= totalCards) {
       clearInterval(_revealTimer);
-      _revealTimer = null;
-      // Wait 2 seconds after last card, then advance to convince phase
+      // Assign timeout handle immediately (no null gap)
       _revealTimer = setTimeout(() => {
         _revealTimer = null;
+        _revealStarted = false;
         sendMessage('reveal_complete');
       }, 2000);
     }
@@ -52,4 +57,5 @@ export function clearRevealTimer() {
     _revealTimer = null;
   }
   _revealIndex = 0;
+  _revealStarted = false;
 }
