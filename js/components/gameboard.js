@@ -81,11 +81,15 @@ export function render(promptCard = '', hint = '', {
   }
 
   // During pitching, show the pitching player's card in the main card area
+  // Card stays face-down until the pitcher clicks "Reveal My Card"
   let mainCardHtml = promptCard;
   if (pitchingPlayer && playedCards[pitchingPlayer]) {
     const card = playedCards[pitchingPlayer];
+    const cardRender = card.faceUp
+      ? renderCard({ ...card, deckType: card.deckType || deckType })
+      : renderCardBack({ deckType: card.deckType || deckType });
     mainCardHtml = renderActiveCard(
-      renderCard({ ...card, deckType: card.deckType || deckType }),
+      cardRender,
       { label: `${pitchingPlayer}'s card` },
     );
   }
