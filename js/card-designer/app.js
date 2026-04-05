@@ -61,7 +61,6 @@ function renderPackList() {
   return `
     <div class="screen screen--card-designer">
       <div class="designer__header">
-        <a class="btn mode-select__back-btn" href="index.html">&larr; Back to Game</a>
         <h1 class="designer__title">Card Designer</h1>
       </div>
       ${state.error ? `<p class="designer__error">${esc(state.error)}</p>` : ''}
@@ -70,6 +69,7 @@ function renderPackList() {
         ${packItems || '<p class="designer__empty">No packs yet. Create one!</p>'}
       </div>
       <button class="btn btn--primary" data-action="new-pack">+ Create New Pack</button>
+      <a class="btn mode-select__back-btn" href="index.html">&larr; Back to Game</a>
     </div>
   `;
 }
@@ -100,7 +100,6 @@ function renderPackEditor() {
   return `
     <div class="screen screen--card-designer">
       <div class="designer__header">
-        <button class="btn mode-select__back-btn" data-action="back-to-list">&larr; Back to Packs</button>
         <h1 class="designer__title">Edit Pack</h1>
       </div>
       ${state.error ? `<p class="designer__error">${esc(state.error)}</p>` : ''}
@@ -119,6 +118,7 @@ function renderPackEditor() {
       <div class="designer__editor-actions">
         <button class="btn btn--primary" data-action="show-add-card">+ Add Card</button>
       </div>
+      <button class="btn mode-select__back-btn" data-action="back-to-list">&larr; Back to Packs</button>
     </div>
   `;
 }
@@ -146,7 +146,6 @@ function renderCardForm() {
   return `
     <div class="screen screen--card-designer">
       <div class="designer__header">
-        <button class="btn mode-select__back-btn" data-action="back-to-editor">&larr; Back to Pack</button>
         <h1 class="designer__title">${heading}</h1>
       </div>
       ${state.error ? `<p class="designer__error">${esc(state.error)}</p>` : ''}
@@ -169,6 +168,7 @@ function renderCardForm() {
           <button class="btn btn--primary" data-action="save-card">${editing ? 'Update Card' : 'Save Card'}</button>
         </div>
       </div>
+      <button class="btn mode-select__back-btn" data-action="back-to-editor">&larr; Back to Pack</button>
     </div>
   `;
 }

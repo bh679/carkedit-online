@@ -29,9 +29,6 @@ body.page--card-designer #app {
   width: 100%;
 }
 
-.designer__header .mode-select__back-btn {
-  align-self: flex-start;
-}
 
 .designer__title {
   font-size: 1.75rem;
