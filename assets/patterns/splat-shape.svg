@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <!-- Round paint splat: large central blob with smooth bulbous arms and drip droplets -->
+  <path fill="currentColor" d="
+    M50 20
+    C55 20, 58 14, 57 8
+    C56 4, 53 2, 50 2
+    C47 2, 44 4, 43 8
+    C42 14, 45 20, 50 20
+    Z
+
+    M50 22
+    C66 22, 74 30, 74 42
+    C74 54, 66 62, 50 62
+    C34 62, 26 54, 26 42
+    C26 30, 34 22, 50 22
+    Z
+
+    M68 28
+    C72 24, 76 20, 80 20
+    C84 20, 86 26, 82 30
+    C78 34, 72 32, 68 28
+    Z
+
+    M76 40
+    C82 38, 88 36, 92 40
+    C96 44, 92 50, 86 48
+    C80 46, 78 44, 76 40
+    Z
+
+    M70 54
+    C74 58, 78 64, 76 70
+    C74 76, 68 76, 66 70
+    C64 64, 66 58, 70 54
+    Z
+
+    M56 62
+    C58 68, 58 76, 54 80
+    C50 84, 46 80, 46 74
+    C46 68, 48 64, 50 62
+    Z
+
+    M34 58
+    C30 62, 26 68, 22 68
+    C16 68, 16 62, 20 58
+    C24 54, 30 54, 34 58
+    Z
+
+    M28 40
+    C22 42, 16 42, 12 38
+    C8 34, 10 28, 16 28
+    C22 28, 26 34, 28 40
+    Z
+
+    M34 26
+    C30 22, 26 16, 28 12
+    C30 6, 36 6, 38 12
+    C40 18, 38 24, 34 26
+    Z
+  "/>
+  <!-- Drip droplets -->
+  <ellipse fill="currentColor" cx="86" cy="24" rx="3" ry="4.5" transform="rotate(30 86 24)"/>
+  <ellipse fill="currentColor" cx="94" cy="46" rx="2.5" ry="4"/>
+  <ellipse fill="currentColor" cx="78" cy="74" rx="3" ry="4.5" transform="rotate(20 78 74)"/>
+  <ellipse fill="currentColor" cx="54" cy="88" rx="2.5" ry="4"/>
+  <ellipse fill="currentColor" cx="16" cy="72" rx="3" ry="4" transform="rotate(-15 16 72)"/>
+  <ellipse fill="currentColor" cx="6" cy="34" rx="2.5" ry="4" transform="rotate(-30 6 34)"/>
+  <ellipse fill="currentColor" cx="24" cy="6" rx="2.5" ry="3.5"/>
+</svg>
