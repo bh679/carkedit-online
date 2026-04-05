@@ -807,12 +807,9 @@ function cycleDeckFilter() {
 }
 
 function setCardSort(mode) {
-  if (cardSortMode === mode) {
-    cardSortAsc = !cardSortAsc;
-  } else {
-    cardSortMode = mode;
-    cardSortAsc = false;
-  }
+  if (cardSortMode === mode) return; // direction toggle handled by toggleCardSortDir()
+  cardSortMode = mode;
+  cardSortAsc = false;
   renderCardAnalytics();
 }
 
