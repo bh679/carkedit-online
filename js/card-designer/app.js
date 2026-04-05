@@ -2,9 +2,13 @@
 
 import { render as renderCard } from '../components/card.js';
 import {
-  getOrCreateLocalUser, fetchMyPacks, createPack, getPack,
+  fetchMyPacks, createPack, getPack,
   updatePack, deletePack, addCards, updateCard, deleteCard,
 } from './pack-manager.js';
+import {
+  setStateSetter, initAuth, signInWithGoogle,
+  signInWithEmail, signUpWithEmail, logOut,
+} from '../managers/auth-manager.js';
 
 // ---------------------------------------------------------------------------
 // State
@@ -20,6 +24,14 @@ let state = {
   loading: false,
   error: null,
   localUserId: null,
+
+  // Auth state
+  authUser: null,
+  firebaseUser: null,
+  authToken: null,
+  authLoading: true,
+  loginMode: 'signin',     // 'signin' | 'signup'
+  loginError: null,
 };
 
 function setState(updates) {
@@ -32,6 +44,17 @@ function setState(updates) {
 // ---------------------------------------------------------------------------
 function render() {
   const app = document.getElementById('app');
+
+  // Auth gate: show login screen if not authenticated
+  if (state.authLoading) {
+    app.innerHTML = '<div class="screen screen--card-designer"><p class="designer__loading">Loading&hellip;</p></div>';
+    return;
+  }
+  if (!state.authUser) {
+    app.innerHTML = renderLoginGate();
+    return;
+  }
+
   switch (state.view) {
     case 'list':     app.innerHTML = renderPackList(); break;
     case 'editor':   app.innerHTML = renderPackEditor(); break;
@@ -43,6 +66,56 @@ function render() {
 // ---------------------------------------------------------------------------
 // Views
 // ---------------------------------------------------------------------------
+
+function renderLoginGate() {
+  const isSignUp = state.loginMode === 'signup';
+  const title = isSignUp ? 'Create Account' : 'Sign In';
+  const submitLabel = isSignUp ? 'Create Account' : 'Sign In';
+  const toggleAction = isSignUp ? 'switch-to-signin' : 'switch-to-signup';
+  const toggleText = isSignUp
+    ? 'Already have an account? <a href="#" data-action="switch-to-signin">Sign In</a>'
+    : 'Don\'t have an account? <a href="#" data-action="switch-to-signup">Sign Up</a>';
+  const error = state.loginError ? `<div class="login-modal__error">${esc(state.loginError)}</div>` : '';
+
+  return `
+    <div class="screen screen--card-designer">
+      <div class="designer__header">
+        <a class="btn btn--ghost btn--small" href="index.html">&larr; Back to Game</a>
+        <h1 class="designer__title">Card Designer</h1>
+      </div>
+      <div class="designer__login-gate">
+        <p class="designer__login-prompt">Sign in to create and manage your card packs.</p>
+        <div class="login-modal" style="position:static; margin:0 auto;">
+          <h2 class="login-modal__title">${title}</h2>
+          <button class="btn btn--google" data-action="sign-in-google">Sign in with Google</button>
+          <div class="login-modal__divider"><span>or</span></div>
+          <form class="login-modal__form" data-action="submit-email-auth">
+            <input type="email" name="email" class="login-modal__input" placeholder="Email" required />
+            <input type="password" name="password" class="login-modal__input" placeholder="Password" required minlength="6" />
+            ${error}
+            <button type="submit" class="btn btn--primary login-modal__submit">${submitLabel}</button>
+          </form>
+          <div class="login-modal__toggle">${toggleText}</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderAuthBar() {
+  if (!state.authUser) return '';
+  const name = esc(state.authUser.display_name || 'User');
+  const avatar = state.firebaseUser?.photoURL
+    ? `<img class="auth-bar__avatar" src="${esc(state.firebaseUser.photoURL)}" alt="" />`
+    : '';
+  return `
+    <div class="auth-bar">
+      ${avatar}
+      <span class="auth-bar__name">${name}</span>
+      <button class="btn btn--ghost btn--small" data-action="log-out">Log Out</button>
+    </div>
+  `;
+}
 
 function renderPackList() {
   const packItems = state.myPacks.map(p => `
@@ -63,6 +136,7 @@ function renderPackList() {
       <div class="designer__header">
         <a class="btn btn--ghost btn--small" href="index.html">&larr; Back to Game</a>
         <h1 class="designer__title">Card Designer</h1>
+        ${renderAuthBar()}
       </div>
       ${state.error ? `<p class="designer__error">${esc(state.error)}</p>` : ''}
       ${state.loading ? '<p class="designer__loading">Loading&hellip;</p>' : ''}
@@ -193,6 +267,24 @@ document.addEventListener('click', async (e) => {
     case 'save-card': await handleSaveCard(); break;
     case 'edit-card': handleEditCard(btn.dataset.card); break;
     case 'delete-card': await handleDeleteCard(btn.dataset.cardId); break;
+    case 'sign-in-google': await signInWithGoogle(); break;
+    case 'switch-to-signup': setState({ loginMode: 'signup', loginError: null }); break;
+    case 'switch-to-signin': setState({ loginMode: 'signin', loginError: null }); break;
+    case 'log-out': await logOut(); break;
+  }
+});
+
+// Handle login form submission
+document.addEventListener('submit', async (e) => {
+  const form = e.target.closest('[data-action="submit-email-auth"]');
+  if (!form) return;
+  e.preventDefault();
+  const email = form.querySelector('[name="email"]').value;
+  const password = form.querySelector('[name="password"]').value;
+  if (state.loginMode === 'signup') {
+    await signUpWithEmail(email, password);
+  } else {
+    await signInWithEmail(email, password);
   }
 });
 
@@ -393,15 +485,31 @@ function esc(str) {
 // ---------------------------------------------------------------------------
 // Init
 // ---------------------------------------------------------------------------
-async function init() {
-  setState({ loading: true });
-  try {
-    const userId = await getOrCreateLocalUser();
-    const packs = await fetchMyPacks(userId);
-    setState({ loading: false, localUserId: userId, myPacks: packs });
-  } catch (err) {
-    setState({ loading: false, error: `Failed to initialise: ${err.message}` });
+async function onAuthChanged() {
+  // Called when Firebase auth state changes
+  if (state.authUser) {
+    // User just logged in — fetch their packs
+    const userId = state.authUser.id;
+    try {
+      const packs = await fetchMyPacks(userId);
+      setState({ localUserId: userId, myPacks: packs, loading: false, view: 'list' });
+    } catch (err) {
+      setState({ localUserId: userId, loading: false, error: `Failed to load packs: ${err.message}` });
+    }
+  } else {
+    // User logged out — clear pack data
+    setState({ localUserId: null, myPacks: [], currentPack: null, currentPackCards: [], view: 'list' });
   }
+}
+
+async function init() {
+  // Wire auth-manager to use our local state instead of game state.js
+  setStateSetter(
+    (updates) => { Object.assign(state, updates); render(); },
+    () => state,
+  );
+  render(); // show loading state
+  await initAuth(onAuthChanged);
 }
 
 document.addEventListener('DOMContentLoaded', init);
