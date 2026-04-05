@@ -555,7 +555,7 @@ window.game = {
         { name, birthMonth, birthDay, isDevName },
         () => { if (getState().screen === 'online-lobby') showScreen('online-lobby'); },
       );
-      showScreen('join-game');
+      showScreen('online-lobby');
     } catch (err) {
       showScreen('join-game');
     }

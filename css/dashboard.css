@@ -853,6 +853,31 @@ body {
   font-size: 0.75rem;
 }
 
+/* ── Card Preview Stats ────────────────────────── */
+
+.preview__stats {
+  display: flex;
+  justify-content: space-around;
+  gap: 8px;
+  padding: 8px 4px;
+}
+
+.preview__stat {
+  text-align: center;
+}
+
+.preview__stat-value {
+  display: block;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-white);
+}
+
+.preview__stat-label {
+  font-size: 0.65rem;
+  color: var(--color-text-muted);
+}
+
 /* Make all rendered cards show pointer cursor */
 .dashboard__stat-card-wrap,
 .detail__mini-card-wrap .card {
