@@ -187,7 +187,7 @@ document.addEventListener('click', async (e) => {
     case 'delete-pack': await handleDeletePack(btn.dataset.id); break;
     case 'back-to-list': await handleBackToList(); break;
     case 'save-pack-meta': await handleSavePackMeta(); break;
-    case 'show-add-card': handleShowAddCard(); break;
+    case 'show-add-card': await handleShowAddCard(); break;
     case 'back-to-editor': setState({ view: 'editor', error: null }); break;
     case 'set-deck-type': setState({ cardFormDeckType: btn.dataset.type }); break;
     case 'save-card': await handleSaveCard(); break;
@@ -291,7 +291,25 @@ async function handleSavePackMeta() {
   }
 }
 
-function handleShowAddCard() {
+async function autoSavePackMeta() {
+  if (!state.currentPack) return;
+  const titleInput = document.querySelector('[data-field="pack-title"]');
+  const descInput = document.querySelector('[data-field="pack-description"]');
+  if (!titleInput) return;
+  const title = titleInput.value.trim();
+  const description = descInput?.value?.trim() ?? '';
+  if (!title) return;
+  // Only save if something changed
+  if (title === state.currentPack.title && description === (state.currentPack.description || '')) return;
+  try {
+    const updated = await updatePack(state.currentPack.id, { title, description });
+    state.currentPack = { ...state.currentPack, ...updated };
+  } catch { /* silent — will be saved manually later */ }
+}
+
+async function handleShowAddCard() {
+  // Auto-save pack metadata if fields have been edited
+  await autoSavePackMeta();
   setState({
     view: 'add-card',
     editingCard: null,
