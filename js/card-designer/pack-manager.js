@@ -1,20 +1,14 @@
 'use strict';
 
+import { getAuthToken } from '../managers/auth-manager.js';
+
 const API_BASE = `${window.location.origin}/api/carkedit`;
 
-export async function getOrCreateLocalUser() {
-  let userId = localStorage.getItem('carkedit-user-id');
-  if (userId) return userId;
-
-  const res = await fetch(`${API_BASE}/users`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ display_name: 'Anonymous Creator' }),
-  });
-  if (!res.ok) throw new Error('Failed to create user');
-  const user = await res.json();
-  localStorage.setItem('carkedit-user-id', user.id);
-  return user.id;
+async function authHeaders() {
+  const token = await getAuthToken();
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
 }
 
 export async function fetchMyPacks(userId) {
@@ -27,7 +21,7 @@ export async function fetchMyPacks(userId) {
 export async function createPack(creatorId, title, description) {
   const res = await fetch(`${API_BASE}/packs`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await authHeaders(),
     body: JSON.stringify({ creator_id: creatorId, title, description }),
   });
   if (!res.ok) throw new Error('Failed to create pack');
@@ -43,7 +37,7 @@ export async function getPack(packId) {
 export async function updatePack(packId, updates) {
   const res = await fetch(`${API_BASE}/packs/${encodeURIComponent(packId)}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await authHeaders(),
     body: JSON.stringify(updates),
   });
   if (!res.ok) {
@@ -56,6 +50,7 @@ export async function updatePack(packId, updates) {
 export async function deletePack(packId) {
   const res = await fetch(`${API_BASE}/packs/${encodeURIComponent(packId)}`, {
     method: 'DELETE',
+    headers: await authHeaders(),
   });
   if (!res.ok) throw new Error('Failed to delete pack');
   return true;
@@ -64,7 +59,7 @@ export async function deletePack(packId) {
 export async function addCards(packId, cards) {
   const res = await fetch(`${API_BASE}/packs/${encodeURIComponent(packId)}/cards`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await authHeaders(),
     body: JSON.stringify({ cards }),
   });
   if (!res.ok) throw new Error('Failed to add cards');
@@ -77,7 +72,7 @@ export async function updateCard(packId, cardId, updates) {
     `${API_BASE}/packs/${encodeURIComponent(packId)}/cards/${encodeURIComponent(cardId)}`,
     {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: await authHeaders(),
       body: JSON.stringify(updates),
     },
   );
@@ -88,7 +83,10 @@ export async function updateCard(packId, cardId, updates) {
 export async function deleteCard(packId, cardId) {
   const res = await fetch(
     `${API_BASE}/packs/${encodeURIComponent(packId)}/cards/${encodeURIComponent(cardId)}`,
-    { method: 'DELETE' },
+    {
+      method: 'DELETE',
+      headers: await authHeaders(),
+    },
   );
   if (!res.ok) throw new Error('Failed to delete card');
   return true;
