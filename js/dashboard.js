@@ -1085,7 +1085,7 @@ function renderPage() {
   app.innerHTML = `
     <div class="dashboard">
       <header class="dashboard__header">
-        <h1 class="dashboard__title">CarkedIt — Game Dashboard
+        <h1 class="dashboard__title"><a href="/" class="dashboard__play-link">&#9654; Play</a> CarkedIt — Game Dashboard
           <span class="dashboard__versions">
             <span id="dash-version-client" class="dashboard__version-item" data-tooltip="Checking...">...<span class="version-dot version-dot--checking"></span></span>
             <span id="dash-version-server" class="dashboard__version-item" data-tooltip="Checking...">...<span class="version-dot version-dot--checking"></span></span>
