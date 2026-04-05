@@ -61,7 +61,7 @@ function renderPackList() {
   return `
     <div class="screen screen--card-designer">
       <div class="designer__header">
-        <a class="btn btn--ghost btn--small" href="index.html">&larr; Back to Game</a>
+        <a class="btn mode-select__back-btn" href="index.html">&larr; Back to Game</a>
         <h1 class="designer__title">Card Designer</h1>
       </div>
       ${state.error ? `<p class="designer__error">${esc(state.error)}</p>` : ''}
@@ -100,7 +100,7 @@ function renderPackEditor() {
   return `
     <div class="screen screen--card-designer">
       <div class="designer__header">
-        <button class="btn btn--ghost btn--small" data-action="back-to-list">&larr; Back to Packs</button>
+        <button class="btn mode-select__back-btn" data-action="back-to-list">&larr; Back to Packs</button>
         <h1 class="designer__title">Edit Pack</h1>
       </div>
       ${state.error ? `<p class="designer__error">${esc(state.error)}</p>` : ''}
@@ -146,7 +146,7 @@ function renderCardForm() {
   return `
     <div class="screen screen--card-designer">
       <div class="designer__header">
-        <button class="btn btn--ghost btn--small" data-action="back-to-editor">&larr; Back to Pack</button>
+        <button class="btn mode-select__back-btn" data-action="back-to-editor">&larr; Back to Pack</button>
         <h1 class="designer__title">${heading}</h1>
       </div>
       ${state.error ? `<p class="designer__error">${esc(state.error)}</p>` : ''}

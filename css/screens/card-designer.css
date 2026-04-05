@@ -29,7 +29,7 @@ body.page--card-designer #app {
   width: 100%;
 }
 
-.designer__header .btn--ghost {
+.designer__header .mode-select__back-btn {
   align-self: flex-start;
 }
 
