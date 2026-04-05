@@ -1,6 +1,8 @@
 // CarkedIt Online — Menu Screen
 'use strict';
 
+import { renderAuthButton } from '../components/auth-button.js';
+
 /**
  * @param {object} state
  * @returns {string} HTML string
@@ -8,6 +10,7 @@
 export function render(state) {
   return `
     <div class="screen screen--menu">
+      <div class="menu__auth">${renderAuthButton(state)}</div>
       <div class="menu__logo">
         <img
           class="menu__logo-img"

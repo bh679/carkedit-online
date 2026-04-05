@@ -25,6 +25,8 @@ import {
   onSettingsChange,
 } from './network/client.js';
 import { onTimerUpdate } from './managers/online-timer.js';
+import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, logOut } from './managers/auth-manager.js';
+import { renderLoginModal } from './components/auth-button.js';
 import {
   startPhase1, doneDying, revealCard,
   startPhase2, startPhase3,
@@ -448,6 +450,42 @@ window.game = {
   doneEulogy,
   pickBestEulogy,
   nextWildcard,
+  // Auth actions
+  showLogin() {
+    setState({ showLoginModal: true, loginMode: 'signin', loginError: null });
+    renderLoginModalOverlay();
+  },
+  hideLogin() {
+    setState({ showLoginModal: false, loginError: null });
+    const root = document.getElementById('login-modal-root');
+    if (root) root.innerHTML = '';
+  },
+  setLoginMode(mode) {
+    setState({ loginMode: mode, loginError: null });
+    renderLoginModalOverlay();
+  },
+  async signInWithGoogle() {
+    await signInWithGoogle();
+  },
+  async submitEmailAuth(event) {
+    event.preventDefault();
+    const form = event.target;
+    const email = form.email.value.trim();
+    const password = form.password.value;
+    const state = getState();
+    if (state.loginMode === 'signup') {
+      await signUpWithEmail(email, password);
+    } else {
+      await signInWithEmail(email, password);
+    }
+    // Re-render modal if there's an error (auth state change will close it on success)
+    if (getState().loginError) renderLoginModalOverlay();
+  },
+  async logOut() {
+    await logOut();
+    // Re-render current screen to update auth button
+    showScreen(getState().screen);
+  },
   // Issue reporting
   openIssueReport() {
     const overlay = document.getElementById('issue-report-container');
@@ -614,9 +652,25 @@ window.game = {
   },
 };
 
+function renderLoginModalOverlay() {
+  const root = document.getElementById('login-modal-root');
+  if (root) root.innerHTML = renderLoginModal(getState());
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   // Start capturing errors for issue reports
   initErrorLogger();
+
+  // Initialize Firebase Auth (async, non-blocking)
+  initAuth(() => {
+    // Re-render current screen when auth state changes
+    const state = getState();
+    showScreen(state.screen);
+    // Close login modal on successful auth
+    if (state.authUser && state.showLoginModal) {
+      window.game.hideLogin();
+    }
+  });
 
   // Register screen change callback for server-driven transitions
   onScreenChange((screenName) => {
