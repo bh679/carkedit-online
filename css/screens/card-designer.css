@@ -1,5 +1,18 @@
 /* CarkedIt Online — Card Designer Screen */
 
+/* Override base.css body/app overflow for standalone page scrolling */
+body.page--card-designer {
+  overflow-y: auto;
+  height: auto;
+  min-height: 100dvh;
+}
+
+body.page--card-designer #app {
+  overflow: visible;
+  height: auto;
+  min-height: 100dvh;
+}
+
 .screen--card-designer {
   overflow-y: auto;
   padding-bottom: var(--space-xl);
