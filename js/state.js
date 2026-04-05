@@ -110,6 +110,15 @@ let _state = {
   isCurrentEulogist: false,         // whether this client is the current eulogist
   onlineEulogistNames: [],          // names of selected eulogists
   onlineWildcardPlayerName: '',     // name of current wildcard holder
+
+  // Auth state
+  authUser: null,                    // Local user object { id, display_name, email, avatar_url }
+  firebaseUser: null,                // Firebase user (for display name, photo)
+  authToken: null,                   // Current Firebase ID token
+  authLoading: true,                 // True until first auth state resolved
+  showLoginModal: false,             // Show login/signup modal
+  loginMode: 'signin',              // 'signin' | 'signup'
+  loginError: null,                  // Auth error message
 };
 
 export function getState() {
