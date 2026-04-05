@@ -168,11 +168,24 @@
       try {
         const res = await authFetch('/api/carkedit/users');
         if (res.status === 403) {
-          renderGate('Access denied. Admin privileges required.', false);
+          // Not admin — try bootstrap (works only if no admins exist)
+          const bootstrapRes = await authFetch('/api/carkedit/admin/bootstrap', { method: 'POST' });
+          if (bootstrapRes.ok) {
+            // Bootstrapped — retry loading users
+            const retryRes = await authFetch('/api/carkedit/users');
+            if (retryRes.ok) {
+              const data = await retryRes.json();
+              users = data.users || [];
+              renderUsers();
+              return;
+            }
+          }
+          // Admins exist but this user isn't one — redirect to main menu
+          window.location.href = '/';
           return;
         }
         if (!res.ok) {
-          renderGate('Failed to load users.', false);
+          window.location.href = '/';
           return;
         }
         const data = await res.json();

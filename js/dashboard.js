@@ -1260,20 +1260,20 @@ async function checkAdminAndBoot() {
   try {
     const res = await authFetch(`${API_BASE}/api/carkedit/users/me`);
     if (!res.ok) {
-      renderAuthGate('Access denied. Your account does not have admin privileges.', false);
+      window.location.href = '/';
       return;
     }
     authUser = await res.json();
     if (!authUser.is_admin) {
-      // Check if no admins exist — offer bootstrap
+      // Try bootstrap — succeeds only if no admins exist yet
       const bootstrapRes = await authFetch(`${API_BASE}/api/carkedit/admin/bootstrap`, { method: 'POST' });
       if (bootstrapRes.ok) {
-        // Bootstrapped successfully!
         authUser = await bootstrapRes.json();
         bootDashboard();
         return;
       }
-      renderAuthGate('Access denied. Your account does not have admin privileges.', false);
+      // Admins exist but this user isn't one — redirect to main menu
+      window.location.href = '/';
       return;
     }
   } catch (err) {
