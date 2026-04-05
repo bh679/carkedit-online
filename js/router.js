@@ -25,7 +25,7 @@ import {
   onSettingsChange,
 } from './network/client.js';
 import { onTimerUpdate } from './managers/online-timer.js';
-import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, logOut } from './managers/auth-manager.js';
+import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, logOut, updateUserProfile } from './managers/auth-manager.js';
 import { renderLoginModal } from './components/auth-button.js';
 import {
   startPhase1, doneDying, revealCard,
@@ -538,6 +538,9 @@ window.game = {
       }
     }
     const userId = getState().authUser?.id || '';
+    if (userId && !isDevName) {
+      updateUserProfile({ display_name: name, birth_month: birthMonth, birth_day: birthDay });
+    }
     try {
       await networkCreateRoom(
         { name, birthMonth, birthDay, isPrivate: true, isDevName, devMode, userId },
@@ -589,6 +592,9 @@ window.game = {
       }
     }
     const userId = getState().authUser?.id || '';
+    if (userId && !isDevName) {
+      updateUserProfile({ display_name: name, birth_month: birthMonth, birth_day: birthDay });
+    }
     try {
       await networkJoinRoom(
         code,

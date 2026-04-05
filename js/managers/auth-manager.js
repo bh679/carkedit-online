@@ -109,6 +109,26 @@ export async function getAuthToken() {
   return firebaseAuth.currentUser.getIdToken();
 }
 
+export async function updateUserProfile({ display_name, birth_month, birth_day }) {
+  const state = getState();
+  if (!state.authUser || !state.authToken) return;
+  const API_BASE = `${window.location.origin}/api/carkedit`;
+  try {
+    const token = await getAuthToken();
+    const res = await fetch(`${API_BASE}/users/${state.authUser.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ display_name, birth_month, birth_day }),
+    });
+    if (res.ok) {
+      const user = await res.json();
+      setState({ authUser: user });
+    }
+  } catch (err) {
+    console.warn('[CarkedIt Auth] Profile update failed:', err);
+  }
+}
+
 async function linkOrFetchUser(firebaseUser, token) {
   const API_BASE = `${window.location.origin}/api/carkedit`;
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
