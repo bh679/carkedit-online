@@ -1120,7 +1120,7 @@ function renderPage() {
   app.innerHTML = `
     <div class="dashboard">
       <header class="dashboard__header">
-        <h1 class="dashboard__title"><a href="/" class="dashboard__play-link">&#9654; Play</a> CarkedIt — Game Dashboard <button class="btn btn--ghost" onclick="window.dash.signOut()" style="font-size:0.5em;vertical-align:middle;margin-left:0.5em">Sign Out</button>
+        <h1 class="dashboard__title"><a href="/" class="dashboard__play-link">&#9654; Play</a> CarkedIt — Game Dashboard <a href="/admin-users.html" class="btn btn--ghost" style="font-size:0.5em;vertical-align:middle;margin-left:0.5em;text-decoration:none">Users</a> <button class="btn btn--ghost" onclick="window.dash.signOut()" style="font-size:0.5em;vertical-align:middle">Sign Out</button>
           <span class="dashboard__versions">
             <span id="dash-version-client" class="dashboard__version-item" data-tooltip="Checking...">...<span class="version-dot version-dot--checking"></span></span>
             <span id="dash-version-server" class="dashboard__version-item" data-tooltip="Checking...">...<span class="version-dot version-dot--checking"></span></span>
@@ -1239,6 +1239,22 @@ async function signOut() {
   renderAuthGate('Sign in to access the dashboard.');
 }
 
+async function bootstrapAdmin() {
+  try {
+    const res = await authFetch(`${API_BASE}/api/carkedit/admin/bootstrap`, { method: 'POST' });
+    if (res.ok) {
+      authUser = await res.json();
+      bootDashboard();
+    } else {
+      const data = await res.json();
+      renderAuthGate(data.error || 'Bootstrap failed.', false);
+    }
+  } catch (err) {
+    console.warn('[dashboard] Bootstrap failed:', err);
+    renderAuthGate('Bootstrap failed. Please try again.');
+  }
+}
+
 async function checkAdminAndBoot() {
   // Fetch current user profile to check admin flag
   try {
@@ -1249,6 +1265,14 @@ async function checkAdminAndBoot() {
     }
     authUser = await res.json();
     if (!authUser.is_admin) {
+      // Check if no admins exist — offer bootstrap
+      const bootstrapRes = await authFetch(`${API_BASE}/api/carkedit/admin/bootstrap`, { method: 'POST' });
+      if (bootstrapRes.ok) {
+        // Bootstrapped successfully!
+        authUser = await bootstrapRes.json();
+        bootDashboard();
+        return;
+      }
       renderAuthGate('Access denied. Your account does not have admin privileges.', false);
       return;
     }
