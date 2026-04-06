@@ -1122,18 +1122,20 @@ function renderAuthBar() {
     ? `<img class="auth-bar__avatar" src="${firebaseUserInfo.photoURL}" alt="" />`
     : '';
   return `
-    <div class="auth-bar" style="position:absolute;top:var(--space-md,1rem);right:var(--space-md,1rem);z-index:10">
-      ${avatar}
-      <span class="auth-bar__name">${name}</span>
-      <a href="/admin-users.html" class="btn btn--ghost" style="font-size:0.85em;text-decoration:none">Users</a>
-      <button class="btn btn--ghost" style="font-size:0.85em" onclick="window.dash.signOut()">Sign Out</button>
+    <div class="page-auth">
+      <div class="auth-bar">
+        ${avatar}
+        <span class="auth-bar__name">${name}</span>
+        <a href="/admin-users.html" class="btn btn--ghost" style="font-size:0.85em;text-decoration:none">Users</a>
+        <button class="btn btn--ghost" style="font-size:0.85em" onclick="window.dash.signOut()">Sign Out</button>
+      </div>
     </div>`;
 }
 
 function renderPage() {
   const app = document.getElementById('app');
   app.innerHTML = `
-    <div class="dashboard" style="position:relative">
+    <div class="dashboard">
       ${renderAuthBar()}
       <header class="dashboard__header">
         <h1 class="dashboard__title"><a href="/" class="dashboard__play-link">&#9654; Play</a> CarkedIt — Game Dashboard

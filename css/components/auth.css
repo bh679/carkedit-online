@@ -1,6 +1,6 @@
-/* Auth Bar (top-right of menu) */
-.menu__auth {
-  position: absolute;
+/* Auth Bar — fixed top-right on every page */
+.page-auth {
+  position: fixed;
   top: var(--space-md);
   right: var(--space-md);
   z-index: 10;
