@@ -172,11 +172,15 @@ function syncLivingPhaseState(room) {
   }
 
   // Count submitters and collect submitted player names
+  // Mirror server's allPlayersSubmitted() logic: skip late joiners awaiting die card
+  // and players with empty hands so the "X/Y submitted" display matches the server.
   let submittedCount = 0;
   let totalSubmitters = 0;
   const onlineSubmittedPlayerNames = [];
   room.state.players.forEach((p, sid) => {
     if (sid === currentLivingDead) return;
+    if (p.needsDieCard) return; // Late joiner awaiting mini die phase
+    if (p.hand.length === 0) return; // Player with no cards (joined mid-round)
     totalSubmitters++;
     if (p.hasSubmitted) {
       submittedCount++;
