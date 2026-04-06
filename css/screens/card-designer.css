@@ -20,6 +20,10 @@ body.page--card-designer #app {
   max-width: 480px;
 }
 
+.screen--card-designer > .mode-select__back-btn {
+  align-self: center;
+}
+
 /* Header */
 .designer__header {
   display: flex;
