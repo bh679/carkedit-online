@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CarkedIt — User Management</title>
+    <link rel="stylesheet" href="css/base.css?v=1.06.0051">
+    <link rel="stylesheet" href="css/components/auth.css?v=1.06.0051">
+    <link rel="stylesheet" href="css/dashboard.css?v=1.06.0051">
+    <style>
+        .admin-users { max-width: 900px; margin: 0 auto; padding: 1.5rem; }
+        .admin-users__header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.5rem; }
+        .admin-users__title { font-size: 1.4rem; margin: 0; }
+        .admin-users__nav { display: flex; gap: 0.5rem; }
+        .admin-users__table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .admin-users__table th,
+        .admin-users__table td { padding: 0.6rem 0.75rem; text-align: left; border-bottom: 1px solid #333; }
+        .admin-users__table th { color: #888; font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .admin-users__table tr:hover { background: rgba(255,255,255,0.03); }
+        .admin-users__avatar { width: 28px; height: 28px; border-radius: 50%; vertical-align: middle; margin-right: 0.5rem; }
+        .admin-users__badge { display: inline-block; padding: 0.15em 0.5em; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+        .admin-users__badge--admin { background: #2d6a4f; color: #b7e4c7; }
+        .admin-users__badge--user { background: #333; color: #888; }
+        .btn--toggle-admin { padding: 0.3em 0.8em; font-size: 0.8rem; border: 1px solid #555; border-radius: 4px; background: transparent; color: #ccc; cursor: pointer; }
+        .btn--toggle-admin:hover { border-color: #888; color: #fff; }
+        .btn--toggle-admin--active { border-color: #2d6a4f; color: #b7e4c7; }
+        .admin-users__count { color: #888; font-size: 0.85rem; }
+        .admin-users__gate { display: flex; align-items: center; justify-content: center; min-height: 60vh; text-align: center; }
+        .admin-users__gate p { color: #888; margin-bottom: 1em; }
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+    <script type="module">
+    'use strict';
+
+    const FIREBASE_CONFIG = {
+      apiKey: "AIzaSyC6QJz6jTzJkBWV7Shd9XpCfHWrovJ9vaI",
+      authDomain: "carkedit-5cc8e.firebaseapp.com",
+      projectId: "carkedit-5cc8e",
+      storageBucket: "carkedit-5cc8e.firebasestorage.app",
+      messagingSenderId: "144073275425",
+      appId: "1:144073275425:web:2301fbbccc2be69c654b60",
+    };
+
+    let firebaseAuth = null;
+    let authToken = null;
+    let fbUserInfo = null;
+
+    async function loadFirebaseAuth() {
+      const [appMod, authMod] = await Promise.all([
+        import('https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js'),
+        import('https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js'),
+      ]);
+      const app = appMod.initializeApp(FIREBASE_CONFIG);
+      firebaseAuth = authMod.getAuth(app);
+      return authMod;
+    }
+
+    function authFetch(url, opts = {}) {
+      if (authToken) {
+        opts.headers = { ...opts.headers, Authorization: `Bearer ${authToken}` };
+      }
+      return fetch(url, opts);
+    }
+
+    function renderGate(msg, showSignIn = false) {
+      document.getElementById('app').innerHTML = `
+        <div class="admin-users__gate">
+          <div>
+            <h1>User Management</h1>
+            <p>${msg}</p>
+            ${showSignIn ? '<button class="btn btn--google" id="sign-in-btn" style="font-size:1rem;padding:0.75em 1.5em">Sign in with Google</button>' : ''}
+            <div style="margin-top:1.5em"><a href="/" class="btn" style="background:transparent;color:var(--color-text-muted,#888);font-size:0.875rem;text-decoration:none">Back to Main Menu</a></div>
+          </div>
+        </div>`;
+      if (showSignIn) {
+        document.getElementById('sign-in-btn').addEventListener('click', async () => {
+          const authMod = await loadFirebaseAuth();
+          const provider = new authMod.GoogleAuthProvider();
+          await authMod.signInWithPopup(firebaseAuth, provider);
+        });
+      }
+    }
+
+    let users = [];
+
+    function renderUsers() {
+      const app = document.getElementById('app');
+      const rows = users.map(u => {
+        const avatar = u.avatar_url
+          ? `<img class="admin-users__avatar" src="${u.avatar_url}" alt="" />`
+          : '';
+        const badge = u.is_admin
+          ? '<span class="admin-users__badge admin-users__badge--admin">Admin</span>'
+          : '<span class="admin-users__badge admin-users__badge--user">User</span>';
+        const btnLabel = u.is_admin ? 'Remove Admin' : 'Make Admin';
+        const btnClass = u.is_admin ? 'btn--toggle-admin btn--toggle-admin--active' : 'btn--toggle-admin';
+        return `<tr>
+          <td>${avatar}${u.display_name || '—'}</td>
+          <td>${u.email || '—'}</td>
+          <td>${badge}</td>
+          <td>${u.firebase_uid ? 'Yes' : 'No'}</td>
+          <td>${new Date(u.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: '2-digit' })}</td>
+          <td><button class="${btnClass}" data-user-id="${u.id}" data-set-admin="${u.is_admin ? 0 : 1}">${btnLabel}</button></td>
+        </tr>`;
+      }).join('');
+
+      app.innerHTML = `
+        <div class="admin-users">
+          <div class="admin-users__header">
+            <h1 class="admin-users__title">User Management <span class="admin-users__count">(${users.length} users)</span></h1>
+            <div class="auth-bar">
+              ${fbUserInfo?.photoURL ? `<img class="auth-bar__avatar" src="${fbUserInfo.photoURL}" alt="" />` : ''}
+              <span class="auth-bar__name">${fbUserInfo?.displayName || 'Admin'}</span>
+              <a href="/dashboard.html" class="btn btn--ghost">Dashboard</a>
+              <button class="btn btn--ghost" id="sign-out-btn">Sign Out</button>
+            </div>
+          </div>
+          <table class="admin-users__table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Linked</th>
+                <th>Created</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+
+      document.getElementById('sign-out-btn').addEventListener('click', async () => {
+        const { signOut } = await import('https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js');
+        await signOut(firebaseAuth);
+        authToken = null;
+        renderGate('Sign in to access user management.', true);
+      });
+
+      document.querySelectorAll('[data-user-id]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const userId = btn.getAttribute('data-user-id');
+          const setAdmin = parseInt(btn.getAttribute('data-set-admin'));
+          btn.disabled = true;
+          btn.textContent = '...';
+          try {
+            const res = await authFetch(`/api/carkedit/users/${userId}/admin`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ is_admin: !!setAdmin }),
+            });
+            if (res.ok) {
+              const updated = await res.json();
+              const idx = users.findIndex(u => u.id === userId);
+              if (idx >= 0) users[idx] = updated;
+              renderUsers();
+            } else {
+              const data = await res.json();
+              alert(data.error || 'Failed to update');
+              btn.disabled = false;
+            }
+          } catch (err) {
+            alert('Network error');
+            btn.disabled = false;
+          }
+        });
+      });
+    }
+
+    async function boot() {
+      try {
+        const res = await authFetch('/api/carkedit/users');
+        if (res.status === 403) {
+          // Not admin — try bootstrap (works only if no admins exist)
+          const bootstrapRes = await authFetch('/api/carkedit/admin/bootstrap', { method: 'POST' });
+          if (bootstrapRes.ok) {
+            // Bootstrapped — retry loading users
+            const retryRes = await authFetch('/api/carkedit/users');
+            if (retryRes.ok) {
+              const data = await retryRes.json();
+              users = data.users || [];
+              renderUsers();
+              return;
+            }
+          }
+          // Admins exist but this user isn't one — show access denied
+          renderGate('You do not have admin access.', false);
+          return;
+        }
+        if (!res.ok) {
+          renderGate('You do not have admin access.', false);
+          return;
+        }
+        const data = await res.json();
+        users = data.users || [];
+        renderUsers();
+      } catch (err) {
+        renderGate('Failed to load users.', false);
+      }
+    }
+
+    // Init
+    renderGate('Loading...', false);
+    try {
+      const authMod = await loadFirebaseAuth();
+      authMod.onAuthStateChanged(firebaseAuth, async (user) => {
+        if (user) {
+          authToken = await user.getIdToken();
+          fbUserInfo = { displayName: user.displayName, photoURL: user.photoURL, email: user.email };
+          await boot();
+        } else {
+          authToken = null;
+          fbUserInfo = null;
+          renderGate('Sign in to access user management.', true);
+        }
+      });
+    } catch (err) {
+      renderGate('Authentication service unavailable.', false);
+    }
+    </script>
+</body>
+</html>

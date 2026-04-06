@@ -954,4 +954,91 @@ async function init() {
 
 window.devDash = { switchDeck: miniSwitchDeck, nextCard: miniNextCard, showMore, toggleDoc };
 
-document.addEventListener('DOMContentLoaded', init);
+// ── Admin Auth Gate ─────────────────────────────────
+let _fbAuth = null;
+let _fbUserInfo = null;
+
+function injectAuthBar() {
+  const meta = document.querySelector('.dash-header__meta');
+  if (!meta || !_fbUserInfo) return;
+  const name = _fbUserInfo.displayName || 'Admin';
+  const avatar = _fbUserInfo.photoURL
+    ? `<img class="auth-bar__avatar" src="${_fbUserInfo.photoURL}" alt="" />`
+    : '';
+  const bar = document.createElement('div');
+  bar.className = 'auth-bar';
+  bar.style.cssText = 'margin-left:auto;';
+  bar.innerHTML = `${avatar}<span class="auth-bar__name">${name}</span>
+    <a href="/admin-users.html" class="btn btn--ghost" style="font-size:0.75rem;text-decoration:none;padding:0.3rem 0.6rem">Users</a>
+    <button class="btn btn--ghost" style="font-size:0.75rem;padding:0.3rem 0.6rem" id="dev-sign-out">Sign Out</button>`;
+  meta.appendChild(bar);
+  document.getElementById('dev-sign-out')?.addEventListener('click', async () => {
+    if (_fbAuth) {
+      const { signOut } = await import('https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js');
+      await signOut(_fbAuth);
+    }
+    window.location.href = '/';
+  });
+}
+
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyC6QJz6jTzJkBWV7Shd9XpCfHWrovJ9vaI",
+  authDomain: "carkedit-5cc8e.firebaseapp.com",
+  projectId: "carkedit-5cc8e",
+  storageBucket: "carkedit-5cc8e.firebasestorage.app",
+  messagingSenderId: "144073275425",
+  appId: "1:144073275425:web:2301fbbccc2be69c654b60",
+};
+
+function renderAuthGate(msg, showSignIn = false) {
+  document.getElementById('app').innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:center;min-height:80vh;text-align:center">
+      <div style="max-width:400px">
+        <h1 style="margin-bottom:0.5em">Dev Dashboard</h1>
+        <p style="color:#888;margin-bottom:1.5em">${msg}</p>
+        ${showSignIn ? '<button class="btn btn--google" id="gate-sign-in" style="font-size:1rem;padding:0.75em 1.5em">Sign in with Google</button>' : ''}
+        <div style="margin-top:1.5em"><a href="/" class="btn" style="background:transparent;color:var(--color-text-muted,#888);font-size:0.875rem;text-decoration:none">Back to Main Menu</a></div>
+      </div>
+    </div>`;
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  renderAuthGate('Loading...', false);
+  try {
+    const [appMod, authMod] = await Promise.all([
+      import('https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js'),
+      import('https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js'),
+    ]);
+    const fbApp = appMod.initializeApp(FIREBASE_CONFIG);
+    const fbAuth = authMod.getAuth(fbApp);
+    _fbAuth = fbAuth;
+
+    authMod.onAuthStateChanged(fbAuth, async (user) => {
+      if (!user) {
+        renderAuthGate('Sign in to access the dev dashboard.', true);
+        document.getElementById('gate-sign-in')?.addEventListener('click', async () => {
+          const provider = new authMod.GoogleAuthProvider();
+          await authMod.signInWithPopup(fbAuth, provider);
+        });
+        return;
+      }
+      const token = await user.getIdToken();
+      try {
+        const res = await fetch('/api/carkedit/users/me', { headers: { Authorization: `Bearer ${token}` } });
+        if (!res.ok) { window.location.href = '/'; return; }
+        const me = await res.json();
+        if (!me.is_admin) {
+          // Try bootstrap
+          const bRes = await fetch('/api/carkedit/admin/bootstrap', { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+          if (!bRes.ok) { window.location.href = '/'; return; }
+        }
+      } catch { window.location.href = '/'; return; }
+      _fbUserInfo = { displayName: user.displayName, photoURL: user.photoURL, email: user.email };
+      await init();
+      injectAuthBar();
+    });
+  } catch (err) {
+    console.warn('[dev-dashboard] Firebase init failed:', err);
+    renderAuthGate('Authentication service unavailable.', false);
+  }
+});

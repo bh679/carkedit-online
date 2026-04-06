@@ -1,6 +1,42 @@
 // CarkedIt Online — Game Dashboard (standalone)
 'use strict';
 
+// ── Firebase Auth for Admin Gate ────────────────────
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyC6QJz6jTzJkBWV7Shd9XpCfHWrovJ9vaI",
+  authDomain: "carkedit-5cc8e.firebaseapp.com",
+  projectId: "carkedit-5cc8e",
+  storageBucket: "carkedit-5cc8e.firebasestorage.app",
+  messagingSenderId: "144073275425",
+  appId: "1:144073275425:web:2301fbbccc2be69c654b60",
+};
+
+let firebaseAuth = null;
+let authToken = null;
+let authUser = null; // local user from /users/me
+let firebaseUserInfo = null; // { displayName, photoURL, email }
+
+async function loadFirebaseAuth() {
+  const [appMod, authMod] = await Promise.all([
+    import('https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js'),
+    import('https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js'),
+  ]);
+  const app = appMod.initializeApp(FIREBASE_CONFIG);
+  firebaseAuth = authMod.getAuth(app);
+  return authMod;
+}
+
+function authHeaders() {
+  const h = {};
+  if (authToken) h['Authorization'] = `Bearer ${authToken}`;
+  return h;
+}
+
+function authFetch(url, opts = {}) {
+  opts.headers = { ...opts.headers, ...authHeaders() };
+  return fetch(url, opts);
+}
+
 const API_BASE = '';  // Same origin
 let games = [];
 let gamesTotalCount = 0;
@@ -135,7 +171,7 @@ function buildGamesUrl(limit, offset) {
 async function fetchGames(append = false) {
   try {
     const offset = append ? games.length : 0;
-    const res = await fetch(buildGamesUrl(gamesPageSize, offset));
+    const res = await authFetch(buildGamesUrl(gamesPageSize, offset));
     if (!res.ok) return;
     const data = await res.json();
     if (append) {
@@ -189,7 +225,7 @@ function cycleDateRange() {
 
 async function fetchStats() {
   try {
-    const res = await fetch(`${API_BASE}/api/carkedit/games/stats`);
+    const res = await authFetch(`${API_BASE}/api/carkedit/games/stats`);
     if (!res.ok) return;
     stats = await res.json();
   } catch (err) {
@@ -204,10 +240,10 @@ async function fetchPeriodStats() {
   const monthAgo = new Date(now - 30 * 24 * 60 * 60 * 1000).toISOString();
   try {
     const [dayRes, weekRes, monthRes, liveRes] = await Promise.all([
-      fetch(`${API_BASE}/api/carkedit/games/stats?since=${dayAgo}`),
-      fetch(`${API_BASE}/api/carkedit/games/stats?since=${weekAgo}`),
-      fetch(`${API_BASE}/api/carkedit/games/stats?since=${monthAgo}`),
-      fetch(`${API_BASE}/api/carkedit/games/stats/live`),
+      authFetch(`${API_BASE}/api/carkedit/games/stats?since=${dayAgo}`),
+      authFetch(`${API_BASE}/api/carkedit/games/stats?since=${weekAgo}`),
+      authFetch(`${API_BASE}/api/carkedit/games/stats?since=${monthAgo}`),
+      authFetch(`${API_BASE}/api/carkedit/games/stats/live`),
     ]);
     if (dayRes.ok) dayStats = await dayRes.json();
     if (weekRes.ok) weekStats = await weekRes.json();
@@ -284,7 +320,7 @@ async function toggleGame(gameId) {
   const isLive = !cachedGame || cachedGame.live_status === 'live';
   if (!cachedGame || isLive) {
     try {
-      const res = await fetch(`${API_BASE}/api/carkedit/games/${gameId}`);
+      const res = await authFetch(`${API_BASE}/api/carkedit/games/${gameId}`);
       if (res.ok) gameDetailCache[gameId] = await res.json();
     } catch (err) {
       console.warn('[dashboard] Failed to fetch game detail:', err);
@@ -811,7 +847,7 @@ let cardDevFilter = 'nodev'; // 'all' | 'dev' | 'nodev'
 async function fetchCardStats() {
   try {
     const params = cardDevFilter !== 'all' ? `?dev=${cardDevFilter}` : '';
-    const res = await fetch(`${API_BASE}/api/carkedit/cards/stats${params}`);
+    const res = await authFetch(`${API_BASE}/api/carkedit/cards/stats${params}`);
     if (!res.ok) return;
     cardStats = await res.json();
   } catch (err) {
@@ -1080,10 +1116,25 @@ function renderGraph() {
   }
 }
 
+function renderAuthBar() {
+  const name = authUser?.display_name || firebaseUserInfo?.displayName || 'Admin';
+  const avatar = firebaseUserInfo?.photoURL
+    ? `<img class="auth-bar__avatar" src="${firebaseUserInfo.photoURL}" alt="" />`
+    : '';
+  return `
+    <div class="auth-bar" style="position:absolute;top:var(--space-md,1rem);right:var(--space-md,1rem);z-index:10">
+      ${avatar}
+      <span class="auth-bar__name">${name}</span>
+      <a href="/admin-users.html" class="btn btn--ghost" style="font-size:0.85em;text-decoration:none">Users</a>
+      <button class="btn btn--ghost" style="font-size:0.85em" onclick="window.dash.signOut()">Sign Out</button>
+    </div>`;
+}
+
 function renderPage() {
   const app = document.getElementById('app');
   app.innerHTML = `
-    <div class="dashboard">
+    <div class="dashboard" style="position:relative">
+      ${renderAuthBar()}
       <header class="dashboard__header">
         <h1 class="dashboard__title"><a href="/" class="dashboard__play-link">&#9654; Play</a> CarkedIt — Game Dashboard
           <span class="dashboard__versions">
@@ -1143,7 +1194,7 @@ async function refreshAll() {
     const cached = gameDetailCache[expandedGameId];
     if (!cached || cached.live_status === 'live') {
       try {
-        const res = await fetch(`${API_BASE}/api/carkedit/games/${expandedGameId}`);
+        const res = await authFetch(`${API_BASE}/api/carkedit/games/${expandedGameId}`);
         if (res.ok) gameDetailCache[expandedGameId] = await res.json();
       } catch {}
     }
@@ -1167,9 +1218,92 @@ function updateRefreshTimer() {
 }
 
 // ── Init ─────────────────────────────────────────────
-window.dash = { cyclePlayTime, cycleGamesCount, toggleGame, cycleDeckFilter, setCardSort, toggleCardSortDir, cycleCardDev, previewCard, closePreview, prevPreviewCard, nextPreviewCard, scrollCards, loadMoreGames, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange };
+window.dash = { cyclePlayTime, cycleGamesCount, toggleGame, cycleDeckFilter, setCardSort, toggleCardSortDir, cycleCardDev, previewCard, closePreview, prevPreviewCard, nextPreviewCard, scrollCards, loadMoreGames, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange, signInWithGoogle, signOut };
 
-document.addEventListener('DOMContentLoaded', async () => {
+// ── Auth Gate UI ─────────────────────────────────────
+function renderAuthGate(message, showSignIn = true) {
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="dashboard" style="display:flex;align-items:center;justify-content:center;min-height:80vh">
+      <div style="text-align:center;max-width:400px">
+        <h1 style="margin-bottom:0.5em">CarkedIt Dashboard</h1>
+        <p style="color:#888;margin-bottom:1.5em">${message}</p>
+        ${showSignIn ? '<button class="btn btn--google" onclick="window.dash.signInWithGoogle()" style="font-size:1rem;padding:0.75em 1.5em">Sign in with Google</button>' : ''}
+        <div style="margin-top:1.5em"><a href="/" class="btn" style="background:transparent;color:var(--color-text-muted,#888);font-size:0.875rem;text-decoration:none">Back to Main Menu</a></div>
+      </div>
+    </div>
+  `;
+}
+
+async function signInWithGoogle() {
+  try {
+    const authMod = await loadFirebaseAuth();
+    const provider = new authMod.GoogleAuthProvider();
+    await authMod.signInWithPopup(firebaseAuth, provider);
+    // Auth state change will reload the page via the listener below
+  } catch (err) {
+    console.error('[dashboard] Google sign-in error:', err);
+    renderAuthGate('Sign-in failed. Please try again.');
+  }
+}
+
+async function signOut() {
+  if (!firebaseAuth) return;
+  const { signOut: fbSignOut } = await import('https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js');
+  await fbSignOut(firebaseAuth);
+  authToken = null;
+  authUser = null;
+  renderAuthGate('Sign in to access the dashboard.');
+}
+
+async function bootstrapAdmin() {
+  try {
+    const res = await authFetch(`${API_BASE}/api/carkedit/admin/bootstrap`, { method: 'POST' });
+    if (res.ok) {
+      authUser = await res.json();
+      bootDashboard();
+    } else {
+      const data = await res.json();
+      renderAuthGate(data.error || 'Bootstrap failed.', false);
+    }
+  } catch (err) {
+    console.warn('[dashboard] Bootstrap failed:', err);
+    renderAuthGate('Bootstrap failed. Please try again.');
+  }
+}
+
+async function checkAdminAndBoot() {
+  // Fetch current user profile to check admin flag
+  try {
+    const res = await authFetch(`${API_BASE}/api/carkedit/users/me`);
+    if (!res.ok) {
+      renderAuthGate('You do not have admin access.', false);
+      return;
+    }
+    authUser = await res.json();
+    if (!authUser.is_admin) {
+      // Try bootstrap — succeeds only if no admins exist yet
+      const bootstrapRes = await authFetch(`${API_BASE}/api/carkedit/admin/bootstrap`, { method: 'POST' });
+      if (bootstrapRes.ok) {
+        authUser = await bootstrapRes.json();
+        bootDashboard();
+        return;
+      }
+      // Admins exist but this user isn't one — show access denied
+      renderAuthGate('You do not have admin access.', false);
+      return;
+    }
+  } catch (err) {
+    console.warn('[dashboard] Admin check failed:', err);
+    renderAuthGate('Could not verify admin status. Please try again.');
+    return;
+  }
+
+  // Admin verified — boot the dashboard
+  bootDashboard();
+}
+
+async function bootDashboard() {
   renderPage();
 
   // --- Version tooltip that follows the mouse ---
@@ -1248,4 +1382,28 @@ document.addEventListener('DOMContentLoaded', async () => {
       refreshAll();
     }
   });
+}
+
+// ── Init — Auth Gate ────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+  renderAuthGate('Loading...', false);
+
+  try {
+    const authMod = await loadFirebaseAuth();
+    authMod.onAuthStateChanged(firebaseAuth, async (user) => {
+      if (user) {
+        authToken = await user.getIdToken();
+        firebaseUserInfo = { displayName: user.displayName, photoURL: user.photoURL, email: user.email };
+        await checkAdminAndBoot();
+      } else {
+        authToken = null;
+        authUser = null;
+        firebaseUserInfo = null;
+        renderAuthGate('Sign in to access the dashboard.');
+      }
+    });
+  } catch (err) {
+    console.warn('[dashboard] Firebase init failed:', err);
+    renderAuthGate('Authentication service unavailable.', false);
+  }
 });

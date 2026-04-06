@@ -23,6 +23,7 @@ import {
   sendMessage,
   onScreenChange,
   onSettingsChange,
+  resyncFromRoomState,
 } from './network/client.js';
 import { onTimerUpdate } from './managers/online-timer.js';
 import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, logOut, updateUserProfile } from './managers/auth-manager.js';
@@ -599,9 +600,11 @@ window.game = {
       await networkJoinRoom(
         code,
         { name, birthMonth, birthDay, isDevName, userId },
-        () => { if (getState().screen === 'online-lobby') showScreen('online-lobby'); },
+        () => { const s = getState(); if (s.screen === 'online-lobby') showScreen('online-lobby'); },
       );
-      showScreen('online-lobby');
+      // Resync screen from room state — joins an in-progress game at the correct phase
+      // instead of always showing lobby
+      resyncFromRoomState();
     } catch (err) {
       showScreen('join-game');
     }
