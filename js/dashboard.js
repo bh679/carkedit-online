@@ -1277,7 +1277,7 @@ async function checkAdminAndBoot() {
   try {
     const res = await authFetch(`${API_BASE}/api/carkedit/users/me`);
     if (!res.ok) {
-      window.location.href = '/';
+      renderAuthGate('You do not have admin access.', false);
       return;
     }
     authUser = await res.json();
@@ -1289,8 +1289,8 @@ async function checkAdminAndBoot() {
         bootDashboard();
         return;
       }
-      // Admins exist but this user isn't one — redirect to main menu
-      window.location.href = '/';
+      // Admins exist but this user isn't one — show access denied
+      renderAuthGate('You do not have admin access.', false);
       return;
     }
   } catch (err) {
