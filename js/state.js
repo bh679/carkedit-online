@@ -52,7 +52,7 @@ let _state = {
     enableLive: true,
     enableBye: true,
     enableEulogy: true,
-    forceWildcards: false,
+    forceWildcards: 'atLeastOne',
     playableWildcards: true,
     wildcardCount: 2,
     eulogistCount: 2,
