@@ -23,6 +23,7 @@ import {
   sendMessage,
   onScreenChange,
   onSettingsChange,
+  resyncFromRoomState,
 } from './network/client.js';
 import { onTimerUpdate } from './managers/online-timer.js';
 import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, logOut, updateUserProfile } from './managers/auth-manager.js';
@@ -450,6 +451,37 @@ window.game = {
   doneEulogy,
   pickBestEulogy,
   nextWildcard,
+  // User menu actions
+  toggleUserMenu() {
+    const state = getState();
+    setState({ showUserMenu: !state.showUserMenu });
+    showScreen(state.screen);
+    if (!state.showUserMenu) {
+      // Menu is now open — listen for outside clicks to close
+      requestAnimationFrame(() => {
+        document.addEventListener('click', window.game._closeUserMenuOnOutsideClick, { once: true });
+      });
+    }
+  },
+  closeUserMenu() {
+    setState({ showUserMenu: false });
+    showScreen(getState().screen);
+  },
+  _closeUserMenuOnOutsideClick(e) {
+    const menu = document.querySelector('.auth-menu');
+    const btn = document.querySelector('.auth-bar__avatar-btn');
+    if (menu && (menu.contains(e.target) || btn?.contains(e.target))) return;
+    if (getState().showUserMenu) {
+      setState({ showUserMenu: false });
+      showScreen(getState().screen);
+    }
+  },
+  manageAccount() {
+    // Placeholder — coming soon
+    alert('Account management coming soon!');
+    setState({ showUserMenu: false });
+    showScreen(getState().screen);
+  },
   // Auth actions
   showLogin() {
     setState({ showLoginModal: true, loginMode: 'signin', loginError: null });
@@ -482,6 +514,7 @@ window.game = {
     if (getState().loginError) renderLoginModalOverlay();
   },
   async logOut() {
+    setState({ showUserMenu: false });
     await logOut();
     // Re-render current screen to update auth button
     showScreen(getState().screen);
@@ -599,9 +632,11 @@ window.game = {
       await networkJoinRoom(
         code,
         { name, birthMonth, birthDay, isDevName, userId },
-        () => { if (getState().screen === 'online-lobby') showScreen('online-lobby'); },
+        () => { const s = getState(); if (s.screen === 'online-lobby') showScreen('online-lobby'); },
       );
-      showScreen('online-lobby');
+      // Resync screen from room state — joins an in-progress game at the correct phase
+      // instead of always showing lobby
+      resyncFromRoomState();
     } catch (err) {
       showScreen('join-game');
     }

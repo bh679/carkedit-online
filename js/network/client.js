@@ -336,7 +336,7 @@ function syncEulogyPhaseState(room) {
  * Called when the tab becomes visible again or after reconnection
  * to ensure the client is on the right screen.
  */
-function resyncFromRoomState() {
+export function resyncFromRoomState() {
   if (!_room || !_room.state) return;
   const room = _room;
   const phase = room.state.phase;

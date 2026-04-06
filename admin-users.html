@@ -187,12 +187,12 @@
               return;
             }
           }
-          // Admins exist but this user isn't one — redirect to main menu
-          window.location.href = '/';
+          // Admins exist but this user isn't one — show access denied
+          renderGate('You do not have admin access.', false);
           return;
         }
         if (!res.ok) {
-          window.location.href = '/';
+          renderGate('You do not have admin access.', false);
           return;
         }
         const data = await res.json();
