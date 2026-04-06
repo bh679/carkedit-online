@@ -116,6 +116,7 @@ let _state = {
   firebaseUser: null,                // Firebase user (for display name, photo)
   authToken: null,                   // Current Firebase ID token
   authLoading: true,                 // True until first auth state resolved
+  showUserMenu: false,               // Show user avatar dropdown menu
   showLoginModal: false,             // Show login/signup modal
   loginMode: 'signin',              // 'signin' | 'signup'
   loginError: null,                  // Auth error message
