@@ -118,18 +118,31 @@ function renderAuthBar() {
 }
 
 function renderPackList() {
-  const packItems = state.myPacks.map(p => `
-    <div class="designer__pack-item">
-      <div class="designer__pack-info">
-        <span class="designer__pack-title">${esc(p.title)}</span>
-        <span class="designer__pack-meta">${p.card_count ?? 0} cards &middot; ${esc(p.status)}</span>
+  const packItems = state.myPacks.map(p => {
+    const cardCount = p.card_count ?? 0;
+    const isPublished = p.status === 'published';
+    const statusBadge = isPublished
+      ? '<span class="designer__status-badge designer__status-badge--published">published</span>'
+      : '<span class="designer__status-badge designer__status-badge--draft">draft</span>';
+    const publishBtn = isPublished
+      ? `<button class="btn btn--small btn--ghost" data-action="unpublish-pack" data-id="${esc(p.id)}">Unpublish</button>`
+      : cardCount > 0
+        ? `<button class="btn btn--small btn--success" data-action="publish-pack" data-id="${esc(p.id)}">Publish</button>`
+        : '';
+    return `
+      <div class="designer__pack-item">
+        <div class="designer__pack-info">
+          <span class="designer__pack-title">${esc(p.title)}</span>
+          <span class="designer__pack-meta">${cardCount} cards &middot; ${statusBadge}</span>
+        </div>
+        <div class="designer__pack-actions">
+          ${publishBtn}
+          <button class="btn btn--small btn--secondary" data-action="edit-pack" data-id="${esc(p.id)}">Edit</button>
+          <button class="btn btn--small btn--ghost btn--danger" data-action="delete-pack" data-id="${esc(p.id)}">Delete</button>
+        </div>
       </div>
-      <div class="designer__pack-actions">
-        <button class="btn btn--small btn--secondary" data-action="edit-pack" data-id="${esc(p.id)}">Edit</button>
-        <button class="btn btn--small btn--ghost btn--danger" data-action="delete-pack" data-id="${esc(p.id)}">Delete</button>
-      </div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 
   return `
     <div class="screen screen--card-designer">
@@ -192,6 +205,11 @@ function renderPackEditor() {
       ${sections}
       <div class="designer__editor-actions">
         <button class="btn btn--primary" data-action="show-add-card">+ Add Card</button>
+        ${pack.status === 'published'
+          ? `<button class="btn btn--ghost" data-action="unpublish-pack" data-id="${esc(pack.id)}">Unpublish</button>`
+          : state.currentPackCards.length > 0
+            ? `<button class="btn btn--success" data-action="publish-pack" data-id="${esc(pack.id)}">Publish Pack</button>`
+            : ''}
       </div>
     </div>
   `;
@@ -267,6 +285,8 @@ document.addEventListener('click', async (e) => {
     case 'save-card': await handleSaveCard(); break;
     case 'edit-card': handleEditCard(btn.dataset.card); break;
     case 'delete-card': await handleDeleteCard(btn.dataset.cardId); break;
+    case 'publish-pack': await handlePublishPack(btn.dataset.id); break;
+    case 'unpublish-pack': await handleUnpublishPack(btn.dataset.id); break;
     case 'sign-in-google': await signInWithGoogle(); break;
     case 'switch-to-signup': setState({ loginMode: 'signup', loginError: null }); break;
     case 'switch-to-signin': setState({ loginMode: 'signin', loginError: null }); break;
@@ -464,6 +484,39 @@ async function handleDeleteCard(cardId) {
       currentPack: full,
       currentPackCards: full.cards || [],
     });
+  } catch (err) {
+    setState({ loading: false, error: err.message });
+  }
+}
+
+async function handlePublishPack(packId) {
+  if (!confirm('Publish this pack? It will be visible to other players.')) return;
+  setState({ loading: true, error: null });
+  try {
+    await updatePack(packId, { status: 'published' });
+    // Refresh — could be from list or editor view
+    if (state.currentPack?.id === packId) {
+      const full = await getPack(packId);
+      setState({ loading: false, currentPack: full, currentPackCards: full.cards || [] });
+    }
+    const packs = await fetchMyPacks(state.localUserId);
+    setState({ loading: false, myPacks: packs });
+  } catch (err) {
+    setState({ loading: false, error: err.message });
+  }
+}
+
+async function handleUnpublishPack(packId) {
+  if (!confirm('Unpublish this pack? It will no longer be visible to other players.')) return;
+  setState({ loading: true, error: null });
+  try {
+    await updatePack(packId, { status: 'draft' });
+    if (state.currentPack?.id === packId) {
+      const full = await getPack(packId);
+      setState({ loading: false, currentPack: full, currentPackCards: full.cards || [] });
+    }
+    const packs = await fetchMyPacks(state.localUserId);
+    setState({ loading: false, myPacks: packs });
   } catch (err) {
     setState({ loading: false, error: err.message });
   }

@@ -295,6 +295,40 @@ body.page--card-designer #app {
   text-align: center;
 }
 
+/* Status badges */
+.designer__status-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  vertical-align: middle;
+}
+
+.designer__status-badge--draft {
+  background: var(--color-input-bg);
+  color: var(--color-text-muted);
+}
+
+.designer__status-badge--published {
+  background: #1b4332;
+  color: #52b788;
+}
+
+/* Success button variant */
+.btn--success {
+  background: #2d6a4f;
+  color: #d8f3dc;
+  border-color: #2d6a4f;
+}
+
+.btn--success:hover {
+  background: #40916c;
+  border-color: #40916c;
+}
+
 /* Form actions */
 .designer__form-actions {
   display: flex;
