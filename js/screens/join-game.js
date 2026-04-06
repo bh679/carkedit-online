@@ -54,6 +54,7 @@ export function render(state) {
           placeholder="Room code"
           class="input online-lobby__code-input"
           maxlength="5"
+          value="${escapeHtml(state.roomCode || '')}"
           ${connecting ? 'disabled' : ''}
         >
         <button
