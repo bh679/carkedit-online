@@ -79,6 +79,13 @@ export function showScreen(name, updates = {}) {
     if (list && container) {
       container.classList.toggle('player-list-container--scrollable', list.scrollWidth > list.clientWidth);
     }
+    // Trigger pitch card flip animation after browser paints the initial state
+    const pitchFlips = document.querySelectorAll('[data-pitch-reveal]');
+    if (pitchFlips.length) {
+      requestAnimationFrame(() => {
+        pitchFlips.forEach(el => el.classList.add('card-flip--revealed'));
+      });
+    }
   });
 
   // Start preloading cards when entering a lobby or join screen
