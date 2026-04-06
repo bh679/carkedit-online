@@ -490,7 +490,8 @@ async function handleDeleteCard(cardId) {
 }
 
 async function handlePublishPack(packId) {
-  if (!confirm('Publish this pack? It will be visible to other players.')) return;
+  const ok = await showConfirmModal('Publish this pack? It will be visible to other players.', 'Publish', 'btn--success');
+  if (!ok) return;
   setState({ loading: true, error: null });
   try {
     await updatePack(packId, { status: 'published' });
@@ -507,7 +508,8 @@ async function handlePublishPack(packId) {
 }
 
 async function handleUnpublishPack(packId) {
-  if (!confirm('Unpublish this pack? It will no longer be visible to other players.')) return;
+  const ok = await showConfirmModal('Unpublish this pack? It will no longer be visible to other players.', 'Unpublish', 'btn--danger');
+  if (!ok) return;
   setState({ loading: true, error: null });
   try {
     await updatePack(packId, { status: 'draft' });
@@ -520,6 +522,41 @@ async function handleUnpublishPack(packId) {
   } catch (err) {
     setState({ loading: false, error: err.message });
   }
+}
+
+// ---------------------------------------------------------------------------
+// Custom confirm modal
+// ---------------------------------------------------------------------------
+function showConfirmModal(message, confirmLabel, confirmClass = 'btn--primary') {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'confirm-overlay';
+    overlay.innerHTML = `
+      <div class="confirm-modal">
+        <p class="confirm-modal__message">${esc(message)}</p>
+        <div class="confirm-modal__actions">
+          <button class="btn btn--ghost confirm-modal__cancel">Cancel</button>
+          <button class="btn ${confirmClass} confirm-modal__confirm">${esc(confirmLabel)}</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    // Force reflow then add visible class for transition
+    overlay.offsetHeight;
+    overlay.classList.add('confirm-overlay--visible');
+
+    const cleanup = (result) => {
+      overlay.classList.remove('confirm-overlay--visible');
+      overlay.addEventListener('transitionend', () => overlay.remove(), { once: true });
+      // Fallback if no transition fires
+      setTimeout(() => overlay.remove(), 300);
+      resolve(result);
+    };
+
+    overlay.querySelector('.confirm-modal__cancel').addEventListener('click', () => cleanup(false));
+    overlay.querySelector('.confirm-modal__confirm').addEventListener('click', () => cleanup(true));
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(false); });
+  });
 }
 
 // ---------------------------------------------------------------------------
