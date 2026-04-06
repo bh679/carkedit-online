@@ -84,6 +84,7 @@
     }
 
     let users = [];
+    let showUserMenu = false;
 
     function renderUsers() {
       const app = document.getElementById('app');
@@ -106,13 +107,29 @@
         </tr>`;
       }).join('');
 
+      const userName = fbUserInfo?.displayName || 'Admin';
+      const hasPhoto = !!fbUserInfo?.photoURL;
+      const initial = (userName || 'A').charAt(0).toUpperCase();
+      const avatarImg = hasPhoto
+        ? `<img class="auth-bar__avatar" src="${fbUserInfo.photoURL}" alt="" />`
+        : `<span class="auth-bar__avatar auth-bar__avatar--initial">${initial}</span>`;
+      const menuHtml = showUserMenu ? `
+        <div class="auth-menu" onclick="event.stopPropagation()">
+          <div class="auth-menu__name">${userName}</div>
+          <div class="auth-menu__divider"></div>
+          <a class="auth-menu__item" href="/dashboard.html">Dashboard</a>
+          <a class="auth-menu__item" href="/dev-dashboard.html">Dev Dashboard</a>
+          <button class="auth-menu__item auth-menu__item--logout" id="sign-out-btn">Sign Out</button>
+        </div>
+      ` : '';
+
       app.innerHTML = `
         <div class="page-auth page-auth--fixed">
           <div class="auth-bar">
-            ${fbUserInfo?.photoURL ? `<img class="auth-bar__avatar" src="${fbUserInfo.photoURL}" alt="" />` : ''}
-            <span class="auth-bar__name">${fbUserInfo?.displayName || 'Admin'}</span>
-            <a href="/dashboard.html" class="btn btn--ghost">Dashboard</a>
-            <button class="btn btn--ghost" id="sign-out-btn">Sign Out</button>
+            <button class="auth-bar__avatar-btn" id="admin-toggle-menu" aria-label="User menu">
+              ${avatarImg}
+            </button>
+            ${menuHtml}
           </div>
         </div>
         <div class="admin-users">
@@ -134,7 +151,12 @@
           </table>
         </div>`;
 
-      document.getElementById('sign-out-btn').addEventListener('click', async () => {
+      document.getElementById('admin-toggle-menu')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showUserMenu = !showUserMenu;
+        renderUsers();
+      });
+      document.getElementById('sign-out-btn')?.addEventListener('click', async () => {
         const { signOut } = await import('https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js');
         await signOut(firebaseAuth);
         authToken = null;
@@ -170,6 +192,14 @@
         });
       });
     }
+
+    // Close user menu on outside click
+    document.addEventListener('click', (e) => {
+      if (showUserMenu && !e.target.closest('.auth-bar')) {
+        showUserMenu = false;
+        renderUsers();
+      }
+    });
 
     async function boot() {
       try {
