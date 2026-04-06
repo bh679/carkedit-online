@@ -997,7 +997,7 @@ function renderAuthGate(msg, showSignIn = false) {
         <h1 style="margin-bottom:0.5em">Dev Dashboard</h1>
         <p style="color:#888;margin-bottom:1.5em">${msg}</p>
         ${showSignIn ? '<button class="btn btn--google" id="gate-sign-in" style="font-size:1rem;padding:0.75em 1.5em">Sign in with Google</button>' : ''}
-        <div style="margin-top:1.5em"><a href="/" style="color:#888;text-decoration:none;font-size:0.9em">&#9654; Back to Main Menu</a></div>
+        <div style="margin-top:1.5em"><a href="/" class="btn" style="background:transparent;color:var(--color-text-muted,#888);font-size:0.875rem;text-decoration:none">Back to Main Menu</a></div>
       </div>
     </div>`;
 }
