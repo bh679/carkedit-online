@@ -451,6 +451,37 @@ window.game = {
   doneEulogy,
   pickBestEulogy,
   nextWildcard,
+  // User menu actions
+  toggleUserMenu() {
+    const state = getState();
+    setState({ showUserMenu: !state.showUserMenu });
+    showScreen(state.screen);
+    if (!state.showUserMenu) {
+      // Menu is now open — listen for outside clicks to close
+      requestAnimationFrame(() => {
+        document.addEventListener('click', window.game._closeUserMenuOnOutsideClick, { once: true });
+      });
+    }
+  },
+  closeUserMenu() {
+    setState({ showUserMenu: false });
+    showScreen(getState().screen);
+  },
+  _closeUserMenuOnOutsideClick(e) {
+    const menu = document.querySelector('.auth-menu');
+    const btn = document.querySelector('.auth-bar__avatar-btn');
+    if (menu && (menu.contains(e.target) || btn?.contains(e.target))) return;
+    if (getState().showUserMenu) {
+      setState({ showUserMenu: false });
+      showScreen(getState().screen);
+    }
+  },
+  manageAccount() {
+    // Placeholder — coming soon
+    alert('Account management coming soon!');
+    setState({ showUserMenu: false });
+    showScreen(getState().screen);
+  },
   // Auth actions
   showLogin() {
     setState({ showLoginModal: true, loginMode: 'signin', loginError: null });
@@ -483,6 +514,7 @@ window.game = {
     if (getState().loginError) renderLoginModalOverlay();
   },
   async logOut() {
+    setState({ showUserMenu: false });
     await logOut();
     // Re-render current screen to update auth button
     showScreen(getState().screen);
