@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CarkedIt — Text-Only Card Test</title>
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/components/card.css">
+    <style>
+      body { background: #1C1C2E; padding: 2rem; }
+      .test-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 200px);
+        gap: 2rem;
+        justify-content: center;
+      }
+      .test-label {
+        color: #fff;
+        text-align: center;
+        font-size: 1.2rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+        grid-column: span 3;
+      }
+      h1 { color: #fff; text-align: center; margin-bottom: 2rem; }
+    </style>
+</head>
+<body>
+    <h1>Text-Only Card Styling Test</h1>
+    <div id="app"></div>
+    <script type="module">
+      import { render as renderCard } from './js/components/card.js';
+
+      const testCards = [
+        // Die cards
+        { title: 'Died by Eating Five-Week Old Leftovers', deckType: 'die' },
+        { title: 'Died in a Car Accident', deckType: 'die' },
+        { title: 'Pick the Best Way to Die', deckType: 'die' },
+        // Live cards
+        { title: 'Advance Care Plan', description: 'Make sure the people in your life know what sort of care you want.', prompt: 'Who would you want to speak for you?', deckType: 'live' },
+        { title: 'Bucket List', description: 'Choose one thing from your Bucket List to do. What is it?', prompt: "What's on your bucket list?", deckType: 'live' },
+        { title: 'Holiday', description: 'Take the holiday of a lifetime and create some memories!', prompt: 'Where are you going?', deckType: 'live' },
+        // Bye cards
+        { title: 'Viking Burial', description: 'Be pushed out to sea and set alight in an old ship.', prompt: 'What treasured possessions are you taking to the Afterworld?', deckType: 'bye' },
+        { title: 'Annual Ceremonies', description: 'Have an annual ceremony of remembrance — to remember you!', prompt: 'Is the ceremony on the day you died, or some other day?', deckType: 'bye' },
+        { title: 'Cannon Fodder', description: 'Be shot out of a cannon as your final send off. KABOOM!!!', deckType: 'bye' },
+      ];
+
+      const html = `
+        <div class="test-grid">
+          <div class="test-label">DIE (text-only)</div>
+          ${testCards.filter(c => c.deckType === 'die').map(c => `<div>${renderCard(c)}</div>`).join('')}
+          <div class="test-label">LIVE (text-only)</div>
+          ${testCards.filter(c => c.deckType === 'live').map(c => `<div>${renderCard(c)}</div>`).join('')}
+          <div class="test-label">BYE (text-only)</div>
+          ${testCards.filter(c => c.deckType === 'bye').map(c => `<div>${renderCard(c)}</div>`).join('')}
+        </div>
+      `;
+
+      document.getElementById('app').innerHTML = html;
+    </script>
+</body>
+</html>
