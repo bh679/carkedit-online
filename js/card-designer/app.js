@@ -132,8 +132,8 @@ function renderPackList() {
   `).join('');
 
   return `
-    <div class="page-auth">${renderAuthBar()}</div>
     <div class="screen screen--card-designer">
+      <div class="page-auth">${renderAuthBar()}</div>
       <div class="designer__header">
         <h1 class="designer__title">Card Designer</h1>
       </div>
@@ -172,8 +172,8 @@ function renderPackEditor() {
   }).join('');
 
   return `
-    <div class="page-auth">${renderAuthBar()}</div>
     <div class="screen screen--card-designer">
+      <div class="page-auth">${renderAuthBar()}</div>
       <div class="designer__header">
         <h1 class="designer__title">Edit Pack</h1>
       </div>
@@ -219,8 +219,8 @@ function renderCardForm() {
   });
 
   return `
-    <div class="page-auth">${renderAuthBar()}</div>
     <div class="screen screen--card-designer">
+      <div class="page-auth">${renderAuthBar()}</div>
       <div class="designer__header">
         <h1 class="designer__title">${heading}</h1>
       </div>

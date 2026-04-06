@@ -1,9 +1,16 @@
-/* Auth Bar — fixed top-right on every page */
+/* Auth Bar — top-right positioning */
+
+/* Phone-width pages: absolute within the container */
 .page-auth {
-  position: fixed;
+  position: absolute;
   top: var(--space-md);
   right: var(--space-md);
   z-index: 10;
+}
+
+/* Full-width pages: fixed to viewport */
+.page-auth--fixed {
+  position: fixed;
 }
 
 .auth-bar {

@@ -967,7 +967,7 @@ function injectAuthBar() {
     ? `<img class="auth-bar__avatar" src="${_fbUserInfo.photoURL}" alt="" />`
     : '';
   const wrapper = document.createElement('div');
-  wrapper.className = 'page-auth';
+  wrapper.className = 'page-auth page-auth--fixed';
   const bar = document.createElement('div');
   bar.className = 'auth-bar';
   bar.innerHTML = `${avatar}<span class="auth-bar__name">${name}</span>

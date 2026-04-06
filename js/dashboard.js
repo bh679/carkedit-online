@@ -1122,7 +1122,7 @@ function renderAuthBar() {
     ? `<img class="auth-bar__avatar" src="${firebaseUserInfo.photoURL}" alt="" />`
     : '';
   return `
-    <div class="page-auth">
+    <div class="page-auth page-auth--fixed">
       <div class="auth-bar">
         ${avatar}
         <span class="auth-bar__name">${name}</span>

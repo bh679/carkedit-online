@@ -107,7 +107,7 @@
       }).join('');
 
       app.innerHTML = `
-        <div class="page-auth">
+        <div class="page-auth page-auth--fixed">
           <div class="auth-bar">
             ${fbUserInfo?.photoURL ? `<img class="auth-bar__avatar" src="${fbUserInfo.photoURL}" alt="" />` : ''}
             <span class="auth-bar__name">${fbUserInfo?.displayName || 'Admin'}</span>
