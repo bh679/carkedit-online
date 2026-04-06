@@ -1302,7 +1302,7 @@ async function checkAdminAndBoot() {
   bootDashboard();
 }
 
-function bootDashboard() {
+async function bootDashboard() {
   renderPage();
 
   // --- Version tooltip that follows the mouse ---
