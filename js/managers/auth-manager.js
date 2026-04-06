@@ -1,7 +1,17 @@
 // CarkedIt Online — Firebase Auth Manager
 'use strict';
 
-import { getState, setState } from '../state.js';
+import { getState, setState as _gameSetState } from '../state.js';
+
+// Allow external consumers (e.g. card designer) to provide their own state setter.
+// Call setStateSetter(fn) before initAuth() to redirect all auth state updates.
+let _setState = _gameSetState;
+let _getState = getState;
+
+export function setStateSetter(setFn, getFn) {
+  _setState = setFn;
+  if (getFn) _getState = getFn;
+}
 
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyC6QJz6jTzJkBWV7Shd9XpCfHWrovJ9vaI",
@@ -35,7 +45,7 @@ export async function initAuth(onUserChanged) {
       if (firebaseUser) {
         const token = await firebaseUser.getIdToken();
         const localUser = await linkOrFetchUser(firebaseUser, token);
-        setState({
+        _setState({
           authUser: localUser,
           firebaseUser: { displayName: firebaseUser.displayName, photoURL: firebaseUser.photoURL, email: firebaseUser.email },
           authToken: token,
@@ -45,7 +55,7 @@ export async function initAuth(onUserChanged) {
         });
         if (onUserChanged) onUserChanged();
       } else {
-        setState({
+        _setState({
           authUser: null,
           firebaseUser: null,
           authToken: null,
@@ -56,42 +66,42 @@ export async function initAuth(onUserChanged) {
     });
   } catch (err) {
     console.warn('[CarkedIt Auth] Firebase init failed:', err);
-    setState({ authLoading: false });
+    _setState({ authLoading: false });
     if (onUserChanged) onUserChanged();
   }
 }
 
 export async function signInWithGoogle() {
   try {
-    setState({ loginError: null });
+    _setState({ loginError: null });
     const { auth: authMod } = await loadFirebase();
     const provider = new authMod.GoogleAuthProvider();
     await authMod.signInWithPopup(firebaseAuth, provider);
   } catch (err) {
     console.error('[CarkedIt Auth] Google sign-in error:', err);
-    setState({ loginError: err.message || 'Google sign-in failed' });
+    _setState({ loginError: err.message || 'Google sign-in failed' });
   }
 }
 
 export async function signInWithEmail(email, password) {
   try {
-    setState({ loginError: null });
+    _setState({ loginError: null });
     const { auth: authMod } = await loadFirebase();
     await authMod.signInWithEmailAndPassword(firebaseAuth, email, password);
   } catch (err) {
     console.error('[CarkedIt Auth] Email sign-in error:', err);
-    setState({ loginError: friendlyError(err.code) });
+    _setState({ loginError: friendlyError(err.code) });
   }
 }
 
 export async function signUpWithEmail(email, password) {
   try {
-    setState({ loginError: null });
+    _setState({ loginError: null });
     const { auth: authMod } = await loadFirebase();
     await authMod.createUserWithEmailAndPassword(firebaseAuth, email, password);
   } catch (err) {
     console.error('[CarkedIt Auth] Sign-up error:', err);
-    setState({ loginError: friendlyError(err.code) });
+    _setState({ loginError: friendlyError(err.code) });
   }
 }
 
@@ -110,7 +120,7 @@ export async function getAuthToken() {
 }
 
 export async function updateUserProfile({ display_name, birth_month, birth_day }) {
-  const state = getState();
+  const state = _getState();
   if (!state.authUser || !state.authToken) return;
   const API_BASE = `${window.location.origin}/api/carkedit`;
   try {
@@ -122,7 +132,7 @@ export async function updateUserProfile({ display_name, birth_month, birth_day }
     });
     if (res.ok) {
       const user = await res.json();
-      setState({ authUser: user });
+      _setState({ authUser: user });
     }
   } catch (err) {
     console.warn('[CarkedIt Auth] Profile update failed:', err);
