@@ -20,6 +20,10 @@ body.page--card-designer #app {
   max-width: 480px;
 }
 
+.screen--card-designer > .mode-select__back-btn {
+  align-self: center;
+}
+
 /* Header */
 .designer__header {
   display: flex;
@@ -29,9 +33,6 @@ body.page--card-designer #app {
   width: 100%;
 }
 
-.designer__header .btn--ghost {
-  align-self: flex-start;
-}
 
 .designer__title {
   font-size: 1.75rem;
