@@ -61,7 +61,8 @@
 
 /* Card/card-back inside slot: fill width or height, whichever is reached first */
 .gameboard__active-card__slot > .card,
-.gameboard__active-card__slot > .card-back {
+.gameboard__active-card__slot > .card-back,
+.gameboard__active-card__slot > .card-flip {
   width: min(100cqw, calc(100cqh * 5 / 7));
 }
 

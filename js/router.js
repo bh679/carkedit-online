@@ -79,6 +79,13 @@ export function showScreen(name, updates = {}) {
     if (list && container) {
       container.classList.toggle('player-list-container--scrollable', list.scrollWidth > list.clientWidth);
     }
+    // Trigger pitch card flip animation after browser paints the initial state
+    const pitchFlips = document.querySelectorAll('[data-pitch-reveal]');
+    if (pitchFlips.length) {
+      requestAnimationFrame(() => {
+        pitchFlips.forEach(el => el.classList.add('card-flip--revealed'));
+      });
+    }
   });
 
   // Start preloading cards when entering a lobby or join screen
@@ -302,7 +309,7 @@ const DEFAULT_GAME_SETTINGS = {
   enableLive: true,
   enableBye: true,
   enableEulogy: true,
-  forceWildcards: false,
+  forceWildcards: 'atLeastOne',
   wildcardCount: 2,
   eulogistCount: 2,
   handRedraws: 'once_per_phase',
@@ -350,6 +357,21 @@ function toggleUltraQuickMode() {
     sendMessage('game_settings', patch);
   } else {
     setState({ gameSettings: { ...state.gameSettings, ...patch } });
+  }
+  refreshAdvancedPanel();
+}
+
+const FORCE_WILDCARDS_CYCLE = ['off', 'atLeastOne', 'everyone'];
+
+function cycleForceWildcards() {
+  const state = getState();
+  const current = state.gameSettings.forceWildcards ?? 'atLeastOne';
+  const idx = FORCE_WILDCARDS_CYCLE.indexOf(current);
+  const next = FORCE_WILDCARDS_CYCLE[(idx + 1) % FORCE_WILDCARDS_CYCLE.length];
+  if (state.gameMode === 'online') {
+    sendMessage('setting', { key: 'forceWildcards', value: next });
+  } else {
+    setState({ gameSettings: { ...state.gameSettings, forceWildcards: next } });
   }
   refreshAdvancedPanel();
 }
@@ -413,6 +435,7 @@ window.game = {
   setGameMode,
   toggleAdvancedSettings,
   setHandRedraws,
+  cycleForceWildcards,
   cyclePitchDuration,
   resetSettings,
   startPhase1,

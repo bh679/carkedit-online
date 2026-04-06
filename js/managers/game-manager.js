@@ -140,7 +140,7 @@ export function startPhase3() {
   const wildcards = byeDeck.filter(c => c.special === 'Wildcard');
   const nonWildcards = byeDeck.filter(c => c.special !== 'Wildcard');
   let keepWildcards = [];
-  if (!forceWildcards && wildcardCount > 0) {
+  if (forceWildcards !== 'everyone' && wildcardCount > 0) {
     const template = wildcards[0] ?? { title: 'Wildcard Eulogy', description: 'Save this card until the end, for a chance at bonus points!', special: 'Wildcard', illustrationKey: 'wildcard-eulogy' };
     keepWildcards = Array.from({ length: wildcardCount }, (_, i) => ({
       ...template,

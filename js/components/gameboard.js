@@ -81,17 +81,19 @@ export function render(promptCard = '', hint = '', {
   }
 
   // During pitching, show the pitching player's card in the main card area
-  // Card stays face-down until the pitcher clicks "Reveal My Card"
+  // Card starts face-down; flips with CSS transition when pitcher reveals
   let mainCardHtml = promptCard;
   if (pitchingPlayer && playedCards[pitchingPlayer]) {
     const card = playedCards[pitchingPlayer];
-    const cardRender = card.faceUp
-      ? renderCard({ ...card, deckType: card.deckType || deckType })
-      : renderCardBack({ deckType: card.deckType || deckType });
-    mainCardHtml = renderActiveCard(
-      cardRender,
-      { label: `${pitchingPlayer}'s card` },
-    );
+    const dt = card.deckType || deckType;
+    const flipCard = `
+      <div class="card-flip"${card.faceUp ? ' data-pitch-reveal' : ''}>
+        <div class="card-flip__inner">
+          <div class="card-flip__back">${renderCardBack({ deckType: dt })}</div>
+          <div class="card-flip__front">${renderCard({ ...card, deckType: dt })}</div>
+        </div>
+      </div>`;
+    mainCardHtml = renderActiveCard(flipCard, { label: `${pitchingPlayer}'s card` });
   }
 
   const cardAreaClass = playedCardsHtml
