@@ -14,7 +14,9 @@ body.page--card-designer #app {
 }
 
 .screen--card-designer {
+  position: relative;
   overflow-y: auto;
+  padding-top: calc(var(--space-md) + 2rem);
   padding-bottom: var(--space-xl);
   gap: var(--space-md);
   max-width: 480px;

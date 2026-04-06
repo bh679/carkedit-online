@@ -1,5 +1,5 @@
-/* Auth Bar (top-right of menu) */
-.menu__auth {
+/* Auth Bar — absolute top-right within the nearest positioned container */
+.page-auth {
   position: absolute;
   top: var(--space-md);
   right: var(--space-md);
