@@ -983,7 +983,7 @@ function injectAuthBar() {
   ` : '';
 
   const wrapper = document.createElement('div');
-  wrapper.className = 'page-auth page-auth--fixed';
+  wrapper.className = 'page-auth';
   wrapper.innerHTML = `
     <div class="auth-bar">
       <button class="auth-bar__avatar-btn" id="dev-toggle-menu" aria-label="User menu">
@@ -991,7 +991,7 @@ function injectAuthBar() {
       </button>
       ${menuHtml}
     </div>`;
-  document.body.appendChild(wrapper);
+  (document.getElementById('app') || document.body).appendChild(wrapper);
 
   document.getElementById('dev-toggle-menu')?.addEventListener('click', (e) => {
     e.stopPropagation();

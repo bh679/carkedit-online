@@ -1143,7 +1143,7 @@ function renderAuthBar() {
   ` : '';
 
   return `
-    <div class="page-auth page-auth--fixed">
+    <div class="page-auth">
       <div class="auth-bar">
         <button class="auth-bar__avatar-btn" onclick="window.dash.toggleUserMenu()" aria-label="User menu">
           ${avatarImg}

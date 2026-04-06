@@ -7,6 +7,7 @@ body {
 }
 
 #app {
+  position: relative;
   max-width: 1024px;
   overflow: visible;
 }

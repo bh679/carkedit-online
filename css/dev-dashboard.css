@@ -2,6 +2,7 @@
 
 /* Override the game's narrow max-width for the dev tool */
 #app {
+  position: relative;
   max-width: 960px;
 }
 
