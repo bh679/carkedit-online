@@ -1,0 +1,62 @@
+/* Shared Card List component
+ *
+ * Used by:
+ *  - dashboard analytics row (passes legacy:true → also gets dashboard__* classes
+ *    and inherits visual styles from css/dashboard.css)
+ *  - online lobby pack preview (sm variant, no stats)
+ */
+
+.card-list__wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.card-list__nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+}
+.card-list__nav--left  { left: 0; }
+.card-list__nav--right { right: 0; }
+
+.card-list__scroll {
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  padding: 0.25rem 0;
+}
+
+.card-list__scroll::-webkit-scrollbar { height: 8px; }
+.card-list__scroll::-webkit-scrollbar-track { background: rgba(0,0,0,0.05); }
+.card-list__scroll::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 4px; }
+
+.card-list__item {
+  flex: 0 0 auto;
+}
+
+/* Small variant: lobby pack preview */
+.card-list__scroll--sm .card {
+  width: 56px;
+  min-width: 56px;
+  height: 84px;
+}
+.card-list__scroll--sm .card__title {
+  font-size: 0.55rem;
+  line-height: 1.05;
+  padding: 3px;
+}
+.card-list__scroll--sm .card__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.card-list__empty {
+  padding: 0.75rem;
+  color: rgba(0,0,0,0.55);
+  font-style: italic;
+  text-align: center;
+}

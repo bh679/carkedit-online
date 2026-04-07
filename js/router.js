@@ -27,7 +27,8 @@ import {
 } from './network/client.js';
 import { onTimerUpdate } from './managers/online-timer.js';
 import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, logOut, updateUserProfile } from './managers/auth-manager.js';
-import { fetchMyPacks, fetchPublicPacks, fetchFavoritePacks, setPackFavorite } from './card-designer/pack-manager.js';
+import { fetchMyPacks, fetchPublicPacks, fetchFavoritePacks, setPackFavorite, getPack } from './card-designer/pack-manager.js';
+import { render as renderCardFace } from './components/card.js';
 import { renderLoginModal } from './components/auth-button.js';
 import {
   startPhase1, doneDying, revealCard,
@@ -545,13 +546,130 @@ window.game = {
     }
   },
   togglePack(packId) {
-    const current = getState().selectedPackIds || [];
-    const updated = current.includes(packId)
-      ? current.filter((id) => id !== packId)
-      : [...current, packId];
-    setState({ selectedPackIds: updated });
+    const state = getState();
+    const current = state.selectedPackIds || [];
+    const isOn = current.includes(packId);
+    const updated = isOn ? current.filter((id) => id !== packId) : [...current, packId];
+    const patch = { selectedPackIds: updated };
+    if (isOn) {
+      // Drop any per-deck disable entries and any preview-expanded entry for this pack
+      patch.disabledPackDecks = (state.disabledPackDecks || []).filter(
+        (key) => key.split(':')[0] !== packId
+      );
+      patch.expandedPackPreviewIds = (state.expandedPackPreviewIds || []).filter(
+        (id) => id !== packId
+      );
+    }
+    setState(patch);
     sendMessage('select_packs', { packIds: updated });
     if (getState().screen === 'online-lobby') showScreen('online-lobby');
+  },
+  togglePackDeck(packId, deck) {
+    const state = getState();
+    if (!(state.selectedPackIds || []).includes(packId)) return;
+    const allDecks = ['die', 'live', 'bye'];
+    if (!allDecks.includes(deck)) return;
+    const disabled = new Set(state.disabledPackDecks || []);
+    const key = `${packId}:${deck}`;
+    if (disabled.has(key)) disabled.delete(key); else disabled.add(key);
+    const nextDisabled = Array.from(disabled);
+    setState({ disabledPackDecks: nextDisabled });
+    // Server expects the *enabled* set for this pack
+    const enabled = allDecks.filter((d) => !disabled.has(`${packId}:${d}`));
+    sendMessage('set_pack_decks', { packId, decks: enabled });
+    if (getState().screen === 'online-lobby') showScreen('online-lobby');
+  },
+  async togglePackPreview(packId) {
+    const state = getState();
+    const current = new Set(state.expandedPackPreviewIds || []);
+    if (current.has(packId)) {
+      current.delete(packId);
+      setState({ expandedPackPreviewIds: Array.from(current) });
+      if (getState().screen === 'online-lobby') showScreen('online-lobby');
+      return;
+    }
+    current.add(packId);
+    setState({ expandedPackPreviewIds: Array.from(current) });
+    if (getState().screen === 'online-lobby') showScreen('online-lobby');
+
+    // Lazy-fetch cards if not already cached
+    if (packId === 'base') {
+      if (!getState().basePackCards) {
+        try {
+          const decks = ['die', 'live', 'bye'];
+          const results = await Promise.all(
+            decks.map((d) => fetch(`js/data/cards/${d === 'live' ? 'live' : d}.json`).then((r) => (r.ok ? r.json() : [])))
+          );
+          setState({
+            basePackCards: { die: results[0] || [], live: results[1] || [], bye: results[2] || [] },
+          });
+          if (getState().screen === 'online-lobby') showScreen('online-lobby');
+        } catch (e) {
+          console.warn('[packs] base card fetch failed', e);
+        }
+      }
+    } else if (!(getState().packCards || {})[packId]) {
+      try {
+        const pack = await getPack(packId);
+        const cards = pack?.cards || [];
+        setState({ packCards: { ...(getState().packCards || {}), [packId]: cards } });
+        if (getState().screen === 'online-lobby') showScreen('online-lobby');
+      } catch (e) {
+        console.warn('[packs] getPack failed', e);
+      }
+    }
+  },
+  setLobbyPreviewList(items) {
+    window.game._lobbyPreviewList = Array.isArray(items) ? items : [];
+  },
+  previewLobbyCardAt(index) {
+    const list = window.game._lobbyPreviewList || [];
+    if (!list.length) return;
+    const i = ((index % list.length) + list.length) % list.length;
+    window.game._lobbyPreviewIndex = i;
+    const item = list[i];
+    const esc = (s) => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    const deckType = item.deck === 'living' ? 'live' : (item.deck || 'die');
+    let overlay = document.getElementById('lobby-card-preview-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'lobby-card-preview-overlay';
+      document.body.appendChild(overlay);
+    }
+    const cardHtml = renderCardFace({
+      title: item.text,
+      image: item.imgSrc || '',
+      deckType,
+    });
+    const showNav = list.length > 1;
+    const prevBtn = showNav
+      ? `<button class="hand__nav-btn hand__nav-btn--prev" onclick="event.stopPropagation(); window.game.prevLobbyPreview()" aria-label="Previous">&#8249;</button>`
+      : '';
+    const nextBtn = showNav
+      ? `<button class="hand__nav-btn hand__nav-btn--next" onclick="event.stopPropagation(); window.game.nextLobbyPreview()" aria-label="Next">&#8250;</button>`
+      : '';
+    overlay.innerHTML = `
+      <div class="hand__inspect-overlay hand__inspect-overlay--${deckType}" onclick="window.game.closeLobbyPreview()">
+        ${prevBtn}
+        <div class="hand__inspect-card-wrapper" onclick="event.stopPropagation()">
+          ${cardHtml}
+          <button class="btn btn--secondary hand__submit-btn" onclick="window.game.closeLobbyPreview()">Close</button>
+        </div>
+        ${nextBtn}
+      </div>`;
+    overlay.style.display = 'block';
+  },
+  prevLobbyPreview() {
+    const i = window.game._lobbyPreviewIndex ?? 0;
+    window.game.previewLobbyCardAt(i - 1);
+  },
+  nextLobbyPreview() {
+    const i = window.game._lobbyPreviewIndex ?? 0;
+    window.game.previewLobbyCardAt(i + 1);
+  },
+  closeLobbyPreview() {
+    const overlay = document.getElementById('lobby-card-preview-overlay');
+    if (overlay) { overlay.style.display = 'none'; overlay.innerHTML = ''; }
   },
   // User menu actions
   toggleUserMenu() {

@@ -1,5 +1,7 @@
 'use strict';
 
+import { render as renderCardList } from './card-list.js';
+
 // Sentinel "base" pack — counts must match carkedit-api/src/data/cards.ts
 const BASE_PACK = {
   id: 'base',
@@ -14,6 +16,9 @@ const BASE_PACK = {
   status: 'published',
   creator_id: null,
 };
+
+const DECKS = ['die', 'live', 'bye'];
+const DECK_LABEL = { die: 'DIE', live: 'LIVE', bye: 'BYE' };
 
 // 24x24 white SVG icons used by the filter tabs and the favourite toggle.
 const ICON_OFFICIAL = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="white" aria-hidden="true">
@@ -55,6 +60,17 @@ function escapeHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
+function isDeckEnabled(disabledSet, packId, deck) {
+  return !disabledSet.has(`${packId}:${deck}`);
+}
+
+function deckCount(pack, deck) {
+  if (deck === 'die') return Number(pack.die_count ?? 0);
+  if (deck === 'live') return Number(pack.live_count ?? 0);
+  if (deck === 'bye') return Number(pack.bye_count ?? 0);
+  return 0;
+}
+
 function packMatchesFilter(pack, filter, authUserId) {
   // Base game: always shows on Official + Public; never on Mine; only on
   // Favourites if explicitly favourited.
@@ -72,9 +88,47 @@ function packMatchesFilter(pack, filter, authUserId) {
   }
 }
 
-function renderItem(pack, on, isHost) {
+function renderDeckChips(pack, disabledSet, isHost) {
+  return DECKS.map((deck) => {
+    const on = isDeckEnabled(disabledSet, pack.id, deck);
+    const count = deckCount(pack, deck);
+    const cls = `pack-selector__deck-chip pack-selector__deck-chip--${deck} ${on ? 'is-on' : 'is-off'}`;
+    if (!isHost) {
+      return `<span class="${cls}" aria-disabled="true">${DECK_LABEL[deck]} ${count}</span>`;
+    }
+    return `<button class="${cls}" onclick="window.game.togglePackDeck('${escapeHtml(pack.id)}', '${deck}')">
+      ${DECK_LABEL[deck]} ${count}
+    </button>`;
+  }).join('');
+}
+
+function buildPackPreviewItems(pack, state, disabledSet) {
+  // Returns array of { deck, text, imgSrc? } for currently-enabled decks
+  const items = [];
+  const want = (d) => isDeckEnabled(disabledSet, pack.id, d);
+  if (pack.id === 'base') {
+    const base = state.basePackCards;
+    if (!base) return null; // signal "loading"
+    if (want('die')) for (const c of base.die || []) items.push({ deck: 'die', text: c.title || c.text || '', imgSrc: c.illustrationKey ? `assets/illustrations/die/${c.illustrationKey}.jpg` : undefined });
+    if (want('live')) for (const c of base.live || []) items.push({ deck: 'live', text: c.title || c.text || '', imgSrc: c.illustrationKey ? `assets/illustrations/live/${c.illustrationKey}.jpg` : undefined });
+    if (want('bye')) for (const c of base.bye || []) items.push({ deck: 'bye', text: c.title || c.text || '', imgSrc: c.illustrationKey ? `assets/illustrations/bye/${c.illustrationKey}.jpg` : undefined });
+    return items;
+  }
+  const cards = (state.packCards || {})[pack.id];
+  if (!cards) return null; // loading
+  for (const c of cards) {
+    const deck = c.deck_type;
+    if (!want(deck)) continue;
+    items.push({ deck, text: c.text || '' });
+  }
+  return items;
+}
+
+function renderItem(pack, on, isHost, state, disabledSet) {
   const title = escapeHtml(pack.title);
   const count = Number(pack.card_count ?? 0);
+  const expanded = (state.expandedPackPreviewIds || []).includes(pack.id);
+
   const favBtn = (!isHost || pack.isBase) ? '' : `
     <button class="pack-selector__fav ${pack.is_favorited ? 'is-on' : ''}"
             title="${pack.is_favorited ? 'Remove from favourites' : 'Add to favourites'}"
@@ -82,20 +136,71 @@ function renderItem(pack, on, isHost) {
       ${pack.is_favorited ? ICON_HEART : ICON_HEART_OUTLINE}
     </button>
   `;
-  const control = isHost
+
+  const previewIconBtn = (isHost && on)
+    ? `<button class="pack-selector__preview-btn ${expanded ? 'is-active' : ''}"
+               onclick="window.game.togglePackPreview('${escapeHtml(pack.id)}')"
+               aria-label="${expanded ? 'Hide preview' : 'Preview cards'}"
+               title="${expanded ? 'Hide preview' : 'Preview cards'}">
+         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+           <rect x="5" y="3" width="14" height="18" rx="2"/>
+           <line x1="9" y1="8" x2="15" y2="8"/>
+           <line x1="9" y1="12" x2="15" y2="12"/>
+         </svg>
+       </button>`
+    : '';
+  const toggleBtn = isHost
     ? `<button class="btn btn--small pack-selector__toggle ${on ? 'btn--active' : ''}"
                onclick="window.game.togglePack('${escapeHtml(pack.id)}')">
          ${on ? 'On' : 'Off'}
        </button>`
     : `<span class="pack-selector__tag">${on ? 'Selected' : ''}</span>`;
+  const control = `<div class="pack-selector__controls">${favBtn}${previewIconBtn}${toggleBtn}</div>`;
+
+  // Sub-row: deck chips (only when pack is enabled)
+  let subRow = '';
+  if (on) {
+    const chips = renderDeckChips(pack, disabledSet, isHost);
+    subRow = `
+      <div class="pack-selector__sub-row">
+        <div class="pack-selector__deck-chips">${chips}</div>
+      </div>`;
+  }
+
+  // Inline preview strip
+  let previewStrip = '';
+  if (on && expanded && isHost) {
+    const items = buildPackPreviewItems(pack, state, disabledSet);
+    if (items === null) {
+      previewStrip = `<div class="pack-selector__preview-strip"><p class="card-list__empty">Loading…</p></div>`;
+    } else {
+      // Stash the rendered list on window so the modal can navigate prev/next
+      setTimeout(() => {
+        if (window.game && window.game.setLobbyPreviewList) window.game.setLobbyPreviewList(items);
+      }, 0);
+      let _idx = 0;
+      previewStrip = `<div class="pack-selector__preview-strip">${renderCardList(items, {
+        size: 'sm',
+        showStats: false,
+        scrollArrows: true,
+        id: `pack-preview-${pack.id}`,
+        emptyText: 'No cards in enabled decks',
+        buildOnClick: () => `window.game.previewLobbyCardAt(${_idx++})`,
+      })}</div>`;
+    }
+  }
+
   return `
     <div class="pack-selector__item ${on ? 'is-selected' : ''} ${pack.isBase ? 'is-base' : ''}">
-      <div class="pack-selector__info">
-        <span class="pack-selector__title">${title}</span>
-        <span class="pack-selector__meta">${count} card${count === 1 ? '' : 's'}</span>
+      <div class="pack-selector__row">
+        <div class="pack-selector__info">
+          <span class="pack-selector__title">${title}</span>
+          <span class="pack-selector__meta">${count} card${count === 1 ? '' : 's'}</span>
+        </div>
+        ${control}
       </div>
-      ${favBtn}
-      ${control}
+      ${subRow}
+      ${previewStrip}
     </div>
   `;
 }
@@ -118,22 +223,25 @@ function renderTabs(activeFilter, isAuthed) {
 
 /**
  * Render the expansion pack selector for the online lobby.
- * Host sees toggle buttons + filter tabs; non-hosts see a read-only list of selected packs.
+ * Host sees filter tabs + per-deck sub-toggles + inline preview;
+ * non-hosts see a read-only list of selected packs with their deck mask.
  */
 export function render(state, { isHost } = { isHost: false }) {
   const expansionPacks = state.availablePacks || [];
   const selected = new Set(state.selectedPackIds || []);
+  const disabledSet = new Set(state.disabledPackDecks || []);
   const allPacks = [BASE_PACK, ...expansionPacks];
   const authUserId = state.authUser?.id;
   const isAuthed = !!authUserId;
 
-  // Compute per-deck totals across ALL currently-selected packs (not filtered).
+  // Compute per-deck totals across ALL currently-selected packs (not filtered),
+  // honoring per-pack deck enablement.
   let dieTotal = 0, liveTotal = 0, byeTotal = 0;
   for (const p of allPacks) {
     if (!selected.has(p.id)) continue;
-    dieTotal += Number(p.die_count ?? 0);
-    liveTotal += Number(p.live_count ?? 0);
-    byeTotal += Number(p.bye_count ?? 0);
+    if (isDeckEnabled(disabledSet, p.id, 'die'))  dieTotal  += deckCount(p, 'die');
+    if (isDeckEnabled(disabledSet, p.id, 'live')) liveTotal += deckCount(p, 'live');
+    if (isDeckEnabled(disabledSet, p.id, 'bye'))  byeTotal  += deckCount(p, 'bye');
   }
 
   const totalsHeader = `
@@ -149,7 +257,7 @@ export function render(state, { isHost } = { isHost: false }) {
     const visible = allPacks.filter((p) => selected.has(p.id));
     const items = visible.length === 0
       ? `<div class="pack-selector__empty">No packs selected.</div>`
-      : visible.map((p) => renderItem(p, true, false)).join('');
+      : visible.map((p) => renderItem(p, true, false, state, disabledSet)).join('');
     return `<div class="pack-selector">${totalsHeader}${items}</div>`;
   }
 
@@ -162,7 +270,16 @@ export function render(state, { isHost } = { isHost: false }) {
   const tabsHtml = renderTabs(activeFilter, isAuthed);
   const items = filtered.length === 0
     ? `<div class="pack-selector__empty">${TABS.find((t) => t.id === activeFilter)?.empty || ''}</div>`
-    : filtered.map((p) => renderItem(p, selected.has(p.id), true)).join('');
+    : filtered.map((p) => renderItem(p, selected.has(p.id), true, state, disabledSet)).join('');
+
+  // Bind scroll-arrow listeners for any open preview strips after render
+  setTimeout(() => {
+    if (window.cardList && window.cardList.bindScrollArrows) {
+      for (const id of (state.expandedPackPreviewIds || [])) {
+        window.cardList.bindScrollArrows(`pack-preview-${id}`);
+      }
+    }
+  }, 0);
 
   return `<div class="pack-selector">${tabsHtml}${totalsHeader}${items}</div>`;
 }
