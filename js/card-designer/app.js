@@ -9,9 +9,16 @@ import {
   setPackOfficial, setPackDev,
 } from './pack-manager.js';
 import {
-  setStateSetter, initAuth, signInWithGoogle,
-  signInWithEmail, signUpWithEmail, logOut,
+  signInWithGoogle, signInWithEmail, signUpWithEmail, logOut,
 } from '../managers/auth-manager.js';
+
+// ---------------------------------------------------------------------------
+// Mount target — set by mount(); when null, the module is dormant.
+// ---------------------------------------------------------------------------
+let _container = null;
+let _mounted = false;
+let _listenersInstalled = false;
+let _onViewChange = null;
 
 // ---------------------------------------------------------------------------
 // State
@@ -40,16 +47,25 @@ let state = {
 };
 
 function setState(updates) {
+  const prevView = state.view;
   Object.assign(state, updates);
+  if ('view' in updates && updates.view !== prevView && _onViewChange) {
+    _onViewChange(state.view);
+  }
   render();
   refreshSaveDirtyState();
+}
+
+export function getView() {
+  return state.view;
 }
 
 // ---------------------------------------------------------------------------
 // Render dispatcher
 // ---------------------------------------------------------------------------
 function render() {
-  const app = document.getElementById('app');
+  if (!_mounted || !_container) return;
+  const app = _container;
 
   // Auth gate: show login screen if not authenticated
   if (state.authLoading) {
@@ -118,26 +134,20 @@ function renderLoginGate() {
   const error = state.loginError ? `<div class="login-modal__error">${esc(state.loginError)}</div>` : '';
 
   return `
-    <div class="screen screen--card-designer">
-      <div class="designer__header">
-        <h1 class="designer__title">Card Designer</h1>
+    <div class="designer__login-gate">
+      <p class="designer__login-prompt">Sign in to create and manage your card packs.</p>
+      <div class="login-modal" style="position:static; margin:0 auto;">
+        <h2 class="login-modal__title">${title}</h2>
+        <button class="btn btn--google" data-action="sign-in-google">Sign in with Google</button>
+        <div class="login-modal__divider"><span>or</span></div>
+        <form class="login-modal__form" data-action="submit-email-auth">
+          <input type="email" name="email" class="login-modal__input" placeholder="Email" required />
+          <input type="password" name="password" class="login-modal__input" placeholder="Password" required minlength="6" />
+          ${error}
+          <button type="submit" class="btn btn--primary login-modal__submit">${submitLabel}</button>
+        </form>
+        <div class="login-modal__toggle">${toggleText}</div>
       </div>
-      <div class="designer__login-gate">
-        <p class="designer__login-prompt">Sign in to create and manage your card packs.</p>
-        <div class="login-modal" style="position:static; margin:0 auto;">
-          <h2 class="login-modal__title">${title}</h2>
-          <button class="btn btn--google" data-action="sign-in-google">Sign in with Google</button>
-          <div class="login-modal__divider"><span>or</span></div>
-          <form class="login-modal__form" data-action="submit-email-auth">
-            <input type="email" name="email" class="login-modal__input" placeholder="Email" required />
-            <input type="password" name="password" class="login-modal__input" placeholder="Password" required minlength="6" />
-            ${error}
-            <button type="submit" class="btn btn--primary login-modal__submit">${submitLabel}</button>
-          </form>
-          <div class="login-modal__toggle">${toggleText}</div>
-        </div>
-      </div>
-      <a class="btn mode-select__back-btn" href="index.html">&larr; Back to Game</a>
     </div>
   `;
 }
@@ -207,18 +217,15 @@ function renderPackList() {
   }).join('');
 
   return `
-    <div class="screen screen--card-designer">
-      <div class="page-auth">${renderAuthBar()}</div>
-      <div class="designer__header">
-        <h1 class="designer__title">Card Designer</h1>
-      </div>
+    <div class="screen screen--card-designer screen--card-designer--embedded">
       ${state.error ? `<p class="designer__error">${esc(state.error)}</p>` : ''}
       ${state.loading ? '<p class="designer__loading">Loading&hellip;</p>' : ''}
       <div class="designer__pack-list">
         ${packItems || '<p class="designer__empty">No packs yet. Create one!</p>'}
       </div>
-      <button class="btn btn--primary" data-action="new-pack">+ Create New Pack</button>
-      <a class="btn mode-select__back-btn" href="index.html">&larr; Back to Game</a>
+      <div class="designer__new-pack-wrap">
+        <button class="btn btn--primary" data-action="new-pack">+ Create New Pack</button>
+      </div>
     </div>
   `;
 }
@@ -258,13 +265,12 @@ function renderPackEditor() {
   }).join('');
 
   return `
-    <div class="screen screen--card-designer">
-      <div class="page-auth">${renderAuthBar()}</div>
-      <div class="designer__header">
-        <h1 class="designer__title">Edit Pack</h1>
-      </div>
-      ${state.error ? `<p class="designer__error">${esc(state.error)}</p>` : ''}
-      <div class="designer__editor">
+    <div class="screen screen--card-designer screen--card-designer--embedded">
+    <div class="marketplace__header">
+      <h1 class="marketplace__title">Edit Pack</h1>
+    </div>
+    ${state.error ? `<p class="designer__error">${esc(state.error)}</p>` : ''}
+    <div class="designer__editor">
         <label class="designer__label">
           Pack Title
           <input class="designer__input" data-field="pack-title" type="text" value="${esc(pack.title)}" maxlength="100" />
@@ -274,17 +280,17 @@ function renderPackEditor() {
           <textarea class="designer__input designer__textarea" data-field="pack-description" maxlength="500">${esc(pack.description)}</textarea>
         </label>
         <div class="designer__feature">
-          <span class="designer__label">Feature Image</span>
+          <span class="designer__label">Feature Card</span>
           <div class="designer__feature-row">
             <div class="designer__feature-preview">${featureHtml}</div>
             ${picking
               ? `<button class="btn btn--ghost btn--small" data-action="cancel-pick-feature">Cancel</button>`
-              : `<button class="btn btn--secondary btn--small" data-action="start-pick-feature" ${state.currentPackCards.length === 0 ? 'disabled' : ''}>Set Feature Image</button>`}
+              : `<button class="btn btn--secondary btn--small" data-action="start-pick-feature" ${state.currentPackCards.length === 0 ? 'disabled' : ''}>Set Feature Card</button>`}
             ${!picking && pack.featured_card_id
               ? `<button class="btn btn--ghost btn--small" data-action="clear-feature">Clear</button>`
               : ''}
           </div>
-          ${picking ? '<p class="designer__feature-hint">Click a card below to set it as the pack feature image.</p>' : ''}
+          ${picking ? '<p class="designer__feature-hint">Click a card below to set it as the pack feature card.</p>' : ''}
         </div>
         ${state.authUser?.is_admin ? `
           <div class="lobby__stepper-row" style="margin-top: 0.75rem;">
@@ -315,7 +321,9 @@ function renderPackEditor() {
             ? `<button class="btn btn--success" data-action="publish-pack" data-id="${esc(pack.id)}">Publish Pack</button>`
             : ''}
       </div>
-      <button class="btn mode-select__back-btn" data-action="back-to-list">&larr; Back to Packs</button>
+      <div class="designer__back-wrap">
+        <button class="btn mode-select__back-btn menu__site-link" data-action="back-to-list">&larr; Back to Packs</button>
+      </div>
     </div>
   `;
 }
@@ -341,13 +349,12 @@ function renderCardForm() {
   });
 
   return `
-    <div class="screen screen--card-designer">
-      <div class="page-auth">${renderAuthBar()}</div>
-      <div class="designer__header">
-        <h1 class="designer__title">${heading}</h1>
-      </div>
-      ${state.error ? `<p class="designer__error">${esc(state.error)}</p>` : ''}
-      <div class="designer__card-form">
+    <div class="screen screen--card-designer screen--card-designer--embedded">
+    <div class="marketplace__header">
+      <h1 class="marketplace__title">${heading}</h1>
+    </div>
+    ${state.error ? `<p class="designer__error">${esc(state.error)}</p>` : ''}
+    <div class="designer__card-form">
         <div class="designer__field">
           <span class="designer__label">Deck Type</span>
           <div class="designer__deck-picker">${picker}</div>
@@ -367,15 +374,31 @@ function renderCardForm() {
           <button class="btn btn--primary" data-action="save-card">${editing ? 'Update Card' : 'Save Card'}</button>
         </div>
       </div>
-      <button class="btn mode-select__back-btn" data-action="back-to-editor">&larr; Back to Pack</button>
+      <div class="designer__back-wrap">
+        <button class="btn mode-select__back-btn menu__site-link" data-action="back-to-editor">&larr; Back to Pack</button>
+      </div>
     </div>
   `;
 }
 
 // ---------------------------------------------------------------------------
-// Event delegation
+// Event delegation — installed once globally, gated on _mounted + container
 // ---------------------------------------------------------------------------
-document.addEventListener('click', async (e) => {
+function installListeners() {
+  if (_listenersInstalled) return;
+  _listenersInstalled = true;
+  document.addEventListener('click', onDocClick);
+  document.addEventListener('click', onDocClickOutsideMenu);
+  document.addEventListener('submit', onDocSubmit);
+  document.addEventListener('input', onDocInput);
+}
+
+function isInside(e) {
+  return _mounted && _container && _container.contains(e.target);
+}
+
+async function onDocClick(e) {
+  if (!isInside(e)) return;
   const btn = e.target.closest('[data-action]');
   if (!btn) return;
   const action = btn.dataset.action;
@@ -405,17 +428,19 @@ document.addEventListener('click', async (e) => {
     case 'toggle-user-menu': setState({ showUserMenu: !state.showUserMenu }); break;
     case 'log-out': await logOut(); break;
   }
-});
+}
 
 // Close user menu on outside click
-document.addEventListener('click', (e) => {
+function onDocClickOutsideMenu(e) {
+  if (!_mounted) return;
   if (state.showUserMenu && !e.target.closest('.auth-bar')) {
     setState({ showUserMenu: false });
   }
-});
+}
 
 // Handle login form submission
-document.addEventListener('submit', async (e) => {
+async function onDocSubmit(e) {
+  if (!isInside(e)) return;
   const form = e.target.closest('[data-action="submit-email-auth"]');
   if (!form) return;
   e.preventDefault();
@@ -426,9 +451,8 @@ document.addEventListener('submit', async (e) => {
   } else {
     await signInWithEmail(email, password);
   }
-});
+}
 
-// Live-update card text and preview
 function refreshSaveDirtyState() {
   if (!state.currentPack) return;
   const titleInput = document.querySelector('[data-field="pack-title"]');
@@ -441,7 +465,9 @@ function refreshSaveDirtyState() {
   saveBtn.classList.toggle('is-dirty', dirty);
 }
 
-document.addEventListener('input', (e) => {
+// Live-update card text and preview
+function onDocInput(e) {
+  if (!isInside(e)) return;
   if (e.target.matches('[data-field="pack-title"]') || e.target.matches('[data-field="pack-description"]')) {
     refreshSaveDirtyState();
     return;
@@ -462,7 +488,7 @@ document.addEventListener('input', (e) => {
       countEl.textContent = `${state.cardFormText.length}/200`;
     }
   }
-});
+}
 
 // ---------------------------------------------------------------------------
 // Handlers
@@ -753,33 +779,72 @@ function esc(str) {
 }
 
 // ---------------------------------------------------------------------------
-// Init
+// Mount API — called by host (e.g. marketplace) to embed the designer.
 // ---------------------------------------------------------------------------
-async function onAuthChanged() {
-  // Called when Firebase auth state changes
-  if (state.authUser) {
-    // User just logged in — fetch their packs
-    const userId = state.authUser.id;
-    try {
-      const packs = await fetchMyPacks(userId);
-      setState({ localUserId: userId, myPacks: packs, loading: false, view: 'list' });
-    } catch (err) {
-      setState({ localUserId: userId, loading: false, error: `Failed to load packs: ${err.message}` });
-    }
-  } else {
-    // User logged out — clear pack data
+async function loadPacksForUser() {
+  if (!state.authUser) {
     setState({ localUserId: null, myPacks: [], currentPack: null, currentPackCards: [], view: 'list' });
+    return;
+  }
+  const userId = state.authUser.id;
+  setState({ localUserId: userId, loading: true, error: null });
+  try {
+    const packs = await fetchMyPacks(userId);
+    setState({ localUserId: userId, myPacks: packs, loading: false, view: 'list' });
+  } catch (err) {
+    setState({ localUserId: userId, loading: false, error: `Failed to load packs: ${err.message}` });
   }
 }
 
-async function init() {
-  // Wire auth-manager to use our local state instead of game state.js
-  setStateSetter(
-    (updates) => { Object.assign(state, updates); render(); },
-    () => state,
-  );
-  render(); // show loading state
-  await initAuth(onAuthChanged);
+/**
+ * Mount the card designer into a DOM container.
+ * The host is responsible for keeping auth state in sync via syncAuth().
+ */
+export function mount(container, initialAuth = {}, opts = {}) {
+  _container = container;
+  _mounted = true;
+  _onViewChange = opts.onViewChange || null;
+  installListeners();
+  // Sync any auth fields the host already knows about
+  Object.assign(state, {
+    authUser: initialAuth.authUser ?? null,
+    firebaseUser: initialAuth.firebaseUser ?? null,
+    authToken: initialAuth.authToken ?? null,
+    authLoading: initialAuth.authLoading ?? false,
+  });
+  render();
+  // Notify host of current view so it can sync fullscreen layout
+  if (_onViewChange) _onViewChange(state.view);
+  // Kick off pack fetch on first mount only (don't clobber in-progress edits on remount)
+  if (state.authUser && state.myPacks.length === 0 && state.view === 'list') {
+    loadPacksForUser();
+  }
 }
 
-document.addEventListener('DOMContentLoaded', init);
+export function unmount() {
+  _mounted = false;
+  _container = null;
+}
+
+/**
+ * Notify the designer that the host's auth state changed.
+ * Re-fetches packs if the user just logged in.
+ */
+export function syncAuth(auth) {
+  const wasAuthed = !!state.authUser;
+  Object.assign(state, {
+    authUser: auth.authUser ?? null,
+    firebaseUser: auth.firebaseUser ?? null,
+    authToken: auth.authToken ?? null,
+    authLoading: auth.authLoading ?? false,
+  });
+  if (!_mounted) return;
+  const isAuthed = !!state.authUser;
+  if (isAuthed && !wasAuthed) {
+    loadPacksForUser();
+  } else if (!isAuthed && wasAuthed) {
+    setState({ localUserId: null, myPacks: [], currentPack: null, currentPackCards: [], view: 'list' });
+  } else {
+    render();
+  }
+}

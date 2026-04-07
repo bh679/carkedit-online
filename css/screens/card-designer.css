@@ -1,7 +1,7 @@
 /* CarkedIt Online — Card Designer Screen */
 
 .designer__feature {
-  margin-top: var(--space-md, 0.75rem);
+  margin-top: var(--space-sm, 0.5rem);
 }
 .designer__feature-row {
   display: flex;
@@ -10,11 +10,18 @@
   flex-wrap: wrap;
 }
 .designer__feature-preview {
-  width: 70px;
-  min-height: 100px;
+  width: 44px;
+  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+.designer__feature-preview .card,
+.designer__feature-preview .card-list__item {
+  width: 44px;
+  height: 62px;
+  min-height: 0;
+  font-size: 0.5rem;
 }
 .designer__feature-empty {
   display: inline-block;
@@ -219,6 +226,8 @@ body.page--card-designer #app {
   gap: var(--space-sm);
   width: 100%;
   justify-content: center;
+  margin-top: var(--space-lg, 2rem);
+  padding-top: var(--space-md, 1rem);
 }
 
 @keyframes designer-save-pulse {
@@ -429,3 +438,25 @@ body.page--card-designer #app {
 .designer__feature-btn { color: rgba(255, 255, 255, 0.45); }
 .designer__feature-btn--active { color: gold; }
 .designer__card-row--featured { outline: 1px solid rgba(255, 215, 0, 0.45); border-radius: 4px; }
+
+.designer__new-pack-wrap {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-md, 1rem) 0;
+}
+
+.designer__back-wrap {
+  display: flex;
+  justify-content: center;
+  padding-top: var(--space-lg, 2rem);
+  padding-bottom: var(--space-md, 1rem);
+}
+
+/* Embedded variant — designer rendered inside the My Packs tab */
+.screen--card-designer--embedded {
+  margin: 0 auto;
+  max-width: 480px;
+  overflow-y: visible;
+  height: auto;
+  min-height: auto;
+}

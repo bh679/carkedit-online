@@ -1,8 +1,9 @@
 'use strict';
 
-import { setStateSetter, initAuth, signInWithGoogle, getAuthToken } from '../managers/auth-manager.js';
+import { setStateSetter, initAuth, signInWithGoogle, getAuthToken, logOut } from '../managers/auth-manager.js';
 import { bindScrollArrows } from '../components/card-list.js';
 import { render as renderPackBg } from '../components/pack-card-background.js';
+import { mount as mountDesigner, unmount as unmountDesigner, syncAuth as syncDesignerAuth, getView as getDesignerView } from '../card-designer/app.js';
 
 const API_BASE = `${window.location.origin}/api/carkedit`;
 
@@ -15,20 +16,34 @@ const ROW_DEFS = [
 const ROW_LIMIT = 12;
 
 const state = {
-  tab: 'browse',                  // 'browse' | 'favourites'
+  tab: 'browse',                  // 'browse' | 'favourites' | 'my-packs'
   view: 'list',                   // 'list' | 'detail'
   rows: {},                       // { [key]: { packs, loading, error } }
   favourites: { packs: [], loading: false, error: null },
   selectedPack: null,
   authUser: null,
+  firebaseUser: null,
   authLoading: true,
   authToken: null,
+  showUserMenu: false,
+  designerFullscreen: false,
   loading: false,
   error: null,
 };
 
 function setState(updates) {
+  const authChanged =
+    'authUser' in updates || 'firebaseUser' in updates ||
+    'authToken' in updates || 'authLoading' in updates;
   Object.assign(state, updates);
+  if (authChanged) {
+    syncDesignerAuth({
+      authUser: state.authUser,
+      firebaseUser: state.firebaseUser,
+      authToken: state.authToken,
+      authLoading: state.authLoading,
+    });
+  }
   render();
 }
 setStateSetter(setState, () => state);
@@ -152,15 +167,82 @@ function render() {
   const app = document.getElementById('app');
   if (state.view === 'detail') {
     app.innerHTML = renderDetail();
+  } else if (state.tab === 'my-packs' && state.designerFullscreen) {
+    app.innerHTML = renderDesignerFullscreen();
   } else {
     app.innerHTML = renderList();
   }
   attachHandlers();
+  // Mount the card designer into the My Packs pane after innerHTML is written.
+  if (state.view === 'list' && state.tab === 'my-packs') {
+    const mountEl = document.getElementById('my-packs-mount');
+    if (mountEl) {
+      mountDesigner(
+        mountEl,
+        {
+          authUser: state.authUser,
+          firebaseUser: state.firebaseUser,
+          authToken: state.authToken,
+          authLoading: state.authLoading,
+        },
+        {
+          onViewChange: (view) => {
+            const fullscreen = view === 'editor' || view === 'add-card';
+            if (fullscreen !== state.designerFullscreen) {
+              setState({ designerFullscreen: fullscreen });
+            }
+          },
+        }
+      );
+    }
+  } else {
+    unmountDesigner();
+  }
+}
+
+function renderDesignerFullscreen() {
+  return `
+    <div class="screen screen--marketplace screen--my-packs-fullscreen">
+      <div class="page-auth">${renderAuthBar()}</div>
+      <div id="my-packs-mount" class="marketplace__my-packs marketplace__my-packs--fullscreen"></div>
+    </div>
+  `;
+}
+
+function renderAuthBar() {
+  if (!state.authUser) return '';
+  const name = esc(state.authUser.display_name || 'User');
+  const isAdmin = !!state.authUser.is_admin;
+  const hasPhoto = !!state.firebaseUser?.photoURL;
+  const initial = name.charAt(0).toUpperCase();
+  const avatarImg = hasPhoto
+    ? `<img class="auth-bar__avatar" src="${esc(state.firebaseUser.photoURL)}" alt="" />`
+    : `<span class="auth-bar__avatar auth-bar__avatar--initial">${initial}</span>`;
+  const adminItems = isAdmin ? `
+    <a class="auth-menu__item" href="/dashboard">Dashboard</a>
+    <a class="auth-menu__item" href="/admin-users">User Management</a>
+    <a class="auth-menu__item" href="/dev-dashboard">Dev Dashboard</a>
+  ` : '';
+  const menu = state.showUserMenu ? `
+    <div class="auth-menu" onclick="event.stopPropagation()">
+      <div class="auth-menu__name">${name}</div>
+      <div class="auth-menu__divider"></div>
+      ${adminItems}
+      <button class="auth-menu__item auth-menu__item--logout" data-action="log-out">Log Out</button>
+    </div>
+  ` : '';
+  return `
+    <div class="auth-bar">
+      <button class="auth-bar__avatar-btn" data-action="toggle-user-menu" aria-label="User menu">${avatarImg}</button>
+      ${menu}
+    </div>
+  `;
 }
 
 function renderList() {
   return `
     <div class="screen screen--marketplace">
+      <div class="page-auth">${renderAuthBar()}</div>
       <div class="marketplace__header">
         <h1 class="marketplace__title">Expansions</h1>
       </div>
@@ -168,12 +250,17 @@ function renderList() {
       <div class="marketplace__tabs">
         <button class="marketplace__tab ${state.tab === 'browse' ? 'marketplace__tab--active' : ''}" data-action="tab-browse">Browse</button>
         <button class="marketplace__tab ${state.tab === 'favourites' ? 'marketplace__tab--active' : ''}" data-action="tab-favourites">★ Favourites</button>
+        <button class="marketplace__tab ${state.tab === 'my-packs' ? 'marketplace__tab--active' : ''}" data-action="tab-my-packs">My Packs</button>
       </div>
 
-      ${state.tab === 'browse' ? renderBrowseRows() : renderFavourites()}
+      ${state.tab === 'browse'
+        ? renderBrowseRows()
+        : state.tab === 'favourites'
+          ? renderFavourites()
+          : '<div id="my-packs-mount" class="marketplace__my-packs"></div>'}
 
       <div class="menu__actions marketplace__actions">
-        <a class="btn btn--primary menu__site-link" href="card-designer">+ Create Pack</a>
+        ${state.tab === 'my-packs' ? '' : '<button class="btn btn--primary menu__site-link" data-action="tab-my-packs">+ Create Pack</button>'}
         <a class="btn mode-select__back-btn menu__site-link" href="index.html">← Home</a>
       </div>
     </div>
@@ -308,6 +395,19 @@ function onAction(e) {
         loadFavourites();
       }
       break;
+    case 'tab-my-packs':
+      if (state.tab !== 'my-packs') {
+        setState({ tab: 'my-packs', view: 'list' });
+      }
+      break;
+    case 'toggle-user-menu':
+      e.stopPropagation();
+      setState({ showUserMenu: !state.showUserMenu });
+      break;
+    case 'log-out':
+      logOut();
+      setState({ showUserMenu: false });
+      break;
     case 'signin':
       signInWithGoogle();
       break;
@@ -328,6 +428,12 @@ function onAction(e) {
       break;
   }
 }
+
+document.addEventListener('click', (e) => {
+  if (state.showUserMenu && !e.target.closest('.auth-bar')) {
+    setState({ showUserMenu: false });
+  }
+});
 
 initAuth(() => {
   if (state.tab === 'favourites') loadFavourites();
