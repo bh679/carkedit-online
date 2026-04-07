@@ -21,7 +21,7 @@ export async function fetchMyPacks(userId) {
 }
 
 export async function fetchPublicPacks() {
-  const res = await fetch(`${API_BASE}/packs?visibility=public&status=published&limit=100`, {
+  const res = await fetch(`${API_BASE}/packs?status=published&limit=100`, {
     headers: await authHeaders(),
   });
   if (!res.ok) throw new Error('Failed to fetch public packs');

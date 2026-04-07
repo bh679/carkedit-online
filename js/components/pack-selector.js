@@ -13,7 +13,6 @@ const BASE_PACK = {
   bye_count: 68,
   isBase: true,
   is_official: true,
-  visibility: 'public',
   status: 'published',
   creator_id: null,
 };
@@ -83,7 +82,7 @@ function packMatchesFilter(pack, filter, authUserId) {
   switch (filter) {
     case 'official':   return !!pack.is_official;
     case 'mine':       return !!authUserId && pack.creator_id === authUserId;
-    case 'public':     return pack.visibility === 'public' && pack.status === 'published';
+    case 'public':     return pack.status === 'published';
     case 'favourites': return !!pack.is_favorited;
     default:           return true;
   }
