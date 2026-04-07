@@ -1,44 +1,34 @@
-// CarkedIt Online — Error Logger (ring buffer for issue reports)
+// CarkedIt Online — Error Logger (adapter around generic error-monitor)
 'use strict';
 
-const MAX_ENTRIES = 50;
-const _errorLog = [];
-let _initialized = false;
+import * as errorMonitor from './error-monitor.js';
+
+let _consoleHooked = false;
 
 export function initErrorLogger() {
-  if (_initialized) return;
-  _initialized = true;
+  errorMonitor.init();
 
-  const originalError = console.error;
-  console.error = function (...args) {
-    _push({ type: 'console.error', message: args.map(String).join(' ') });
-    originalError.apply(console, args);
-  };
-
-  window.addEventListener('error', (e) => {
-    _push({
-      type: 'window.onerror',
-      message: e.message,
-      source: e.filename,
-      line: e.lineno,
-      col: e.colno,
-    });
-  });
-
-  window.addEventListener('unhandledrejection', (e) => {
-    _push({
-      type: 'unhandledrejection',
-      message: String(e.reason),
-    });
-  });
-}
-
-function _push(entry) {
-  entry.timestamp = new Date().toISOString();
-  _errorLog.push(entry);
-  if (_errorLog.length > MAX_ENTRIES) _errorLog.shift();
+  if (!_consoleHooked) {
+    _consoleHooked = true;
+    const originalError = console.error;
+    console.error = function (...args) {
+      errorMonitor.notifyError({
+        type: 'console.error',
+        message: args.map(String).join(' '),
+      });
+      originalError.apply(console, args);
+    };
+  }
 }
 
 export function getErrorLog() {
-  return [..._errorLog];
+  return errorMonitor.getState().errors;
+}
+
+export function clearErrorState() {
+  errorMonitor.clear();
+}
+
+export function subscribeErrorState(listener) {
+  return errorMonitor.subscribe(listener);
 }
