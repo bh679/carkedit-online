@@ -131,8 +131,8 @@ export function renderStepper(label, value, onDec, onInc, decDisabled, incDisabl
   `;
 }
 
-export function renderAdvancedPanel(state) {
-  if (!state.showAdvancedSettings) return '';
+export function renderAdvancedPanel(state, { force = false } = {}) {
+  if (!force && !state.showAdvancedSettings) return '';
   const { rounds, handSize, enableLive, enableBye, enableEulogy, forceWildcards, playableWildcards = true, wildcardCount, eulogistCount, handRedraws = 'once_per_phase', timerEnabled, pitchTimerEnabled, playCardTimerEnabled, timerCountUp, pitchDuration, timerVisible, timerAutoAdvance, ultraQuickMode, optionalCardPlay } = state.gameSettings;
   const rawPlayerCount = state.gameMode === 'online'
     ? (state.onlinePlayers?.length ?? 0)
