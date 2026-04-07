@@ -7,10 +7,10 @@ import { render as renderPackBg } from '../components/pack-card-background.js';
 const API_BASE = `${window.location.origin}/api/carkedit`;
 
 const ROW_DEFS = [
-  { key: 'newest',     label: 'Newest',     params: { sort: 'newest', visibility: 'public', status: 'published' } },
-  { key: 'official',   label: 'Official',   params: { sort: 'newest', is_official: 'true', visibility: 'public', status: 'published' } },
-  { key: 'most_used',  label: 'Most Used',  params: { sort: 'most_used', visibility: 'public', status: 'published' } },
-  { key: 'most_saved', label: 'Most Saved', params: { sort: 'most_saved', visibility: 'public', status: 'published' } },
+  { key: 'newest',     label: 'Newest',     params: { sort: 'newest', status: 'published' } },
+  { key: 'official',   label: 'Official',   params: { sort: 'newest', is_official: 'true', status: 'published' } },
+  { key: 'most_used',  label: 'Most Used',  params: { sort: 'most_used', status: 'published' } },
+  { key: 'most_saved', label: 'Most Saved', params: { sort: 'most_saved', status: 'published' } },
 ];
 const ROW_LIMIT = 12;
 
