@@ -630,6 +630,16 @@ function setupRoomListeners(room, onUpdate) {
     }
   });
 
+  // Sync selectedPackIds from server state to local state (used in lobby)
+  const syncSelectedPackIds = () => {
+    const ids = Array.from(room.state.selectedPackIds ?? []);
+    setState({ selectedPackIds: ids });
+    const state = getState();
+    if (state.screen === 'online-lobby' && _onSettingsChange) _onSettingsChange();
+  };
+  $(room.state.selectedPackIds).onAdd(syncSelectedPackIds);
+  $(room.state.selectedPackIds).onRemove(syncSelectedPackIds);
+
   $(room.state.selectedEulogists).onAdd(() => {
     const eulogyPhases = ['eulogy_pick'];
     if (eulogyPhases.includes(room.state.phase)) {
@@ -836,6 +846,7 @@ export async function createRoom({ name, birthMonth, birthDay, isPrivate = true,
       onlinePlayers: syncPlayersFromRoom(room),
       mySessionId: room.sessionId,
       gameSettings: { ...state.gameSettings, ...syncGameSettingsFromRoom(room) },
+      selectedPackIds: Array.from(room.state.selectedPackIds ?? []),
     });
     _lastOnUpdate = onUpdate;
     setupRoomListeners(room, onUpdate);
@@ -883,6 +894,7 @@ export async function joinRoom(code, { name, birthMonth, birthDay, isDevName = f
       onlinePlayers: syncPlayersFromRoom(room),
       mySessionId: room.sessionId,
       gameSettings: { ...state.gameSettings, ...syncGameSettingsFromRoom(room) },
+      selectedPackIds: Array.from(room.state.selectedPackIds ?? []),
     });
     _lastOnUpdate = onUpdate;
     setupRoomListeners(room, onUpdate);

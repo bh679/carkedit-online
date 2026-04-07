@@ -5,6 +5,7 @@ import { render as renderPhaseHeader } from '../components/phase-header.js';
 import { render as renderGameboard } from '../components/gameboard.js';
 import { PERSON_ICON, STAR_ICON, formatBirthday } from '../components/player-list.js';
 import { renderAdvancedPanel, renderToggle } from './lobby.js';
+import { render as renderPackSelector } from '../components/pack-selector.js';
 
 const LINK_ICON = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
   <path d="M6.5 9.5L9.5 6.5" stroke="#374151" stroke-width="1.5" stroke-linecap="round"/>
@@ -166,6 +167,9 @@ function renderConnectedLobby(state) {
             </button>
             <div id="advanced-settings-panel">${renderAdvancedPanel(state)}</div>
           </div>
+          <div class="online-lobby__divider"></div>
+          <h2 class="online-lobby__heading">Expansion Packs</h2>
+          ${renderPackSelector(state, { isHost: true })}
         </div>
         <div class="online-lobby__divider"></div>`;
       })()
@@ -318,6 +322,9 @@ export function renderSettingsSummary(state) {
   if (gs.playableWildcards !== d.playableWildcards) cards.push([null, 'Playable Wildcards', !gs.playableWildcards]);
   if (gs.wildcardCount !== d.wildcardCount) cards.push(['Wildcards', gs.wildcardCount]);
   if (gs.eulogistCount !== d.eulogistCount) cards.push(['Eulogists', gs.eulogistCount]);
+
+  const packCount = (state.selectedPackIds || []).length;
+  if (packCount > 0) cards.push(['Packs', packCount]);
 
   if (cards.length === 0) {
     return `<div id="settings-summary-panel" class="online-lobby__settings-summary"></div>`;

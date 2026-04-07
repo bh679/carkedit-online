@@ -18,6 +18,13 @@ export async function fetchMyPacks(userId) {
   return data.packs;
 }
 
+export async function fetchPublicPacks() {
+  const res = await fetch(`${API_BASE}/packs?visibility=public&status=published&limit=100`);
+  if (!res.ok) throw new Error('Failed to fetch public packs');
+  const data = await res.json();
+  return data.packs;
+}
+
 export async function createPack(creatorId, title, description) {
   const res = await fetch(`${API_BASE}/packs`, {
     method: 'POST',
