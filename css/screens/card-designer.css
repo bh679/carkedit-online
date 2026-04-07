@@ -1,5 +1,36 @@
 /* CarkedIt Online — Card Designer Screen */
 
+.designer__feature {
+  margin-top: var(--space-md, 0.75rem);
+}
+.designer__feature-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm, 0.5rem);
+  flex-wrap: wrap;
+}
+.designer__feature-preview {
+  width: 70px;
+  min-height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.designer__feature-empty {
+  display: inline-block;
+  padding: 0.5rem 0.75rem;
+  border: 1px dashed rgba(255,255,255,0.3);
+  border-radius: 6px;
+  color: rgba(255,255,255,0.5);
+  font-size: 0.85rem;
+}
+.designer__feature-hint {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  color: var(--accent, #b794f4);
+}
+
+
 /* Override base.css body/app overflow for standalone page scrolling */
 body.page--card-designer {
   overflow-y: auto;
