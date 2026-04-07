@@ -1,6 +1,7 @@
 'use strict';
 
 import { render as renderCardList } from './card-list.js';
+import { render as renderPackBg } from './pack-card-background.js';
 
 // Sentinel "base" pack — counts must match carkedit-api/src/data/cards.ts
 const BASE_PACK = {
@@ -204,6 +205,7 @@ function renderItem(pack, on, isHost, state, disabledSet) {
 
   return `
     <div class="pack-selector__item ${on ? 'is-selected' : ''} ${pack.isBase ? 'is-base' : ''}">
+      ${renderPackBg(pack)}
       <div class="pack-selector__row">
         <div class="pack-selector__info">
           <span class="pack-selector__title">${title}</span>

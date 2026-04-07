@@ -1,6 +1,7 @@
 'use strict';
 
 import { render as renderCard } from '../components/card.js';
+import { render as renderPackBg } from '../components/pack-card-background.js';
 import {
   fetchMyPacks, createPack, getPack,
   updatePack, deletePack, addCards, updateCard, deleteCard,
@@ -154,6 +155,7 @@ function renderPackList() {
         : '';
     return `
       <div class="designer__pack-item">
+        ${renderPackBg(p)}
         <div class="designer__pack-info">
           <span class="designer__pack-title">${esc(p.title)}</span>
           <span class="designer__pack-meta">${cardCount} cards &middot; ${statusBadge}</span>

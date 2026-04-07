@@ -1,0 +1,60 @@
+/* Pack row background: faded featured card + left-edge deck bands */
+
+.pack-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  border-radius: inherit;
+  z-index: 0;
+}
+
+.pack-bg__card {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%) scale(0.95);
+  width: 28%;
+  max-width: 180px;
+  min-width: 90px;
+  opacity: 0.18;
+  filter: saturate(0.85);
+  aspect-ratio: 5 / 7;
+  display: flex;
+}
+
+.pack-bg__card .card {
+  width: 100%;
+  height: 100%;
+}
+
+.pack-bg__bands {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  gap: 1px;
+}
+
+.pack-bg__band {
+  width: 4px;
+}
+
+.pack-bg__band--die  { background: linear-gradient(to right, var(--color-die),  transparent); }
+.pack-bg__band--live { background: linear-gradient(to right, var(--color-live), transparent); }
+.pack-bg__band--bye  { background: linear-gradient(to right, var(--color-bye),  transparent); }
+
+/* Ensure pack row containers can host the absolute background. */
+.pack-selector__item,
+.designer__pack-item {
+  position: relative;
+  overflow: hidden;
+}
+
+/* Keep row content above the background layer. */
+.pack-selector__item > *:not(.pack-bg),
+.designer__pack-item > *:not(.pack-bg) {
+  position: relative;
+  z-index: 1;
+}
