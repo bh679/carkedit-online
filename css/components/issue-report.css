@@ -92,6 +92,7 @@
 .phase-header__flag-btn {
   width: 34px;
   height: 34px;
+  color: #ffffff;
   background: transparent;
   border: none;
   display: flex;
@@ -102,8 +103,7 @@
 }
 
 .phase-header__flag-btn--dev {
-  background: #22c55e;
-  border-radius: 50%;
+  color: #22c55e;
 }
 
 .phase-header__flag-btn--error {
