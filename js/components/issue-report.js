@@ -2,7 +2,7 @@
 'use strict';
 
 import { getState } from '../state.js';
-import { getErrorLog } from '../utils/error-logger.js';
+import { getErrorLog, clearErrorState } from '../utils/error-logger.js';
 
 const CATEGORIES = [
   { id: 'connection',  label: 'Connection Issue' },
@@ -118,6 +118,7 @@ export async function submit() {
 
     if (!res.ok) throw new Error(`Server error (${res.status})`);
 
+    clearErrorState();
     _showStatus('Report sent. Thank you!', false);
     setTimeout(() => {
       window.game.closeIssueReport();

@@ -106,6 +106,17 @@
   border-radius: 50%;
 }
 
+.phase-header__flag-btn--error {
+  background: #ef4444;
+  border-radius: 50%;
+  animation: phase-header__flag-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes phase-header__flag-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6); }
+  50%      { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+}
+
 .phase-header__flag-btn:active {
   opacity: 0.8;
 }
