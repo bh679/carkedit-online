@@ -29,6 +29,8 @@ const state = {
   designerFullscreen: false,
   loading: false,
   error: null,
+  autoSwitched: false,
+  rowsPending: 0,
 };
 
 function setState(updates) {
@@ -67,11 +69,27 @@ async function loadRow(def) {
   } catch (err) {
     state.rows[def.key] = { packs: [], loading: false, error: err.message || 'Failed' };
   }
+  state.rowsPending -= 1;
+  if (state.rowsPending <= 0) maybeAutoSwitchTab();
   render();
 }
 
 function loadAllRows() {
+  state.rowsPending = ROW_DEFS.length;
   for (const def of ROW_DEFS) loadRow(def);
+}
+
+function maybeAutoSwitchTab() {
+  if (state.autoSwitched) return;
+  if (state.tab !== 'browse' || state.view !== 'list') return;
+  const allEmpty = ROW_DEFS.every((def) => {
+    const row = state.rows[def.key];
+    return row && !row.loading && !row.error && (row.packs || []).length === 0;
+  });
+  if (allEmpty) {
+    state.autoSwitched = true;
+    state.tab = 'my-packs';
+  }
 }
 
 async function loadFavourites() {
