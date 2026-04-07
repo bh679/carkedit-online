@@ -85,7 +85,7 @@ function renderJoinCreate(state, connecting, error) {
       ${headerHtml}
       ${renderGameboard(boardContent)}
       <div class="online-lobby__actions">
-        <button class="btn btn--secondary" onclick="window.game.showScreen('mode-select')">
+        <button class="btn mode-select__back-btn" onclick="window.game.showScreen('mode-select')">
           &larr; Back
         </button>
       </div>

@@ -77,7 +77,7 @@ export function render(state) {
       ${headerHtml}
       ${renderGameboard(boardContent)}
       <div class="online-lobby__actions">
-        <button class="btn btn--secondary" onclick="window.game.showScreen('menu')">
+        <button class="btn mode-select__back-btn" onclick="window.game.showScreen('menu')">
           &larr; Back
         </button>
       </div>
