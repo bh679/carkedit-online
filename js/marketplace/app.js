@@ -162,9 +162,7 @@ function renderList() {
   return `
     <div class="screen screen--marketplace">
       <div class="marketplace__header">
-        <a class="marketplace__back" href="index.html">← Home</a>
         <h1 class="marketplace__title">Expansions</h1>
-        <a class="marketplace__back" href="card-designer">+ Create</a>
       </div>
 
       <div class="marketplace__tabs">
@@ -173,6 +171,11 @@ function renderList() {
       </div>
 
       ${state.tab === 'browse' ? renderBrowseRows() : renderFavourites()}
+
+      <div class="menu__actions marketplace__actions">
+        <a class="btn btn--primary menu__site-link" href="card-designer">+ Create Pack</a>
+        <a class="btn mode-select__back-btn menu__site-link" href="index.html">← Home</a>
+      </div>
     </div>
   `;
 }
