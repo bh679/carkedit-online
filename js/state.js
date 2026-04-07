@@ -114,6 +114,13 @@ let _state = {
   // Expansion packs
   availablePacks: [],      // Packs shown in lobby selector (own + public published)
   selectedPackIds: ['base'], // Pack IDs currently enabled (sentinel "base" = CarkedIt base game)
+  // Disabled deck keys: array of `${packId}:${deck}` strings (deck = die|live|bye).
+  // Absence = enabled. Mirrors server-side disabledPackDecks.
+  disabledPackDecks: [],
+  // Lobby UI state for inline pack previews
+  expandedPackPreviewIds: [], // pack ids whose preview strip is expanded
+  packCards: {},              // { [packId]: ExpansionCard[] } lazy-fetched preview data
+  basePackCards: null,        // { die: [...], live: [...], bye: [...] } lazy-loaded from json
 
   // Auth state
   authUser: null,                    // Local user object { id, display_name, email, avatar_url }

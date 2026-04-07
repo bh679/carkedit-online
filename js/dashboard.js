@@ -1,6 +1,8 @@
 // CarkedIt Online — Game Dashboard (standalone)
 'use strict';
 
+import { render as renderCardList, fromStatRow, bindScrollArrows } from './components/card-list.js';
+
 // ── Firebase Auth for Admin Gate ────────────────────
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyC6QJz6jTzJkBWV7Shd9XpCfHWrovJ9vaI",
@@ -893,26 +895,9 @@ function deckTypeForCard(deck) {
   return 'die';
 }
 
-function renderStatCard(card) {
-  const deckType = deckTypeForCard(card.card_deck);
-  const imgSrc = getCardImage(card.card_id, card.card_deck);
-  const idAttr = card.card_id ? `, '${escAttr(String(card.card_id))}'` : '';
-  return `
-    <div class="dashboard__stat-card-wrap" onclick="window.dash.previewCard('${escAttr(card.card_text)}', '${escAttr(card.card_deck)}'${idAttr})">
-      <div class="card card--${deckType}">
-        ${imgSrc
-          ? `<img src="${imgSrc}" alt="${card.card_text}" class="card__img">`
-          : `<div class="card__image"><div class="card__image-placeholder"></div></div>
-             <div class="card__body"><h3 class="card__title">${card.card_text}</h3></div>`}
-      </div>
-      <div class="dashboard__stat-card-data">
-        <span>${card.play_count}/${card.draw_count || '?'} plays</span>
-        <span>${card.draw_count > 0 ? card.play_rate + '% rate' : ''}</span>
-        <span>${card.win_count} wins</span>
-        <span class="dashboard__stat-card-rate">${card.win_rate}% win</span>
-      </div>
-    </div>
-  `;
+function buildStatCardOnClick(item) {
+  const idPart = item.id != null ? `, '${escAttr(String(item.id))}'` : '';
+  return `window.dash.previewCard('${escAttr(item.text)}', '${escAttr(item.deck)}'${idPart})`;
 }
 
 function renderCardRow(title, cards) {
@@ -924,12 +909,17 @@ function renderCardRow(title, cards) {
         <p class="dashboard__card-row-empty">No data yet</p>
       </div>`;
   }
+  const items = filtered.map((c) => fromStatRow(c, getCardImage));
   return `
     <div class="dashboard__card-row-section">
       <h3 class="dashboard__card-row-title">${title}</h3>
-      <div class="dashboard__card-row-scroll">
-        ${filtered.map(renderStatCard).join('')}
-      </div>
+      ${renderCardList(items, {
+        size: 'md',
+        showStats: true,
+        scrollArrows: false,
+        legacy: true,
+        buildOnClick: buildStatCardOnClick,
+      })}
     </div>`;
 }
 
@@ -955,15 +945,14 @@ function renderCardAnalytics() {
 
   const filtered = filterCards(getActiveCards());
   const cardsHtml = filtered.length > 0
-    ? `<div class="dashboard__card-row-wrapper">
-        <button class="dashboard__scroll-btn dashboard__scroll-btn--left" id="card-scroll-left" onclick="window.dash.scrollCards(-1)" aria-label="Scroll left" style="display:none">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
-        </button>
-        <div class="dashboard__card-row-scroll" id="card-scroll-row">${filtered.map(renderStatCard).join('')}</div>
-        <button class="dashboard__scroll-btn dashboard__scroll-btn--right" id="card-scroll-right" onclick="window.dash.scrollCards(1)" aria-label="Scroll right">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
-        </button>
-      </div>`
+    ? renderCardList(filtered.map((c) => fromStatRow(c, getCardImage)), {
+        size: 'md',
+        showStats: true,
+        scrollArrows: true,
+        legacy: true,
+        id: 'card-scroll-row',
+        buildOnClick: buildStatCardOnClick,
+      })
     : '<p class="dashboard__card-row-empty">No data yet</p>';
 
   const cardDevLabels = { all: 'With Dev', nodev: 'No Dev', dev: 'Only Dev' };
@@ -988,34 +977,16 @@ function renderCardAnalytics() {
     ${cardsHtml}
   `;
 
-  // Check arrow visibility after render, and listen for manual scroll
-  requestAnimationFrame(() => {
-    updateScrollArrows();
-    const row = document.getElementById('card-scroll-row');
-    if (row) row.addEventListener('scroll', updateScrollArrows);
-  });
+  // Bind shared scroll-arrow visibility helper
+  requestAnimationFrame(() => bindScrollArrows('card-scroll-row'));
 }
 
+// Back-compat: some legacy markup or external callers may still reference
+// window.dash.scrollCards. Delegate to the shared card-list helper.
 function scrollCards(direction) {
-  const el = document.getElementById('card-scroll-row');
-  if (el) {
-    el.scrollBy({ left: direction * 300, behavior: 'smooth' });
-    // Update arrows after scroll animation
-    setTimeout(updateScrollArrows, 350);
+  if (window.cardList && typeof window.cardList.scroll === 'function') {
+    window.cardList.scroll('card-scroll-row', direction);
   }
-}
-
-function updateScrollArrows() {
-  const el = document.getElementById('card-scroll-row');
-  const left = document.getElementById('card-scroll-left');
-  const right = document.getElementById('card-scroll-right');
-  if (!el || !left || !right) return;
-
-  const atStart = el.scrollLeft <= 5;
-  const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 5;
-
-  left.style.display = atStart ? 'none' : 'flex';
-  right.style.display = atEnd ? 'none' : 'flex';
 }
 
 // ── Graphs ───────────────────────────────────────────

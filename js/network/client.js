@@ -640,6 +640,18 @@ function setupRoomListeners(room, onUpdate) {
   $(room.state.selectedPackIds).onAdd(syncSelectedPackIds);
   $(room.state.selectedPackIds).onRemove(syncSelectedPackIds);
 
+  // Sync disabledPackDecks (per-pack deck enablement) from server to local state
+  const syncDisabledPackDecks = () => {
+    const keys = Array.from(room.state.disabledPackDecks ?? []);
+    setState({ disabledPackDecks: keys });
+    const state = getState();
+    if (state.screen === 'online-lobby' && _onSettingsChange) _onSettingsChange();
+  };
+  if (room.state.disabledPackDecks) {
+    $(room.state.disabledPackDecks).onAdd(syncDisabledPackDecks);
+    $(room.state.disabledPackDecks).onRemove(syncDisabledPackDecks);
+  }
+
   $(room.state.selectedEulogists).onAdd(() => {
     const eulogyPhases = ['eulogy_pick'];
     if (eulogyPhases.includes(room.state.phase)) {
@@ -847,6 +859,7 @@ export async function createRoom({ name, birthMonth, birthDay, isPrivate = true,
       mySessionId: room.sessionId,
       gameSettings: { ...state.gameSettings, ...syncGameSettingsFromRoom(room) },
       selectedPackIds: Array.from(room.state.selectedPackIds ?? []),
+      disabledPackDecks: Array.from(room.state.disabledPackDecks ?? []),
     });
     _lastOnUpdate = onUpdate;
     setupRoomListeners(room, onUpdate);
@@ -895,6 +908,7 @@ export async function joinRoom(code, { name, birthMonth, birthDay, isDevName = f
       mySessionId: room.sessionId,
       gameSettings: { ...state.gameSettings, ...syncGameSettingsFromRoom(room) },
       selectedPackIds: Array.from(room.state.selectedPackIds ?? []),
+      disabledPackDecks: Array.from(room.state.disabledPackDecks ?? []),
     });
     _lastOnUpdate = onUpdate;
     setupRoomListeners(room, onUpdate);
