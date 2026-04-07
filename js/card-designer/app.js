@@ -2,6 +2,7 @@
 
 import { render as renderCard } from '../components/card.js';
 import { render as renderPackBg } from '../components/pack-card-background.js';
+import { render as renderCardList, bindScrollArrows } from '../components/card-list.js';
 import {
   fetchMyPacks, createPack, getPack,
   updatePack, deletePack, addCards, updateCard, deleteCard,
@@ -23,6 +24,7 @@ let state = {
   editingCard: null,       // null = new card, object = editing existing
   cardFormDeckType: 'die',
   cardFormText: '',
+  pickingFeature: false,
   loading: false,
   error: null,
   localUserId: null,
@@ -60,10 +62,44 @@ function render() {
 
   switch (state.view) {
     case 'list':     app.innerHTML = renderPackList(); break;
-    case 'editor':   app.innerHTML = renderPackEditor(); break;
+    case 'editor':
+      app.innerHTML = renderPackEditor();
+      ['die', 'live', 'bye'].forEach(t => bindScrollArrows(`designer-cards-${t}`));
+      break;
     case 'add-card': app.innerHTML = renderCardForm(); break;
     default:         app.innerHTML = renderPackList(); break;
   }
+}
+
+if (typeof window !== 'undefined') {
+  window.cardDesigner = window.cardDesigner || {};
+  window.cardDesigner.editCardById = (id) => {
+    const card = state.currentPackCards.find(c => String(c.id) === String(id));
+    if (!card) return;
+    setState({
+      view: 'add-card',
+      editingCard: card,
+      cardFormDeckType: card.deck_type,
+      cardFormText: card.text,
+      error: null,
+    });
+  };
+  window.cardDesigner.setFeatureCard = async (id) => {
+    if (!state.currentPack) return;
+    setState({ loading: true, error: null });
+    try {
+      await updatePack(state.currentPack.id, { featured_card_id: id });
+      const full = await getPack(state.currentPack.id);
+      setState({
+        loading: false,
+        currentPack: full,
+        currentPackCards: full.cards || [],
+        pickingFeature: false,
+      });
+    } catch (err) {
+      setState({ loading: false, error: err.message, pickingFeature: false });
+    }
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -191,27 +227,31 @@ function renderPackEditor() {
   if (!pack) return renderPackList();
 
   const deckTypes = ['die', 'live', 'bye'];
+  const picking = state.pickingFeature;
+  const featureCard = pack.featured_card_id
+    ? state.currentPackCards.find(c => String(c.id) === String(pack.featured_card_id))
+    : null;
+  const featureHtml = featureCard
+    ? renderCard({ title: featureCard.text, description: '', prompt: '', image: '', illustrationKey: '', deckType: featureCard.deck_type })
+    : '<span class="designer__feature-empty">None</span>';
   const sections = deckTypes.map(type => {
     const cards = state.currentPackCards.filter(c => c.deck_type === type);
     const label = type.charAt(0).toUpperCase() + type.slice(1);
-    const rows = cards.map(c => {
-      const isFeatured = pack.featured_card_id === c.id;
-      const star = isFeatured ? '&#9733;' : '&#9734;';
-      const featTitle = isFeatured ? 'Remove as feature card' : 'Set as feature card';
-      const featClass = isFeatured ? ' designer__feature-btn--active' : '';
-      return `
-      <div class="designer__card-row${isFeatured ? ' designer__card-row--featured' : ''}">
-        <span class="designer__card-text">${esc(c.text)}</span>
-        <button class="btn btn--icon designer__feature-btn${featClass}" data-action="toggle-feature-card" data-card-id="${esc(c.id)}" title="${featTitle}" aria-pressed="${isFeatured}">${star}</button>
-        <button class="btn btn--icon" data-action="edit-card" data-card='${esc(JSON.stringify(c))}' title="Edit">&#9998;</button>
-        <button class="btn btn--icon btn--danger" data-action="delete-card" data-card-id="${esc(c.id)}" title="Delete">&times;</button>
-      </div>
-    `;
-    }).join('');
+    const items = cards.map(c => ({ id: c.id, deck: c.deck_type, text: c.text }));
+    const listHtml = renderCardList(items, {
+      size: 'sm',
+      showStats: false,
+      scrollArrows: true,
+      id: `designer-cards-${type}`,
+      emptyText: 'No cards yet',
+      buildOnClick: (it) => picking
+        ? `window.cardDesigner.setFeatureCard('${String(it.id).replace(/'/g, "\\'")}')`
+        : `window.cardDesigner.editCardById('${String(it.id).replace(/'/g, "\\'")}')`,
+    });
     return `
       <div class="designer__section">
         <h3 class="designer__section-header designer__section-header--${type}">${label} Cards (${cards.length})</h3>
-        ${rows || '<p class="designer__empty-section">No cards yet</p>'}
+        ${listHtml}
       </div>
     `;
   }).join('');
@@ -233,6 +273,19 @@ function renderPackEditor() {
           <textarea class="designer__input designer__textarea" data-field="pack-description" maxlength="500">${esc(pack.description)}</textarea>
         </label>
         <button class="btn btn--secondary btn--small" data-action="save-pack-meta">Save Details</button>
+        <div class="designer__feature">
+          <span class="designer__label">Feature Image</span>
+          <div class="designer__feature-row">
+            <div class="designer__feature-preview">${featureHtml}</div>
+            ${picking
+              ? `<button class="btn btn--ghost btn--small" data-action="cancel-pick-feature">Cancel</button>`
+              : `<button class="btn btn--secondary btn--small" data-action="start-pick-feature" ${state.currentPackCards.length === 0 ? 'disabled' : ''}>Set Feature Image</button>`}
+            ${!picking && pack.featured_card_id
+              ? `<button class="btn btn--ghost btn--small" data-action="clear-feature">Clear</button>`
+              : ''}
+          </div>
+          ${picking ? '<p class="designer__feature-hint">Click a card below to set it as the pack feature image.</p>' : ''}
+        </div>
         ${state.authUser?.is_admin ? `
           <label class="designer__label designer__label--inline" style="margin-top: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
             <input type="checkbox" data-action="toggle-pack-official" data-id="${esc(pack.id)}" ${pack.is_official ? 'checked' : ''} />
@@ -297,6 +350,7 @@ function renderCardForm() {
         </div>
         <div class="designer__form-actions">
           <button class="btn btn--ghost" data-action="back-to-editor">Cancel</button>
+          ${editing ? `<button class="btn btn--ghost btn--danger" data-action="delete-card" data-card-id="${esc(editing.id)}">Delete</button>` : ''}
           <button class="btn btn--primary" data-action="save-card">${editing ? 'Update Card' : 'Save Card'}</button>
         </div>
       </div>
@@ -325,10 +379,12 @@ document.addEventListener('click', async (e) => {
     case 'save-card': await handleSaveCard(); break;
     case 'edit-card': handleEditCard(btn.dataset.card); break;
     case 'delete-card': await handleDeleteCard(btn.dataset.cardId); break;
-    case 'toggle-feature-card': await handleToggleFeatureCard(btn.dataset.cardId); break;
     case 'publish-pack': await handlePublishPack(btn.dataset.id); break;
     case 'unpublish-pack': await handleUnpublishPack(btn.dataset.id); break;
     case 'toggle-pack-official': await handleToggleOfficial(btn.dataset.id, btn.checked); break;
+    case 'start-pick-feature': setState({ pickingFeature: true, error: null }); break;
+    case 'cancel-pick-feature': setState({ pickingFeature: false }); break;
+    case 'clear-feature': await handleClearFeature(); break;
     case 'sign-in-google': await signInWithGoogle(); break;
     case 'switch-to-signup': setState({ loginMode: 'signup', loginError: null }); break;
     case 'switch-to-signin': setState({ loginMode: 'signin', loginError: null }); break;
@@ -533,6 +589,24 @@ async function handleDeleteCard(cardId) {
       loading: false,
       currentPack: full,
       currentPackCards: full.cards || [],
+      view: 'editor',
+      editingCard: null,
+    });
+  } catch (err) {
+    setState({ loading: false, error: err.message });
+  }
+}
+
+async function handleClearFeature() {
+  if (!state.currentPack) return;
+  setState({ loading: true, error: null });
+  try {
+    await updatePack(state.currentPack.id, { featured_card_id: null });
+    const full = await getPack(state.currentPack.id);
+    setState({
+      loading: false,
+      currentPack: full,
+      currentPackCards: full.cards || [],
     });
   } catch (err) {
     setState({ loading: false, error: err.message });
@@ -571,18 +645,6 @@ async function handleUnpublishPack(packId) {
     setState({ loading: false, myPacks: packs });
   } catch (err) {
     setState({ loading: false, error: err.message });
-  }
-}
-
-async function handleToggleFeatureCard(cardId) {
-  if (!state.currentPack) return;
-  const next = state.currentPack.featured_card_id === cardId ? null : cardId;
-  setState({ error: null });
-  try {
-    const updated = await updatePack(state.currentPack.id, { featured_card_id: next });
-    setState({ currentPack: { ...state.currentPack, ...updated } });
-  } catch (err) {
-    setState({ error: err.message });
   }
 }
 
