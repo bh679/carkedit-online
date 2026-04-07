@@ -111,6 +111,10 @@ let _state = {
   onlineEulogistNames: [],          // names of selected eulogists
   onlineWildcardPlayerName: '',     // name of current wildcard holder
 
+  // Expansion packs
+  availablePacks: [],      // Packs shown in lobby selector (own + public published)
+  selectedPackIds: ['base'], // Pack IDs currently enabled (sentinel "base" = CarkedIt base game)
+
   // Auth state
   authUser: null,                    // Local user object { id, display_name, email, avatar_url }
   firebaseUser: null,                // Firebase user (for display name, photo)
