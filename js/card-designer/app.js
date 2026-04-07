@@ -6,7 +6,7 @@ import { render as renderCardList, bindScrollArrows } from '../components/card-l
 import {
   fetchMyPacks, createPack, getPack,
   updatePack, deletePack, addCards, updateCard, deleteCard,
-  setPackOfficial,
+  setPackOfficial, setPackDev,
 } from './pack-manager.js';
 import {
   setStateSetter, initAuth, signInWithGoogle,
@@ -291,6 +291,10 @@ function renderPackEditor() {
             <input type="checkbox" data-action="toggle-pack-official" data-id="${esc(pack.id)}" ${pack.is_official ? 'checked' : ''} />
             Mark as Official Deck (admin)
           </label>
+          <label class="designer__label designer__label--inline" style="margin-top: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+            <input type="checkbox" data-action="toggle-pack-dev" data-id="${esc(pack.id)}" ${pack.is_dev ? 'checked' : ''} />
+            Mark as Dev Deck (admin)
+          </label>
         ` : ''}
       </div>
       ${sections}
@@ -382,6 +386,7 @@ document.addEventListener('click', async (e) => {
     case 'publish-pack': await handlePublishPack(btn.dataset.id); break;
     case 'unpublish-pack': await handleUnpublishPack(btn.dataset.id); break;
     case 'toggle-pack-official': await handleToggleOfficial(btn.dataset.id, btn.checked); break;
+    case 'toggle-pack-dev': await handleToggleDev(btn.dataset.id, btn.checked); break;
     case 'start-pick-feature': setState({ pickingFeature: true, error: null }); break;
     case 'cancel-pick-feature': setState({ pickingFeature: false }); break;
     case 'clear-feature': await handleClearFeature(); break;
@@ -655,6 +660,19 @@ async function handleToggleOfficial(packId, isOfficial) {
     const updated = await setPackOfficial(packId, isOfficial);
     if (state.currentPack?.id === packId) {
       setState({ currentPack: { ...state.currentPack, is_official: !!updated.is_official } });
+    }
+  } catch (err) {
+    setState({ error: err.message });
+  }
+}
+
+async function handleToggleDev(packId, isDev) {
+  if (!state.authUser?.is_admin) return;
+  setState({ error: null });
+  try {
+    const updated = await setPackDev(packId, isDev);
+    if (state.currentPack?.id === packId) {
+      setState({ currentPack: { ...state.currentPack, is_dev: !!updated.is_dev } });
     }
   } catch (err) {
     setState({ error: err.message });

@@ -60,6 +60,19 @@ export async function setPackOfficial(packId, isOfficial) {
   return res.json();
 }
 
+export async function setPackDev(packId, isDev) {
+  const res = await fetch(`${API_BASE}/packs/${encodeURIComponent(packId)}/dev`, {
+    method: 'PATCH',
+    headers: await authHeaders(),
+    body: JSON.stringify({ is_dev: !!isDev }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to set pack dev');
+  }
+  return res.json();
+}
+
 export async function createPack(creatorId, title, description) {
   const res = await fetch(`${API_BASE}/packs`, {
     method: 'POST',
