@@ -27,7 +27,7 @@ import {
 } from './network/client.js';
 import { onTimerUpdate } from './managers/online-timer.js';
 import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, logOut, updateUserProfile } from './managers/auth-manager.js';
-import { fetchMyPacks, fetchPublicPacks } from './card-designer/pack-manager.js';
+import { fetchMyPacks, fetchPublicPacks, fetchFavoritePacks, setPackFavorite } from './card-designer/pack-manager.js';
 import { renderLoginModal } from './components/auth-button.js';
 import {
   startPhase1, doneDying, revealCard,
@@ -493,16 +493,47 @@ window.game = {
     try {
       const authUser = getState().authUser;
       const tasks = [fetchPublicPacks().catch(() => [])];
-      if (authUser?.id) tasks.push(fetchMyPacks(authUser.id).catch(() => []));
+      if (authUser?.id) {
+        tasks.push(fetchMyPacks(authUser.id).catch(() => []));
+        tasks.push(fetchFavoritePacks().catch(() => []));
+      }
       const lists = await Promise.all(tasks);
+      // Merge by id — later lists override earlier ones so favourites'
+      // is_favorited=true wins over the public listing.
       const byId = new Map();
-      for (const l of lists) for (const p of (l || [])) byId.set(p.id, p);
+      for (const l of lists) for (const p of (l || [])) byId.set(p.id, { ...byId.get(p.id), ...p });
       const availablePacks = Array.from(byId.values());
       setState({ availablePacks });
       // Re-render current screen so the selector updates
       if (getState().screen === 'online-lobby') showScreen('online-lobby');
     } catch (e) {
       console.warn('[packs] loadAvailablePacks failed', e);
+    }
+  },
+  setPackFilter(filter) {
+    setState({ packFilter: filter });
+    if (getState().screen === 'online-lobby') showScreen('online-lobby');
+  },
+  async toggleFavoritePack(packId) {
+    if (!packId || packId === 'base') return;
+    const authUser = getState().authUser;
+    if (!authUser?.id) return;
+    const packs = getState().availablePacks || [];
+    const current = packs.find((p) => p.id === packId);
+    const willFavorite = !(current && current.is_favorited);
+    // Optimistic update
+    const next = packs.map((p) => (p.id === packId ? { ...p, is_favorited: willFavorite } : p));
+    setState({ availablePacks: next });
+    if (getState().screen === 'online-lobby') showScreen('online-lobby');
+    try {
+      await setPackFavorite(packId, willFavorite);
+      // Refresh to pick up any newly-favourited private packs etc.
+      this.loadAvailablePacks();
+    } catch (e) {
+      console.warn('[packs] toggleFavoritePack failed', e);
+      // Roll back optimistic update
+      setState({ availablePacks: packs });
+      if (getState().screen === 'online-lobby') showScreen('online-lobby');
     }
   },
   togglePack(packId) {

@@ -12,17 +12,52 @@ async function authHeaders() {
 }
 
 export async function fetchMyPacks(userId) {
-  const res = await fetch(`${API_BASE}/packs?creator_id=${encodeURIComponent(userId)}`);
+  const res = await fetch(`${API_BASE}/packs?creator_id=${encodeURIComponent(userId)}`, {
+    headers: await authHeaders(),
+  });
   if (!res.ok) throw new Error('Failed to fetch packs');
   const data = await res.json();
   return data.packs;
 }
 
 export async function fetchPublicPacks() {
-  const res = await fetch(`${API_BASE}/packs?visibility=public&status=published&limit=100`);
+  const res = await fetch(`${API_BASE}/packs?visibility=public&status=published&limit=100`, {
+    headers: await authHeaders(),
+  });
   if (!res.ok) throw new Error('Failed to fetch public packs');
   const data = await res.json();
   return data.packs;
+}
+
+export async function fetchFavoritePacks() {
+  const res = await fetch(`${API_BASE}/packs/favorites`, {
+    headers: await authHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to fetch favorite packs');
+  const data = await res.json();
+  return data.packs;
+}
+
+export async function setPackFavorite(packId, on) {
+  const res = await fetch(`${API_BASE}/packs/${encodeURIComponent(packId)}/favorite`, {
+    method: on ? 'POST' : 'DELETE',
+    headers: await authHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to update favorite');
+  return true;
+}
+
+export async function setPackOfficial(packId, isOfficial) {
+  const res = await fetch(`${API_BASE}/packs/${encodeURIComponent(packId)}/official`, {
+    method: 'PATCH',
+    headers: await authHeaders(),
+    body: JSON.stringify({ is_official: !!isOfficial }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to set pack official');
+  }
+  return res.json();
 }
 
 export async function createPack(creatorId, title, description) {

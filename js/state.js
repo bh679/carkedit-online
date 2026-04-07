@@ -112,8 +112,9 @@ let _state = {
   onlineWildcardPlayerName: '',     // name of current wildcard holder
 
   // Expansion packs
-  availablePacks: [],      // Packs shown in lobby selector (own + public published)
+  availablePacks: [],      // Packs shown in lobby selector (own + public published + favourites)
   selectedPackIds: ['base'], // Pack IDs currently enabled (sentinel "base" = CarkedIt base game)
+  packFilter: 'official',  // 'official' | 'mine' | 'public' | 'favourites'
 
   // Auth state
   authUser: null,                    // Local user object { id, display_name, email, avatar_url }
