@@ -217,13 +217,15 @@ function renderPackList() {
   }).join('');
 
   return `
-    ${state.error ? `<p class="designer__error">${esc(state.error)}</p>` : ''}
-    ${state.loading ? '<p class="designer__loading">Loading&hellip;</p>' : ''}
-    <div class="designer__pack-list">
-      ${packItems || '<p class="designer__empty">No packs yet. Create one!</p>'}
-    </div>
-    <div class="designer__new-pack-wrap">
-      <button class="btn btn--primary" data-action="new-pack">+ Create New Pack</button>
+    <div class="screen screen--card-designer screen--card-designer--embedded">
+      ${state.error ? `<p class="designer__error">${esc(state.error)}</p>` : ''}
+      ${state.loading ? '<p class="designer__loading">Loading&hellip;</p>' : ''}
+      <div class="designer__pack-list">
+        ${packItems || '<p class="designer__empty">No packs yet. Create one!</p>'}
+      </div>
+      <div class="designer__new-pack-wrap">
+        <button class="btn btn--primary" data-action="new-pack">+ Create New Pack</button>
+      </div>
     </div>
   `;
 }
@@ -263,6 +265,7 @@ function renderPackEditor() {
   }).join('');
 
   return `
+    <div class="screen screen--card-designer screen--card-designer--embedded">
     <div class="marketplace__header">
       <h1 class="marketplace__title">Edit Pack</h1>
     </div>
@@ -277,17 +280,17 @@ function renderPackEditor() {
           <textarea class="designer__input designer__textarea" data-field="pack-description" maxlength="500">${esc(pack.description)}</textarea>
         </label>
         <div class="designer__feature">
-          <span class="designer__label">Feature Image</span>
+          <span class="designer__label">Feature Card</span>
           <div class="designer__feature-row">
             <div class="designer__feature-preview">${featureHtml}</div>
             ${picking
               ? `<button class="btn btn--ghost btn--small" data-action="cancel-pick-feature">Cancel</button>`
-              : `<button class="btn btn--secondary btn--small" data-action="start-pick-feature" ${state.currentPackCards.length === 0 ? 'disabled' : ''}>Set Feature Image</button>`}
+              : `<button class="btn btn--secondary btn--small" data-action="start-pick-feature" ${state.currentPackCards.length === 0 ? 'disabled' : ''}>Set Feature Card</button>`}
             ${!picking && pack.featured_card_id
               ? `<button class="btn btn--ghost btn--small" data-action="clear-feature">Clear</button>`
               : ''}
           </div>
-          ${picking ? '<p class="designer__feature-hint">Click a card below to set it as the pack feature image.</p>' : ''}
+          ${picking ? '<p class="designer__feature-hint">Click a card below to set it as the pack feature card.</p>' : ''}
         </div>
         ${state.authUser?.is_admin ? `
           <div class="lobby__stepper-row" style="margin-top: 0.75rem;">
@@ -321,6 +324,7 @@ function renderPackEditor() {
       <div class="designer__back-wrap">
         <button class="btn mode-select__back-btn menu__site-link" data-action="back-to-list">&larr; Back to Packs</button>
       </div>
+    </div>
   `;
 }
 
@@ -345,6 +349,7 @@ function renderCardForm() {
   });
 
   return `
+    <div class="screen screen--card-designer screen--card-designer--embedded">
     <div class="marketplace__header">
       <h1 class="marketplace__title">${heading}</h1>
     </div>
@@ -372,6 +377,7 @@ function renderCardForm() {
       <div class="designer__back-wrap">
         <button class="btn mode-select__back-btn menu__site-link" data-action="back-to-editor">&larr; Back to Pack</button>
       </div>
+    </div>
   `;
 }
 
