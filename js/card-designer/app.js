@@ -42,6 +42,7 @@ let state = {
 function setState(updates) {
   Object.assign(state, updates);
   render();
+  refreshSaveDirtyState();
 }
 
 // ---------------------------------------------------------------------------
@@ -272,7 +273,6 @@ function renderPackEditor() {
           Description
           <textarea class="designer__input designer__textarea" data-field="pack-description" maxlength="500">${esc(pack.description)}</textarea>
         </label>
-        <button class="btn btn--secondary btn--small" data-action="save-pack-meta">Save Details</button>
         <div class="designer__feature">
           <span class="designer__label">Feature Image</span>
           <div class="designer__feature-row">
@@ -308,6 +308,7 @@ function renderPackEditor() {
       ${sections}
       <div class="designer__editor-actions">
         <button class="btn btn--primary" data-action="show-add-card">+ Add Card</button>
+        <button class="btn btn--secondary" data-action="save-pack-meta">Save</button>
         ${pack.status === 'published'
           ? `<button class="btn btn--ghost" data-action="unpublish-pack" data-id="${esc(pack.id)}">Unpublish</button>`
           : state.currentPackCards.length > 0
@@ -428,7 +429,23 @@ document.addEventListener('submit', async (e) => {
 });
 
 // Live-update card text and preview
+function refreshSaveDirtyState() {
+  if (!state.currentPack) return;
+  const titleInput = document.querySelector('[data-field="pack-title"]');
+  const descInput = document.querySelector('[data-field="pack-description"]');
+  const saveBtn = document.querySelector('.designer__editor-actions [data-action="save-pack-meta"]');
+  if (!titleInput || !saveBtn) return;
+  const title = titleInput.value.trim();
+  const description = (descInput?.value ?? '').trim();
+  const dirty = title !== (state.currentPack.title || '') || description !== (state.currentPack.description || '');
+  saveBtn.classList.toggle('is-dirty', dirty);
+}
+
 document.addEventListener('input', (e) => {
+  if (e.target.matches('[data-field="pack-title"]') || e.target.matches('[data-field="pack-description"]')) {
+    refreshSaveDirtyState();
+    return;
+  }
   if (e.target.matches('[data-field="card-text"]')) {
     state.cardFormText = e.target.value;
     // Update preview without full re-render to keep cursor position
