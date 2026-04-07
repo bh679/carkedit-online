@@ -6,7 +6,7 @@ import { preloadCards } from './preloader.js';
 import { render as renderMenu } from './screens/menu.js';
 import { render as renderModeSelect } from './screens/mode-select.js';
 import { render as renderLobby, renderAdvancedPanel } from './screens/lobby.js';
-import { render as renderOnlineLobby, renderSettingsSummary } from './screens/online-lobby.js';
+import { render as renderOnlineLobby, renderSettingsSummary, renderEditDrawerBody, refreshEditDrawerPackTabLabel } from './screens/online-lobby.js';
 import { render as renderJoinGame } from './screens/join-game.js';
 import { render as renderPhase1 } from './screens/phase1.js';
 import { render as renderPhase23 } from './screens/phase2-3.js';
@@ -147,6 +147,35 @@ function refreshAdvancedPanel() {
         onclick="window.game.setGameMode('huge-group')">Huge Group</button>` : ''}
     `;
   }
+  refreshLobbyEditDrawer();
+}
+
+/**
+ * Re-renders just the host edit drawer body (Mode/Rules/Packs tab content)
+ * if the drawer is open. Avoids the flicker and lost-state of a full
+ * showScreen('online-lobby') re-render.
+ */
+function refreshLobbyEditDrawer() {
+  const state = getState();
+  if (!state.lobbyEditOpen) return;
+  const body = document.getElementById('online-lobby__edit-body');
+  if (body) {
+    body.innerHTML = renderEditDrawerBody(state);
+  }
+  refreshEditDrawerPackTabLabel(state);
+}
+
+/**
+ * Pack handlers used to call `showScreen('online-lobby')` to re-render after
+ * any change. With the host edit drawer that causes the drawer to be torn
+ * down and re-mounted on every interaction. This helper does the right thing:
+ * partial drawer refresh when the drawer is open, full re-render otherwise.
+ */
+function refreshOnlineLobbyAfterPackChange() {
+  const s = getState();
+  if (s.screen !== 'online-lobby') return;
+  if (s.lobbyEditOpen) refreshLobbyEditDrawer();
+  else showScreen('online-lobby');
 }
 
 let _preloadPromise = null;
@@ -310,6 +339,22 @@ function toggleExpansionPacks() {
   else if (screen === 'lobby') showScreen('lobby');
 }
 
+function openLobbyEditor() {
+  setState({ lobbyEditOpen: true });
+  showScreen('online-lobby');
+}
+
+function closeLobbyEditor() {
+  setState({ lobbyEditOpen: false });
+  showScreen('online-lobby');
+}
+
+function setLobbyEditTab(tab) {
+  if (!['mode', 'rules', 'packs'].includes(tab)) return;
+  setState({ lobbyEditTab: tab });
+  showScreen('online-lobby');
+}
+
 function setHandRedraws(value) {
   const allowed = ['off', 'once_per_phase', 'once_per_round', 'unlimited'];
   if (!allowed.includes(value)) return;
@@ -457,6 +502,9 @@ window.game = {
   setGameMode,
   toggleAdvancedSettings,
   toggleExpansionPacks,
+  openLobbyEditor,
+  closeLobbyEditor,
+  setLobbyEditTab,
   setHandRedraws,
   cycleForceWildcards,
   cyclePitchDuration,
@@ -514,14 +562,14 @@ window.game = {
       const availablePacks = Array.from(byId.values());
       setState({ availablePacks });
       // Re-render current screen so the selector updates
-      if (getState().screen === 'online-lobby') showScreen('online-lobby');
+      refreshOnlineLobbyAfterPackChange();
     } catch (e) {
       console.warn('[packs] loadAvailablePacks failed', e);
     }
   },
   setPackFilter(filter) {
     setState({ packFilter: filter });
-    if (getState().screen === 'online-lobby') showScreen('online-lobby');
+    refreshOnlineLobbyAfterPackChange();
   },
   async toggleFavoritePack(packId) {
     if (!packId || packId === 'base') return;
@@ -533,7 +581,7 @@ window.game = {
     // Optimistic update
     const next = packs.map((p) => (p.id === packId ? { ...p, is_favorited: willFavorite } : p));
     setState({ availablePacks: next });
-    if (getState().screen === 'online-lobby') showScreen('online-lobby');
+    refreshOnlineLobbyAfterPackChange();
     try {
       await setPackFavorite(packId, willFavorite);
       // Refresh to pick up any newly-favourited private packs etc.
@@ -542,7 +590,7 @@ window.game = {
       console.warn('[packs] toggleFavoritePack failed', e);
       // Roll back optimistic update
       setState({ availablePacks: packs });
-      if (getState().screen === 'online-lobby') showScreen('online-lobby');
+      refreshOnlineLobbyAfterPackChange();
     }
   },
   togglePack(packId) {
@@ -562,7 +610,11 @@ window.game = {
     }
     setState(patch);
     sendMessage('select_packs', { packIds: updated });
-    if (getState().screen === 'online-lobby') showScreen('online-lobby');
+    const s = getState();
+    if (s.screen === 'online-lobby') {
+      if (s.lobbyEditOpen) refreshLobbyEditDrawer();
+      else showScreen('online-lobby');
+    }
   },
   togglePackDeck(packId, deck) {
     const state = getState();
@@ -577,7 +629,11 @@ window.game = {
     // Server expects the *enabled* set for this pack
     const enabled = allDecks.filter((d) => !disabled.has(`${packId}:${d}`));
     sendMessage('set_pack_decks', { packId, decks: enabled });
-    if (getState().screen === 'online-lobby') showScreen('online-lobby');
+    const s = getState();
+    if (s.screen === 'online-lobby') {
+      if (s.lobbyEditOpen) refreshLobbyEditDrawer();
+      else showScreen('online-lobby');
+    }
   },
   async togglePackPreview(packId) {
     const state = getState();
@@ -585,12 +641,12 @@ window.game = {
     if (current.has(packId)) {
       current.delete(packId);
       setState({ expandedPackPreviewIds: Array.from(current) });
-      if (getState().screen === 'online-lobby') showScreen('online-lobby');
+      refreshOnlineLobbyAfterPackChange();
       return;
     }
     current.add(packId);
     setState({ expandedPackPreviewIds: Array.from(current) });
-    if (getState().screen === 'online-lobby') showScreen('online-lobby');
+    refreshOnlineLobbyAfterPackChange();
 
     // Lazy-fetch cards if not already cached
     if (packId === 'base') {
@@ -603,7 +659,7 @@ window.game = {
           setState({
             basePackCards: { die: results[0] || [], live: results[1] || [], bye: results[2] || [] },
           });
-          if (getState().screen === 'online-lobby') showScreen('online-lobby');
+          refreshOnlineLobbyAfterPackChange();
         } catch (e) {
           console.warn('[packs] base card fetch failed', e);
         }
@@ -613,7 +669,7 @@ window.game = {
         const pack = await getPack(packId);
         const cards = pack?.cards || [];
         setState({ packCards: { ...(getState().packCards || {}), [packId]: cards } });
-        if (getState().screen === 'online-lobby') showScreen('online-lobby');
+        refreshOnlineLobbyAfterPackChange();
       } catch (e) {
         console.warn('[packs] getPack failed', e);
       }
@@ -797,7 +853,7 @@ window.game = {
     try {
       await networkCreateRoom(
         { name, birthMonth, birthDay, isPrivate: true, isDevName, devMode, userId },
-        () => { if (getState().screen === 'online-lobby') showScreen('online-lobby'); },
+        () => { refreshOnlineLobbyAfterPackChange(); },
       );
       showScreen('online-lobby');
     } catch (err) {

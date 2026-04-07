@@ -132,53 +132,10 @@ function renderConnectedLobby(state) {
     : '';
 
   const settingsHtml = isHost
-    ? (() => {
-        const { rounds, ultraQuickMode, optionalCardPlay } = state.gameSettings;
-        const pc = onlinePlayers.length;
-        const isQuick     = !ultraQuickMode && rounds === 1 && !optionalCardPlay;
-        const isNormal    = !ultraQuickMode && rounds !== 1 && !optionalCardPlay;
-        const isBigGroup  = !ultraQuickMode && rounds === 1 &&  optionalCardPlay;
-        const isHugeGroup =  ultraQuickMode &&                  optionalCardPlay;
-        return `<div class="online-lobby__settings">
-          <h2 class="online-lobby__heading">Room Settings</h2>
-          ${renderToggle(
-            'Auto-start when ready',
-            onlineSettings.autoStartOnReady,
-            "window.game.toggleOnlineSetting('autoStartOnReady')",
-          )}
-          <div class="online-lobby__divider"></div>
-          <h2 class="online-lobby__heading">Game Mode</h2>
-          <div id="lobby-mode-toggle" class="lobby__mode-toggle">
-            <button class="btn lobby__mode-btn ${isQuick ? 'btn--primary' : 'btn--secondary'}"
-              onclick="window.game.setGameMode('quick')">Quick</button>
-            <button class="btn lobby__mode-btn ${isNormal ? 'btn--primary' : 'btn--secondary'}"
-              onclick="window.game.setGameMode('normal')">Normal</button>
-            ${pc > 6 ? `<button class="btn lobby__mode-btn ${isBigGroup ? 'btn--primary' : 'btn--secondary'}"
-              onclick="window.game.setGameMode('big-group')">Big Group</button>` : ''}
-            ${pc > 9 ? `<button class="btn lobby__mode-btn ${isHugeGroup ? 'btn--primary' : 'btn--secondary'}"
-              onclick="window.game.setGameMode('huge-group')">Huge Group</button>` : ''}
-          </div>
-          <div class="lobby__advanced">
-            <button
-              class="btn btn--secondary lobby__advanced-toggle"
-              onclick="window.game.toggleAdvancedSettings()"
-            >
-              Advanced Settings ${state.showAdvancedSettings ? '▲' : '▼'}
-            </button>
-            <div id="advanced-settings-panel">${renderAdvancedPanel(state)}</div>
-          </div>
-          <div class="lobby__advanced">
-            <button
-              class="btn btn--secondary lobby__advanced-toggle"
-              onclick="window.game.toggleExpansionPacks()"
-            >
-              Expansion Packs ${state.showExpansionPacks ? '▲' : '▼'}
-            </button>
-            ${state.showExpansionPacks ? renderPackSelector(state, { isHost: true }) : ''}
-          </div>
-        </div>
-        <div class="online-lobby__divider"></div>`;
-      })()
+    ? `<div class="online-lobby__edit-row" onclick="window.game.openLobbyEditor()">
+         ${renderSettingsSummary(state)}
+         <span class="online-lobby__edit-affordance">✎ Edit</span>
+       </div>`
     : renderSettingsSummary(state);
 
   // Find if the local player is ready
@@ -218,10 +175,14 @@ function renderConnectedLobby(state) {
         ${playerListHtml}
       </div>
       <div class="online-lobby__divider"></div>
-      ${hostControls}
       ${settingsHtml}
+      <div class="online-lobby__divider"></div>
+      ${hostControls}
     </div>
   `;
+
+  // ── Host edit drawer ─────────────────────────────────
+  const drawerHtml = (isHost && state.lobbyEditOpen) ? renderEditDrawer(state) : '';
 
   const FLAG_ICON = `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
     <path d="M3 2v12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
@@ -256,7 +217,94 @@ function renderConnectedLobby(state) {
           Leave Room
         </button>
       </div>
+      ${drawerHtml}
     </div>
+  `;
+}
+
+// ── Host edit drawer ──────────────────────────────────
+function renderEditDrawer(state) {
+  const tab = state.lobbyEditTab || 'mode';
+  const packCount = (state.selectedPackIds || []).length;
+  const packLabel = packCount > 0 ? `Packs (${packCount})` : 'Packs';
+
+  const tabBtn = (id, label) => `
+    <button class="online-lobby__edit-tab ${tab === id ? 'is-active' : ''}"
+            onclick="window.game.setLobbyEditTab('${id}')">${label}</button>
+  `;
+
+  return `
+    <div class="online-lobby__edit-scrim" onclick="window.game.closeLobbyEditor()"></div>
+    <div class="online-lobby__edit-drawer" role="dialog" aria-label="Game Settings">
+      <div class="online-lobby__edit-handle"></div>
+      <div class="online-lobby__edit-header">
+        <h2>Game Settings</h2>
+        <button class="online-lobby__edit-close"
+                aria-label="Close"
+                onclick="window.game.closeLobbyEditor()">✕</button>
+      </div>
+      <div id="online-lobby__edit-tabs" class="online-lobby__edit-tabs">
+        ${tabBtn('mode', 'Mode')}
+        ${tabBtn('rules', 'Rules')}
+        ${tabBtn('packs', packLabel)}
+      </div>
+      <div id="online-lobby__edit-body" class="online-lobby__edit-body">
+        ${renderEditDrawerBody(state)}
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Renders just the inner body of the drawer based on the active tab.
+ * Exported so router.js can do partial updates without re-rendering the
+ * entire screen (which would close the drawer animation and lose state).
+ */
+export function renderEditDrawerBody(state) {
+  const tab = state.lobbyEditTab || 'mode';
+  if (tab === 'mode')  return renderModeTab(state);
+  if (tab === 'rules') return renderAdvancedPanel(state, { force: true });
+  if (tab === 'packs') return renderPackSelector(state, { isHost: true });
+  return '';
+}
+
+/**
+ * Re-renders only the Packs (N) tab label so the count updates after
+ * pack toggle without re-rendering the whole drawer.
+ */
+export function refreshEditDrawerPackTabLabel(state) {
+  const tabsEl = document.getElementById('online-lobby__edit-tabs');
+  if (!tabsEl) return;
+  const packBtn = tabsEl.querySelectorAll('.online-lobby__edit-tab')[2];
+  if (!packBtn) return;
+  const packCount = (state.selectedPackIds || []).length;
+  packBtn.textContent = packCount > 0 ? `Packs (${packCount})` : 'Packs';
+}
+
+function renderModeTab(state) {
+  const { rounds, ultraQuickMode, optionalCardPlay } = state.gameSettings;
+  const pc = (state.onlinePlayers || []).length;
+  const isQuick     = !ultraQuickMode && rounds === 1 && !optionalCardPlay;
+  const isNormal    = !ultraQuickMode && rounds !== 1 && !optionalCardPlay;
+  const isBigGroup  = !ultraQuickMode && rounds === 1 &&  optionalCardPlay;
+  const isHugeGroup =  ultraQuickMode &&                  optionalCardPlay;
+  return `
+    <div class="lobby__mode-toggle">
+      <button class="btn lobby__mode-btn ${isQuick ? 'btn--primary' : 'btn--secondary'}"
+        onclick="window.game.setGameMode('quick')">Quick</button>
+      <button class="btn lobby__mode-btn ${isNormal ? 'btn--primary' : 'btn--secondary'}"
+        onclick="window.game.setGameMode('normal')">Normal</button>
+      ${pc > 6 ? `<button class="btn lobby__mode-btn ${isBigGroup ? 'btn--primary' : 'btn--secondary'}"
+        onclick="window.game.setGameMode('big-group')">Big Group</button>` : ''}
+      ${pc > 9 ? `<button class="btn lobby__mode-btn ${isHugeGroup ? 'btn--primary' : 'btn--secondary'}"
+        onclick="window.game.setGameMode('huge-group')">Huge Group</button>` : ''}
+    </div>
+    <div class="online-lobby__divider"></div>
+    ${renderToggle(
+      'Auto-start when ready',
+      state.onlineSettings.autoStartOnReady,
+      "window.game.toggleOnlineSetting('autoStartOnReady')",
+    )}
   `;
 }
 
