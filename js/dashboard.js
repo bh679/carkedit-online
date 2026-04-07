@@ -1136,8 +1136,8 @@ function renderAuthBar() {
     <div class="auth-menu" onclick="event.stopPropagation()">
       <div class="auth-menu__name">${name}</div>
       <div class="auth-menu__divider"></div>
-      <a class="auth-menu__item" href="/admin-users.html">User Management</a>
-      <a class="auth-menu__item" href="/dev-dashboard.html">Dev Dashboard</a>
+      <a class="auth-menu__item" href="/admin-users">User Management</a>
+      <a class="auth-menu__item" href="/dev-dashboard">Dev Dashboard</a>
       <button class="auth-menu__item auth-menu__item--logout" onclick="window.dash.signOut()">Sign Out</button>
     </div>
   ` : '';

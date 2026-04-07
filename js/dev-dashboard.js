@@ -687,13 +687,13 @@ function renderDashboard(sections) {
         <div class="dash-card">
           <div class="dash-card__title">Card Tester</div>
           <div id="section-mini-card">${sections.miniCard}</div>
-          <a href="card-test.html" class="dash-card__link">Open Card Tester &rarr;</a>
+          <a href="card-test" class="dash-card__link">Open Card Tester &rarr;</a>
         </div>
 
         <div class="dash-card">
           <div class="dash-card__title">Color Palette</div>
           <div id="section-palette">${sections.palette}</div>
-          <a href="color-demo.html" class="dash-card__link">Open Color Demo &rarr;</a>
+          <a href="color-demo" class="dash-card__link">Open Color Demo &rarr;</a>
         </div>
 
         <div class="dash-card">
@@ -976,8 +976,8 @@ function injectAuthBar() {
     <div class="auth-menu" onclick="event.stopPropagation()">
       <div class="auth-menu__name">${name}</div>
       <div class="auth-menu__divider"></div>
-      <a class="auth-menu__item" href="/dashboard.html">Dashboard</a>
-      <a class="auth-menu__item" href="/admin-users.html">User Management</a>
+      <a class="auth-menu__item" href="/dashboard">Dashboard</a>
+      <a class="auth-menu__item" href="/admin-users">User Management</a>
       <button class="auth-menu__item auth-menu__item--logout" id="dev-sign-out">Sign Out</button>
     </div>
   ` : '';
