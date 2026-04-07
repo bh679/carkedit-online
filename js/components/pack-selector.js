@@ -1,6 +1,7 @@
 'use strict';
 
 import { render as renderCardList } from './card-list.js';
+import { render as renderPackBg } from './pack-card-background.js';
 
 // Sentinel "base" pack — counts must match carkedit-api/src/data/cards.ts
 const BASE_PACK = {
@@ -124,10 +125,22 @@ function buildPackPreviewItems(pack, state, disabledSet) {
   return items;
 }
 
+function findFeaturedCardText(pack, state) {
+  if (!pack.featured_card_id) return null;
+  const cards = (state.packCards || {})[pack.id];
+  if (!cards) return null;
+  const c = cards.find((x) => x.id === pack.featured_card_id);
+  return c ? c.text : null;
+}
+
 function renderItem(pack, on, isHost, state, disabledSet) {
   const title = escapeHtml(pack.title);
   const count = Number(pack.card_count ?? 0);
   const expanded = (state.expandedPackPreviewIds || []).includes(pack.id);
+  const featuredText = findFeaturedCardText(pack, state);
+  const featuredLine = pack.featured_card_id
+    ? `<span class="pack-selector__featured" title="Feature card">&#9733; ${featuredText ? escapeHtml(featuredText) : 'Featured card'}</span>`
+    : '';
 
   const favBtn = (!isHost || pack.isBase) ? '' : `
     <button class="pack-selector__fav ${pack.is_favorited ? 'is-on' : ''}"
@@ -192,10 +205,12 @@ function renderItem(pack, on, isHost, state, disabledSet) {
 
   return `
     <div class="pack-selector__item ${on ? 'is-selected' : ''} ${pack.isBase ? 'is-base' : ''}">
+      ${renderPackBg(pack)}
       <div class="pack-selector__row">
         <div class="pack-selector__info">
           <span class="pack-selector__title">${title}</span>
           <span class="pack-selector__meta">${count} card${count === 1 ? '' : 's'}</span>
+          ${featuredLine}
         </div>
         ${control}
       </div>

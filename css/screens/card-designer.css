@@ -412,3 +412,8 @@ body.page--card-designer #app {
   justify-content: flex-end;
   width: 100%;
 }
+
+/* Feature card star toggle */
+.designer__feature-btn { color: rgba(255, 255, 255, 0.45); }
+.designer__feature-btn--active { color: gold; }
+.designer__card-row--featured { outline: 1px solid rgba(255, 215, 0, 0.45); border-radius: 4px; }

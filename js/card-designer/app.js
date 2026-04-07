@@ -1,6 +1,7 @@
 'use strict';
 
 import { render as renderCard } from '../components/card.js';
+import { render as renderPackBg } from '../components/pack-card-background.js';
 import { render as renderCardList, bindScrollArrows } from '../components/card-list.js';
 import {
   fetchMyPacks, createPack, getPack,
@@ -87,7 +88,7 @@ if (typeof window !== 'undefined') {
     if (!state.currentPack) return;
     setState({ loading: true, error: null });
     try {
-      await updatePack(state.currentPack.id, { feature_card_id: id });
+      await updatePack(state.currentPack.id, { featured_card_id: id });
       const full = await getPack(state.currentPack.id);
       setState({
         loading: false,
@@ -190,6 +191,7 @@ function renderPackList() {
         : '';
     return `
       <div class="designer__pack-item">
+        ${renderPackBg(p)}
         <div class="designer__pack-info">
           <span class="designer__pack-title">${esc(p.title)}</span>
           <span class="designer__pack-meta">${cardCount} cards &middot; ${statusBadge}</span>
@@ -226,8 +228,8 @@ function renderPackEditor() {
 
   const deckTypes = ['die', 'live', 'bye'];
   const picking = state.pickingFeature;
-  const featureCard = pack.feature_card_id
-    ? state.currentPackCards.find(c => String(c.id) === String(pack.feature_card_id))
+  const featureCard = pack.featured_card_id
+    ? state.currentPackCards.find(c => String(c.id) === String(pack.featured_card_id))
     : null;
   const featureHtml = featureCard
     ? renderCard({ title: featureCard.text, description: '', prompt: '', image: '', illustrationKey: '', deckType: featureCard.deck_type })
@@ -278,7 +280,7 @@ function renderPackEditor() {
             ${picking
               ? `<button class="btn btn--ghost btn--small" data-action="cancel-pick-feature">Cancel</button>`
               : `<button class="btn btn--secondary btn--small" data-action="start-pick-feature" ${state.currentPackCards.length === 0 ? 'disabled' : ''}>Set Feature Image</button>`}
-            ${!picking && pack.feature_card_id
+            ${!picking && pack.featured_card_id
               ? `<button class="btn btn--ghost btn--small" data-action="clear-feature">Clear</button>`
               : ''}
           </div>
@@ -599,7 +601,7 @@ async function handleClearFeature() {
   if (!state.currentPack) return;
   setState({ loading: true, error: null });
   try {
-    await updatePack(state.currentPack.id, { feature_card_id: null });
+    await updatePack(state.currentPack.id, { featured_card_id: null });
     const full = await getPack(state.currentPack.id);
     setState({
       loading: false,
