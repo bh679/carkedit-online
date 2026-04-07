@@ -167,9 +167,15 @@ function renderConnectedLobby(state) {
             </button>
             <div id="advanced-settings-panel">${renderAdvancedPanel(state)}</div>
           </div>
-          <div class="online-lobby__divider"></div>
-          <h2 class="online-lobby__heading">Expansion Packs</h2>
-          ${renderPackSelector(state, { isHost: true })}
+          <div class="lobby__advanced">
+            <button
+              class="btn btn--secondary lobby__advanced-toggle"
+              onclick="window.game.toggleExpansionPacks()"
+            >
+              Expansion Packs ${state.showExpansionPacks ? '▲' : '▼'}
+            </button>
+            ${state.showExpansionPacks ? renderPackSelector(state, { isHost: true }) : ''}
+          </div>
         </div>
         <div class="online-lobby__divider"></div>`;
       })()

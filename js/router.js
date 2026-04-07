@@ -302,6 +302,13 @@ function toggleAdvancedSettings() {
   refreshAdvancedPanel();
 }
 
+function toggleExpansionPacks() {
+  setState({ showExpansionPacks: !getState().showExpansionPacks });
+  const screen = getState().screen;
+  if (screen === 'online-lobby') showScreen('online-lobby');
+  else if (screen === 'lobby') showScreen('lobby');
+}
+
 function setHandRedraws(value) {
   const allowed = ['off', 'once_per_phase', 'once_per_round', 'unlimited'];
   if (!allowed.includes(value)) return;
@@ -448,6 +455,7 @@ window.game = {
   toggleUltraQuickMode,
   setGameMode,
   toggleAdvancedSettings,
+  toggleExpansionPacks,
   setHandRedraws,
   cycleForceWildcards,
   cyclePitchDuration,

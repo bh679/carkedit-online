@@ -68,6 +68,7 @@ let _state = {
     optionalCardPlay: false,
   },
   showAdvancedSettings: false,
+  showExpansionPacks: false,
 
   // Phase 2/3 state
   totalRounds: 2,
