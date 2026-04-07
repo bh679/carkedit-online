@@ -194,10 +194,11 @@
 .online-lobby__actions {
   margin-top: auto;
   display: flex;
+  justify-content: center;
   gap: var(--space-sm);
 }
 
-.online-lobby__actions .btn {
+.online-lobby__actions .btn:not(.mode-select__back-btn) {
   flex: 1;
 }
 
