@@ -192,13 +192,20 @@ function renderPackEditor() {
   const sections = deckTypes.map(type => {
     const cards = state.currentPackCards.filter(c => c.deck_type === type);
     const label = type.charAt(0).toUpperCase() + type.slice(1);
-    const rows = cards.map(c => `
-      <div class="designer__card-row">
+    const rows = cards.map(c => {
+      const isFeatured = pack.featured_card_id === c.id;
+      const star = isFeatured ? '&#9733;' : '&#9734;';
+      const featTitle = isFeatured ? 'Remove as feature card' : 'Set as feature card';
+      const featClass = isFeatured ? ' designer__feature-btn--active' : '';
+      return `
+      <div class="designer__card-row${isFeatured ? ' designer__card-row--featured' : ''}">
         <span class="designer__card-text">${esc(c.text)}</span>
+        <button class="btn btn--icon designer__feature-btn${featClass}" data-action="toggle-feature-card" data-card-id="${esc(c.id)}" title="${featTitle}" aria-pressed="${isFeatured}">${star}</button>
         <button class="btn btn--icon" data-action="edit-card" data-card='${esc(JSON.stringify(c))}' title="Edit">&#9998;</button>
         <button class="btn btn--icon btn--danger" data-action="delete-card" data-card-id="${esc(c.id)}" title="Delete">&times;</button>
       </div>
-    `).join('');
+    `;
+    }).join('');
     return `
       <div class="designer__section">
         <h3 class="designer__section-header designer__section-header--${type}">${label} Cards (${cards.length})</h3>
@@ -316,6 +323,7 @@ document.addEventListener('click', async (e) => {
     case 'save-card': await handleSaveCard(); break;
     case 'edit-card': handleEditCard(btn.dataset.card); break;
     case 'delete-card': await handleDeleteCard(btn.dataset.cardId); break;
+    case 'toggle-feature-card': await handleToggleFeatureCard(btn.dataset.cardId); break;
     case 'publish-pack': await handlePublishPack(btn.dataset.id); break;
     case 'unpublish-pack': await handleUnpublishPack(btn.dataset.id); break;
     case 'toggle-pack-official': await handleToggleOfficial(btn.dataset.id, btn.checked); break;
@@ -561,6 +569,18 @@ async function handleUnpublishPack(packId) {
     setState({ loading: false, myPacks: packs });
   } catch (err) {
     setState({ loading: false, error: err.message });
+  }
+}
+
+async function handleToggleFeatureCard(cardId) {
+  if (!state.currentPack) return;
+  const next = state.currentPack.featured_card_id === cardId ? null : cardId;
+  setState({ error: null });
+  try {
+    const updated = await updatePack(state.currentPack.id, { featured_card_id: next });
+    setState({ currentPack: { ...state.currentPack, ...updated } });
+  } catch (err) {
+    setState({ error: err.message });
   }
 }
 

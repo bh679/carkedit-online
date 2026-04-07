@@ -444,3 +444,15 @@
   height: 18px;
   display: block;
 }
+
+/* Feature card snippet on pack rows */
+.pack-selector__featured {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.8em;
+  color: gold;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
