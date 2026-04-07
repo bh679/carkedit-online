@@ -5,6 +5,7 @@ import { render as renderPhaseHeader } from '../components/phase-header.js';
 import { render as renderGameboard } from '../components/gameboard.js';
 import { PERSON_ICON, STAR_ICON, formatBirthday } from '../components/player-list.js';
 import { renderAdvancedPanel, renderToggle } from './lobby.js';
+import { render as renderPackSelector } from '../components/pack-selector.js';
 
 const LINK_ICON = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
   <path d="M6.5 9.5L9.5 6.5" stroke="#374151" stroke-width="1.5" stroke-linecap="round"/>
@@ -84,7 +85,7 @@ function renderJoinCreate(state, connecting, error) {
       ${headerHtml}
       ${renderGameboard(boardContent)}
       <div class="online-lobby__actions">
-        <button class="btn btn--secondary" onclick="window.game.showScreen('mode-select')">
+        <button class="btn mode-select__back-btn" onclick="window.game.showScreen('mode-select')">
           &larr; Back
         </button>
       </div>
@@ -166,6 +167,9 @@ function renderConnectedLobby(state) {
             </button>
             <div id="advanced-settings-panel">${renderAdvancedPanel(state)}</div>
           </div>
+          <div class="online-lobby__divider"></div>
+          <h2 class="online-lobby__heading">Expansion Packs</h2>
+          ${renderPackSelector(state, { isHost: true })}
         </div>
         <div class="online-lobby__divider"></div>`;
       })()
@@ -257,7 +261,7 @@ const REDRAW_LABELS = {
 
 const DEFAULTS = {
   rounds: 2, handSize: 5, enableLive: true, enableBye: true, enableEulogy: true,
-  forceWildcards: false, playableWildcards: true, wildcardCount: 2, eulogistCount: 2,
+  forceWildcards: 'atLeastOne', playableWildcards: true, wildcardCount: 2, eulogistCount: 2,
   handRedraws: 'once_per_phase', timerEnabled: false, ultraQuickMode: false,
   optionalCardPlay: false,
 };
@@ -310,10 +314,17 @@ export function renderSettingsSummary(state) {
   }
   if (gs.timerEnabled !== d.timerEnabled) cards.push([null, 'Timer', !gs.timerEnabled]);
   if (gs.optionalCardPlay !== d.optionalCardPlay) cards.push([null, 'Optional Card Play', !gs.optionalCardPlay]);
-  if (gs.forceWildcards !== d.forceWildcards) cards.push([null, 'Force Wildcards', !gs.forceWildcards]);
+  if (gs.forceWildcards !== d.forceWildcards) {
+    const wcLabel = gs.forceWildcards === 'everyone' ? 'Wildcards: Everyone'
+      : gs.forceWildcards === 'off' ? 'Wildcards: Off' : 'Wildcards: At Least One';
+    cards.push([null, wcLabel, gs.forceWildcards === 'off']);
+  }
   if (gs.playableWildcards !== d.playableWildcards) cards.push([null, 'Playable Wildcards', !gs.playableWildcards]);
   if (gs.wildcardCount !== d.wildcardCount) cards.push(['Wildcards', gs.wildcardCount]);
   if (gs.eulogistCount !== d.eulogistCount) cards.push(['Eulogists', gs.eulogistCount]);
+
+  const packCount = (state.selectedPackIds || []).length;
+  if (packCount > 0) cards.push(['Packs', packCount]);
 
   if (cards.length === 0) {
     return `<div id="settings-summary-panel" class="online-lobby__settings-summary"></div>`;

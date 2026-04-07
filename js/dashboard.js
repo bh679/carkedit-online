@@ -1116,24 +1116,47 @@ function renderGraph() {
   }
 }
 
+let showUserMenu = false;
+
+function toggleUserMenu() {
+  showUserMenu = !showUserMenu;
+  renderPage();
+}
+
 function renderAuthBar() {
   const name = authUser?.display_name || firebaseUserInfo?.displayName || 'Admin';
-  const avatar = firebaseUserInfo?.photoURL
+  const hasPhoto = !!firebaseUserInfo?.photoURL;
+  const initial = (name || 'A').charAt(0).toUpperCase();
+
+  const avatarImg = hasPhoto
     ? `<img class="auth-bar__avatar" src="${firebaseUserInfo.photoURL}" alt="" />`
-    : '';
+    : `<span class="auth-bar__avatar auth-bar__avatar--initial">${initial}</span>`;
+
+  const menu = showUserMenu ? `
+    <div class="auth-menu" onclick="event.stopPropagation()">
+      <div class="auth-menu__name">${name}</div>
+      <div class="auth-menu__divider"></div>
+      <a class="auth-menu__item" href="/admin-users">User Management</a>
+      <a class="auth-menu__item" href="/dev-dashboard">Dev Dashboard</a>
+      <button class="auth-menu__item auth-menu__item--logout" onclick="window.dash.signOut()">Sign Out</button>
+    </div>
+  ` : '';
+
   return `
-    <div class="auth-bar" style="position:absolute;top:var(--space-md,1rem);right:var(--space-md,1rem);z-index:10">
-      ${avatar}
-      <span class="auth-bar__name">${name}</span>
-      <a href="/admin-users" class="btn btn--ghost" style="font-size:0.85em;text-decoration:none">Users</a>
-      <button class="btn btn--ghost" style="font-size:0.85em" onclick="window.dash.signOut()">Sign Out</button>
+    <div class="page-auth">
+      <div class="auth-bar">
+        <button class="auth-bar__avatar-btn" onclick="window.dash.toggleUserMenu()" aria-label="User menu">
+          ${avatarImg}
+        </button>
+        ${menu}
+      </div>
     </div>`;
 }
 
 function renderPage() {
   const app = document.getElementById('app');
   app.innerHTML = `
-    <div class="dashboard" style="position:relative">
+    <div class="dashboard">
       ${renderAuthBar()}
       <header class="dashboard__header">
         <h1 class="dashboard__title"><a href="/" class="dashboard__play-link">&#9654; Play</a> CarkedIt — Game Dashboard
@@ -1218,7 +1241,15 @@ function updateRefreshTimer() {
 }
 
 // ── Init ─────────────────────────────────────────────
-window.dash = { cyclePlayTime, cycleGamesCount, toggleGame, cycleDeckFilter, setCardSort, toggleCardSortDir, cycleCardDev, previewCard, closePreview, prevPreviewCard, nextPreviewCard, scrollCards, loadMoreGames, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange, signInWithGoogle, signOut };
+window.dash = { cyclePlayTime, cycleGamesCount, toggleGame, cycleDeckFilter, setCardSort, toggleCardSortDir, cycleCardDev, previewCard, closePreview, prevPreviewCard, nextPreviewCard, scrollCards, loadMoreGames, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange, signInWithGoogle, signOut, toggleUserMenu };
+
+// Close user menu on outside click
+document.addEventListener('click', (e) => {
+  if (showUserMenu && !e.target.closest('.auth-bar')) {
+    showUserMenu = false;
+    renderPage();
+  }
+});
 
 // ── Auth Gate UI ─────────────────────────────────────
 function renderAuthGate(message, showSignIn = true) {

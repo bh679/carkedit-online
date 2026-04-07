@@ -52,7 +52,7 @@ let _state = {
     enableLive: true,
     enableBye: true,
     enableEulogy: true,
-    forceWildcards: false,
+    forceWildcards: 'atLeastOne',
     playableWildcards: true,
     wildcardCount: 2,
     eulogistCount: 2,
@@ -111,11 +111,16 @@ let _state = {
   onlineEulogistNames: [],          // names of selected eulogists
   onlineWildcardPlayerName: '',     // name of current wildcard holder
 
+  // Expansion packs
+  availablePacks: [],      // Packs shown in lobby selector (own + public published)
+  selectedPackIds: ['base'], // Pack IDs currently enabled (sentinel "base" = CarkedIt base game)
+
   // Auth state
   authUser: null,                    // Local user object { id, display_name, email, avatar_url }
   firebaseUser: null,                // Firebase user (for display name, photo)
   authToken: null,                   // Current Firebase ID token
   authLoading: true,                 // True until first auth state resolved
+  showUserMenu: false,               // Show user avatar dropdown menu
   showLoginModal: false,             // Show login/signup modal
   loginMode: 'signin',              // 'signin' | 'signup'
   loginError: null,                  // Auth error message

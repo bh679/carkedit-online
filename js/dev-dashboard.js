@@ -958,20 +958,46 @@ window.devDash = { switchDeck: miniSwitchDeck, nextCard: miniNextCard, showMore,
 let _fbAuth = null;
 let _fbUserInfo = null;
 
+let _showUserMenu = false;
+
 function injectAuthBar() {
-  const meta = document.querySelector('.dash-header__meta');
-  if (!meta || !_fbUserInfo) return;
+  if (!_fbUserInfo) return;
+  // Remove any existing auth bar
+  document.querySelector('.page-auth')?.remove();
   const name = _fbUserInfo.displayName || 'Admin';
-  const avatar = _fbUserInfo.photoURL
+  const hasPhoto = !!_fbUserInfo.photoURL;
+  const initial = (name || 'A').charAt(0).toUpperCase();
+
+  const avatarImg = hasPhoto
     ? `<img class="auth-bar__avatar" src="${_fbUserInfo.photoURL}" alt="" />`
-    : '';
-  const bar = document.createElement('div');
-  bar.className = 'auth-bar';
-  bar.style.cssText = 'margin-left:auto;';
-  bar.innerHTML = `${avatar}<span class="auth-bar__name">${name}</span>
-    <a href="/admin-users" class="btn btn--ghost" style="font-size:0.75rem;text-decoration:none;padding:0.3rem 0.6rem">Users</a>
-    <button class="btn btn--ghost" style="font-size:0.75rem;padding:0.3rem 0.6rem" id="dev-sign-out">Sign Out</button>`;
-  meta.appendChild(bar);
+    : `<span class="auth-bar__avatar auth-bar__avatar--initial">${initial}</span>`;
+
+  const menuHtml = _showUserMenu ? `
+    <div class="auth-menu" onclick="event.stopPropagation()">
+      <div class="auth-menu__name">${name}</div>
+      <div class="auth-menu__divider"></div>
+      <a class="auth-menu__item" href="/dashboard">Dashboard</a>
+      <a class="auth-menu__item" href="/admin-users">User Management</a>
+      <button class="auth-menu__item auth-menu__item--logout" id="dev-sign-out">Sign Out</button>
+    </div>
+  ` : '';
+
+  const wrapper = document.createElement('div');
+  wrapper.className = 'page-auth';
+  wrapper.innerHTML = `
+    <div class="auth-bar">
+      <button class="auth-bar__avatar-btn" id="dev-toggle-menu" aria-label="User menu">
+        ${avatarImg}
+      </button>
+      ${menuHtml}
+    </div>`;
+  (document.getElementById('app') || document.body).appendChild(wrapper);
+
+  document.getElementById('dev-toggle-menu')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    _showUserMenu = !_showUserMenu;
+    injectAuthBar();
+  });
   document.getElementById('dev-sign-out')?.addEventListener('click', async () => {
     if (_fbAuth) {
       const { signOut } = await import('https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js');
@@ -980,6 +1006,14 @@ function injectAuthBar() {
     window.location.href = '/';
   });
 }
+
+// Close user menu on outside click
+document.addEventListener('click', (e) => {
+  if (_showUserMenu && !e.target.closest('.auth-bar')) {
+    _showUserMenu = false;
+    injectAuthBar();
+  }
+});
 
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyC6QJz6jTzJkBWV7Shd9XpCfHWrovJ9vaI",

@@ -2,6 +2,16 @@
 'use strict';
 
 import { getState } from '../state.js';
+import { subscribeErrorState } from '../utils/error-logger.js';
+
+// Subscribe once at module load — toggles the --error class on any flag button
+// currently in the DOM whenever the error state changes.
+let _errorState = false;
+subscribeErrorState((state) => {
+  _errorState = state.hasError;
+  const btn = document.querySelector('.phase-header__flag-btn');
+  if (btn) btn.classList.toggle('phase-header__flag-btn--error', _errorState);
+});
 
 const SETTINGS_ICON = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
   <path d="M8 3.5C8 3.5 9.5 2 11 2C12.5 2 14 3.5 14 5C14 6.5 12.5 8 11 8" stroke="#374151" stroke-width="1.5" stroke-linecap="round"/>
@@ -23,7 +33,10 @@ export function render({ phase = '', label = '' } = {}) {
   const localDev = state.players?.length > 0 && state.players.every(p => p._devName);
   const onlineDev = state.onlinePlayers?.length > 0 && state.onlinePlayers.every(p => p.isDevName);
   const isDev = localDev || onlineDev;
-  const flagClass = `phase-header__flag-btn${isDev ? ' phase-header__flag-btn--dev' : ''}`;
+  // Error (red) takes precedence over dev (green).
+  let flagClass = 'phase-header__flag-btn';
+  if (_errorState) flagClass += ' phase-header__flag-btn--error';
+  else if (isDev) flagClass += ' phase-header__flag-btn--dev';
   return `
     <header class="phase-header" data-phase="${phase}">
       <div class="phase-header__left">

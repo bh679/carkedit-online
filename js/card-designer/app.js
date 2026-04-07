@@ -32,6 +32,7 @@ let state = {
   authLoading: true,
   loginMode: 'signin',     // 'signin' | 'signup'
   loginError: null,
+  showUserMenu: false,
 };
 
 function setState(updates) {
@@ -105,14 +106,35 @@ function renderLoginGate() {
 function renderAuthBar() {
   if (!state.authUser) return '';
   const name = esc(state.authUser.display_name || 'User');
-  const avatar = state.firebaseUser?.photoURL
+  const isAdmin = !!state.authUser.is_admin;
+  const hasPhoto = !!state.firebaseUser?.photoURL;
+  const initial = name.charAt(0).toUpperCase();
+
+  const avatarImg = hasPhoto
     ? `<img class="auth-bar__avatar" src="${esc(state.firebaseUser.photoURL)}" alt="" />`
-    : '';
+    : `<span class="auth-bar__avatar auth-bar__avatar--initial">${initial}</span>`;
+
+  const adminItems = isAdmin ? `
+    <a class="auth-menu__item" href="/dashboard">Dashboard</a>
+    <a class="auth-menu__item" href="/admin-users">User Management</a>
+    <a class="auth-menu__item" href="/dev-dashboard">Dev Dashboard</a>
+  ` : '';
+
+  const menu = state.showUserMenu ? `
+    <div class="auth-menu" onclick="event.stopPropagation()">
+      <div class="auth-menu__name">${name}</div>
+      <div class="auth-menu__divider"></div>
+      ${adminItems}
+      <button class="auth-menu__item auth-menu__item--logout" data-action="log-out">Log Out</button>
+    </div>
+  ` : '';
+
   return `
     <div class="auth-bar">
-      ${avatar}
-      <span class="auth-bar__name">${name}</span>
-      <button class="btn btn--ghost btn--small" data-action="log-out">Log Out</button>
+      <button class="auth-bar__avatar-btn" data-action="toggle-user-menu" aria-label="User menu">
+        ${avatarImg}
+      </button>
+      ${menu}
     </div>
   `;
 }
@@ -146,9 +168,9 @@ function renderPackList() {
 
   return `
     <div class="screen screen--card-designer">
+      <div class="page-auth">${renderAuthBar()}</div>
       <div class="designer__header">
         <h1 class="designer__title">Card Designer</h1>
-        ${renderAuthBar()}
       </div>
       ${state.error ? `<p class="designer__error">${esc(state.error)}</p>` : ''}
       ${state.loading ? '<p class="designer__loading">Loading&hellip;</p>' : ''}
@@ -186,6 +208,7 @@ function renderPackEditor() {
 
   return `
     <div class="screen screen--card-designer">
+      <div class="page-auth">${renderAuthBar()}</div>
       <div class="designer__header">
         <h1 class="designer__title">Edit Pack</h1>
       </div>
@@ -237,6 +260,7 @@ function renderCardForm() {
 
   return `
     <div class="screen screen--card-designer">
+      <div class="page-auth">${renderAuthBar()}</div>
       <div class="designer__header">
         <h1 class="designer__title">${heading}</h1>
       </div>
@@ -290,7 +314,15 @@ document.addEventListener('click', async (e) => {
     case 'sign-in-google': await signInWithGoogle(); break;
     case 'switch-to-signup': setState({ loginMode: 'signup', loginError: null }); break;
     case 'switch-to-signin': setState({ loginMode: 'signin', loginError: null }); break;
+    case 'toggle-user-menu': setState({ showUserMenu: !state.showUserMenu }); break;
     case 'log-out': await logOut(); break;
+  }
+});
+
+// Close user menu on outside click
+document.addEventListener('click', (e) => {
+  if (state.showUserMenu && !e.target.closest('.auth-bar')) {
+    setState({ showUserMenu: false });
   }
 });
 

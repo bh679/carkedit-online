@@ -72,6 +72,35 @@ export function renderToggle(label, value, onClick, { disabled = false, override
   `;
 }
 
+const FORCE_WILDCARDS_LABELS = {
+  off: 'Off',
+  atLeastOne: 'At Least One',
+  everyone: 'Everyone',
+};
+const FORCE_WILDCARDS_HINTS = {
+  off: '',
+  atLeastOne: '(someone always gets a wildcard)',
+  everyone: '(everyone gets one)',
+};
+
+/**
+ * Renders a 3-state cycle toggle for forceWildcards: off → atLeastOne → everyone.
+ */
+export function renderTriToggle(label, value, onClick) {
+  const displayLabel = FORCE_WILDCARDS_LABELS[value] ?? 'Off';
+  const hint = FORCE_WILDCARDS_HINTS[value] ?? '';
+  const isOff = value === 'off';
+  return `
+    <div class="lobby__stepper-row">
+      <span class="lobby__stepper-label">${label}${hint ? ` <span class="lobby__stepper-hint">${hint}</span>` : ''}</span>
+      <button class="btn lobby__stepper-btn ${isOff ? 'btn--secondary' : 'btn--primary'}"
+        onclick="${onClick}">
+        ${displayLabel}
+      </button>
+    </div>
+  `;
+}
+
 /**
  * Renders a stepper row: label + −/value/+ buttons.
  *
@@ -118,17 +147,17 @@ export function renderAdvancedPanel(state) {
 
   const wildcardSubSettings = enableEulogy ? `
     <div class="lobby__advanced-subsection">
-      ${renderToggle(
-        'Force Wildcards <span class="lobby__stepper-hint">(everyone gets one)</span>',
+      ${renderTriToggle(
+        'Wildcard Guarantee',
         forceWildcards,
-        "window.game.toggleSetting('forceWildcards')",
+        "window.game.cycleForceWildcards()",
       )}
       ${renderStepper(
         'Wildcards in Deck', wildcardCount,
         `window.game.updateSetting('wildcardCount', ${wildcardCount - 1})`,
         `window.game.updateSetting('wildcardCount', ${wildcardCount + 1})`,
         wildcardCount <= 0, wildcardCount >= 10,
-        { disabled: forceWildcards },
+        { disabled: forceWildcards === 'everyone' },
       )}
       ${renderStepper(
         'Eulogists per Round', effectiveEulogistCount,
