@@ -1,5 +1,5 @@
-/* Auth Bar (top-right of menu) */
-.menu__auth {
+/* Auth Bar — absolute top-right within the nearest positioned container */
+.page-auth {
   position: absolute;
   top: var(--space-md);
   right: var(--space-md);
@@ -7,6 +7,7 @@
 }
 
 .auth-bar {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.5em;
@@ -14,23 +15,95 @@
   font-size: 0.9em;
 }
 
-.auth-bar__avatar {
-  width: 28px;
-  height: 28px;
+.auth-bar__avatar-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
   border-radius: 50%;
-  object-fit: cover;
+  transition: box-shadow 0.15s;
 }
 
-.auth-bar__name {
-  opacity: 0.8;
-  max-width: 150px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.auth-bar__avatar-btn:hover {
+  box-shadow: 0 0 0 2px var(--accent, #4285f4);
+}
+
+.auth-bar__avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+
+.auth-bar__avatar--initial {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent, #4285f4);
+  color: #fff;
+  font-size: 0.9em;
+  font-weight: 600;
 }
 
 .auth-bar__loading {
   opacity: 0.5;
+}
+
+/* User dropdown menu */
+.auth-menu {
+  position: absolute;
+  top: calc(100% + 0.4em);
+  right: 0;
+  min-width: 180px;
+  background: var(--surface, #1a1a2e);
+  border: 1px solid var(--border, #333);
+  border-radius: 8px;
+  padding: 0.4em 0;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  z-index: 100;
+}
+
+.auth-menu__name {
+  padding: 0.6em 1em;
+  font-weight: 600;
+  color: var(--text, #fff);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}
+
+.auth-menu__divider {
+  height: 1px;
+  background: var(--border, #333);
+  margin: 0.2em 0;
+}
+
+.auth-menu__item {
+  display: block;
+  width: 100%;
+  padding: 0.5em 1em;
+  background: none;
+  border: none;
+  color: var(--text, #fff);
+  font-size: 0.9em;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.auth-menu__item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.auth-menu__item--logout {
+  color: #ff6b6b;
+}
+
+.auth-menu__item--logout:hover {
+  background: rgba(255, 107, 107, 0.1);
 }
 
 /* Login Modal */

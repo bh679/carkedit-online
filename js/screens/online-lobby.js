@@ -261,7 +261,7 @@ const REDRAW_LABELS = {
 
 const DEFAULTS = {
   rounds: 2, handSize: 5, enableLive: true, enableBye: true, enableEulogy: true,
-  forceWildcards: false, playableWildcards: true, wildcardCount: 2, eulogistCount: 2,
+  forceWildcards: 'atLeastOne', playableWildcards: true, wildcardCount: 2, eulogistCount: 2,
   handRedraws: 'once_per_phase', timerEnabled: false, ultraQuickMode: false,
   optionalCardPlay: false,
 };
@@ -314,7 +314,11 @@ export function renderSettingsSummary(state) {
   }
   if (gs.timerEnabled !== d.timerEnabled) cards.push([null, 'Timer', !gs.timerEnabled]);
   if (gs.optionalCardPlay !== d.optionalCardPlay) cards.push([null, 'Optional Card Play', !gs.optionalCardPlay]);
-  if (gs.forceWildcards !== d.forceWildcards) cards.push([null, 'Force Wildcards', !gs.forceWildcards]);
+  if (gs.forceWildcards !== d.forceWildcards) {
+    const wcLabel = gs.forceWildcards === 'everyone' ? 'Wildcards: Everyone'
+      : gs.forceWildcards === 'off' ? 'Wildcards: Off' : 'Wildcards: At Least One';
+    cards.push([null, wcLabel, gs.forceWildcards === 'off']);
+  }
   if (gs.playableWildcards !== d.playableWildcards) cards.push([null, 'Playable Wildcards', !gs.playableWildcards]);
   if (gs.wildcardCount !== d.wildcardCount) cards.push(['Wildcards', gs.wildcardCount]);
   if (gs.eulogistCount !== d.eulogistCount) cards.push(['Eulogists', gs.eulogistCount]);

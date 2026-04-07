@@ -323,7 +323,7 @@ const DEFAULT_GAME_SETTINGS = {
   enableLive: true,
   enableBye: true,
   enableEulogy: true,
-  forceWildcards: false,
+  forceWildcards: 'atLeastOne',
   wildcardCount: 2,
   eulogistCount: 2,
   handRedraws: 'once_per_phase',
@@ -371,6 +371,21 @@ function toggleUltraQuickMode() {
     sendMessage('game_settings', patch);
   } else {
     setState({ gameSettings: { ...state.gameSettings, ...patch } });
+  }
+  refreshAdvancedPanel();
+}
+
+const FORCE_WILDCARDS_CYCLE = ['off', 'atLeastOne', 'everyone'];
+
+function cycleForceWildcards() {
+  const state = getState();
+  const current = state.gameSettings.forceWildcards ?? 'atLeastOne';
+  const idx = FORCE_WILDCARDS_CYCLE.indexOf(current);
+  const next = FORCE_WILDCARDS_CYCLE[(idx + 1) % FORCE_WILDCARDS_CYCLE.length];
+  if (state.gameMode === 'online') {
+    sendMessage('setting', { key: 'forceWildcards', value: next });
+  } else {
+    setState({ gameSettings: { ...state.gameSettings, forceWildcards: next } });
   }
   refreshAdvancedPanel();
 }
@@ -434,6 +449,7 @@ window.game = {
   setGameMode,
   toggleAdvancedSettings,
   setHandRedraws,
+  cycleForceWildcards,
   cyclePitchDuration,
   resetSettings,
   startPhase1,
@@ -498,6 +514,37 @@ window.game = {
     sendMessage('select_packs', { packIds: updated });
     if (getState().screen === 'online-lobby') showScreen('online-lobby');
   },
+  // User menu actions
+  toggleUserMenu() {
+    const state = getState();
+    setState({ showUserMenu: !state.showUserMenu });
+    showScreen(state.screen);
+    if (!state.showUserMenu) {
+      // Menu is now open — listen for outside clicks to close
+      requestAnimationFrame(() => {
+        document.addEventListener('click', window.game._closeUserMenuOnOutsideClick, { once: true });
+      });
+    }
+  },
+  closeUserMenu() {
+    setState({ showUserMenu: false });
+    showScreen(getState().screen);
+  },
+  _closeUserMenuOnOutsideClick(e) {
+    const menu = document.querySelector('.auth-menu');
+    const btn = document.querySelector('.auth-bar__avatar-btn');
+    if (menu && (menu.contains(e.target) || btn?.contains(e.target))) return;
+    if (getState().showUserMenu) {
+      setState({ showUserMenu: false });
+      showScreen(getState().screen);
+    }
+  },
+  manageAccount() {
+    // Placeholder — coming soon
+    alert('Account management coming soon!');
+    setState({ showUserMenu: false });
+    showScreen(getState().screen);
+  },
   // Auth actions
   showLogin() {
     setState({ showLoginModal: true, loginMode: 'signin', loginError: null });
@@ -530,6 +577,7 @@ window.game = {
     if (getState().loginError) renderLoginModalOverlay();
   },
   async logOut() {
+    setState({ showUserMenu: false });
     await logOut();
     // Re-render current screen to update auth button
     showScreen(getState().screen);
