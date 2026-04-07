@@ -27,7 +27,7 @@ import {
 } from './network/client.js';
 import { onTimerUpdate } from './managers/online-timer.js';
 import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, logOut, updateUserProfile } from './managers/auth-manager.js';
-import { fetchMyPacks, fetchPublicPacks, getPack } from './card-designer/pack-manager.js';
+import { fetchMyPacks, fetchPublicPacks, fetchFavoritePacks, setPackFavorite, getPack } from './card-designer/pack-manager.js';
 import { render as renderCardFace } from './components/card.js';
 import { renderLoginModal } from './components/auth-button.js';
 import {
@@ -303,6 +303,13 @@ function toggleAdvancedSettings() {
   refreshAdvancedPanel();
 }
 
+function toggleExpansionPacks() {
+  setState({ showExpansionPacks: !getState().showExpansionPacks });
+  const screen = getState().screen;
+  if (screen === 'online-lobby') showScreen('online-lobby');
+  else if (screen === 'lobby') showScreen('lobby');
+}
+
 function setHandRedraws(value) {
   const allowed = ['off', 'once_per_phase', 'once_per_round', 'unlimited'];
   if (!allowed.includes(value)) return;
@@ -449,6 +456,7 @@ window.game = {
   toggleUltraQuickMode,
   setGameMode,
   toggleAdvancedSettings,
+  toggleExpansionPacks,
   setHandRedraws,
   cycleForceWildcards,
   cyclePitchDuration,
@@ -494,16 +502,47 @@ window.game = {
     try {
       const authUser = getState().authUser;
       const tasks = [fetchPublicPacks().catch(() => [])];
-      if (authUser?.id) tasks.push(fetchMyPacks(authUser.id).catch(() => []));
+      if (authUser?.id) {
+        tasks.push(fetchMyPacks(authUser.id).catch(() => []));
+        tasks.push(fetchFavoritePacks().catch(() => []));
+      }
       const lists = await Promise.all(tasks);
+      // Merge by id — later lists override earlier ones so favourites'
+      // is_favorited=true wins over the public listing.
       const byId = new Map();
-      for (const l of lists) for (const p of (l || [])) byId.set(p.id, p);
+      for (const l of lists) for (const p of (l || [])) byId.set(p.id, { ...byId.get(p.id), ...p });
       const availablePacks = Array.from(byId.values());
       setState({ availablePacks });
       // Re-render current screen so the selector updates
       if (getState().screen === 'online-lobby') showScreen('online-lobby');
     } catch (e) {
       console.warn('[packs] loadAvailablePacks failed', e);
+    }
+  },
+  setPackFilter(filter) {
+    setState({ packFilter: filter });
+    if (getState().screen === 'online-lobby') showScreen('online-lobby');
+  },
+  async toggleFavoritePack(packId) {
+    if (!packId || packId === 'base') return;
+    const authUser = getState().authUser;
+    if (!authUser?.id) return;
+    const packs = getState().availablePacks || [];
+    const current = packs.find((p) => p.id === packId);
+    const willFavorite = !(current && current.is_favorited);
+    // Optimistic update
+    const next = packs.map((p) => (p.id === packId ? { ...p, is_favorited: willFavorite } : p));
+    setState({ availablePacks: next });
+    if (getState().screen === 'online-lobby') showScreen('online-lobby');
+    try {
+      await setPackFavorite(packId, willFavorite);
+      // Refresh to pick up any newly-favourited private packs etc.
+      this.loadAvailablePacks();
+    } catch (e) {
+      console.warn('[packs] toggleFavoritePack failed', e);
+      // Roll back optimistic update
+      setState({ availablePacks: packs });
+      if (getState().screen === 'online-lobby') showScreen('online-lobby');
     }
   },
   togglePack(packId) {

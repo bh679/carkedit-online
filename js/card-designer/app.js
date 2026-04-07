@@ -4,6 +4,7 @@ import { render as renderCard } from '../components/card.js';
 import {
   fetchMyPacks, createPack, getPack,
   updatePack, deletePack, addCards, updateCard, deleteCard,
+  setPackOfficial,
 } from './pack-manager.js';
 import {
   setStateSetter, initAuth, signInWithGoogle,
@@ -115,9 +116,9 @@ function renderAuthBar() {
     : `<span class="auth-bar__avatar auth-bar__avatar--initial">${initial}</span>`;
 
   const adminItems = isAdmin ? `
-    <a class="auth-menu__item" href="/dashboard.html">Dashboard</a>
-    <a class="auth-menu__item" href="/admin-users.html">User Management</a>
-    <a class="auth-menu__item" href="/dev-dashboard.html">Dev Dashboard</a>
+    <a class="auth-menu__item" href="/dashboard">Dashboard</a>
+    <a class="auth-menu__item" href="/admin-users">User Management</a>
+    <a class="auth-menu__item" href="/dev-dashboard">Dev Dashboard</a>
   ` : '';
 
   const menu = state.showUserMenu ? `
@@ -223,6 +224,12 @@ function renderPackEditor() {
           <textarea class="designer__input designer__textarea" data-field="pack-description" maxlength="500">${esc(pack.description)}</textarea>
         </label>
         <button class="btn btn--secondary btn--small" data-action="save-pack-meta">Save Details</button>
+        ${state.authUser?.is_admin ? `
+          <label class="designer__label designer__label--inline" style="margin-top: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
+            <input type="checkbox" data-action="toggle-pack-official" data-id="${esc(pack.id)}" ${pack.is_official ? 'checked' : ''} />
+            Mark as Official Deck (admin)
+          </label>
+        ` : ''}
       </div>
       ${sections}
       <div class="designer__editor-actions">
@@ -311,6 +318,7 @@ document.addEventListener('click', async (e) => {
     case 'delete-card': await handleDeleteCard(btn.dataset.cardId); break;
     case 'publish-pack': await handlePublishPack(btn.dataset.id); break;
     case 'unpublish-pack': await handleUnpublishPack(btn.dataset.id); break;
+    case 'toggle-pack-official': await handleToggleOfficial(btn.dataset.id, btn.checked); break;
     case 'sign-in-google': await signInWithGoogle(); break;
     case 'switch-to-signup': setState({ loginMode: 'signup', loginError: null }); break;
     case 'switch-to-signin': setState({ loginMode: 'signin', loginError: null }); break;
@@ -553,6 +561,19 @@ async function handleUnpublishPack(packId) {
     setState({ loading: false, myPacks: packs });
   } catch (err) {
     setState({ loading: false, error: err.message });
+  }
+}
+
+async function handleToggleOfficial(packId, isOfficial) {
+  if (!state.authUser?.is_admin) return;
+  setState({ error: null });
+  try {
+    const updated = await setPackOfficial(packId, isOfficial);
+    if (state.currentPack?.id === packId) {
+      setState({ currentPack: { ...state.currentPack, is_official: !!updated.is_official } });
+    }
+  } catch (err) {
+    setState({ error: err.message });
   }
 }
 

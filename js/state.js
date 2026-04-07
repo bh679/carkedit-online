@@ -68,6 +68,7 @@ let _state = {
     optionalCardPlay: false,
   },
   showAdvancedSettings: false,
+  showExpansionPacks: false,
 
   // Phase 2/3 state
   totalRounds: 2,
@@ -112,8 +113,9 @@ let _state = {
   onlineWildcardPlayerName: '',     // name of current wildcard holder
 
   // Expansion packs
-  availablePacks: [],      // Packs shown in lobby selector (own + public published)
+  availablePacks: [],      // Packs shown in lobby selector (own + public published + favourites)
   selectedPackIds: ['base'], // Pack IDs currently enabled (sentinel "base" = CarkedIt base game)
+  packFilter: 'official',  // 'official' | 'mine' | 'public' | 'favourites'
   // Disabled deck keys: array of `${packId}:${deck}` strings (deck = die|live|bye).
   // Absence = enabled. Mirrors server-side disabledPackDecks.
   disabledPackDecks: [],

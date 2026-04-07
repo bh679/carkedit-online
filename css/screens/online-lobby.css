@@ -377,3 +377,70 @@
 .pack-selector__item.is-base {
   border-color: rgba(232, 91, 60, 0.4);
 }
+
+/* Filter tabs */
+.pack-selector__tabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--color-border, rgba(255, 255, 255, 0.12));
+  margin-bottom: 0.5rem;
+}
+
+.pack-selector__tab {
+  flex: 1;
+  background: transparent;
+  border: 0;
+  padding: 0.5rem 0.25rem;
+  cursor: pointer;
+  opacity: 0.5;
+  border-bottom: 2px solid transparent;
+  transition: opacity 120ms ease, border-color 120ms ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pack-selector__tab:hover {
+  opacity: 0.85;
+}
+
+.pack-selector__tab.is-active {
+  opacity: 1;
+  border-bottom-color: var(--color-primary, #9842FF);
+}
+
+.pack-selector__tab svg {
+  width: 22px;
+  height: 22px;
+  display: block;
+}
+
+/* Favourite heart toggle on each pack row */
+.pack-selector__fav {
+  background: transparent;
+  border: 0;
+  padding: 0 0.4rem;
+  cursor: pointer;
+  opacity: 0.45;
+  display: flex;
+  align-items: center;
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.pack-selector__fav:hover {
+  opacity: 0.9;
+}
+
+.pack-selector__fav.is-on {
+  opacity: 1;
+}
+
+.pack-selector__fav.is-on:hover {
+  transform: scale(1.05);
+}
+
+.pack-selector__fav svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}

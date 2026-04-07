@@ -1,0 +1,8 @@
+# Serve /foo as foo.html when /foo is not an existing file or directory.
+# Mirrors the carkedit-api express.static({ extensions: ['html'] }) behaviour
+# so staging (Apache) and production (Express) resolve URLs identically.
+RewriteEngine On
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^([^.]+)$ $1.html [L]
