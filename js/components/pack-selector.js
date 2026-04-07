@@ -10,6 +10,9 @@ const BASE_PACK = {
   bye_count: 68,
   isBase: true,
   is_official: true,
+  visibility: 'public',
+  status: 'published',
+  creator_id: null,
 };
 
 // 24x24 white SVG icons used by the filter tabs and the favourite toggle.
@@ -53,7 +56,13 @@ function escapeHtml(str) {
 }
 
 function packMatchesFilter(pack, filter, authUserId) {
-  if (pack.isBase) return filter === 'official';
+  // Base game: always shows on Official + Public; never on Mine; only on
+  // Favourites if explicitly favourited.
+  if (pack.isBase) {
+    if (filter === 'mine') return false;
+    if (filter === 'favourites') return !!pack.is_favorited;
+    return filter === 'official' || filter === 'public';
+  }
   switch (filter) {
     case 'official':   return !!pack.is_official;
     case 'mine':       return !!authUserId && pack.creator_id === authUserId;
