@@ -6,7 +6,7 @@ import { render as renderCardList, bindScrollArrows } from '../components/card-l
 import {
   fetchMyPacks, createPack, getPack,
   updatePack, deletePack, addCards, updateCard, deleteCard,
-  setPackOfficial,
+  setPackOfficial, setPackDev,
 } from './pack-manager.js';
 import {
   signInWithGoogle, signInWithEmail, signUpWithEmail, logOut,
@@ -53,6 +53,7 @@ function setState(updates) {
     _onViewChange(state.view);
   }
   render();
+  refreshSaveDirtyState();
 }
 
 export function getView() {
@@ -275,7 +276,6 @@ function renderPackEditor() {
           Description
           <textarea class="designer__input designer__textarea" data-field="pack-description" maxlength="500">${esc(pack.description)}</textarea>
         </label>
-        <button class="btn btn--secondary btn--small" data-action="save-pack-meta">Save Details</button>
         <div class="designer__feature">
           <span class="designer__label">Feature Image</span>
           <div class="designer__feature-row">
@@ -290,15 +290,28 @@ function renderPackEditor() {
           ${picking ? '<p class="designer__feature-hint">Click a card below to set it as the pack feature image.</p>' : ''}
         </div>
         ${state.authUser?.is_admin ? `
-          <label class="designer__label designer__label--inline" style="margin-top: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
-            <input type="checkbox" data-action="toggle-pack-official" data-id="${esc(pack.id)}" ${pack.is_official ? 'checked' : ''} />
-            Mark as Official Deck (admin)
-          </label>
+          <div class="lobby__stepper-row" style="margin-top: 0.75rem;">
+            <span class="lobby__stepper-label">Mark as Official Deck (admin)</span>
+            <button class="btn lobby__stepper-btn ${pack.is_official ? 'btn--primary' : 'btn--secondary'}"
+              style="width: auto; min-width: 4.5rem; padding: 0 var(--space-md);"
+              data-action="toggle-pack-official" data-id="${esc(pack.id)}" data-next="${pack.is_official ? 'false' : 'true'}">
+              ${pack.is_official ? 'On' : 'Off'}
+            </button>
+          </div>
+          <div class="lobby__stepper-row">
+            <span class="lobby__stepper-label">Mark as Dev Deck (admin)</span>
+            <button class="btn lobby__stepper-btn ${pack.is_dev ? 'btn--primary' : 'btn--secondary'}"
+              style="width: auto; min-width: 4.5rem; padding: 0 var(--space-md);"
+              data-action="toggle-pack-dev" data-id="${esc(pack.id)}" data-next="${pack.is_dev ? 'false' : 'true'}">
+              ${pack.is_dev ? 'On' : 'Off'}
+            </button>
+          </div>
         ` : ''}
       </div>
       ${sections}
       <div class="designer__editor-actions">
         <button class="btn btn--primary" data-action="show-add-card">+ Add Card</button>
+        <button class="btn btn--secondary" data-action="save-pack-meta">Save</button>
         ${pack.status === 'published'
           ? `<button class="btn btn--ghost" data-action="unpublish-pack" data-id="${esc(pack.id)}">Unpublish</button>`
           : state.currentPackCards.length > 0
@@ -398,7 +411,8 @@ async function onDocClick(e) {
     case 'delete-card': await handleDeleteCard(btn.dataset.cardId); break;
     case 'publish-pack': await handlePublishPack(btn.dataset.id); break;
     case 'unpublish-pack': await handleUnpublishPack(btn.dataset.id); break;
-    case 'toggle-pack-official': await handleToggleOfficial(btn.dataset.id, btn.checked); break;
+    case 'toggle-pack-official': await handleToggleOfficial(btn.dataset.id, btn.dataset.next === 'true'); break;
+    case 'toggle-pack-dev': await handleToggleDev(btn.dataset.id, btn.dataset.next === 'true'); break;
     case 'start-pick-feature': setState({ pickingFeature: true, error: null }); break;
     case 'cancel-pick-feature': setState({ pickingFeature: false }); break;
     case 'clear-feature': await handleClearFeature(); break;
@@ -433,9 +447,25 @@ async function onDocSubmit(e) {
   }
 }
 
+function refreshSaveDirtyState() {
+  if (!state.currentPack) return;
+  const titleInput = document.querySelector('[data-field="pack-title"]');
+  const descInput = document.querySelector('[data-field="pack-description"]');
+  const saveBtn = document.querySelector('.designer__editor-actions [data-action="save-pack-meta"]');
+  if (!titleInput || !saveBtn) return;
+  const title = titleInput.value.trim();
+  const description = (descInput?.value ?? '').trim();
+  const dirty = title !== (state.currentPack.title || '') || description !== (state.currentPack.description || '');
+  saveBtn.classList.toggle('is-dirty', dirty);
+}
+
 // Live-update card text and preview
 function onDocInput(e) {
   if (!isInside(e)) return;
+  if (e.target.matches('[data-field="pack-title"]') || e.target.matches('[data-field="pack-description"]')) {
+    refreshSaveDirtyState();
+    return;
+  }
   if (e.target.matches('[data-field="card-text"]')) {
     state.cardFormText = e.target.value;
     // Update preview without full re-render to keep cursor position
@@ -675,6 +705,19 @@ async function handleToggleOfficial(packId, isOfficial) {
     const updated = await setPackOfficial(packId, isOfficial);
     if (state.currentPack?.id === packId) {
       setState({ currentPack: { ...state.currentPack, is_official: !!updated.is_official } });
+    }
+  } catch (err) {
+    setState({ error: err.message });
+  }
+}
+
+async function handleToggleDev(packId, isDev) {
+  if (!state.authUser?.is_admin) return;
+  setState({ error: null });
+  try {
+    const updated = await setPackDev(packId, isDev);
+    if (state.currentPack?.id === packId) {
+      setState({ currentPack: { ...state.currentPack, is_dev: !!updated.is_dev } });
     }
   } catch (err) {
     setState({ error: err.message });
