@@ -3,6 +3,7 @@
 .screen--online-lobby {
   gap: var(--space-md);
   overflow: hidden;
+  position: relative; /* positioning context for the host edit drawer overlay */
 }
 
 .online-lobby__forms,
@@ -443,4 +444,147 @@
   width: 18px;
   height: 18px;
   display: block;
+}
+
+/* ── Host edit row + bottom drawer ────────────────────── */
+
+.online-lobby__edit-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: 0.65rem 0.85rem;
+  background: color-mix(in srgb, var(--color-white) 6%, transparent);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.online-lobby__edit-row:active {
+  opacity: 0.85;
+}
+
+.online-lobby__edit-row .online-lobby__settings-summary {
+  margin: 0;
+  padding: 0;
+  opacity: 1;
+  flex: 1;
+  min-width: 0;
+}
+
+.online-lobby__edit-row .online-lobby__summary-chip {
+  pointer-events: none;
+}
+
+.online-lobby__edit-affordance {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.online-lobby__edit-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 100;
+}
+
+.online-lobby__edit-drawer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 101;
+  background: var(--color-bg);
+  border-top: 1px solid var(--color-border);
+  border-radius: 16px 16px 0 0;
+  padding: var(--space-md);
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.4);
+  max-height: 75%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  animation: online-lobby__drawer-up 0.22s ease-out;
+}
+
+@keyframes online-lobby__drawer-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+.online-lobby__edit-handle {
+  width: 36px;
+  height: 4px;
+  background: var(--color-border);
+  border-radius: 2px;
+  margin: -4px auto 4px;
+  flex-shrink: 0;
+}
+
+.online-lobby__edit-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.online-lobby__edit-header h2 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.online-lobby__edit-close {
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 4px 12px;
+}
+
+.online-lobby__edit-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.online-lobby__edit-tab {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom: 2px solid transparent;
+  font-family: inherit;
+}
+
+.online-lobby__edit-tab.is-active {
+  color: var(--color-text);
+  border-bottom-color: var(--color-primary);
+}
+
+.online-lobby__edit-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+/* Lobby card preview overlay must sit above the host edit drawer (z 101)
+   so previewing a pack card from inside the drawer renders on top, not
+   underneath. The overlay is appended to <body> by router.previewLobbyCardAt. */
+#lobby-card-preview-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
 }

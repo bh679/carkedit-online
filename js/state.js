@@ -70,6 +70,10 @@ let _state = {
   showAdvancedSettings: false,
   showExpansionPacks: false,
 
+  // Online lobby host editor (drawer)
+  lobbyEditOpen: false,
+  lobbyEditTab: 'mode', // 'mode' | 'rules' | 'packs'
+
   // Phase 2/3 state
   totalRounds: 2,
   livingDeadIndex: 0,
