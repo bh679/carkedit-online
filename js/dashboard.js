@@ -1125,7 +1125,7 @@ function renderAuthBar() {
     <div class="auth-bar" style="position:absolute;top:var(--space-md,1rem);right:var(--space-md,1rem);z-index:10">
       ${avatar}
       <span class="auth-bar__name">${name}</span>
-      <a href="/admin-users.html" class="btn btn--ghost" style="font-size:0.85em;text-decoration:none">Users</a>
+      <a href="/admin-users" class="btn btn--ghost" style="font-size:0.85em;text-decoration:none">Users</a>
       <button class="btn btn--ghost" style="font-size:0.85em" onclick="window.dash.signOut()">Sign Out</button>
     </div>`;
 }

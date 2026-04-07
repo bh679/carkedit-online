@@ -687,13 +687,13 @@ function renderDashboard(sections) {
         <div class="dash-card">
           <div class="dash-card__title">Card Tester</div>
           <div id="section-mini-card">${sections.miniCard}</div>
-          <a href="card-test.html" class="dash-card__link">Open Card Tester &rarr;</a>
+          <a href="card-test" class="dash-card__link">Open Card Tester &rarr;</a>
         </div>
 
         <div class="dash-card">
           <div class="dash-card__title">Color Palette</div>
           <div id="section-palette">${sections.palette}</div>
-          <a href="color-demo.html" class="dash-card__link">Open Color Demo &rarr;</a>
+          <a href="color-demo" class="dash-card__link">Open Color Demo &rarr;</a>
         </div>
 
         <div class="dash-card">
@@ -969,7 +969,7 @@ function injectAuthBar() {
   bar.className = 'auth-bar';
   bar.style.cssText = 'margin-left:auto;';
   bar.innerHTML = `${avatar}<span class="auth-bar__name">${name}</span>
-    <a href="/admin-users.html" class="btn btn--ghost" style="font-size:0.75rem;text-decoration:none;padding:0.3rem 0.6rem">Users</a>
+    <a href="/admin-users" class="btn btn--ghost" style="font-size:0.75rem;text-decoration:none;padding:0.3rem 0.6rem">Users</a>
     <button class="btn btn--ghost" style="font-size:0.75rem;padding:0.3rem 0.6rem" id="dev-sign-out">Sign Out</button>`;
   meta.appendChild(bar);
   document.getElementById('dev-sign-out')?.addEventListener('click', async () => {
