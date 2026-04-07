@@ -45,9 +45,9 @@ const ICON_HEART_OUTLINE = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/20
 </svg>`;
 
 const TABS = [
+  { id: 'public',     label: 'Public Decks',    icon: ICON_PUBLIC,   requiresAuth: false, empty: 'No public decks available.' },
   { id: 'official',   label: 'Official Decks',  icon: ICON_OFFICIAL, requiresAuth: false, empty: 'No official decks available.' },
   { id: 'mine',       label: 'My Decks',        icon: ICON_MINE,     requiresAuth: true,  empty: 'You haven\'t created any decks yet.' },
-  { id: 'public',     label: 'Public Decks',    icon: ICON_PUBLIC,   requiresAuth: false, empty: 'No public decks available.' },
   { id: 'favourites', label: 'My Favourites',   icon: ICON_HEART,    requiresAuth: true,  empty: 'No favourites yet — tap the heart on any deck.' },
 ];
 
