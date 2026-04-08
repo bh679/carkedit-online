@@ -109,6 +109,10 @@ async function loadFavourites() {
 }
 
 async function loadDetail(packId) {
+  const currentParam = new URLSearchParams(window.location.search).get('pack');
+  if (currentParam !== packId) {
+    history.pushState({ pack: packId }, '', `?pack=${encodeURIComponent(packId)}`);
+  }
   setState({ loading: true, error: null, view: 'detail', selectedPack: null });
   try {
     const [packRes, statsRes] = await Promise.all([
@@ -442,6 +446,9 @@ function onAction(e) {
       break;
     }
     case 'back':
+      if (new URLSearchParams(window.location.search).has('pack')) {
+        history.pushState({}, '', window.location.pathname);
+      }
       setState({ view: 'list', selectedPack: null });
       break;
   }
@@ -453,8 +460,22 @@ document.addEventListener('click', (e) => {
   }
 });
 
+window.addEventListener('popstate', (e) => {
+  const packId = e.state?.pack || new URLSearchParams(window.location.search).get('pack');
+  if (packId) {
+    loadDetail(packId);
+  } else {
+    setState({ view: 'list', selectedPack: null });
+  }
+});
+
 initAuth(() => {
   if (state.tab === 'favourites') loadFavourites();
 });
 loadAllRows();
-render();
+const initialPack = new URLSearchParams(window.location.search).get('pack');
+if (initialPack) {
+  loadDetail(initialPack);
+} else {
+  render();
+}
