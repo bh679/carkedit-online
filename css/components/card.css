@@ -95,9 +95,16 @@
 
 .card__graphic-area--die {
   flex: 1;
+  flex-direction: column;
   background: url('../../assets/patterns/splatter-die.svg') center / cover no-repeat, var(--color-die);
-  padding: 8% 8% 0;
+  padding: 12% 10% 10%;
+  justify-content: flex-start;
 }
+
+/* Title vertical position modifiers (parent is flex column) */
+.card__graphic-area--die.card__graphic-area--title-top    { justify-content: flex-start; }
+.card__graphic-area--die.card__graphic-area--title-middle { justify-content: center; }
+.card__graphic-area--die.card__graphic-area--title-bottom { justify-content: flex-end; }
 
 .card__graphic-area--live {
   flex: 0 0 60%;
@@ -113,16 +120,29 @@
   border-radius: var(--radius-md);
 }
 
-/* Die: title overlaid on the full-bleed graphic area */
+/* Die: title overlaid on the full-bleed graphic area — matches original
+ * deck slab-with-outline look: big bold uppercase, black fill, thick white
+ * stroke via layered text-shadow so it stays legible on any background. */
 .card__title-overlay {
-  font-size: clamp(0.6rem, 4cqi, 1.1rem);
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  font-family: 'Ultra', 'Rye', Georgia, serif;
+  font-size: clamp(0.9rem, 6.5cqi, 1.8rem);
   font-weight: 900;
-  line-height: 1.15;
+  line-height: 1.45;
   text-transform: uppercase;
   text-align: center;
   color: #1a1a1a;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.03em;
   word-break: break-word;
+  text-shadow: 0 0 4px rgba(255, 255, 255, 0.5), 0 0 7px rgba(255, 255, 255, 0.5), 0 0 10px rgba(255, 255, 255, 0.4);
+}
+
+/* Light variant — white fill with black radial glow for dark backgrounds. */
+.card__title-overlay--light {
+  color: #fff;
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.5), 0 0 7px rgba(0, 0, 0, 0.5), 0 0 10px rgba(0, 0, 0, 0.4);
 }
 
 /* Live / Bye: text section below graphic area */
@@ -186,15 +206,29 @@
   background: var(--color-die-light);
 }
 
-/* Mystery (?) die cards: large badge in the top-right corner */
+/* Mystery (?) die cards — text-only variant matches the original
+ * "Pick a Common Way to Die" card: yellow background, giant 3D grey
+ * question mark centered, title anchored to top in the overlay style.
+ * The --mystery-bg custom prop lets future packs swap backgrounds. */
 .card__graphic-area--mystery {
   position: relative;
+  --mystery-bg: #f5b225;
+  background: var(--mystery-bg) !important;
 }
 
+.card__mystery-mark {
+  position: absolute;
+  inset: 0;
+  background: url('../../assets/patterns/mystery-3d-q.svg') center 58% / 62% auto no-repeat;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Small corner badge only shown on the illustrated <img> variant */
 .card__mystery-badge {
   position: absolute;
-  top: 6%;
-  right: 6%;
+  top: 4%;
+  right: 4%;
   width: clamp(1.6rem, 14cqi, 3rem);
   height: clamp(1.6rem, 14cqi, 3rem);
   border-radius: 50%;
@@ -210,47 +244,66 @@
   pointer-events: none;
 }
 
-.card--mystery .card__mystery-badge {
-  /* When badge sits on the illustrated img variant */
-  position: absolute;
-  top: 4%;
-  right: 4%;
-}
+/* Hide the corner badge on text-only mystery cards — the giant 3D
+ * question mark is the badge. */
+.card--text-only.card--mystery .card__mystery-badge { display: none; }
 
 /* Split (Would You Rather) die cards: stacked options with OR divider */
+/* Split (Would You Rather) — diagonal two-tone background, option at top
+ * and bottom, white circle in the centre with a big yellow OR. The
+ * --split-bg-a / --split-bg-b custom props let future packs swap colours
+ * (or replace with image gradients) without code changes. */
 .card__graphic-area--split {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 6%;
-}
-
-.card__split-options {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 4%;
-  width: 100%;
-  text-align: center;
+  position: relative;
+  display: block;
+  padding: 0;
+  --split-bg-a: #f5b225;
+  --split-bg-b: #d99110;
+  background:
+    linear-gradient(to bottom right, var(--split-bg-a) 49.7%, var(--split-bg-b) 50.3%) !important;
 }
 
 .card__split-option {
-  font-size: clamp(0.55rem, 3.6cqi, 1rem);
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  font-family: 'Ultra', 'Rye', Georgia, serif;
+  font-size: clamp(0.8rem, 5.5cqi, 1.5rem);
   font-weight: 900;
   text-transform: uppercase;
-  line-height: 1.15;
+  line-height: 1.45;
   color: #1a1a1a;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.03em;
+  text-align: center;
   word-break: break-word;
+  text-shadow: 0 0 4px rgba(255, 255, 255, 0.5), 0 0 7px rgba(255, 255, 255, 0.5), 0 0 10px rgba(255, 255, 255, 0.4);
+  z-index: 2;
 }
 
+.card__split-option--top    { top: 8%; }
+.card__split-option--bottom { bottom: 8%; }
+
+/* Centre circle with yellow OR */
 .card__split-or {
-  font-size: clamp(0.5rem, 3.2cqi, 0.9rem);
-  font-weight: 700;
-  color: #1a1a1a;
-  opacity: 0.7;
-  letter-spacing: 0.15em;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: clamp(2rem, 22cqi, 4.5rem);
+  height: clamp(2rem, 22cqi, 4.5rem);
+  border-radius: 50%;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Ultra', 'Rye', Georgia, serif;
+  font-size: clamp(0.9rem, 8cqi, 1.8rem);
+  font-weight: 900;
+  color: var(--split-bg-a, #f5b225);
+  letter-spacing: 0.05em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+  z-index: 3;
 }
 
 /* Card test page: scale card to fill available viewport space */

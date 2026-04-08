@@ -25,20 +25,25 @@ function renderTextOnlyInner(title, description, prompt, deckType, special, opti
   if (deckType === 'die') {
     const isSplit = special === 'Split' && Array.isArray(options) && options.length === 2;
     const isMystery = special === '?';
+    const safeTitle = escAttr(title);
     if (isSplit) {
       return `
         <div class="card__graphic-area card__graphic-area--${deckType} card__graphic-area--split">
-          <div class="card__split-options">
-            <span class="card__split-option">${options[0]}</span>
-            <span class="card__split-or">OR</span>
-            <span class="card__split-option">${options[1]}</span>
-          </div>
+          <span class="card__split-option card__split-option--top">${escAttr(options[0])}</span>
+          <span class="card__split-or" aria-hidden="true">OR</span>
+          <span class="card__split-option card__split-option--bottom">${escAttr(options[1])}</span>
+        </div>`;
+    }
+    if (isMystery) {
+      return `
+        <div class="card__graphic-area card__graphic-area--${deckType} card__graphic-area--mystery card__graphic-area--title-top">
+          <div class="card__mystery-mark" aria-hidden="true"></div>
+          <h3 class="card__title-overlay card__title-overlay--top">${safeTitle}</h3>
         </div>`;
     }
     return `
-      <div class="card__graphic-area card__graphic-area--${deckType}${isMystery ? ' card__graphic-area--mystery' : ''}">
-        ${isMystery ? '<span class="card__mystery-badge">?</span>' : ''}
-        <h3 class="card__title-overlay">${title}</h3>
+      <div class="card__graphic-area card__graphic-area--${deckType} card__graphic-area--title-top">
+        <h3 class="card__title-overlay card__title-overlay--top">${safeTitle}</h3>
       </div>`;
   }
   return `

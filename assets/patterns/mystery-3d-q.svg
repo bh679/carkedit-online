@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 560" aria-hidden="true">
+  <!--
+    3D isometric question mark matching the q-pick-*.jpg illustration style.
+    Front face = #8a8a8a, right/bottom extrusion = #5a5a5a.
+    The SVG is solid (no fill on background) so the parent's background
+    colour shows through.
+  -->
+  <defs>
+    <style>
+      .face { fill: #8a8a8a; }
+      .side { fill: #5a5a5a; }
+    </style>
+  </defs>
+
+  <!-- Side extrusion (drawn first so front sits on top). Offset +14,+14. -->
+  <g transform="translate(14,14)">
+    <!-- hook of the ? -->
+    <path class="side" d="
+      M 120 120
+      C 120 50, 280 50, 280 140
+      C 280 210, 220 230, 220 310
+      L 140 310
+      C 140 220, 200 200, 200 150
+      C 200 120, 140 120, 140 160
+      Z"/>
+    <!-- dot of the ? (square, matching reference) -->
+    <rect class="side" x="150" y="370" width="80" height="80"/>
+  </g>
+
+  <!-- Front face -->
+  <path class="face" d="
+    M 120 120
+    C 120 50, 280 50, 280 140
+    C 280 210, 220 230, 220 310
+    L 140 310
+    C 140 220, 200 200, 200 150
+    C 200 120, 140 120, 140 160
+    Z"/>
+  <rect class="face" x="150" y="370" width="80" height="80"/>
+</svg>
