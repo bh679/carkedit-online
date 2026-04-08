@@ -247,6 +247,7 @@ function addPlayer(event) {
 
   let isDevName = false;
   const shiftHeld = !!(event && event.shiftKey);
+  const isAdmin = !!getState().authUser?.is_admin;
   if (!name) {
     // Dev names only when Shift is held and fields are empty
     const monthEl = document.getElementById('player-birth-month');
@@ -267,6 +268,8 @@ function addPlayer(event) {
       return;
     }
   }
+
+  if (shiftHeld && isAdmin) isDevName = true;
 
   const state = getState();
   if (state.players.some((p) => p.name === name)) return;
@@ -861,6 +864,7 @@ window.game = {
     let isDevName = false;
     let devMode = false;
     const shiftHeld = !!(event && event.shiftKey);
+    const isAdmin = !!getState().authUser?.is_admin;
     if (!name) {
       // Dev mode: Shift held + empty "Your Details" fields (name, birth month, birth day all empty)
       if (shiftHeld && !birthMonth && !birthDay) {
@@ -884,6 +888,7 @@ window.game = {
         return;
       }
     }
+    if (shiftHeld && isAdmin) { devMode = true; isDevName = true; }
     const userId = getState().authUser?.id || '';
     if (userId && !isDevName) {
       updateUserProfile({ display_name: name, birth_month: birthMonth, birth_day: birthDay });
