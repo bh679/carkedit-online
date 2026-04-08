@@ -3,6 +3,7 @@
 import { setStateSetter, initAuth, signInWithGoogle, getAuthToken, logOut } from '../managers/auth-manager.js';
 import { render as renderCardList, bindScrollArrows } from '../components/card-list.js';
 import { renderPackCard } from '../components/pack-card.js';
+import { render as renderPackBg } from '../components/pack-card-background.js';
 import { setList as setPreviewList } from '../components/card-preview-overlay.js';
 import { mount as mountDesigner, unmount as unmountDesigner, syncAuth as syncDesignerAuth, getView as getDesignerView } from '../card-designer/app.js';
 
@@ -290,7 +291,39 @@ function renderList() {
   `;
 }
 
+function renderBrowseSimpleList() {
+  const row = state.rows.newest || { packs: [], loading: true };
+  if (row.loading) return '<p class="marketplace__loading">Loading…</p>';
+  if (row.error) return `<p class="marketplace__error">${esc(row.error)}</p>`;
+  if (!row.packs.length) return '<p class="marketplace__empty">No expansions yet.</p>';
+  const items = row.packs.map((p) => {
+    const cardCount = p.card_count ?? 0;
+    const fav = !!p.is_favorited;
+    return `
+      <div class="designer__pack-item" data-pack-id="${esc(p.id)}" data-action="open" style="cursor:pointer">
+        ${renderPackBg(p)}
+        <div class="designer__pack-info">
+          <span class="designer__pack-title">${esc(p.title)}</span>
+          <span class="designer__pack-meta">${cardCount} cards &middot; by ${esc(p.creator_name || 'Unknown')}</span>
+        </div>
+        <div class="designer__pack-actions">
+          <button class="pack-card__save ${fav ? 'pack-card__save--saved' : ''}" data-action="toggle-fav" data-pack-id="${esc(p.id)}" data-fav="${fav}">
+            ${fav ? '★' : '☆'}
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+  return `<div class="designer__pack-list">${items}</div>`;
+}
+
 function renderBrowseRows() {
+  const newest = state.rows.newest;
+  const totalPublic = newest && !newest.loading && !newest.error ? (newest.packs || []).length : null;
+  if (totalPublic !== null && totalPublic < 10) {
+    return renderBrowseSimpleList();
+  }
+  if (newest && newest.loading) return '<p class="marketplace__loading">Loading…</p>';
   return ROW_DEFS.map((def) => {
     const row = state.rows[def.key] || { packs: [], loading: true };
     const scrollId = `pack-strip-${def.key}`;
