@@ -135,6 +135,36 @@ export async function updateCard(packId, cardId, updates) {
   return res.json();
 }
 
+export async function uploadPackBrand(packId, file) {
+  const token = await getAuthToken();
+  const headers = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const form = new FormData();
+  form.append('image', file);
+  const res = await fetch(`${API_BASE}/packs/${encodeURIComponent(packId)}/brand`, {
+    method: 'POST',
+    headers,
+    body: form,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to upload brand image');
+  }
+  return res.json();
+}
+
+export async function removePackBrand(packId) {
+  const res = await fetch(`${API_BASE}/packs/${encodeURIComponent(packId)}/brand`, {
+    method: 'DELETE',
+    headers: await authHeaders(),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to remove brand image');
+  }
+  return res.json();
+}
+
 export async function deleteCard(packId, cardId) {
   const res = await fetch(
     `${API_BASE}/packs/${encodeURIComponent(packId)}/cards/${encodeURIComponent(cardId)}`,

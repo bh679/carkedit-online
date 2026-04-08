@@ -7,7 +7,9 @@ import {
   fetchMyPacks, createPack, getPack,
   updatePack, deletePack, addCards, updateCard, deleteCard,
   setPackOfficial, setPackDev,
+  uploadPackBrand, removePackBrand,
 } from './pack-manager.js';
+import { registerPackBrand } from '../state.js';
 import {
   signInWithGoogle, signInWithEmail, signUpWithEmail, logOut,
 } from '../managers/auth-manager.js';
@@ -240,7 +242,7 @@ function renderPackEditor() {
     ? state.currentPackCards.find(c => String(c.id) === String(pack.featured_card_id))
     : null;
   const featureHtml = featureCard
-    ? renderCard({ title: featureCard.text, description: '', prompt: '', image: '', illustrationKey: '', deckType: featureCard.deck_type })
+    ? renderCard({ title: featureCard.text, description: '', prompt: '', image: '', illustrationKey: '', deckType: featureCard.deck_type, brandImageUrl: pack.brand_image_url || '' })
     : '<span class="designer__feature-empty">None</span>';
   const sections = deckTypes.map(type => {
     const cards = state.currentPackCards.filter(c => c.deck_type === type);
@@ -279,6 +281,24 @@ function renderPackEditor() {
           Description
           <textarea class="designer__input designer__textarea" data-field="pack-description" maxlength="500">${esc(pack.description)}</textarea>
         </label>
+        <div class="designer__feature">
+          <span class="designer__label">Pack Branding (logo shown on every card)</span>
+          <div class="designer__feature-row">
+            <div class="designer__brand-preview">
+              ${pack.brand_image_url
+                ? `<img src="${esc(pack.brand_image_url)}" alt="Pack brand" style="max-width: 64px; max-height: 64px; object-fit: contain; background: #fff; border-radius: 8px; padding: 4px;">`
+                : '<span class="designer__feature-empty">None</span>'}
+            </div>
+            <label class="btn btn--secondary btn--small" style="cursor: pointer;">
+              ${pack.brand_image_url ? 'Replace' : 'Upload'}
+              <input type="file" accept="image/png,image/jpeg,image/webp" data-action="upload-brand" style="display: none;">
+            </label>
+            ${pack.brand_image_url
+              ? '<button class="btn btn--ghost btn--small" data-action="remove-brand">Remove</button>'
+              : ''}
+          </div>
+          <p class="designer__feature-hint">PNG, JPEG, or WebP. Max 2MB.</p>
+        </div>
         <div class="designer__feature">
           <span class="designer__label">Feature Card</span>
           <div class="designer__feature-row">
@@ -346,6 +366,7 @@ function renderCardForm() {
     image: '',
     illustrationKey: '',
     deckType: state.cardFormDeckType,
+    brandImageUrl: state.currentPack?.brand_image_url || '',
   });
 
   return `
@@ -391,6 +412,15 @@ function installListeners() {
   document.addEventListener('click', onDocClickOutsideMenu);
   document.addEventListener('submit', onDocSubmit);
   document.addEventListener('input', onDocInput);
+  document.addEventListener('change', onDocChange);
+}
+
+async function onDocChange(e) {
+  if (!isInside(e)) return;
+  const input = e.target.closest('[data-action="upload-brand"]');
+  if (!input || !input.files || !input.files[0]) return;
+  await handleUploadBrand(input.files[0]);
+  input.value = '';
 }
 
 function isInside(e) {
@@ -422,6 +452,7 @@ async function onDocClick(e) {
     case 'start-pick-feature': setState({ pickingFeature: true, error: null }); break;
     case 'cancel-pick-feature': setState({ pickingFeature: false }); break;
     case 'clear-feature': await handleClearFeature(); break;
+    case 'remove-brand': await handleRemoveBrand(); break;
     case 'sign-in-google': await signInWithGoogle(); break;
     case 'switch-to-signup': setState({ loginMode: 'signup', loginError: null }); break;
     case 'switch-to-signin': setState({ loginMode: 'signin', loginError: null }); break;
@@ -482,6 +513,7 @@ function onDocInput(e) {
         title: state.cardFormText || 'Card text here...',
         description: '', prompt: '', image: '', illustrationKey: '',
         deckType: state.cardFormDeckType,
+        brandImageUrl: state.currentPack?.brand_image_url || '',
       });
     }
     if (countEl) {
@@ -663,6 +695,36 @@ async function handleClearFeature() {
       loading: false,
       currentPack: full,
       currentPackCards: full.cards || [],
+    });
+  } catch (err) {
+    setState({ loading: false, error: err.message });
+  }
+}
+
+async function handleUploadBrand(file) {
+  if (!state.currentPack || !file) return;
+  setState({ loading: true, error: null });
+  try {
+    const updated = await uploadPackBrand(state.currentPack.id, file);
+    registerPackBrand(state.currentPack.id, updated.brand_image_url || '');
+    setState({
+      loading: false,
+      currentPack: { ...state.currentPack, brand_image_url: updated.brand_image_url },
+    });
+  } catch (err) {
+    setState({ loading: false, error: err.message });
+  }
+}
+
+async function handleRemoveBrand() {
+  if (!state.currentPack) return;
+  setState({ loading: true, error: null });
+  try {
+    const updated = await removePackBrand(state.currentPack.id);
+    registerPackBrand(state.currentPack.id, '');
+    setState({
+      loading: false,
+      currentPack: { ...state.currentPack, brand_image_url: updated.brand_image_url || null },
     });
   } catch (err) {
     setState({ loading: false, error: err.message });

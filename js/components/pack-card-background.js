@@ -25,7 +25,7 @@ export function render(pack) {
   if (!ftext && die === 0 && live === 0 && bye === 0) return '';
 
   const cardLayer = ftext && fdeck
-    ? `<div class="pack-bg__card">${renderCard({ title: ftext, deckType: fdeck })}</div>`
+    ? `<div class="pack-bg__card">${renderCard({ title: ftext, deckType: fdeck, brandImageUrl: pack?.brand_image_url || '' })}</div>`
     : '';
 
   const bands = [
