@@ -989,6 +989,119 @@ function scrollCards(direction) {
   }
 }
 
+// ── Expansion Pack Usage ─────────────────────────────
+let packStats = { packs: [] };
+let packSortMode = 'usage_count'; // 'usage_count' | 'total_plays' | 'total_wins' | 'win_rate' | 'favorite_count' | 'card_count' | 'title'
+let packSortAsc = false;
+const PACK_INITIAL_LIMIT = 7;
+let packExpanded = false;
+
+async function fetchPackStats() {
+  try {
+    const res = await authFetch(`${API_BASE}/api/carkedit/packs/stats`);
+    if (!res.ok) return;
+    packStats = await res.json();
+  } catch (err) {
+    console.warn('[dashboard] Failed to fetch pack stats:', err);
+  }
+}
+
+function setPackSort(mode) {
+  if (packSortMode === mode) {
+    packSortAsc = !packSortAsc;
+  } else {
+    packSortMode = mode;
+    packSortAsc = false;
+  }
+  renderPackStats();
+}
+
+function togglePackExpanded() {
+  packExpanded = !packExpanded;
+  renderPackStats();
+}
+
+function getSortedPacks() {
+  const packs = [...(packStats.packs || [])];
+  const dir = packSortAsc ? 1 : -1;
+  packs.sort((a, b) => {
+    const av = a[packSortMode];
+    const bv = b[packSortMode];
+    if (typeof av === 'string' || typeof bv === 'string') {
+      return dir * String(av || '').localeCompare(String(bv || ''));
+    }
+    return dir * ((av || 0) - (bv || 0));
+  });
+  return packs;
+}
+
+function packSortHeader(label, mode) {
+  const active = packSortMode === mode;
+  const arrow = active ? (packSortAsc ? ' &#x25B2;' : ' &#x25BC;') : '';
+  const cls = active ? 'dashboard__pack-th dashboard__pack-th--active' : 'dashboard__pack-th';
+  return `<th class="${cls}" onclick="window.dash.setPackSort('${mode}')">${label}${arrow}</th>`;
+}
+
+function renderPackStats() {
+  const el = document.getElementById('pack-stats');
+  if (!el) return;
+
+  const allPacks = getSortedPacks();
+
+  if (allPacks.length === 0) {
+    el.innerHTML = '<p class="dashboard__empty">No expansion packs yet.</p>';
+    return;
+  }
+
+  const hasMore = allPacks.length > PACK_INITIAL_LIMIT;
+  const packs = (hasMore && !packExpanded) ? allPacks.slice(0, PACK_INITIAL_LIMIT) : allPacks;
+  const hidden = allPacks.length - packs.length;
+
+  const rows = packs.map((p) => {
+    const winRatePct = ((p.win_rate || 0) * 100).toFixed(0);
+    const officialBadge = p.is_official ? ' <span class="dashboard__pack-badge dashboard__pack-badge--official">OFFICIAL</span>' : '';
+    const devBadge = p.is_dev ? ' <span class="dashboard__pack-badge dashboard__pack-badge--dev">DEV</span>' : '';
+    const titleEsc = escAttr(p.title || '(untitled)');
+    const creatorEsc = escAttr(p.creator_name || '—');
+    return `
+      <tr class="dashboard__pack-row">
+        <td class="dashboard__pack-cell dashboard__pack-cell--title">
+          <a href="/expansions.html?pack=${encodeURIComponent(p.id)}" target="_blank" rel="noopener">${titleEsc}</a>${officialBadge}${devBadge}
+        </td>
+        <td class="dashboard__pack-cell">${creatorEsc}</td>
+        <td class="dashboard__pack-cell dashboard__pack-cell--num">${p.card_count || 0}</td>
+        <td class="dashboard__pack-cell dashboard__pack-cell--num">${p.usage_count || 0}</td>
+        <td class="dashboard__pack-cell dashboard__pack-cell--num">${p.total_plays || 0}</td>
+        <td class="dashboard__pack-cell dashboard__pack-cell--num">${p.total_wins || 0}</td>
+        <td class="dashboard__pack-cell dashboard__pack-cell--num">${winRatePct}%</td>
+        <td class="dashboard__pack-cell dashboard__pack-cell--num">${p.favorite_count || 0}</td>
+      </tr>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="dashboard__pack-stats-wrap">
+      <table class="dashboard__pack-table">
+        <thead>
+          <tr>
+            ${packSortHeader('Pack', 'title')}
+            <th class="dashboard__pack-th">Creator</th>
+            ${packSortHeader('Cards', 'card_count')}
+            ${packSortHeader('Games Used', 'usage_count')}
+            ${packSortHeader('Plays', 'total_plays')}
+            ${packSortHeader('Wins', 'total_wins')}
+            ${packSortHeader('Win Rate', 'win_rate')}
+            ${packSortHeader('Favorites', 'favorite_count')}
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+      ${hasMore ? `
+        <button class="dashboard__load-more" onclick="window.dash.togglePackExpanded()">
+          ${packExpanded ? 'Show less' : `See more (${hidden} more)`}
+        </button>` : ''}
+    </div>`;
+}
+
 // ── Graphs ───────────────────────────────────────────
 
 function renderGraph() {
@@ -1156,6 +1269,11 @@ function renderPage() {
       </section>
 
       <section class="dashboard__section">
+        <h2 class="dashboard__section-title">Expansion Packs</h2>
+        <div id="pack-stats"></div>
+      </section>
+
+      <section class="dashboard__section">
         <h2 class="dashboard__section-title">Graphs</h2>
         <div class="dashboard__graph-wrap">
           <h3 class="dashboard__graph-label">Games Over Time</h3>
@@ -1168,6 +1286,7 @@ function renderPage() {
   renderStats();
   renderGameList();
   renderCardAnalytics();
+  renderPackStats();
   renderGraph();
 }
 
@@ -1182,7 +1301,7 @@ function getRefreshInterval() {
 let refreshCountdown = REFRESH_INTERVAL_IDLE;
 
 async function refreshAll() {
-  await Promise.all([fetchGames(), fetchStats(), fetchPeriodStats(), fetchCardStats()]);
+  await Promise.all([fetchGames(), fetchStats(), fetchPeriodStats(), fetchCardStats(), fetchPackStats()]);
   // Re-fetch detail for expanded live games so phases/players update
   if (expandedGameId) {
     const cached = gameDetailCache[expandedGameId];
@@ -1196,6 +1315,7 @@ async function refreshAll() {
   renderStats();
   renderGameList();
   renderCardAnalytics();
+  renderPackStats();
   renderGraph();
   refreshCountdown = getRefreshInterval();
 }
@@ -1212,7 +1332,7 @@ function updateRefreshTimer() {
 }
 
 // ── Init ─────────────────────────────────────────────
-window.dash = { cyclePlayTime, cycleGamesCount, toggleGame, cycleDeckFilter, setCardSort, toggleCardSortDir, cycleCardDev, previewCard, closePreview, prevPreviewCard, nextPreviewCard, scrollCards, loadMoreGames, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange, signInWithGoogle, signOut, toggleUserMenu };
+window.dash = { cyclePlayTime, cycleGamesCount, toggleGame, cycleDeckFilter, setCardSort, toggleCardSortDir, cycleCardDev, setPackSort, togglePackExpanded, previewCard, closePreview, prevPreviewCard, nextPreviewCard, scrollCards, loadMoreGames, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange, signInWithGoogle, signOut, toggleUserMenu };
 
 // Close user menu on outside click
 document.addEventListener('click', (e) => {
@@ -1363,10 +1483,11 @@ async function bootDashboard() {
       .catch(() => updateVersionEl(el, 'Server', data.version, null, started || 'Could not check GitHub'));
   }).catch(() => {});
 
-  await Promise.all([fetchGames(), fetchStats(), fetchPeriodStats(), fetchCardStats(), loadCardData()]);
+  await Promise.all([fetchGames(), fetchStats(), fetchPeriodStats(), fetchCardStats(), fetchPackStats(), loadCardData()]);
   renderStats();
   renderGameList();
   renderCardAnalytics();
+  renderPackStats();
   renderGraph();
 
   // Countdown timer — tick every second, refresh at 0
