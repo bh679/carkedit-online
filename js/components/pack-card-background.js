@@ -28,11 +28,22 @@ export function render(pack) {
     ? `<div class="pack-bg__card">${renderCard({ title: ftext, deckType: fdeck, brandImageUrl: pack?.brand_image_url || '' })}</div>`
     : '';
 
-  const bands = [
-    die > 0 ? '<span class="pack-bg__band pack-bg__band--die"></span>' : '',
-    live > 0 ? '<span class="pack-bg__band pack-bg__band--live"></span>' : '',
-    bye > 0 ? '<span class="pack-bg__band pack-bg__band--bye"></span>' : '',
-  ].join('');
+  // 45° diagonal gradient using card-back colours of decks this pack contains.
+  const decks = [
+    die > 0 ? 'var(--color-die)' : null,
+    live > 0 ? 'var(--color-live)' : null,
+    bye > 0 ? 'var(--color-bye)' : null,
+  ].filter(Boolean);
 
-  return `<div class="pack-bg" aria-hidden="true">${cardLayer}<div class="pack-bg__bands">${bands}</div></div>`;
+  let overlayHtml = '';
+  if (decks.length > 0) {
+    const step = 100 / decks.length;
+    const stops = decks
+      .map((c, i) => `${c} ${(i * step).toFixed(2)}% ${((i + 1) * step).toFixed(2)}%`)
+      .join(', ');
+    const gradient = `linear-gradient(135deg, ${stops})`;
+    overlayHtml = `<div class="pack-bg__overlay" style="background-image: ${gradient};"></div>`;
+  }
+
+  return `<div class="pack-bg" aria-hidden="true">${overlayHtml}${cardLayer}</div>`;
 }

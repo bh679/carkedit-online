@@ -282,7 +282,10 @@ function renderPackEditor() {
           <textarea class="designer__input designer__textarea" data-field="pack-description" maxlength="500">${esc(pack.description)}</textarea>
         </label>
         <div class="designer__feature">
-          <span class="designer__label">Pack Branding (logo shown on every card)</span>
+          <span class="designer__label">
+            Pack Branding (logo shown on every card)
+            <span class="designer__preview-tag">Preview</span>
+          </span>
           <div class="designer__feature-row">
             <div class="designer__brand-preview">
               ${pack.brand_image_url

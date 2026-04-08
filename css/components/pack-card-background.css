@@ -1,4 +1,4 @@
-/* Pack row background: faded featured card + left-edge deck bands */
+/* Pack row background: faded featured card + diagonal deck-colour overlay */
 
 .pack-bg {
   position: absolute;
@@ -28,22 +28,13 @@
   height: 100%;
 }
 
-.pack-bg__bands {
+/* 45° diagonal deck-colour overlay — gradient set inline per row. */
+.pack-bg__overlay {
   position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  display: flex;
-  gap: 1px;
+  inset: 0;
+  opacity: 0.22;
+  mix-blend-mode: screen;
 }
-
-.pack-bg__band {
-  width: 4px;
-}
-
-.pack-bg__band--die  { background: linear-gradient(to right, var(--color-die),  transparent); }
-.pack-bg__band--live { background: linear-gradient(to right, var(--color-live), transparent); }
-.pack-bg__band--bye  { background: linear-gradient(to right, var(--color-bye),  transparent); }
 
 /* Ensure pack row containers can host the absolute background. */
 .pack-selector__item,

@@ -166,6 +166,21 @@ body.page--card-designer #app {
   width: 100%;
 }
 
+/* Preview/beta tag inline with a section label */
+.designer__preview-tag {
+  display: inline-block;
+  margin-left: var(--space-xs);
+  padding: 0.1em 0.55em;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #fff;
+  background: var(--color-accent, #8b5cf6);
+  border-radius: 999px;
+  vertical-align: middle;
+}
+
 .designer__input {
   width: 100%;
   padding: var(--space-sm) var(--space-md);
