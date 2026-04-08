@@ -6,7 +6,7 @@
   flex-direction: column;
   aspect-ratio: var(--card-aspect);
   width: 100%;
-  border-radius: var(--radius-md);
+  border-radius: 5%;
   overflow: hidden;
   background: var(--color-surface);
   border: 2px solid var(--color-border);
@@ -110,14 +110,14 @@
   flex: 0 0 55%;
   background: url('../../assets/patterns/splatter-live.svg') center / cover no-repeat, var(--color-live);
   margin: 4%;
-  border-radius: var(--radius-md);
+  border-radius: 4cqi;
 }
 
 .card__graphic-area--bye {
   flex: 0 0 55%;
   background: url('../../assets/patterns/splatter-bye.svg') center / cover no-repeat, var(--color-bye);
   margin: 4%;
-  border-radius: var(--radius-md);
+  border-radius: 4cqi;
 }
 
 /* Die: title overlaid on the full-bleed graphic area — matches original
