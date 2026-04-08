@@ -107,14 +107,14 @@
 .card__graphic-area--die.card__graphic-area--title-bottom { justify-content: flex-end; }
 
 .card__graphic-area--live {
-  flex: 0 0 60%;
+  flex: 0 0 55%;
   background: url('../../assets/patterns/splatter-live.svg') center / cover no-repeat, var(--color-live);
   margin: 4%;
   border-radius: var(--radius-md);
 }
 
 .card__graphic-area--bye {
-  flex: 0 0 60%;
+  flex: 0 0 55%;
   background: url('../../assets/patterns/splatter-bye.svg') center / cover no-repeat, var(--color-bye);
   margin: 4%;
   border-radius: var(--radius-md);
@@ -148,18 +148,18 @@
 /* Live / Bye: text section below graphic area */
 .card__body--text-only {
   background: #fff;
-  padding: 6% 8%;
+  padding: 5% 7%;
   flex: 1;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   text-align: center;
-  gap: 4%;
+  gap: 2%;
 }
 
 .card--text-only .card__title {
-  font-size: 7cqi;
+  font-size: 5.5cqi;
   font-weight: 900;
   text-transform: uppercase;
   line-height: 1.15;
@@ -175,13 +175,13 @@
 }
 
 .card--text-only .card__description {
-  font-size: 5cqi;
+  font-size: 4cqi;
   color: #333;
   line-height: 1.3;
 }
 
 .card--text-only .card__prompt {
-  font-size: 4.5cqi;
+  font-size: 3.5cqi;
   color: #333;
   font-style: normal;
   line-height: 1.3;
