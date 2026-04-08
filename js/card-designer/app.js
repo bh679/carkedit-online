@@ -284,7 +284,7 @@ function renderPackEditor() {
         <div class="designer__media">
           <div class="designer__media-head">
             <span class="designer__media-title">Pack Media</span>
-            <span class="designer__media-hint">PNG / JPEG / WebP &middot; 2MB</span>
+            <span class="designer__media-hint">PNG / WebP / SVG &middot; 2MB</span>
           </div>
           <div class="designer__media-grid">
             <div class="designer__media-slot">
@@ -300,7 +300,7 @@ function renderPackEditor() {
                 <div class="designer__media-actions">
                   <label class="btn btn--primary btn--small designer__media-btn" style="cursor: pointer;">
                     ${pack.brand_image_url ? 'Replace' : 'Upload'}
-                    <input type="file" accept="image/png,image/jpeg,image/webp" data-action="upload-brand" style="display: none;">
+                    <input type="file" accept="image/png,image/webp,image/svg+xml" data-action="upload-brand" style="display: none;">
                   </label>
                   ${pack.brand_image_url
                     ? '<button class="btn btn--ghost btn--small designer__media-btn--ghost" data-action="remove-brand">Remove</button>'
@@ -351,7 +351,7 @@ function renderPackEditor() {
       </div>
       ${sections}
       <div class="designer__editor-actions">
-        <button class="btn btn--primary" data-action="show-add-card">+ Add Card</button>
+        <button class="btn btn--primary" data-action="show-add-card">+ Card</button>
         <button class="btn btn--secondary" data-action="save-pack-meta">Save</button>
         ${pack.status === 'published'
           ? `<button class="btn btn--ghost" data-action="unpublish-pack" data-id="${esc(pack.id)}">Unpublish</button>`
