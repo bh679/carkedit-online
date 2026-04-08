@@ -439,11 +439,12 @@ function renderCardForm() {
         </label>
         <div class="designer__char-count">${state.cardFormText.length}/200</div>
         ${splitFields}
+        ${isDie ? '' : `
         <label class="designer__label">
           Prompt (optional)
           <textarea class="designer__input designer__textarea" data-field="card-prompt" maxlength="200" placeholder="Optional follow-up question shown under the card text...">${esc(state.cardFormPrompt)}</textarea>
         </label>
-        <div class="designer__char-count">${state.cardFormPrompt.length}/200</div>
+        <div class="designer__char-count">${state.cardFormPrompt.length}/200</div>`}
         <div class="designer__preview-section">
           <span class="designer__label">Preview</span>
           <div class="designer__preview">${preview}</div>
@@ -503,11 +504,14 @@ async function onDocClick(e) {
     case 'set-deck-type': {
       const type = btn.dataset.type;
       const updates = { cardFormDeckType: type };
-      // Variants only valid on die — clear when switching away
       if (type !== 'die') {
+        // Variants only valid on die — clear when switching away
         updates.cardFormSpecial = '';
         updates.cardFormOption1 = '';
         updates.cardFormOption2 = '';
+      } else {
+        // Prompts are a live/bye concept — clear when switching to die
+        updates.cardFormPrompt = '';
       }
       setState(updates);
       break;
@@ -773,7 +777,9 @@ async function handleSaveCard() {
     text = `${a} or ${b}`;
   }
   if (!text) { setState({ error: 'Card text is required' }); return; }
-  const prompt = state.cardFormPrompt.trim() || null;
+  // Prompts are a live/bye-only concept in the official decks — don't save
+  // them on die cards even if the field carries stale state.
+  const prompt = isDie ? null : (state.cardFormPrompt.trim() || null);
   const card_special = isDie && state.cardFormSpecial ? state.cardFormSpecial : null;
 
   setState({ loading: true, error: null });
