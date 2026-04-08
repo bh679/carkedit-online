@@ -1179,12 +1179,14 @@ function renderPackStats() {
     const winRatePct = ((p.win_rate || 0) * 100).toFixed(0);
     const officialBadge = p.is_official ? ' <span class="dashboard__pack-badge dashboard__pack-badge--official">OFFICIAL</span>' : '';
     const devBadge = p.is_dev ? ' <span class="dashboard__pack-badge dashboard__pack-badge--dev">DEV</span>' : '';
+    const statusKey = (p.status || 'draft').toLowerCase();
+    const statusBadge = ` <span class="dashboard__pack-badge dashboard__pack-badge--status dashboard__pack-badge--${statusKey}">${statusKey.toUpperCase()}</span>`;
     const titleEsc = escAttr(p.title || '(untitled)');
     const creatorEsc = escAttr(p.creator_name || '—');
     return `
       <tr class="dashboard__pack-row">
         <td class="dashboard__pack-cell dashboard__pack-cell--title">
-          <a href="/expansions.html?pack=${encodeURIComponent(p.id)}" target="_blank" rel="noopener">${titleEsc}</a>${officialBadge}${devBadge}
+          <a href="/expansions.html?pack=${encodeURIComponent(p.id)}" target="_blank" rel="noopener">${titleEsc}</a>${statusBadge}${officialBadge}${devBadge}
         </td>
         <td class="dashboard__pack-cell">${creatorEsc}</td>
         <td class="dashboard__pack-cell dashboard__pack-cell--num">${p.card_count || 0}</td>

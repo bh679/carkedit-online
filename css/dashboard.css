@@ -1018,6 +1018,14 @@ body {
   background: #b388ff;
   color: #000;
 }
+.dashboard__pack-badge--published {
+  background: #66bb6a;
+  color: #000;
+}
+.dashboard__pack-badge--draft {
+  background: #9e9e9e;
+  color: #000;
+}
 
 /* ── NPS Survey Responses ──────────────────────────── */
 .nps-chip {
