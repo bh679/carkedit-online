@@ -7,6 +7,7 @@ import { render as renderCard } from '../components/card.js';
 import { render as renderLivingDeadProfile } from '../components/living-dead-profile.js';
 import { render as renderPassPhone } from '../components/pass-phone.js';
 import { render as renderPhaseHeader } from '../components/phase-header.js';
+import { render as renderSurvey, hasSubmitted as surveySubmitted } from './survey.js';
 
 const PHASE_LABEL = 'Phase 4 - EULOGY';
 
@@ -586,9 +587,12 @@ function renderWinnerScreen(state) {
             ${scoreRows}
           </div>
         </div>
-        <button class="btn btn--primary" onclick="window.game.showScreen('menu')">
-          Play Again
-        </button>
+        ${renderSurvey(state)}
+        ${surveySubmitted(state) ? '' : `
+          <button class="btn btn--primary" onclick="window.game.showScreen('menu')">
+            Play Again
+          </button>
+        `}
       </div>
     </div>
   `;

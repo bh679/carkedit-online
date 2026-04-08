@@ -1,0 +1,120 @@
+/* CarkedIt — Post-Game NPS Survey */
+
+.survey {
+  margin: 1.5em auto;
+  max-width: 28em;
+  padding: 1em 1.2em;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.75em;
+  text-align: center;
+}
+
+.survey--collapsed {
+  padding: 0.5em;
+  background: transparent;
+  border: none;
+}
+
+.survey__prompt-btn {
+  background: rgba(152, 66, 255, 0.15);
+  color: var(--color-text, #fff);
+  border: 1px dashed rgba(152, 66, 255, 0.5);
+  border-radius: 0.5em;
+  padding: 0.75em 1.2em;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.survey__prompt-btn:hover {
+  background: rgba(152, 66, 255, 0.25);
+}
+
+.survey__title {
+  margin: 0 0 0.8em;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.survey__score-row {
+  display: flex;
+  gap: 0.3em;
+  justify-content: space-between;
+  flex-wrap: nowrap;
+  margin-bottom: 0.3em;
+  width: 100%;
+}
+
+.survey__score-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  aspect-ratio: 1 / 1;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+  color: inherit;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all 0.15s;
+}
+.survey__score-btn:hover {
+  background: rgba(152, 66, 255, 0.3);
+}
+.survey__score-btn--active {
+  background: var(--color-primary, #9842FF);
+  border-color: var(--color-primary, #9842FF);
+  color: #fff;
+}
+
+.survey__score-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 0.8em;
+  padding: 0 0.3em;
+}
+
+.survey__label {
+  display: block;
+  text-align: left;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0.6em 0 0.2em;
+}
+
+.survey__textarea {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 0.4em;
+  padding: 0.5em 0.7em;
+  color: inherit;
+  font-family: inherit;
+  font-size: 0.9rem;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.survey__actions {
+  margin-top: 0.8em;
+}
+
+.survey--thanks {
+  background: rgba(76, 175, 80, 0.08);
+  border-color: rgba(76, 175, 80, 0.3);
+}
+
+.survey__thanks-title {
+  margin: 0 0 0.8em;
+  font-size: 1.1rem;
+}
+
+.survey__cta-row {
+  display: flex;
+  gap: 0.6em;
+  justify-content: center;
+  flex-wrap: wrap;
+}
