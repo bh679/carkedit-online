@@ -11,7 +11,8 @@ import { render as renderJoinGame } from './screens/join-game.js';
 import { render as renderPhase1 } from './screens/phase1.js';
 import { render as renderPhase23 } from './screens/phase2-3.js';
 import { render as renderPhase4 } from './screens/phase4.js';
-import { saveGameToHistory } from './managers/game-history.js';
+import { render as renderAccount, renderGamesList, renderMyPacks } from './screens/account.js';
+import { saveGameToHistory, getGameHistory, syncWithServer } from './managers/game-history.js';
 import { shuffle } from './utils/shuffle.js';
 import { initErrorLogger } from './utils/error-logger.js';
 import { render as renderIssueReport, submit as submitIssueReport } from './components/issue-report.js';
@@ -53,6 +54,7 @@ const SCREENS = {
   phase2:        (state) => renderPhase23('live', state),
   phase3:        (state) => renderPhase23('bye', state),
   phase4:        (state) => renderPhase4(state),
+  account:       (state) => renderAccount(state),
 };
 
 export function showScreen(name, updates = {}) {
@@ -104,6 +106,24 @@ export function showScreen(name, updates = {}) {
   }
   if (name !== 'online-lobby' && name !== 'phase1' && name !== 'phase2' && name !== 'phase3' && name !== 'phase4') {
     _packsLoadedForLobby = false;
+  }
+
+  // Load games + packs lists when entering the account screen
+  if (name === 'account' && state.authUser) {
+    const gamesMount = document.getElementById('account-games-mount');
+    if (gamesMount) gamesMount.innerHTML = renderGamesList(getGameHistory());
+    syncWithServer().then((games) => {
+      const m = document.getElementById('account-games-mount');
+      if (m) m.innerHTML = renderGamesList(games);
+    }).catch(() => {});
+
+    fetchMyPacks(state.authUser.id).then((packs) => {
+      const m = document.getElementById('account-packs-mount');
+      if (m) m.innerHTML = renderMyPacks(packs || []);
+    }).catch(() => {
+      const m = document.getElementById('account-packs-mount');
+      if (m) m.innerHTML = renderMyPacks([]);
+    });
   }
 }
 
@@ -753,10 +773,28 @@ window.game = {
     }
   },
   manageAccount() {
-    // Placeholder — coming soon
-    alert('Account management coming soon!');
     setState({ showUserMenu: false });
-    showScreen(getState().screen);
+    showScreen('account');
+  },
+  async saveAccountProfile(event) {
+    if (event) event.preventDefault();
+    const nameEl = document.getElementById('account-display-name');
+    const monthEl = document.getElementById('account-birth-month');
+    const dayEl = document.getElementById('account-birth-day');
+    const status = document.getElementById('account-profile-status');
+    if (!nameEl) return false;
+    if (status) { status.textContent = 'Saving…'; status.className = 'account__status'; }
+    try {
+      await updateUserProfile({
+        display_name: nameEl.value.trim(),
+        birth_month: parseInt(monthEl.value, 10) || 0,
+        birth_day: parseInt(dayEl.value, 10) || 0,
+      });
+      if (status) { status.textContent = 'Saved'; status.className = 'account__status account__status--ok'; }
+    } catch (err) {
+      if (status) { status.textContent = 'Save failed'; status.className = 'account__status account__status--err'; }
+    }
+    return false;
   },
   // Auth actions
   showLogin() {
