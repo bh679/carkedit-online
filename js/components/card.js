@@ -1,6 +1,8 @@
 // CarkedIt Online — Card Component
 'use strict';
 
+import { getPackBrand } from '../state.js';
+
 /**
  * @param {{ title: string, description: string, prompt: string, image: string, deckType: string }} cardData
  * @returns {string} HTML string
@@ -35,9 +37,13 @@ function renderTextOnlyInner(title, description, prompt, deckType) {
       </div>`;
 }
 
-export function render({ title = '', description = '', prompt = '', image = '', illustrationKey = '', deckType = '' } = {}) {
+export function render({ title = '', description = '', prompt = '', image = '', illustrationKey = '', deckType = '', brandImageUrl = '', packId = '' } = {}) {
   const imgSrc = image || (illustrationKey && deckType ? `assets/illustrations/${deckType}/${illustrationKey}.jpg` : '');
   const altText = [title, description, prompt].filter(Boolean).join(' — ');
+  const brand = brandImageUrl || getPackBrand(packId);
+  const brandHtml = brand
+    ? `<img class="card__brand" src="${escAttr(brand)}" alt="" onerror="this.style.display='none'">`
+    : '';
 
   if (imgSrc) {
     // If the image fails to load, swap the .card to the text-only variant
@@ -49,6 +55,7 @@ export function render({ title = '', description = '', prompt = '', image = '', 
     return `
     <div class="card card--${deckType}">
       <img src="${imgSrc}" alt="${altText}" class="card__img" onerror="${onError}">
+      ${brandHtml}
     </div>`;
   }
 
@@ -56,5 +63,6 @@ export function render({ title = '', description = '', prompt = '', image = '', 
   return `
     <div class="card card--${deckType} card--text-only">
       ${renderTextOnlyInner(title, description, prompt, deckType)}
+      ${brandHtml}
     </div>`;
 }

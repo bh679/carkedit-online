@@ -1,7 +1,7 @@
 // CarkedIt Online — Screen Router
 'use strict';
 
-import { getState, setState } from './state.js';
+import { getState, setState, registerPackBrandsFromList } from './state.js';
 import { preloadCards } from './preloader.js';
 import { render as renderMenu } from './screens/menu.js';
 import { render as renderModeSelect } from './screens/mode-select.js';
@@ -580,6 +580,7 @@ window.game = {
       const byId = new Map();
       for (const l of lists) for (const p of (l || [])) byId.set(p.id, { ...byId.get(p.id), ...p });
       const availablePacks = Array.from(byId.values());
+      registerPackBrandsFromList(availablePacks);
       setState({ availablePacks });
       // Re-render current screen so the selector updates
       refreshOnlineLobbyAfterPackChange();
