@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CarkedIt — Card Scale Test</title>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components/card.css">
+  <style>
+    body { background: #1C1C2E; padding: 2rem; color: #fff; font-family: system-ui, sans-serif; }
+    h1 { text-align: center; margin-bottom: 0.5rem; }
+    p.hint { text-align: center; opacity: 0.7; margin-bottom: 2rem; }
+    h2 { margin-top: 3rem; border-bottom: 1px solid #444; padding-bottom: 0.5rem; }
+    .row {
+      display: flex;
+      gap: 1.5rem;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      margin-bottom: 1.5rem;
+    }
+    .slot { display: flex; flex-direction: column; align-items: center; gap: 0.4rem; }
+    .slot .size-label { font-size: 0.75rem; opacity: 0.7; }
+  </style>
+</head>
+<body>
+  <h1>Card Scale Test</h1>
+  <p class="hint">Each card type rendered at 60, 100, 160, 220, 300, and 400px wide. Text should fill the card proportionally at every size.</p>
+  <div id="app"></div>
+
+  <script type="module">
+    import { render as renderCard } from './js/components/card.js';
+
+    const SIZES = [60, 100, 160, 220, 300, 400];
+
+    const samples = [
+      {
+        heading: 'DIE — text-only (title overlay)',
+        card: { title: 'Died by Eating Five-Week Old Leftovers', deckType: 'die' },
+      },
+      {
+        heading: 'DIE — short title',
+        card: { title: 'Died in a Car Accident', deckType: 'die' },
+      },
+      {
+        heading: 'DIE — mystery (?) card',
+        card: { title: 'Pick a Common Way to Die', deckType: 'die', special: '?' },
+      },
+      {
+        heading: 'DIE — split (Would You Rather)',
+        card: {
+          title: '',
+          deckType: 'die',
+          special: 'Split',
+          options: ['Fall into a vat of custard', 'Choke on a cream puff'],
+        },
+      },
+      {
+        heading: 'LIVE — text-only',
+        card: {
+          title: 'Advance Care Plan',
+          description: 'Make sure the people in your life know what sort of care you want.',
+          prompt: 'Who would you want to speak for you?',
+          deckType: 'live',
+        },
+      },
+      {
+        heading: 'LIVE — longer',
+        card: {
+          title: 'Holiday',
+          description: 'Take the holiday of a lifetime and create some memories!',
+          prompt: 'Where are you going?',
+          deckType: 'live',
+        },
+      },
+      {
+        heading: 'BYE — text-only',
+        card: {
+          title: 'Viking Burial',
+          description: 'Be pushed out to sea and set alight in an old ship.',
+          prompt: 'What treasured possessions are you taking to the Afterworld?',
+          deckType: 'bye',
+        },
+      },
+      {
+        heading: 'BYE — no prompt',
+        card: {
+          title: 'Cannon Fodder',
+          description: 'Be shot out of a cannon as your final send off. KABOOM!!!',
+          deckType: 'bye',
+        },
+      },
+    ];
+
+    const app = document.getElementById('app');
+    let html = '';
+    for (const s of samples) {
+      html += `<h2>${s.heading}</h2><div class="row">`;
+      for (const w of SIZES) {
+        html += `<div class="slot"><div style="width:${w}px">${renderCard(s.card)}</div><span class="size-label">${w}px</span></div>`;
+      }
+      html += `</div>`;
+    }
+    app.innerHTML = html;
+  </script>
+</body>
+</html>
