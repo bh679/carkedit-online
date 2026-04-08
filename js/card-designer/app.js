@@ -356,7 +356,7 @@ function renderPackEditor() {
         ${pack.status === 'published'
           ? `<button class="btn btn--ghost" data-action="unpublish-pack" data-id="${esc(pack.id)}">Unpublish</button>`
           : state.currentPackCards.length > 0
-            ? `<button class="btn btn--success" data-action="publish-pack" data-id="${esc(pack.id)}">Publish Pack</button>`
+            ? `<button class="btn btn--success" data-action="publish-pack" data-id="${esc(pack.id)}">Publish</button>`
             : ''}
       </div>
       <div class="designer__back-wrap">
