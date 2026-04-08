@@ -330,3 +330,67 @@ body.page--marketplace #app {
   pointer-events: none;
   z-index: 0;
 }
+
+/* ----- Simple list pack rows (used when <10 public packs) ----- */
+.marketplace__pack-row {
+  position: relative;
+  cursor: pointer;
+  overflow: hidden;
+}
+.marketplace__pack-row:hover {
+  border-color: var(--color-primary);
+}
+.marketplace__pack-row .pack-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+.marketplace__pack-row .pack-bg__card { display: none; }
+.marketplace__pack-row__bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.5;
+}
+.marketplace__pack-row .pack-bg { display: none; }
+.marketplace__pack-row .pack-bg__bands {
+  position: absolute;
+  inset: 0;
+  opacity: 0.55;
+}
+.marketplace__pack-row .pack-bg__band {
+  position: absolute;
+  inset: 0;
+}
+/* 1 deck: full fill */
+.marketplace__pack-row .pack-bg__band:only-child { clip-path: none; }
+/* 2 decks: split 50/50 at 45° (bottom-left → top-right diagonal) */
+.marketplace__pack-row .pack-bg__band:first-child:nth-last-child(2) {
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+.marketplace__pack-row .pack-bg__band:last-child:nth-child(2) {
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+}
+/* 3 decks: thirds with 45° dividers */
+.marketplace__pack-row .pack-bg__band:first-child:nth-last-child(3) {
+  clip-path: polygon(0 0, 66.66% 0, 0 100%);
+}
+.marketplace__pack-row .pack-bg__band:nth-child(2):nth-last-child(2) {
+  clip-path: polygon(66.66% 0, 100% 0, 100% 33.33%, 33.33% 100%, 0 100%, 0 66.66%);
+}
+.marketplace__pack-row .pack-bg__band:last-child:nth-child(3) {
+  clip-path: polygon(100% 33.33%, 100% 100%, 33.33% 100%);
+}
+.marketplace__pack-row .pack-bg__band--die  { background: var(--color-die); }
+.marketplace__pack-row .pack-bg__band--live { background: var(--color-live); }
+.marketplace__pack-row .pack-bg__band--bye  { background: var(--color-bye); }
+.marketplace__pack-row .pack-bg__band--die  { background: var(--color-die); }
+.marketplace__pack-row .pack-bg__band--live { background: var(--color-live); }
+.marketplace__pack-row .pack-bg__band--bye  { background: var(--color-bye); }
+.marketplace__pack-row .designer__pack-info,
+.marketplace__pack-row .designer__pack-actions {
+  position: relative;
+  z-index: 1;
+}
