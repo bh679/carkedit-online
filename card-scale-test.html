@@ -6,6 +6,7 @@
   <title>CarkedIt — Card Scale Test</title>
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/components/card.css">
+  <link rel="stylesheet" href="css/components/card-list.css">
   <style>
     html, body { height: auto; overflow: auto; }
     body { background: #1C1C2E; padding: 2rem; color: #fff; font-family: system-ui, sans-serif; display: block; }
@@ -101,6 +102,18 @@
       }
       html += `</div>`;
     }
+
+    // Pack-detail thumbnail (card-list__scroll--sm variant) — forces
+    // 56×84 cards. Verifies the fix for the expansions.html detail page
+    // where Live/Bye text-only cards were overflowing with huge title +
+    // tiny desc/prompt stacked underneath.
+    html += `<h2>Pack detail thumbnail (.card-list__scroll--sm)</h2>`;
+    html += `<div class="card-list__scroll card-list__scroll--sm" style="flex-wrap:wrap;overflow:visible">`;
+    for (const s of samples) {
+      html += `<div class="card-list__item">${renderCard(s.card)}</div>`;
+    }
+    html += `</div>`;
+
     app.innerHTML = html;
   </script>
 </body>

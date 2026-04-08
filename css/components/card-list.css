@@ -43,10 +43,19 @@
   min-width: 56px;
   height: 84px;
 }
-.card-list__scroll--sm .card__title {
-  font-size: 0.55rem;
-  line-height: 1.05;
-  padding: 3px;
+/* Text-only Live/Bye cards in the sm thumbnail variant:
+ * at 56×84 the stacked description/prompt are fundamentally too small
+ * to read — hide them and let the title be the only content, so the
+ * card reads as a title-only thumbnail (matching die's title-overlay
+ * behaviour). Title inherits post-#108 cqi scaling from card.css. */
+.card-list__scroll--sm .card--text-only .card__description,
+.card-list__scroll--sm .card--text-only .card__prompt {
+  display: none;
+}
+.card-list__scroll--sm .card--text-only .card__body--text-only {
+  padding: 4% 6%;
+  gap: 0;
+  justify-content: center;
 }
 .card-list__scroll--sm .card__img {
   width: 100%;
