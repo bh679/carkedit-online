@@ -33,6 +33,10 @@ let state = {
   editingCard: null,       // null = new card, object = editing existing
   cardFormDeckType: 'die',
   cardFormText: '',
+  cardFormPrompt: '',
+  cardFormSpecial: '',          // '' | '?' | 'Split'
+  cardFormOption1: '',
+  cardFormOption2: '',
   pickingFeature: false,
   loading: false,
   error: null,
@@ -100,6 +104,10 @@ if (typeof window !== 'undefined') {
       editingCard: card,
       cardFormDeckType: card.deck_type,
       cardFormText: card.text,
+      cardFormPrompt: card.prompt || '',
+      cardFormSpecial: card.card_special || '',
+      cardFormOption1: parseOptions(card.options_json)[0] || '',
+      cardFormOption2: parseOptions(card.options_json)[1] || '',
       error: null,
     });
   };
@@ -377,15 +385,41 @@ function renderCardForm() {
     return `<button class="btn btn--small designer__deck-btn ${active}" data-action="set-deck-type" data-type="${type}">${label}</button>`;
   }).join('');
 
+  const isDie = state.cardFormDeckType === 'die';
+  const isSplit = isDie && state.cardFormSpecial === 'Split';
+  const isMystery = isDie && state.cardFormSpecial === '?';
+
   const preview = renderCard({
     title: state.cardFormText || 'Card text here...',
     description: '',
-    prompt: '',
+    prompt: state.cardFormPrompt,
     image: '',
     illustrationKey: '',
     deckType: state.cardFormDeckType,
     brandImageUrl: state.currentPack?.brand_image_url || '',
+    special: isDie ? state.cardFormSpecial : '',
+    options: isSplit ? [state.cardFormOption1 || 'Option A', state.cardFormOption2 || 'Option B'] : null,
   });
+
+  const variantPicker = isDie ? `
+        <div class="designer__field">
+          <span class="designer__label">Die Card Type</span>
+          <div class="designer__deck-picker">
+            <button class="btn btn--small designer__deck-btn ${state.cardFormSpecial === '' ? 'designer__deck-btn--active' : ''}" data-action="set-special" data-special="">Standard</button>
+            <button class="btn btn--small designer__deck-btn ${isMystery ? 'designer__deck-btn--active' : ''}" data-action="set-special" data-special="?">Mystery (?)</button>
+            <button class="btn btn--small designer__deck-btn ${isSplit ? 'designer__deck-btn--active' : ''}" data-action="set-special" data-special="Split">Would You Rather</button>
+          </div>
+        </div>` : '';
+
+  const splitFields = isSplit ? `
+        <label class="designer__label">
+          Option A
+          <input class="designer__input" type="text" data-field="card-option-1" maxlength="100" placeholder="First option..." value="${esc(state.cardFormOption1)}">
+        </label>
+        <label class="designer__label">
+          Option B
+          <input class="designer__input" type="text" data-field="card-option-2" maxlength="100" placeholder="Second option..." value="${esc(state.cardFormOption2)}">
+        </label>` : '';
 
   return `
     <div class="screen screen--card-designer screen--card-designer--embedded">
@@ -398,11 +432,18 @@ function renderCardForm() {
           <span class="designer__label">Deck Type</span>
           <div class="designer__deck-picker">${picker}</div>
         </div>
+        ${variantPicker}
         <label class="designer__label">
-          Card Text
-          <textarea class="designer__input designer__textarea" data-field="card-text" maxlength="200" placeholder="Enter card text...">${esc(state.cardFormText)}</textarea>
+          Card Text${isSplit ? ' (auto-generated for Split cards)' : ''}
+          <textarea class="designer__input designer__textarea" data-field="card-text" maxlength="200" placeholder="Enter card text..."${isSplit ? ' readonly' : ''}>${esc(state.cardFormText)}</textarea>
         </label>
         <div class="designer__char-count">${state.cardFormText.length}/200</div>
+        ${splitFields}
+        <label class="designer__label">
+          Prompt (optional)
+          <textarea class="designer__input designer__textarea" data-field="card-prompt" maxlength="200" placeholder="Optional follow-up question shown under the card text...">${esc(state.cardFormPrompt)}</textarea>
+        </label>
+        <div class="designer__char-count">${state.cardFormPrompt.length}/200</div>
         <div class="designer__preview-section">
           <span class="designer__label">Preview</span>
           <div class="designer__preview">${preview}</div>
@@ -459,7 +500,33 @@ async function onDocClick(e) {
     case 'save-pack-meta': await handleSavePackMeta(); break;
     case 'show-add-card': await handleShowAddCard(); break;
     case 'back-to-editor': setState({ view: 'editor', error: null }); break;
-    case 'set-deck-type': setState({ cardFormDeckType: btn.dataset.type }); break;
+    case 'set-deck-type': {
+      const type = btn.dataset.type;
+      const updates = { cardFormDeckType: type };
+      // Variants only valid on die — clear when switching away
+      if (type !== 'die') {
+        updates.cardFormSpecial = '';
+        updates.cardFormOption1 = '';
+        updates.cardFormOption2 = '';
+      }
+      setState(updates);
+      break;
+    }
+    case 'set-special': {
+      const special = btn.dataset.special || '';
+      const updates = { cardFormSpecial: special };
+      if (special !== 'Split') {
+        updates.cardFormOption1 = '';
+        updates.cardFormOption2 = '';
+      } else {
+        // Initialize from existing text on first switch
+        if (!state.cardFormOption1 && !state.cardFormOption2 && state.cardFormText) {
+          updates.cardFormText = '';
+        }
+      }
+      setState(updates);
+      break;
+    }
     case 'save-card': await handleSaveCard(); break;
     case 'edit-card': handleEditCard(btn.dataset.card); break;
     case 'delete-card': await handleDeleteCard(btn.dataset.cardId); break;
@@ -521,22 +588,48 @@ function onDocInput(e) {
     refreshSaveDirtyState();
     return;
   }
-  if (e.target.matches('[data-field="card-text"]')) {
-    state.cardFormText = e.target.value;
+  if (
+    e.target.matches('[data-field="card-text"]') ||
+    e.target.matches('[data-field="card-prompt"]') ||
+    e.target.matches('[data-field="card-option-1"]') ||
+    e.target.matches('[data-field="card-option-2"]')
+  ) {
+    if (e.target.matches('[data-field="card-text"]')) {
+      state.cardFormText = e.target.value;
+    } else if (e.target.matches('[data-field="card-prompt"]')) {
+      state.cardFormPrompt = e.target.value;
+    } else if (e.target.matches('[data-field="card-option-1"]')) {
+      state.cardFormOption1 = e.target.value;
+    } else if (e.target.matches('[data-field="card-option-2"]')) {
+      state.cardFormOption2 = e.target.value;
+    }
+
+    // For Split cards, derive the card text from the two options
+    const isDie = state.cardFormDeckType === 'die';
+    const isSplit = isDie && state.cardFormSpecial === 'Split';
+    if (isSplit) {
+      const a = state.cardFormOption1.trim();
+      const b = state.cardFormOption2.trim();
+      state.cardFormText = a && b ? `${a} or ${b}` : (a || b);
+      const textEl = document.querySelector('[data-field="card-text"]');
+      if (textEl && textEl.value !== state.cardFormText) textEl.value = state.cardFormText;
+    }
+
     // Update preview without full re-render to keep cursor position
     const previewEl = document.querySelector('.designer__preview');
-    const countEl = document.querySelector('.designer__char-count');
+    const countEls = document.querySelectorAll('.designer__char-count');
     if (previewEl) {
       previewEl.innerHTML = renderCard({
         title: state.cardFormText || 'Card text here...',
-        description: '', prompt: '', image: '', illustrationKey: '',
+        description: '', prompt: state.cardFormPrompt, image: '', illustrationKey: '',
         deckType: state.cardFormDeckType,
         brandImageUrl: state.currentPack?.brand_image_url || '',
+        special: isDie ? state.cardFormSpecial : '',
+        options: isSplit ? [state.cardFormOption1 || 'Option A', state.cardFormOption2 || 'Option B'] : null,
       });
     }
-    if (countEl) {
-      countEl.textContent = `${state.cardFormText.length}/200`;
-    }
+    if (countEls[0]) countEls[0].textContent = `${state.cardFormText.length}/200`;
+    if (countEls[1]) countEls[1].textContent = `${state.cardFormPrompt.length}/200`;
   }
 }
 
@@ -639,6 +732,10 @@ async function handleShowAddCard() {
     editingCard: null,
     cardFormDeckType: 'die',
     cardFormText: '',
+    cardFormPrompt: '',
+    cardFormSpecial: '',
+    cardFormOption1: '',
+    cardFormOption2: '',
     error: null,
   });
 }
@@ -646,29 +743,52 @@ async function handleShowAddCard() {
 function handleEditCard(cardJson) {
   try {
     const card = JSON.parse(cardJson);
+    const opts = parseOptions(card.options_json);
     setState({
       view: 'add-card',
       editingCard: card,
       cardFormDeckType: card.deck_type,
       cardFormText: card.text,
+      cardFormPrompt: card.prompt || '',
+      cardFormSpecial: card.card_special || '',
+      cardFormOption1: opts[0] || '',
+      cardFormOption2: opts[1] || '',
       error: null,
     });
   } catch { /* ignore parse errors */ }
 }
 
 async function handleSaveCard() {
-  const text = state.cardFormText.trim();
+  const isDie = state.cardFormDeckType === 'die';
+  const isSplit = isDie && state.cardFormSpecial === 'Split';
+  const isMystery = isDie && state.cardFormSpecial === '?';
+
+  let text = state.cardFormText.trim();
+  let options = null;
+  if (isSplit) {
+    const a = state.cardFormOption1.trim();
+    const b = state.cardFormOption2.trim();
+    if (!a || !b) { setState({ error: 'Both Split options are required' }); return; }
+    options = [a, b];
+    text = `${a} or ${b}`;
+  }
   if (!text) { setState({ error: 'Card text is required' }); return; }
+  const prompt = state.cardFormPrompt.trim() || null;
+  const card_special = isDie && state.cardFormSpecial ? state.cardFormSpecial : null;
 
   setState({ loading: true, error: null });
   try {
+    const payload = {
+      deck_type: state.cardFormDeckType,
+      text,
+      prompt,
+      card_special,
+      options,
+    };
     if (state.editingCard) {
-      await updateCard(state.currentPack.id, state.editingCard.id, {
-        text,
-        deck_type: state.cardFormDeckType,
-      });
+      await updateCard(state.currentPack.id, state.editingCard.id, payload);
     } else {
-      await addCards(state.currentPack.id, [{ deck_type: state.cardFormDeckType, text }]);
+      await addCards(state.currentPack.id, [payload]);
     }
     // Refresh pack data
     const full = await getPack(state.currentPack.id);
@@ -678,6 +798,10 @@ async function handleSaveCard() {
       currentPackCards: full.cards || [],
       editingCard: null,
       cardFormText: '',
+      cardFormPrompt: '',
+      cardFormSpecial: '',
+      cardFormOption1: '',
+      cardFormOption2: '',
       view: 'editor',
     });
   } catch (err) {
@@ -856,6 +980,14 @@ function esc(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+function parseOptions(json) {
+  if (!json) return [];
+  try {
+    const v = JSON.parse(json);
+    return Array.isArray(v) ? v : [];
+  } catch { return []; }
 }
 
 // ---------------------------------------------------------------------------
