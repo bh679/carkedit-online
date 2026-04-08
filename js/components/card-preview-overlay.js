@@ -40,6 +40,8 @@ export function showAt(index) {
     title: item.text,
     image: item.imgSrc || '',
     deckType,
+    special: item.special || '',
+    options: item.options || null,
   });
   const showNav = _list.length > 1;
   const prevBtn = showNav

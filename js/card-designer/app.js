@@ -14,6 +14,18 @@ import {
   signInWithGoogle, signInWithEmail, signUpWithEmail, logOut,
 } from '../managers/auth-manager.js';
 
+function parseCardOptions(c) {
+  if (!c) return null;
+  if (Array.isArray(c.options)) return c.options;
+  if (typeof c.options_json === 'string' && c.options_json) {
+    try {
+      const parsed = JSON.parse(c.options_json);
+      if (Array.isArray(parsed)) return parsed;
+    } catch { /* ignore */ }
+  }
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // Mount target — set by mount(); when null, the module is dormant.
 // ---------------------------------------------------------------------------
@@ -250,12 +262,12 @@ function renderPackEditor() {
     ? state.currentPackCards.find(c => String(c.id) === String(pack.featured_card_id))
     : null;
   const featureHtml = featureCard
-    ? renderCard({ title: featureCard.text, description: '', prompt: '', image: '', illustrationKey: '', deckType: featureCard.deck_type, brandImageUrl: pack.brand_image_url || '' })
+    ? renderCard({ title: featureCard.text, description: '', prompt: '', image: '', illustrationKey: '', deckType: featureCard.deck_type, brandImageUrl: pack.brand_image_url || '', special: featureCard.card_special || '', options: parseCardOptions(featureCard) })
     : '<span class="designer__feature-empty">None</span>';
   const sections = deckTypes.map(type => {
     const cards = state.currentPackCards.filter(c => c.deck_type === type);
     const label = type.charAt(0).toUpperCase() + type.slice(1);
-    const items = cards.map(c => ({ id: c.id, deck: c.deck_type, text: c.text }));
+    const items = cards.map(c => ({ id: c.id, deck: c.deck_type, text: c.text, special: c.card_special || '', options: parseCardOptions(c) }));
     const listHtml = renderCardList(items, {
       size: 'sm',
       showStats: false,

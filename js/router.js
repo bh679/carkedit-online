@@ -720,6 +720,8 @@ window.game = {
       title: item.text,
       image: item.imgSrc || '',
       deckType,
+      special: item.special || '',
+      options: item.options || null,
     });
     const showNav = list.length > 1;
     const prevBtn = showNav
