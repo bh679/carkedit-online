@@ -90,7 +90,7 @@ function renderThankYou() {
         <button class="btn btn--primary" onclick="window.game.showScreen('menu')">
           Play Again
         </button>
-        <button class="btn btn--secondary" onclick="window.location.href='/expansions.html'">
+        <button class="btn btn--secondary" onclick="window.location.href='expansions.html'">
           Make Your Own Cards
         </button>
       </div>
