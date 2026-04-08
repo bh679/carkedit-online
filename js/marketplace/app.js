@@ -9,6 +9,17 @@ import { mount as mountDesigner, unmount as unmountDesigner, syncAuth as syncDes
 
 const API_BASE = `${window.location.origin}/api/carkedit`;
 
+function parseCardOptions(c) {
+  if (Array.isArray(c.options)) return c.options;
+  if (typeof c.options_json === 'string' && c.options_json) {
+    try {
+      const parsed = JSON.parse(c.options_json);
+      if (Array.isArray(parsed)) return parsed;
+    } catch { /* ignore */ }
+  }
+  return null;
+}
+
 const ROW_DEFS = [
   { key: 'newest',     label: 'Newest',     params: { sort: 'newest', status: 'published' } },
   { key: 'official',   label: 'Official',   params: { sort: 'newest', is_official: 'true', status: 'published' } },
@@ -380,7 +391,13 @@ function renderDetail() {
   const sectionsHtml = ['die', 'live', 'bye'].map((deck) => {
     const list = byDeck[deck];
     const label = deck.charAt(0).toUpperCase() + deck.slice(1);
-    const items = list.map((c) => ({ id: c.id, deck: c.deck_type, text: c.text }));
+    const items = list.map((c) => ({
+      id: c.id,
+      deck: c.deck_type,
+      text: c.text,
+      special: c.card_special || '',
+      options: parseCardOptions(c),
+    }));
     // Capture each item's flat index for the preview overlay.
     const startIdx = previewItems.length;
     items.forEach((it) => previewItems.push(it));

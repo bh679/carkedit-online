@@ -31,6 +31,8 @@ function renderItemFace(item) {
     title: item.text || '',
     image: item.imgSrc || '',
     deckType: deckTypeFor(item.deck),
+    special: item.special || '',
+    options: item.options || null,
   });
 }
 

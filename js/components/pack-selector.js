@@ -109,7 +109,7 @@ function buildPackPreviewItems(pack, state, disabledSet) {
   if (pack.id === 'base') {
     const base = state.basePackCards;
     if (!base) return null; // signal "loading"
-    if (want('die')) for (const c of base.die || []) items.push({ deck: 'die', text: c.title || c.text || '', imgSrc: c.illustrationKey ? `assets/illustrations/die/${c.illustrationKey}.jpg` : undefined });
+    if (want('die')) for (const c of base.die || []) items.push({ deck: 'die', text: c.title || c.text || '', imgSrc: c.illustrationKey ? `assets/illustrations/die/${c.illustrationKey}.jpg` : undefined, special: c.special || '', options: c.options || null });
     if (want('live')) for (const c of base.live || []) items.push({ deck: 'live', text: c.title || c.text || '', imgSrc: c.illustrationKey ? `assets/illustrations/live/${c.illustrationKey}.jpg` : undefined });
     if (want('bye')) for (const c of base.bye || []) items.push({ deck: 'bye', text: c.title || c.text || '', imgSrc: c.illustrationKey ? `assets/illustrations/bye/${c.illustrationKey}.jpg` : undefined });
     return items;
@@ -119,7 +119,12 @@ function buildPackPreviewItems(pack, state, disabledSet) {
   for (const c of cards) {
     const deck = c.deck_type;
     if (!want(deck)) continue;
-    items.push({ deck, text: c.text || '' });
+    let options = null;
+    if (Array.isArray(c.options)) options = c.options;
+    else if (typeof c.options_json === 'string' && c.options_json) {
+      try { const p = JSON.parse(c.options_json); if (Array.isArray(p)) options = p; } catch {}
+    }
+    items.push({ deck, text: c.text || '', special: c.card_special || '', options });
   }
   return items;
 }
