@@ -186,6 +186,73 @@
   background: var(--color-die-light);
 }
 
+/* Mystery (?) die cards: large badge in the top-right corner */
+.card__graphic-area--mystery {
+  position: relative;
+}
+
+.card__mystery-badge {
+  position: absolute;
+  top: 6%;
+  right: 6%;
+  width: clamp(1.6rem, 14cqi, 3rem);
+  height: clamp(1.6rem, 14cqi, 3rem);
+  border-radius: 50%;
+  background: #1a1a1a;
+  color: var(--color-die-light, #f5d0c0);
+  font-size: clamp(1rem, 9cqi, 2rem);
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #1a1a1a;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.card--mystery .card__mystery-badge {
+  /* When badge sits on the illustrated img variant */
+  position: absolute;
+  top: 4%;
+  right: 4%;
+}
+
+/* Split (Would You Rather) die cards: stacked options with OR divider */
+.card__graphic-area--split {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6%;
+}
+
+.card__split-options {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4%;
+  width: 100%;
+  text-align: center;
+}
+
+.card__split-option {
+  font-size: clamp(0.55rem, 3.6cqi, 1rem);
+  font-weight: 900;
+  text-transform: uppercase;
+  line-height: 1.15;
+  color: #1a1a1a;
+  letter-spacing: 0.02em;
+  word-break: break-word;
+}
+
+.card__split-or {
+  font-size: clamp(0.5rem, 3.2cqi, 0.9rem);
+  font-weight: 700;
+  color: #1a1a1a;
+  opacity: 0.7;
+  letter-spacing: 0.15em;
+}
+
 /* Card test page: scale card to fill available viewport space */
 .card-test__card .card {
   width: auto;

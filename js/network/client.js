@@ -102,11 +102,25 @@ function syncDiePhaseState(room) {
     // Look up the full card from the local die deck by matching ID
     const dieCards = state.decks?.die ?? [];
     const localCard = dieCards.find(c => String(c.id) === serverCard.id);
+    const serverOptions = serverCard.options ? Array.from(serverCard.options) : [];
     if (localCard) {
-      currentCard = { ...localCard, deckType: 'die' };
+      currentCard = {
+        ...localCard,
+        deckType: 'die',
+        prompt: serverCard.prompt || localCard.prompt || null,
+        special: serverCard.special || localCard.special || '',
+        options: serverOptions.length ? serverOptions : (localCard.options ?? null),
+      };
     } else {
-      // Fallback: use server text as title
-      currentCard = { id: serverCard.id, title: serverCard.text, deckType: 'die' };
+      // Fallback: expansion card with no local match — use server data only
+      currentCard = {
+        id: serverCard.id,
+        title: serverCard.text,
+        prompt: serverCard.prompt || null,
+        special: serverCard.special || '',
+        options: serverOptions.length ? serverOptions : null,
+        deckType: 'die',
+      };
     }
   }
 
@@ -126,9 +140,24 @@ function serverCardToLocal(serverCard) {
   const deckType = serverCard.deck === 'living' ? 'live' : serverCard.deck;
   const localDeck = state.decks?.[deckType] ?? [];
   const match = localDeck.find(c => String(c.id) === serverCard.id);
+  const serverOptions = serverCard.options ? Array.from(serverCard.options) : [];
   return match
-    ? { ...match, deckType, faceUp: serverCard.faceUp, submittedBy: serverCard.submittedBy, packId: serverCard.packId || '' }
-    : { id: serverCard.id, title: serverCard.text, deckType, faceUp: serverCard.faceUp, submittedBy: serverCard.submittedBy, packId: serverCard.packId || '' };
+    ? {
+        ...match, deckType,
+        faceUp: serverCard.faceUp, submittedBy: serverCard.submittedBy,
+        packId: serverCard.packId || '',
+        prompt: serverCard.prompt || match.prompt || null,
+        special: serverCard.special || match.special || '',
+        options: serverOptions.length ? serverOptions : (match.options ?? null),
+      }
+    : {
+        id: serverCard.id, title: serverCard.text,
+        packId: serverCard.packId || '',
+        prompt: serverCard.prompt || null,
+        special: serverCard.special || '',
+        options: serverOptions.length ? serverOptions : null,
+        deckType, faceUp: serverCard.faceUp, submittedBy: serverCard.submittedBy,
+      };
 }
 
 /** Build state for the living/bye phase from server room state */
