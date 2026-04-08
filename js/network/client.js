@@ -127,8 +127,8 @@ function serverCardToLocal(serverCard) {
   const localDeck = state.decks?.[deckType] ?? [];
   const match = localDeck.find(c => String(c.id) === serverCard.id);
   return match
-    ? { ...match, deckType, faceUp: serverCard.faceUp, submittedBy: serverCard.submittedBy }
-    : { id: serverCard.id, title: serverCard.text, deckType, faceUp: serverCard.faceUp, submittedBy: serverCard.submittedBy };
+    ? { ...match, deckType, faceUp: serverCard.faceUp, submittedBy: serverCard.submittedBy, packId: serverCard.packId || '' }
+    : { id: serverCard.id, title: serverCard.text, deckType, faceUp: serverCard.faceUp, submittedBy: serverCard.submittedBy, packId: serverCard.packId || '' };
 }
 
 /** Build state for the living/bye phase from server room state */

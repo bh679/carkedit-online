@@ -146,3 +146,27 @@ export function getState() {
 export function setState(updates) {
   _state = { ..._state, ...updates };
 }
+
+/**
+ * Pack brand registry — maps packId -> brand_image_url for quick lookup
+ * during card rendering. Populated whenever packs are loaded/updated so
+ * in-game cards can find their brand without extra API calls.
+ */
+const _packBrands = Object.create(null);
+
+export function registerPackBrand(packId, brandUrl) {
+  if (!packId) return;
+  if (brandUrl) _packBrands[packId] = brandUrl;
+  else delete _packBrands[packId];
+}
+
+export function registerPackBrandsFromList(packs) {
+  if (!Array.isArray(packs)) return;
+  for (const p of packs) {
+    if (p && p.id) registerPackBrand(p.id, p.brand_image_url || '');
+  }
+}
+
+export function getPackBrand(packId) {
+  return packId ? (_packBrands[packId] || '') : '';
+}

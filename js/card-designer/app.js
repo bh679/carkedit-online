@@ -7,7 +7,9 @@ import {
   fetchMyPacks, createPack, getPack,
   updatePack, deletePack, addCards, updateCard, deleteCard,
   setPackOfficial, setPackDev,
+  uploadPackBrand, removePackBrand,
 } from './pack-manager.js';
+import { registerPackBrand } from '../state.js';
 import {
   signInWithGoogle, signInWithEmail, signUpWithEmail, logOut,
 } from '../managers/auth-manager.js';
@@ -240,7 +242,7 @@ function renderPackEditor() {
     ? state.currentPackCards.find(c => String(c.id) === String(pack.featured_card_id))
     : null;
   const featureHtml = featureCard
-    ? renderCard({ title: featureCard.text, description: '', prompt: '', image: '', illustrationKey: '', deckType: featureCard.deck_type })
+    ? renderCard({ title: featureCard.text, description: '', prompt: '', image: '', illustrationKey: '', deckType: featureCard.deck_type, brandImageUrl: pack.brand_image_url || '' })
     : '<span class="designer__feature-empty">None</span>';
   const sections = deckTypes.map(type => {
     const cards = state.currentPackCards.filter(c => c.deck_type === type);
@@ -279,18 +281,54 @@ function renderPackEditor() {
           Description
           <textarea class="designer__input designer__textarea" data-field="pack-description" maxlength="500">${esc(pack.description)}</textarea>
         </label>
-        <div class="designer__feature">
-          <span class="designer__label">Feature Card</span>
-          <div class="designer__feature-row">
-            <div class="designer__feature-preview">${featureHtml}</div>
-            ${picking
-              ? `<button class="btn btn--ghost btn--small" data-action="cancel-pick-feature">Cancel</button>`
-              : `<button class="btn btn--secondary btn--small" data-action="start-pick-feature" ${state.currentPackCards.length === 0 ? 'disabled' : ''}>Set Feature Card</button>`}
-            ${!picking && pack.featured_card_id
-              ? `<button class="btn btn--ghost btn--small" data-action="clear-feature">Clear</button>`
-              : ''}
+        <div class="designer__media">
+          <div class="designer__media-head">
+            <span class="designer__media-title">Pack Media</span>
+            <span class="designer__media-hint">PNG / WebP / SVG &middot; 2MB</span>
           </div>
-          ${picking ? '<p class="designer__feature-hint">Click a card below to set it as the pack feature card.</p>' : ''}
+          <div class="designer__media-grid">
+            <div class="designer__media-slot">
+              <div class="designer__media-slot-header">
+                <span class="designer__media-slot-title">Brand Logo</span>
+              </div>
+              <div class="designer__media-body">
+                <div class="designer__brand-preview">
+                  ${pack.brand_image_url
+                    ? `<img src="${esc(pack.brand_image_url)}" alt="Pack brand">`
+                    : '<span class="designer__feature-empty">None</span>'}
+                </div>
+                <div class="designer__media-actions">
+                  <label class="btn btn--primary btn--small designer__media-btn" style="cursor: pointer;">
+                    ${pack.brand_image_url ? 'Replace' : 'Upload'}
+                    <input type="file" accept="image/png,image/webp,image/svg+xml" data-action="upload-brand" style="display: none;">
+                  </label>
+                  ${pack.brand_image_url
+                    ? '<button class="btn btn--ghost btn--small designer__media-btn--ghost" data-action="remove-brand">Remove</button>'
+                    : ''}
+                </div>
+              </div>
+            </div>
+
+            <div class="designer__media-divider"></div>
+
+            <div class="designer__media-slot">
+              <div class="designer__media-slot-header">
+                <span class="designer__media-slot-title">Feature Card</span>
+              </div>
+              <div class="designer__media-body">
+                <div class="designer__feature-preview">${featureHtml}</div>
+                <div class="designer__media-actions">
+                  ${picking
+                    ? `<button class="btn btn--ghost btn--small designer__media-btn--ghost" data-action="cancel-pick-feature">Cancel</button>`
+                    : `<button class="btn btn--primary btn--small designer__media-btn" data-action="start-pick-feature" ${state.currentPackCards.length === 0 ? 'disabled' : ''}>${pack.featured_card_id ? 'Change' : 'Set Feature'}</button>`}
+                  ${!picking && pack.featured_card_id
+                    ? `<button class="btn btn--ghost btn--small designer__media-btn--ghost" data-action="clear-feature">Clear</button>`
+                    : ''}
+                </div>
+              </div>
+              ${picking ? '<p class="designer__feature-hint">Click a card below to set it as the pack feature card.</p>' : ''}
+            </div>
+          </div>
         </div>
         ${state.authUser?.is_admin ? `
           <div class="lobby__stepper-row" style="margin-top: 0.75rem;">
@@ -313,12 +351,12 @@ function renderPackEditor() {
       </div>
       ${sections}
       <div class="designer__editor-actions">
-        <button class="btn btn--primary" data-action="show-add-card">+ Add Card</button>
+        <button class="btn btn--primary" data-action="show-add-card">+ Card</button>
         <button class="btn btn--secondary" data-action="save-pack-meta">Save</button>
         ${pack.status === 'published'
           ? `<button class="btn btn--ghost" data-action="unpublish-pack" data-id="${esc(pack.id)}">Unpublish</button>`
           : state.currentPackCards.length > 0
-            ? `<button class="btn btn--success" data-action="publish-pack" data-id="${esc(pack.id)}">Publish Pack</button>`
+            ? `<button class="btn btn--success" data-action="publish-pack" data-id="${esc(pack.id)}">Publish</button>`
             : ''}
       </div>
       <div class="designer__back-wrap">
@@ -346,6 +384,7 @@ function renderCardForm() {
     image: '',
     illustrationKey: '',
     deckType: state.cardFormDeckType,
+    brandImageUrl: state.currentPack?.brand_image_url || '',
   });
 
   return `
@@ -391,6 +430,15 @@ function installListeners() {
   document.addEventListener('click', onDocClickOutsideMenu);
   document.addEventListener('submit', onDocSubmit);
   document.addEventListener('input', onDocInput);
+  document.addEventListener('change', onDocChange);
+}
+
+async function onDocChange(e) {
+  if (!isInside(e)) return;
+  const input = e.target.closest('[data-action="upload-brand"]');
+  if (!input || !input.files || !input.files[0]) return;
+  await handleUploadBrand(input.files[0]);
+  input.value = '';
 }
 
 function isInside(e) {
@@ -422,6 +470,7 @@ async function onDocClick(e) {
     case 'start-pick-feature': setState({ pickingFeature: true, error: null }); break;
     case 'cancel-pick-feature': setState({ pickingFeature: false }); break;
     case 'clear-feature': await handleClearFeature(); break;
+    case 'remove-brand': await handleRemoveBrand(); break;
     case 'sign-in-google': await signInWithGoogle(); break;
     case 'switch-to-signup': setState({ loginMode: 'signup', loginError: null }); break;
     case 'switch-to-signin': setState({ loginMode: 'signin', loginError: null }); break;
@@ -482,6 +531,7 @@ function onDocInput(e) {
         title: state.cardFormText || 'Card text here...',
         description: '', prompt: '', image: '', illustrationKey: '',
         deckType: state.cardFormDeckType,
+        brandImageUrl: state.currentPack?.brand_image_url || '',
       });
     }
     if (countEl) {
@@ -663,6 +713,36 @@ async function handleClearFeature() {
       loading: false,
       currentPack: full,
       currentPackCards: full.cards || [],
+    });
+  } catch (err) {
+    setState({ loading: false, error: err.message });
+  }
+}
+
+async function handleUploadBrand(file) {
+  if (!state.currentPack || !file) return;
+  setState({ loading: true, error: null });
+  try {
+    const updated = await uploadPackBrand(state.currentPack.id, file);
+    registerPackBrand(state.currentPack.id, updated.brand_image_url || '');
+    setState({
+      loading: false,
+      currentPack: { ...state.currentPack, brand_image_url: updated.brand_image_url },
+    });
+  } catch (err) {
+    setState({ loading: false, error: err.message });
+  }
+}
+
+async function handleRemoveBrand() {
+  if (!state.currentPack) return;
+  setState({ loading: true, error: null });
+  try {
+    const updated = await removePackBrand(state.currentPack.id);
+    registerPackBrand(state.currentPack.id, '');
+    setState({
+      loading: false,
+      currentPack: { ...state.currentPack, brand_image_url: updated.brand_image_url || null },
     });
   } catch (err) {
     setState({ loading: false, error: err.message });

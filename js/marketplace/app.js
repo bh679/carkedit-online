@@ -1,8 +1,9 @@
 'use strict';
 
 import { setStateSetter, initAuth, signInWithGoogle, getAuthToken, logOut } from '../managers/auth-manager.js';
-import { bindScrollArrows } from '../components/card-list.js';
-import { render as renderPackBg } from '../components/pack-card-background.js';
+import { render as renderCardList, bindScrollArrows } from '../components/card-list.js';
+import { renderPackCard } from '../components/pack-card.js';
+import { setList as setPreviewList } from '../components/card-preview-overlay.js';
 import { mount as mountDesigner, unmount as unmountDesigner, syncAuth as syncDesignerAuth, getView as getDesignerView } from '../card-designer/app.js';
 
 const API_BASE = `${window.location.origin}/api/carkedit`;
@@ -379,27 +380,6 @@ function renderFavourites() {
   return `<div class="marketplace__grid">${f.packs.map(renderPackCard).join('')}</div>`;
 }
 
-function renderPackCard(p) {
-  const fav = !!p.is_favorited;
-  return `
-    <div class="card-list__item card-list__item--sm pack-card" data-pack-id="${esc(p.id)}" data-action="open">
-      ${renderPackBg(p)}
-      <div class="pack-card__content">
-        <h3 class="pack-card__title">${esc(p.title)}</h3>
-        <div class="pack-card__creator">by ${esc(p.creator_name || 'Unknown')}</div>
-        <div class="pack-card__stats">
-          <span>${p.card_count || 0}c</span>
-          <span>${p.usage_count || 0}g</span>
-          <span>♥${p.favorite_count || 0}</span>
-        </div>
-        <button class="pack-card__save ${fav ? 'pack-card__save--saved' : ''}" data-action="toggle-fav" data-pack-id="${esc(p.id)}" data-fav="${fav}">
-          ${fav ? '★' : '☆'}
-        </button>
-      </div>
-    </div>
-  `;
-}
-
 function renderDetail() {
   const p = state.selectedPack;
   if (state.loading || !p) return '<div class="screen screen--marketplace"><p class="marketplace__loading">Loading…</p></div>';
@@ -408,12 +388,39 @@ function renderDetail() {
   const byDeck = { die: [], live: [], bye: [] };
   for (const c of cards) (byDeck[c.deck_type] || (byDeck[c.deck_type] = [])).push(c);
   const stats = p.stats || {};
+
+  // Build a flat list shared with the preview overlay so click handlers can
+  // index into it directly.
+  const previewItems = [];
+  const sectionsHtml = ['die', 'live', 'bye'].map((deck) => {
+    const list = byDeck[deck];
+    const label = deck.charAt(0).toUpperCase() + deck.slice(1);
+    const items = list.map((c) => ({ id: c.id, deck: c.deck_type, text: c.text }));
+    // Capture each item's flat index for the preview overlay.
+    const startIdx = previewItems.length;
+    items.forEach((it) => previewItems.push(it));
+    let idx = startIdx;
+    const listHtml = renderCardList(items, {
+      size: 'sm',
+      showStats: false,
+      scrollArrows: true,
+      id: `pack-detail-cards-${deck}`,
+      emptyText: 'No cards',
+      buildOnClick: () => `window.cardPreview.showAt(${idx++})`,
+    });
+    return `
+      <div class="designer__section">
+        <h3 class="designer__section-header designer__section-header--${deck}">${label} Cards (${list.length})</h3>
+        ${listHtml}
+      </div>
+    `;
+  }).join('');
+  setPreviewList(previewItems);
+
   return `
     <div class="screen screen--marketplace">
       <div class="marketplace__header">
-        <button class="marketplace__back" data-action="back">← Back</button>
         <h1 class="marketplace__title">Expansion</h1>
-        <span></span>
       </div>
       <div class="pack-detail__header">
         <div>
@@ -430,13 +437,9 @@ function renderDetail() {
         <span>${stats.usage_count ?? 0} games</span>
         <span>♥ ${stats.favorite_count ?? 0}</span>
       </div>
-      <div class="pack-detail__decks">
-        ${['die', 'live', 'bye'].map((deck) => `
-          <div class="pack-detail__deck pack-detail__deck--${deck}">
-            <h3>${deck} (${byDeck[deck].length})</h3>
-            <ul>${byDeck[deck].map((c) => `<li>${esc(c.text)}</li>`).join('')}</ul>
-          </div>
-        `).join('')}
+      ${sectionsHtml}
+      <div class="menu__actions marketplace__actions">
+        <button class="btn mode-select__back-btn menu__site-link" data-action="back">&larr; Back</button>
       </div>
     </div>
   `;
@@ -448,6 +451,9 @@ function attachHandlers() {
   });
   for (const def of ROW_DEFS) {
     bindScrollArrows(`pack-strip-${def.key}`);
+  }
+  for (const deck of ['die', 'live', 'bye']) {
+    bindScrollArrows(`pack-detail-cards-${deck}`);
   }
 }
 

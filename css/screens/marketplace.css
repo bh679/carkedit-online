@@ -394,3 +394,54 @@ body.page--marketplace #app {
   position: relative;
   z-index: 1;
 }
+/* ─── Manage Account screen ───────────────────────────────────────── */
+.screen--account {
+  padding: 1rem;
+  max-width: 900px;
+  margin: 0 auto;
+  color: #fff;
+}
+.account__section {
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+}
+.account__section-title {
+  margin: 0 0 0.75rem;
+  font-size: 1.1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.85;
+}
+.account__form { display: flex; flex-direction: column; gap: 0.75rem; }
+.account__field { display: flex; flex-direction: column; gap: 0.25rem; }
+.account__field span { font-size: 0.85rem; opacity: 0.7; }
+.account__field input,
+.account__field select {
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff;
+  font-size: 1rem;
+}
+.account__form-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+.account__status { font-size: 0.9rem; opacity: 0.8; }
+.account__status--ok  { color: #6fdc8c; }
+.account__status--err { color: #ff6b6b; }
+
+.account__games { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.account__game {
+  padding: 0.6rem 0.8rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+}
+.account__game-main { display: flex; justify-content: space-between; align-items: baseline; }
+.account__game-score { font-weight: bold; }
+.account__game-meta { font-size: 0.8rem; opacity: 0.7; margin-top: 0.2rem; }
