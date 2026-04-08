@@ -1018,3 +1018,59 @@ body {
   background: #b388ff;
   color: #000;
 }
+
+/* ── NPS Survey Responses ──────────────────────────── */
+.nps-chip {
+  display: inline-block;
+  min-width: 2em;
+  padding: 0.2em 0.5em;
+  border-radius: 0.4em;
+  font-weight: 700;
+  text-align: center;
+  color: #fff;
+}
+.nps-chip--promoter { background: #4caf50; }
+.nps-chip--passive  { background: #ff9800; }
+.nps-chip--detractor { background: #e53935; }
+
+.survey-responses__summary {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.85rem;
+  margin-bottom: 0.6em;
+}
+
+.survey-responses__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6em;
+}
+
+.survey-response {
+  padding: 0.8em 1em;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.5em;
+}
+
+.survey-response__header {
+  display: flex;
+  align-items: center;
+  gap: 0.8em;
+  margin-bottom: 0.4em;
+}
+
+.survey-response__player {
+  font-weight: 600;
+}
+
+.survey-response__date {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.8rem;
+  margin-left: auto;
+}
+
+.survey-response__field {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.8);
+  margin-top: 0.2em;
+}

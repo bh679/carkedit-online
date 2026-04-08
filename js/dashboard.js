@@ -235,6 +235,43 @@ async function fetchStats() {
   }
 }
 
+let surveyStats = { count: 0, avgNps: 0, minNps: null, maxNps: null, nps: null, promoters: 0, passives: 0, detractors: 0 };
+let surveyResponses = [];
+let surveyTotal = 0;
+let surveyDevFilter = 'nodev'; // 'all' | 'dev' | 'nodev'
+
+async function fetchSurveyStats() {
+  try {
+    // Key Stats always excludes dev data
+    const res = await authFetch(`${API_BASE}/api/carkedit/surveys/stats?dev=nodev`);
+    if (res.ok) surveyStats = await res.json();
+  } catch (err) {
+    console.warn('[dashboard] Failed to fetch survey stats:', err);
+  }
+}
+
+async function fetchSurveyResponses() {
+  try {
+    const devParam = surveyDevFilter !== 'all' ? `&dev=${surveyDevFilter}` : '';
+    const res = await authFetch(`${API_BASE}/api/carkedit/surveys?limit=50${devParam}`);
+    if (res.ok) {
+      const data = await res.json();
+      surveyResponses = data.responses || [];
+      surveyTotal = data.total || 0;
+    }
+  } catch (err) {
+    console.warn('[dashboard] Failed to fetch survey responses:', err);
+  }
+}
+
+async function cycleSurveyDev() {
+  const opts = ['nodev', 'all', 'dev'];
+  const idx = opts.indexOf(surveyDevFilter);
+  surveyDevFilter = opts[(idx + 1) % opts.length];
+  await fetchSurveyResponses();
+  renderSurveyResponses();
+}
+
 async function fetchPeriodStats() {
   const now = new Date();
   const dayAgo = new Date(now - 24 * 60 * 60 * 1000).toISOString();
@@ -403,6 +440,87 @@ function renderStats() {
       </div>
       ${renderSubCards(0, getPlayTimeFromStats(weekStats), getPlayTimeFromStats(monthStats), true)}
     </div>
+    <div class="dashboard__stat-group">
+      <div class="dashboard__stat">
+        <span class="dashboard__stat-value">${surveyStats.nps === null ? '—' : surveyStats.nps}</span>
+        <span class="dashboard__stat-label">NPS Score</span>
+      </div>
+      <div class="dashboard__stat-breakdown">
+        <div class="dashboard__stat-sub">
+          <span class="dashboard__stat-sub-value">${surveyStats.count}</span>
+          <span class="dashboard__stat-sub-label">Responses</span>
+        </div>
+        <div class="dashboard__stat-sub">
+          <span class="dashboard__stat-sub-value">${surveyStats.maxNps ?? '—'}</span>
+          <span class="dashboard__stat-sub-label">Max</span>
+        </div>
+        <div class="dashboard__stat-sub">
+          <span class="dashboard__stat-sub-value">${surveyStats.minNps ?? '—'}</span>
+          <span class="dashboard__stat-sub-label">Min</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ── Survey Responses ─────────────────────────────────
+function npsBucketClass(score) {
+  if (score >= 9) return 'nps-chip--promoter';
+  if (score >= 7) return 'nps-chip--passive';
+  return 'nps-chip--detractor';
+}
+
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function renderSurveyResponses() {
+  const el = document.getElementById('survey-responses');
+  if (!el) return;
+
+  const devLabels = { all: 'With Dev', nodev: 'No Dev', dev: 'Only Dev' };
+  const devActive = surveyDevFilter !== 'all' ? 'dashboard__filter-btn--active' : '';
+  const filterBar = `
+    <div class="dashboard__filter-bar">
+      <button class="dashboard__filter-btn ${devActive}" onclick="window.dash.cycleSurveyDev()">${devLabels[surveyDevFilter]}</button>
+    </div>
+  `;
+
+  if (surveyResponses.length === 0) {
+    el.innerHTML = `${filterBar}<p class="dashboard__empty">No survey responses yet.</p>`;
+    return;
+  }
+
+  const rows = surveyResponses.map(r => {
+    const date = new Date(r.created_at).toLocaleString();
+    const bucket = npsBucketClass(r.nps_score);
+    const player = r.player_name || '(anonymous)';
+    const comment = escapeHtml(r.comment || '');
+    const improvement = escapeHtml(r.improvement || '');
+    return `
+      <div class="survey-response">
+        <div class="survey-response__header">
+          <span class="nps-chip ${bucket}">${r.nps_score}</span>
+          <span class="survey-response__player">${escapeHtml(player)}</span>
+          <span class="survey-response__date">${date}</span>
+        </div>
+        ${comment ? `<div class="survey-response__field"><strong>Comment:</strong> ${comment}</div>` : ''}
+        ${improvement ? `<div class="survey-response__field"><strong>Improve:</strong> ${improvement}</div>` : ''}
+      </div>
+    `;
+  }).join('');
+
+  el.innerHTML = `
+    ${filterBar}
+    <div class="survey-responses__summary">
+      Showing ${surveyResponses.length} of ${surveyTotal} responses
+    </div>
+    <div class="survey-responses__list">${rows}</div>
   `;
 }
 
@@ -1274,6 +1392,11 @@ function renderPage() {
       </section>
 
       <section class="dashboard__section">
+        <h2 class="dashboard__section-title">Survey Responses</h2>
+        <div id="survey-responses"></div>
+      </section>
+
+      <section class="dashboard__section">
         <h2 class="dashboard__section-title">Graphs</h2>
         <div class="dashboard__graph-wrap">
           <h3 class="dashboard__graph-label">Games Over Time</h3>
@@ -1287,6 +1410,7 @@ function renderPage() {
   renderGameList();
   renderCardAnalytics();
   renderPackStats();
+  renderSurveyResponses();
   renderGraph();
 }
 
@@ -1301,7 +1425,7 @@ function getRefreshInterval() {
 let refreshCountdown = REFRESH_INTERVAL_IDLE;
 
 async function refreshAll() {
-  await Promise.all([fetchGames(), fetchStats(), fetchPeriodStats(), fetchCardStats(), fetchPackStats()]);
+  await Promise.all([fetchGames(), fetchStats(), fetchPeriodStats(), fetchCardStats(), fetchPackStats(), fetchSurveyStats(), fetchSurveyResponses()]);
   // Re-fetch detail for expanded live games so phases/players update
   if (expandedGameId) {
     const cached = gameDetailCache[expandedGameId];
@@ -1316,6 +1440,7 @@ async function refreshAll() {
   renderGameList();
   renderCardAnalytics();
   renderPackStats();
+  renderSurveyResponses();
   renderGraph();
   refreshCountdown = getRefreshInterval();
 }
@@ -1332,7 +1457,7 @@ function updateRefreshTimer() {
 }
 
 // ── Init ─────────────────────────────────────────────
-window.dash = { cyclePlayTime, cycleGamesCount, toggleGame, cycleDeckFilter, setCardSort, toggleCardSortDir, cycleCardDev, setPackSort, togglePackExpanded, previewCard, closePreview, prevPreviewCard, nextPreviewCard, scrollCards, loadMoreGames, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange, signInWithGoogle, signOut, toggleUserMenu };
+window.dash = { cyclePlayTime, cycleGamesCount, toggleGame, cycleDeckFilter, setCardSort, toggleCardSortDir, cycleCardDev, setPackSort, togglePackExpanded, cycleSurveyDev, previewCard, closePreview, prevPreviewCard, nextPreviewCard, scrollCards, loadMoreGames, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange, signInWithGoogle, signOut, toggleUserMenu };
 
 // Close user menu on outside click
 document.addEventListener('click', (e) => {
@@ -1483,11 +1608,12 @@ async function bootDashboard() {
       .catch(() => updateVersionEl(el, 'Server', data.version, null, started || 'Could not check GitHub'));
   }).catch(() => {});
 
-  await Promise.all([fetchGames(), fetchStats(), fetchPeriodStats(), fetchCardStats(), fetchPackStats(), loadCardData()]);
+  await Promise.all([fetchGames(), fetchStats(), fetchPeriodStats(), fetchCardStats(), fetchPackStats(), fetchSurveyStats(), fetchSurveyResponses(), loadCardData()]);
   renderStats();
   renderGameList();
   renderCardAnalytics();
   renderPackStats();
+  renderSurveyResponses();
   renderGraph();
 
   // Countdown timer — tick every second, refresh at 0
