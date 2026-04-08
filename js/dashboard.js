@@ -39,6 +39,16 @@ function authFetch(url, opts = {}) {
   return fetch(url, opts);
 }
 
+async function patchDevFlag(kind, id, isDev) {
+  const res = await authFetch(`${API_BASE}/api/carkedit/${kind}/${encodeURIComponent(id)}/dev`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ is_dev: !!isDev }),
+  });
+  if (!res.ok) throw new Error(`Failed to set ${kind} dev: ${res.status}`);
+  return res.json();
+}
+
 const API_BASE = '';  // Same origin
 let games = [];
 let gamesTotalCount = 0;
@@ -502,12 +512,14 @@ function renderSurveyResponses() {
     const player = r.player_name || '(anonymous)';
     const comment = escapeHtml(r.comment || '');
     const improvement = escapeHtml(r.improvement || '');
+    const sid = escAttr(String(r.id));
     return `
       <div class="survey-response">
         <div class="survey-response__header">
           <span class="nps-chip ${bucket}">${r.nps_score}</span>
           <span class="survey-response__player">${escapeHtml(player)}</span>
           <span class="survey-response__date">${date}</span>
+          <button class="dashboard__dev-toggle ${r.is_dev ? 'is-on' : ''}" title="Toggle dev" onclick="window.dash.toggleSurveyDev('${sid}', ${!r.is_dev})">DEV</button>
         </div>
         ${comment ? `<div class="survey-response__field"><strong>Comment:</strong> ${comment}</div>` : ''}
         ${improvement ? `<div class="survey-response__field"><strong>Improve:</strong> ${improvement}</div>` : ''}
@@ -861,7 +873,7 @@ function renderGameCard(game) {
   const cls = rowClass(game);
   const expanded = expandedGameId === game.id;
   const errorFlag = game.has_error ? '<span class="dashboard__flag dashboard__flag--error" title="Error">!</span>' : '';
-  const devFlag = game.is_dev ? '<span class="dashboard__badge dashboard__badge--dev" title="Dev game">DEV</span>' : '';
+  const devFlag = `<button class="dashboard__dev-toggle ${game.is_dev ? 'is-on' : ''}" title="Toggle dev" onclick="event.stopPropagation(); window.dash.toggleGameDev('${game.id}', ${!game.is_dev})">DEV</button>`;
   const liveLabel = liveStatusLabel(game.live_status);
   const liveBadge = liveLabel ? `<span class="dashboard__badge dashboard__badge--${game.live_status}">${liveLabel}</span>` : '';
 
@@ -1178,7 +1190,7 @@ function renderPackStats() {
   const rows = packs.map((p) => {
     const winRatePct = ((p.win_rate || 0) * 100).toFixed(0);
     const officialBadge = p.is_official ? ' <span class="dashboard__pack-badge dashboard__pack-badge--official">OFFICIAL</span>' : '';
-    const devBadge = p.is_dev ? ' <span class="dashboard__pack-badge dashboard__pack-badge--dev">DEV</span>' : '';
+    const devBadge = ` <button class="dashboard__dev-toggle ${p.is_dev ? 'is-on' : ''}" title="Toggle dev" onclick="window.dash.togglePackDev('${escAttr(p.id)}', ${!p.is_dev})">DEV</button>`;
     const statusKey = (p.status || 'draft').toLowerCase();
     const statusBadge = ` <span class="dashboard__pack-badge dashboard__pack-badge--status dashboard__pack-badge--${statusKey}">${statusKey.toUpperCase()}</span>`;
     const titleEsc = escAttr(p.title || '(untitled)');
@@ -1459,7 +1471,86 @@ function updateRefreshTimer() {
 }
 
 // ── Init ─────────────────────────────────────────────
-window.dash = { cyclePlayTime, cycleGamesCount, toggleGame, cycleDeckFilter, setCardSort, toggleCardSortDir, cycleCardDev, setPackSort, togglePackExpanded, cycleSurveyDev, previewCard, closePreview, prevPreviewCard, nextPreviewCard, scrollCards, loadMoreGames, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange, signInWithGoogle, signOut, toggleUserMenu };
+function confirmDevToggle(kind, label, next) {
+  return new Promise((resolve) => {
+    const action = next ? 'mark as DEV' : 'unmark as DEV';
+    const actionLabel = next ? 'Mark as DEV' : 'Unmark DEV';
+    const existing = document.getElementById('dev-confirm-modal');
+    if (existing) existing.remove();
+    const overlay = document.createElement('div');
+    overlay.id = 'dev-confirm-modal';
+    overlay.className = 'dev-confirm__overlay';
+    overlay.innerHTML = `
+      <div class="dev-confirm__dialog" role="dialog" aria-modal="true" aria-labelledby="dev-confirm-title">
+        <h3 id="dev-confirm-title" class="dev-confirm__title">Confirm dev toggle</h3>
+        <p class="dev-confirm__body">Are you sure you want to ${escapeHtml(action)}?</p>
+        <p class="dev-confirm__target"><strong>${escapeHtml(kind)}:</strong> ${escapeHtml(label)}</p>
+        <div class="dev-confirm__actions">
+          <button type="button" class="dev-confirm__btn dev-confirm__btn--cancel" data-action="cancel">Cancel</button>
+          <button type="button" class="dev-confirm__btn dev-confirm__btn--confirm" data-action="confirm">${escapeHtml(actionLabel)}</button>
+        </div>
+      </div>
+    `;
+    const cleanup = (result) => {
+      document.removeEventListener('keydown', onKey);
+      overlay.remove();
+      resolve(result);
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') cleanup(false);
+      if (e.key === 'Enter') cleanup(true);
+    };
+    overlay.addEventListener('click', (e) => {
+      const t = e.target;
+      if (t === overlay) return cleanup(false);
+      const action = t && t.getAttribute && t.getAttribute('data-action');
+      if (action === 'cancel') cleanup(false);
+      if (action === 'confirm') cleanup(true);
+    });
+    document.addEventListener('keydown', onKey);
+    document.body.appendChild(overlay);
+    const confirmBtn = overlay.querySelector('.dev-confirm__btn--confirm');
+    if (confirmBtn) confirmBtn.focus();
+  });
+}
+
+async function toggleGameDev(id, next) {
+  const g = games.find(x => x.id === id);
+  const label = g ? `${g.host_name || '(no host)'} — ${id}` : id;
+  if (!await confirmDevToggle('Game', label, next)) return;
+  try {
+    const updated = await patchDevFlag('games', id, next);
+    const i = games.findIndex(x => x.id === id);
+    if (i >= 0) games[i] = { ...games[i], is_dev: !!updated.is_dev };
+    renderGameList();
+  } catch (e) { console.error(e); alert('Failed to toggle dev: ' + e.message); }
+}
+
+async function toggleSurveyDev(id, next) {
+  const r = surveyResponses.find(x => String(x.id) === String(id));
+  const label = r ? `NPS ${r.nps_score} — ${r.player_name || '(anonymous)'}` : String(id);
+  if (!await confirmDevToggle('Survey response', label, next)) return;
+  try {
+    const updated = await patchDevFlag('surveys', id, next);
+    const i = surveyResponses.findIndex(x => String(x.id) === String(id));
+    if (i >= 0) surveyResponses[i] = { ...surveyResponses[i], is_dev: !!updated.is_dev };
+    renderSurveyResponses();
+  } catch (e) { console.error(e); alert('Failed to toggle dev: ' + e.message); }
+}
+
+async function togglePackDev(id, next) {
+  const p = packStats.packs.find(x => x.id === id);
+  const label = p ? (p.title || '(untitled)') : id;
+  if (!await confirmDevToggle('Pack', label, next)) return;
+  try {
+    const updated = await patchDevFlag('packs', id, next);
+    const i = packStats.packs.findIndex(x => x.id === id);
+    if (i >= 0) packStats.packs[i] = { ...packStats.packs[i], is_dev: !!updated.is_dev };
+    renderPackStats();
+  } catch (e) { console.error(e); alert('Failed to toggle dev: ' + e.message); }
+}
+
+window.dash = { cyclePlayTime, cycleGamesCount, toggleGame, cycleDeckFilter, setCardSort, toggleCardSortDir, cycleCardDev, setPackSort, togglePackExpanded, cycleSurveyDev, previewCard, closePreview, prevPreviewCard, nextPreviewCard, scrollCards, loadMoreGames, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange, signInWithGoogle, signOut, toggleUserMenu, toggleGameDev, toggleSurveyDev, togglePackDev };
 
 // Close user menu on outside click
 document.addEventListener('click', (e) => {

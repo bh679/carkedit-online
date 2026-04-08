@@ -398,6 +398,106 @@ body {
   color: var(--color-primary);
 }
 
+.dashboard__dev-toggle {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(152, 66, 255, 0.4);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-family: inherit;
+  line-height: 1.2;
+  transition: background 0.15s, color 0.15s;
+}
+.dashboard__dev-toggle:hover {
+  background: rgba(152, 66, 255, 0.1);
+  color: var(--color-primary);
+}
+.dashboard__dev-toggle.is-on {
+  background: rgba(152, 66, 255, 0.25);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.dev-confirm__overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: dev-confirm-fade 0.15s ease-out;
+}
+@keyframes dev-confirm-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.dev-confirm__dialog {
+  background: var(--color-bg, #1a1a1a);
+  border: 1px solid rgba(152, 66, 255, 0.4);
+  border-radius: 8px;
+  padding: 20px 24px;
+  max-width: 420px;
+  width: calc(100% - 32px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+  color: var(--color-text, #eaeaea);
+  font-family: inherit;
+}
+.dev-confirm__title {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-primary, #9842ff);
+}
+.dev-confirm__body {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.dev-confirm__target {
+  margin: 0 0 20px 0;
+  font-size: 13px;
+  color: var(--color-text-muted, #a0a0a0);
+  word-break: break-word;
+}
+.dev-confirm__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.dev-confirm__btn {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.dev-confirm__btn--cancel {
+  background: transparent;
+  color: var(--color-text-muted, #a0a0a0);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+.dev-confirm__btn--cancel:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--color-text, #eaeaea);
+}
+.dev-confirm__btn--confirm {
+  background: var(--color-primary, #9842ff);
+  color: #fff;
+  border-color: var(--color-primary, #9842ff);
+}
+.dev-confirm__btn--confirm:hover {
+  filter: brightness(1.1);
+}
+
 .dashboard__flag {
   display: inline-block;
   width: 20px;
