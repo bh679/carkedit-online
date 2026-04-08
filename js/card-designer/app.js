@@ -281,39 +281,54 @@ function renderPackEditor() {
           Description
           <textarea class="designer__input designer__textarea" data-field="pack-description" maxlength="500">${esc(pack.description)}</textarea>
         </label>
-        <div class="designer__feature">
-          <span class="designer__label">
-            Pack Branding (logo shown on every card)
-            <span class="designer__preview-tag">Preview</span>
-          </span>
-          <div class="designer__feature-row">
-            <div class="designer__brand-preview">
-              ${pack.brand_image_url
-                ? `<img src="${esc(pack.brand_image_url)}" alt="Pack brand" style="max-width: 64px; max-height: 64px; object-fit: contain; background: #fff; border-radius: 8px; padding: 4px;">`
-                : '<span class="designer__feature-empty">None</span>'}
+        <div class="designer__media">
+          <div class="designer__media-head">
+            <span class="designer__media-title">Pack Media</span>
+            <span class="designer__media-hint">PNG / JPEG / WebP &middot; 2MB</span>
+          </div>
+          <div class="designer__media-grid">
+            <div class="designer__media-slot">
+              <div class="designer__media-slot-header">
+                <span class="designer__media-slot-title">Brand Logo</span>
+              </div>
+              <div class="designer__media-body">
+                <div class="designer__brand-preview">
+                  ${pack.brand_image_url
+                    ? `<img src="${esc(pack.brand_image_url)}" alt="Pack brand">`
+                    : '<span class="designer__feature-empty">None</span>'}
+                </div>
+                <div class="designer__media-actions">
+                  <label class="btn btn--primary btn--small designer__media-btn" style="cursor: pointer;">
+                    ${pack.brand_image_url ? 'Replace' : 'Upload'}
+                    <input type="file" accept="image/png,image/jpeg,image/webp" data-action="upload-brand" style="display: none;">
+                  </label>
+                  ${pack.brand_image_url
+                    ? '<button class="btn btn--ghost btn--small designer__media-btn--ghost" data-action="remove-brand">Remove</button>'
+                    : ''}
+                </div>
+              </div>
             </div>
-            <label class="btn btn--secondary btn--small" style="cursor: pointer;">
-              ${pack.brand_image_url ? 'Replace' : 'Upload'}
-              <input type="file" accept="image/png,image/jpeg,image/webp" data-action="upload-brand" style="display: none;">
-            </label>
-            ${pack.brand_image_url
-              ? '<button class="btn btn--ghost btn--small" data-action="remove-brand">Remove</button>'
-              : ''}
+
+            <div class="designer__media-divider"></div>
+
+            <div class="designer__media-slot">
+              <div class="designer__media-slot-header">
+                <span class="designer__media-slot-title">Feature Card</span>
+              </div>
+              <div class="designer__media-body">
+                <div class="designer__feature-preview">${featureHtml}</div>
+                <div class="designer__media-actions">
+                  ${picking
+                    ? `<button class="btn btn--ghost btn--small designer__media-btn--ghost" data-action="cancel-pick-feature">Cancel</button>`
+                    : `<button class="btn btn--primary btn--small designer__media-btn" data-action="start-pick-feature" ${state.currentPackCards.length === 0 ? 'disabled' : ''}>${pack.featured_card_id ? 'Change' : 'Set Feature'}</button>`}
+                  ${!picking && pack.featured_card_id
+                    ? `<button class="btn btn--ghost btn--small designer__media-btn--ghost" data-action="clear-feature">Clear</button>`
+                    : ''}
+                </div>
+              </div>
+              ${picking ? '<p class="designer__feature-hint">Click a card below to set it as the pack feature card.</p>' : ''}
+            </div>
           </div>
-          <p class="designer__feature-hint">PNG, JPEG, or WebP. Max 2MB.</p>
-        </div>
-        <div class="designer__feature">
-          <span class="designer__label">Feature Card</span>
-          <div class="designer__feature-row">
-            <div class="designer__feature-preview">${featureHtml}</div>
-            ${picking
-              ? `<button class="btn btn--ghost btn--small" data-action="cancel-pick-feature">Cancel</button>`
-              : `<button class="btn btn--secondary btn--small" data-action="start-pick-feature" ${state.currentPackCards.length === 0 ? 'disabled' : ''}>Set Feature Card</button>`}
-            ${!picking && pack.featured_card_id
-              ? `<button class="btn btn--ghost btn--small" data-action="clear-feature">Clear</button>`
-              : ''}
-          </div>
-          ${picking ? '<p class="designer__feature-hint">Click a card below to set it as the pack feature card.</p>' : ''}
         </div>
         ${state.authUser?.is_admin ? `
           <div class="lobby__stepper-row" style="margin-top: 0.75rem;">

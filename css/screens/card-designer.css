@@ -10,18 +10,19 @@
   flex-wrap: wrap;
 }
 .designer__feature-preview {
-  width: 44px;
+  width: 56px;
   min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 .designer__feature-preview .card,
 .designer__feature-preview .card-list__item {
-  width: 44px;
-  height: 62px;
+  width: 56px;
+  height: 78px;
   min-height: 0;
-  font-size: 0.5rem;
+  font-size: 0.55rem;
 }
 .designer__feature-empty {
   display: inline-block;
@@ -35,6 +36,118 @@
   margin: 0.5rem 0 0;
   font-size: 0.85rem;
   color: var(--accent, #b794f4);
+}
+
+/* Shared "Pack Media" card — groups Pack Logo + Feature Card. */
+.designer__media {
+  margin-top: var(--space-sm, 0.5rem);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 0.95rem 1.1rem 1.05rem;
+}
+.designer__media-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.85rem;
+}
+.designer__media-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text, #e8e6f4);
+}
+.designer__media-hint {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.55);
+}
+.designer__media-grid {
+  display: grid;
+  grid-template-columns: 1fr 1px 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+.designer__media-divider {
+  background: rgba(255, 255, 255, 0.12);
+  align-self: stretch;
+  width: 1px;
+}
+.designer__media-slot {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  min-width: 0;
+}
+.designer__media-slot-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+.designer__media-slot-title {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.55);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.designer__media-body {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.designer__media-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  flex: 1;
+  min-width: 0;
+}
+.designer__media-btn {
+  width: 100%;
+  text-align: center;
+}
+.designer__media-btn--ghost {
+  width: 100%;
+  text-align: center;
+}
+
+/* Logo thumbnail — match visual footprint of the feature-card preview */
+.designer__brand-preview {
+  width: 56px;
+  height: 78px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.3);
+  flex-shrink: 0;
+}
+.designer__brand-preview img {
+  max-width: 80%;
+  max-height: 80%;
+  object-fit: contain;
+}
+.designer__brand-preview .designer__feature-empty {
+  border: none;
+  padding: 0;
+  font-size: 0.7rem;
+}
+
+/* Collapse to one column on narrow screens */
+@media (max-width: 520px) {
+  .designer__media-grid {
+    grid-template-columns: 1fr;
+  }
+  .designer__media-divider {
+    display: none;
+  }
 }
 
 
