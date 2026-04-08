@@ -1184,7 +1184,7 @@ function renderPackStats() {
     return `
       <tr class="dashboard__pack-row">
         <td class="dashboard__pack-cell dashboard__pack-cell--title">
-          <a href="/expansions.html?pack=${encodeURIComponent(p.id)}" target="_blank" rel="noopener">${titleEsc}</a>${officialBadge}${devBadge}
+          <a href="expansions.html?pack=${encodeURIComponent(p.id)}" target="_blank" rel="noopener">${titleEsc}</a>${officialBadge}${devBadge}
         </td>
         <td class="dashboard__pack-cell">${creatorEsc}</td>
         <td class="dashboard__pack-cell dashboard__pack-cell--num">${p.card_count || 0}</td>
