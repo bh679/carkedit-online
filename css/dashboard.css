@@ -949,3 +949,72 @@ body {
     width: 70px;
   }
 }
+
+/* ── Expansion Pack Stats Table ───────────────────────── */
+.dashboard__pack-stats-wrap {
+  overflow-x: auto;
+  border-radius: 8px;
+  background: var(--dashboard-card-bg, rgba(255, 255, 255, 0.04));
+}
+.dashboard__pack-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.dashboard__pack-table thead tr {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+.dashboard__pack-th {
+  text-align: left;
+  padding: 10px 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.dashboard__pack-th--active {
+  color: #fff;
+}
+.dashboard__pack-th:hover {
+  color: #fff;
+}
+.dashboard__pack-row {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.dashboard__pack-row:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+.dashboard__pack-cell {
+  padding: 10px 12px;
+  vertical-align: middle;
+}
+.dashboard__pack-cell--num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.dashboard__pack-cell--title a {
+  color: #fff;
+  text-decoration: none;
+}
+.dashboard__pack-cell--title a:hover {
+  text-decoration: underline;
+}
+.dashboard__pack-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  vertical-align: middle;
+}
+.dashboard__pack-badge--official {
+  background: #ffd54a;
+  color: #000;
+}
+.dashboard__pack-badge--dev {
+  background: #b388ff;
+  color: #000;
+}
