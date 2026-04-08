@@ -2,7 +2,7 @@
 
 import { setStateSetter, initAuth, signInWithGoogle, getAuthToken, logOut } from '../managers/auth-manager.js';
 import { bindScrollArrows } from '../components/card-list.js';
-import { render as renderPackBg } from '../components/pack-card-background.js';
+import { renderPackCard } from '../components/pack-card.js';
 import { mount as mountDesigner, unmount as unmountDesigner, syncAuth as syncDesignerAuth, getView as getDesignerView } from '../card-designer/app.js';
 
 const API_BASE = `${window.location.origin}/api/carkedit`;
@@ -325,27 +325,6 @@ function renderFavourites() {
   if (f.error) return `<p class="marketplace__error">${esc(f.error)}</p>`;
   if (f.packs.length === 0) return '<p class="marketplace__empty">No favourites yet — browse expansions and tap ★ to save them.</p>';
   return `<div class="marketplace__grid">${f.packs.map(renderPackCard).join('')}</div>`;
-}
-
-function renderPackCard(p) {
-  const fav = !!p.is_favorited;
-  return `
-    <div class="card-list__item card-list__item--sm pack-card" data-pack-id="${esc(p.id)}" data-action="open">
-      ${renderPackBg(p)}
-      <div class="pack-card__content">
-        <h3 class="pack-card__title">${esc(p.title)}</h3>
-        <div class="pack-card__creator">by ${esc(p.creator_name || 'Unknown')}</div>
-        <div class="pack-card__stats">
-          <span>${p.card_count || 0}c</span>
-          <span>${p.usage_count || 0}g</span>
-          <span>♥${p.favorite_count || 0}</span>
-        </div>
-        <button class="pack-card__save ${fav ? 'pack-card__save--saved' : ''}" data-action="toggle-fav" data-pack-id="${esc(p.id)}" data-fav="${fav}">
-          ${fav ? '★' : '☆'}
-        </button>
-      </div>
-    </div>
-  `;
 }
 
 function renderDetail() {
