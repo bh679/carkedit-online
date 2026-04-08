@@ -31,7 +31,6 @@ export function render(state) {
           Expansions
         </a>
         <a class="btn btn--ghost menu__site-link menu__shop-link" href="https://carkedit.com/shop/all-products/games/carked-it/" target="_blank" rel="noopener noreferrer">Buy Physical Game</a>
-        <a class="btn btn--ghost menu__site-link" href="https://carkedit.com" target="_blank" rel="noopener noreferrer">CarkedIt.com</a>
       </div>
       <div class="page-auth">${renderAuthButton(state)}</div>
       <div class="menu__versions">
