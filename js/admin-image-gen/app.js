@@ -22,6 +22,7 @@ import { buildCard } from '../data/card.js';
 import {
   listProviders,
   generateImage,
+  generateImageStream,
   mergeLogEntries,
   saveImageToCard,
   saveStyleJson,
@@ -75,10 +76,19 @@ const state = {
   promptOverride: null,           // null = use auto-assembled, string = overridden
   promptPreview: '',              // last auto-assembled prompt for the UI
 
+  // Batch generation
+  batchCount: 3,                  // 1–20, number of images to generate in parallel
+  selectedBatchIdx: 0,            // which batch item is selected (shown in generated panel)
+
   // Generation status
   generating: false,
   generateError: null,
-  generated: null,                // { imageUrl, provider, promptSent, meta }
+  generated: null,                // single-result compat (first batch item)
+  generatedBatch: [],             // array of { imageUrl, provider, promptSent, meta } (or split objects)
+  generateStartTime: 0,          // ms timestamp when generation started
+  generateElapsed: 0,            // seconds elapsed (updated by timer)
+  generatePhase: '',             // 'submitted' | 'polling' | 'saving'
+  generateStatus: '',            // upstream API status string (e.g. "Pending")
 
   // Save-to-card status
   saving: false,
@@ -287,8 +297,10 @@ function currentCardForPreview() {
   const isDie = state.cardFormDeckType === 'die';
   const isSplit = isDie && state.cardFormSpecial === 'Split';
   const isMystery = isDie && state.cardFormSpecial === '?';
-  const generatedUrl = state.generated?.imageUrl || '';
-  const generatedUrlB = state.generated?.imageUrlB || '';
+  // Use the selected batch item if available, otherwise fall back to state.generated
+  const selectedItem = state.generatedBatch[state.selectedBatchIdx] || state.generated;
+  const generatedUrl = selectedItem?.imageUrl || '';
+  const generatedUrlB = selectedItem?.imageUrlB || '';
   return {
     title: state.cardFormText || 'Card text preview…',
     description: '',
@@ -317,9 +329,15 @@ function currentCardForPreview() {
 
 function render() {
   if (!state.container) return;
+  const batchSize = Math.max(state.generatedBatch.length, state.batchCount || 1);
+  const isBatch = batchSize > 1;
+  // Each extra card adds ~300px (220px card + padding + border + gap).
+  // Base is 900px which already fits 1 card in the right column.
+  const extraCards = isBatch ? batchSize - 1 : 0;
+  const wideStyle = isBatch ? ` style="max-width: ${900 + extraCards * 300}px"` : '';
   state.container.innerHTML = `
     ${renderAuthBar()}
-    <div class="admin-img-gen">
+    <div class="admin-img-gen"${wideStyle}>
       <header class="admin-img-gen__header">
         <h1 class="admin-img-gen__title">Card Image Generator</h1>
         <p class="admin-img-gen__subtitle">Test AI image generation styles against a structured prompt. Admin only.</p>
@@ -332,7 +350,7 @@ function render() {
           ${renderGenerationPanel()}
         </section>
         <section class="admin-img-gen__col admin-img-gen__col--right">
-          ${renderPreviewPanel()}
+          ${isBatch ? renderBatchResultsPanel() : renderPreviewPanel()}
           ${renderGeneratedPanel()}
         </section>
       </div>
@@ -538,6 +556,10 @@ function renderGenerationPanel() {
       ${state.generateError ? `<p class="admin-img-gen__error">${esc(state.generateError)}</p>` : ''}
 
       <div class="admin-img-gen__gen-actions">
+        <label class="admin-img-gen__batch-label">
+          Count
+          <input type="number" class="designer__input admin-img-gen__batch-input" data-field="batch-count" min="1" max="20" value="${state.batchCount}">
+        </label>
         <button class="btn btn--primary" data-action="generate" ${state.generating ? 'disabled' : ''}>${state.generating ? 'Generating…' : 'Generate image'}</button>
       </div>
     </div>
@@ -623,7 +645,8 @@ function renderPreviewPanel() {
 }
 
 function renderGeneratedPanel() {
-  if (!state.generated && !state.generating && !state.generateError) {
+  const batch = state.generatedBatch;
+  if ((!batch || batch.length === 0) && !state.generating && !state.generateError) {
     return `
       <div class="admin-img-gen__section">
         <h2 class="admin-img-gen__section-title">Generated image</h2>
@@ -632,22 +655,60 @@ function renderGeneratedPanel() {
     `;
   }
   if (state.generating) {
+    const count = Math.max(1, state.batchCount || 1);
+    const elapsed = state.generateElapsed;
+    const mins = Math.floor(elapsed / 60);
+    const secs = elapsed % 60;
+    const timeStr = `${mins}:${String(secs).padStart(2, '0')}`;
+
+    // Map phase + status to a user-friendly label.
+    let statusLabel = 'Sending request...';
+    if (state.generatePhase === 'polling') {
+      const s = (state.generateStatus || '').toLowerCase();
+      if (s.includes('pending') || s.includes('queued') || s === 'task_not_found') {
+        statusLabel = 'Queued \u2014 waiting for GPU...';
+      } else {
+        statusLabel = count > 1 ? `Generating ${count} images...` : 'Generating image...';
+      }
+    } else if (state.generatePhase === 'saving') {
+      statusLabel = 'Downloading & saving image...';
+    }
+
+    const isSplit = state.cardFormDeckType === 'die' && state.cardFormSpecial === 'Split';
+    if (isSplit && count <= 1) statusLabel = statusLabel.replace('image', '2 images');
+
     return `
       <div class="admin-img-gen__section">
-        <h2 class="admin-img-gen__section-title">Generated image</h2>
-        <p class="admin-img-gen__muted">Generating… (this can take 10–60 seconds)</p>
+        <h2 class="admin-img-gen__section-title">Generated image${count > 1 ? 's' : ''}</h2>
+        <div class="admin-img-gen__progress">
+          <div class="admin-img-gen__progress-bar">
+            <div class="admin-img-gen__progress-fill" data-progress-fill></div>
+          </div>
+          <div class="admin-img-gen__progress-info">
+            <span class="admin-img-gen__progress-status" data-progress-status>${esc(statusLabel)}</span>
+            <span class="admin-img-gen__progress-timer" data-progress-timer>${timeStr}</span>
+          </div>
+        </div>
       </div>
     `;
   }
-  const g = state.generated;
+  if (!batch || batch.length === 0) return '';
+
+  // In batch mode, hide until a card is selected.
+  const isBatch = batch.length > 1;
+  if (isBatch && state.selectedBatchIdx === null) return '';
+
+  // Show the selected batch item (or the only item).
+  const idx = state.selectedBatchIdx ?? 0;
+  const g = batch[idx] || batch[0];
   if (!g) return '';
+
   const isSplit = state.cardFormDeckType === 'die' && state.cardFormSpecial === 'Split';
   const canSave = state.activeTab === 'pick' && !!state.selectedPackId && !!state.selectedCardId;
   const saveBtn = canSave
-    ? `<button class="btn btn--primary" data-action="save-to-card" ${state.saving ? 'disabled' : ''}>${state.saving ? 'Saving…' : 'Save to card'}</button>`
+    ? `<button class="btn btn--primary" data-action="save-to-card" data-batch-idx="${idx}" ${state.saving ? 'disabled' : ''}>${state.saving ? 'Saving…' : 'Save to card'}</button>`
     : `<button class="btn btn--primary" disabled title="Pick a card in the Pick tab to enable">Save to card</button>`;
 
-  // Split cards show both images side by side.
   const imagesHtml = isSplit && g.imageUrlB
     ? `<div class="admin-img-gen__generated-split">
         <div class="admin-img-gen__generated-half">
@@ -664,15 +725,16 @@ function renderGeneratedPanel() {
     : `<img class="admin-img-gen__generated" src="${esc(g.imageUrl)}" alt="Generated card illustration">
        <a class="btn" href="${esc(g.imageUrl)}" download="card-${Date.now()}.png" target="_blank" rel="noopener">Download</a>`;
 
-  // Show both prompts if they differ for split cards.
   const promptMeta = isSplit && g.promptSentB && g.promptSentB !== g.promptSent
     ? `<strong>Prompt A:</strong> <span class="admin-img-gen__muted">${esc(g.promptSent)}</span><br>
        <strong>Prompt B:</strong> <span class="admin-img-gen__muted">${esc(g.promptSentB)}</span>`
     : `<strong>Prompt sent:</strong> <span class="admin-img-gen__muted">${esc(g.promptSent)}</span>`;
 
+  const batchLabel = batch.length > 1 ? ` (${idx + 1} of ${batch.length})` : '';
+
   return `
     <div class="admin-img-gen__section">
-      <h2 class="admin-img-gen__section-title">Generated image${isSplit && g.imageUrlB ? 's' : ''}</h2>
+      <h2 class="admin-img-gen__section-title">Generated image${batchLabel}</h2>
       ${imagesHtml}
       <div class="admin-img-gen__gen-meta">
         <strong>Provider:</strong> ${esc(g.provider)}${g.costUsd != null ? (() => {
@@ -688,6 +750,72 @@ function renderGeneratedPanel() {
       ${state.saveError ? `<p class="admin-img-gen__error">${esc(state.saveError)}</p>` : ''}
       <div class="admin-img-gen__gen-actions">
         ${saveBtn}
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Batch card previews — horizontal scrollable row of clickable cards.
+ * Clicking a card sets selectedBatchIdx and updates the card preview
+ * and generated image panels to show that item.
+ */
+function renderBatchResultsPanel() {
+  const batch = state.generatedBatch;
+  const isSplit = state.cardFormDeckType === 'die' && state.cardFormSpecial === 'Split';
+  const isDie = state.cardFormDeckType === 'die';
+
+  if (state.generating) {
+    const count = Math.max(1, state.batchCount || 1);
+    return `
+      <div class="admin-img-gen__section admin-img-gen__section--batch">
+        <h2 class="admin-img-gen__section-title">Generating ${count} images…</h2>
+        <p class="admin-img-gen__muted">This can take 10–60 seconds per image (all run in parallel).</p>
+      </div>
+    `;
+  }
+
+  if (!batch || batch.length === 0) {
+    return `
+      <div class="admin-img-gen__section admin-img-gen__section--batch">
+        <h2 class="admin-img-gen__section-title">Batch card previews</h2>
+        <p class="admin-img-gen__muted">Set count above 1 and click Generate to compare results here.</p>
+      </div>
+    `;
+  }
+
+  // Build clickable card previews for each batch item
+  const items = batch.map((g, idx) => {
+    const cardData = {
+      title: state.cardFormText || 'Card text preview…',
+      description: '',
+      prompt: state.cardFormPrompt,
+      image: '',
+      graphicImage: isSplit ? '' : (g.imageUrl || ''),
+      graphicImages: isSplit ? [g.imageUrl || '', g.imageUrlB || ''] : null,
+      illustrationKey: '',
+      deckType: state.cardFormDeckType,
+      brandImageUrl: state.selectedPack?.brand_image_url || '',
+      special: isDie ? state.cardFormSpecial : '',
+      options: isSplit
+        ? [state.cardFormOption1 || 'Option A', state.cardFormOption2 || 'Option B']
+        : null,
+    };
+    const cardHtml = renderCard(buildCard(cardData));
+    const isSelected = idx === state.selectedBatchIdx;
+
+    return `
+      <div class="admin-img-gen__batch-item ${isSelected ? 'admin-img-gen__batch-item--active' : ''}" data-action="select-batch" data-batch-idx="${idx}">
+        <div class="admin-img-gen__batch-num">#${idx + 1}</div>
+        <div class="admin-img-gen__batch-card-preview">${cardHtml}</div>
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="admin-img-gen__section admin-img-gen__section--batch">
+      <h2 class="admin-img-gen__section-title">Card previews (${batch.length}) — click to select</h2>
+      <div class="admin-img-gen__batch-row">
+        ${items}
       </div>
     </div>
   `;
@@ -891,9 +1019,25 @@ function onClick(e) {
       return;
     }
 
-    case 'save-to-card':
-      handleSaveToCard();
+    case 'select-batch': {
+      const idx = parseInt(target.getAttribute('data-batch-idx') || '0', 10);
+      // Toggle: clicking the already-selected card deselects it.
+      if (state.selectedBatchIdx === idx) {
+        state.selectedBatchIdx = null;
+        state.generated = null;
+      } else {
+        state.selectedBatchIdx = idx;
+        state.generated = state.generatedBatch[idx] || state.generatedBatch[0] || null;
+      }
+      render();
       return;
+    }
+
+    case 'save-to-card': {
+      const batchIdx = parseInt(target.getAttribute('data-batch-idx') || '0', 10);
+      handleSaveToCard(batchIdx);
+      return;
+    }
 
     case 'load-more-log':
       state.generationLogVisibleRows += 10;
@@ -1019,6 +1163,11 @@ function onInput(e) {
     case 'prompt-override':
       state.promptOverride = t.value;
       return;
+    case 'batch-count': {
+      const n = parseInt(t.value, 10);
+      state.batchCount = Number.isFinite(n) ? Math.max(1, Math.min(20, n)) : 1;
+      return;
+    }
   }
 }
 
@@ -1123,6 +1272,74 @@ function hydrateFromCard(cardId) {
   render();
 }
 
+// Reference for the elapsed-time interval so we can clear it on completion.
+let _generateTimer = null;
+
+/** Start the 1-second timer that updates the progress UI without a full re-render. */
+function startProgressTimer() {
+  state.generateStartTime = Date.now();
+  state.generateElapsed = 0;
+  state.generatePhase = 'submitted';
+  state.generateStatus = '';
+  _generateTimer = setInterval(() => {
+    state.generateElapsed = Math.floor((Date.now() - state.generateStartTime) / 1000);
+    // Direct DOM update — avoids full render() which would reset CSS animations.
+    const timerEl = document.querySelector('[data-progress-timer]');
+    if (timerEl) {
+      const m = Math.floor(state.generateElapsed / 60);
+      const s = state.generateElapsed % 60;
+      timerEl.textContent = `${m}:${String(s).padStart(2, '0')}`;
+    }
+    // Update progress bar fill width based on elapsed time.
+    const fillEl = document.querySelector('[data-progress-fill]');
+    if (fillEl) {
+      let pct;
+      if (state.generatePhase === 'saving') {
+        pct = 95;
+      } else if (state.generateElapsed < 30) {
+        // 0-30s → 0%-85% (fast ramp)
+        pct = (state.generateElapsed / 30) * 85;
+      } else if (state.generateElapsed < 60) {
+        // 30-60s → 85%-95% (slow ramp)
+        pct = 85 + ((state.generateElapsed - 30) / 30) * 10;
+      } else {
+        // 60s+ → hold at 95%
+        pct = 95;
+      }
+      fillEl.style.width = `${pct}%`;
+    }
+  }, 1000);
+}
+
+function stopProgressTimer() {
+  if (_generateTimer) {
+    clearInterval(_generateTimer);
+    _generateTimer = null;
+  }
+}
+
+/** Update the status label in the DOM without a full re-render. */
+function updateProgressStatus(phase, status) {
+  state.generatePhase = phase;
+  state.generateStatus = status;
+  const statusEl = document.querySelector('[data-progress-status]');
+  if (!statusEl) return;
+  let label = 'Sending request...';
+  if (phase === 'polling') {
+    const s = (status || '').toLowerCase();
+    if (s.includes('pending') || s.includes('queued') || s === 'task_not_found') {
+      label = 'Queued \u2014 waiting for GPU...';
+    } else {
+      label = 'Generating image...';
+    }
+  } else if (phase === 'saving') {
+    label = 'Downloading & saving image...';
+  }
+  const isSplit = state.cardFormDeckType === 'die' && state.cardFormSpecial === 'Split';
+  if (isSplit) label = label.replace('image', '2 images');
+  statusEl.textContent = label;
+}
+
 async function generate() {
   if (!state.selectedProviderId) {
     state.generateError = 'Pick a provider first.';
@@ -1132,17 +1349,23 @@ async function generate() {
   state.generating = true;
   state.generateError = null;
   state.generated = null;
+  state.generatedBatch = [];
+  state.selectedBatchIdx = null;
   state.saveError = null;
   render();
+  startProgressTimer();
   try {
-    // Size the generation request to the target card region so the
-    // provider renders the right aspect ratio instead of the default 1:1.
     const dims = targetDimensions(state.cardFormDeckType, state.cardFormSpecial);
     const isSplit = state.cardFormDeckType === 'die' && state.cardFormSpecial === 'Split';
+    const count = Math.max(1, Math.min(20, state.batchCount || 1));
+
+    const onProgress = (info) => {
+      updateProgressStatus(info.phase, info.status);
+    };
 
     if (isSplit) {
-      // Split / WYR cards need two images — one per option. Fire both
-      // generation requests in parallel so the user waits ~1x, not ~2x.
+      // Split / WYR cards need two images per batch item — one per option.
+      // Fire all pairs in parallel.
       const optA = state.cardFormOption1 || 'Option A';
       const optB = state.cardFormOption2 || 'Option B';
       const common = {
@@ -1151,61 +1374,77 @@ async function generate() {
         deckType: state.cardFormDeckType,
         style: state.style,
         options: { width: dims.width, height: dims.height },
+        onProgress,
       };
-      const [resultA, resultB] = await Promise.all([
-        generateImage({ ...common, cardText: optA, promptOverride: state.promptOverride, splitPosition: 'a' }),
-        generateImage({ ...common, cardText: optB, promptOverride: state.promptOverride, splitPosition: 'b' }),
-      ]);
-      state.generated = {
-        imageUrl: resultA.imageUrl,
-        imageUrlB: resultB.imageUrl,
-        provider: resultA.provider,
-        promptSent: resultA.promptSent,
-        promptSentB: resultB.promptSent,
-        tokensUsed: (resultA.tokensUsed || 0) + (resultB.tokensUsed || 0) || null,
-        costUsd: (resultA.costUsd || 0) + (resultB.costUsd || 0) || null,
-      };
-      // Merge the two log entries into one so Recent generations shows
-      // a single combined split card instead of two separate thumbnails.
-      if (resultA.logId && resultB.logId) {
-        mergeLogEntries({
-          keepId: resultA.logId,
-          mergeId: resultB.logId,
-          updates: {
-            image_url_b: resultB.imageUrl,
-            text: state.cardFormText,
-            card_special: 'Split',
-            options_json: JSON.stringify([optA, optB]),
-          },
-        }).catch(err => console.warn('[admin-image-gen] merge log entries failed:', err));
-      }
-    } else {
-      const result = await generateImage({
-        providerId: state.selectedProviderId,
-        cardText: state.cardFormText,
-        cardPrompt: state.cardFormPrompt,
-        deckType: state.cardFormDeckType,
-        style: state.style,
-        promptOverride: state.promptOverride,
-        options: { width: dims.width, height: dims.height },
+      const pairs = Array.from({ length: count }, () =>
+        Promise.all([
+          generateImageStream({ ...common, cardText: optA, promptOverride: state.promptOverride, splitPosition: 'a', onProgress }),
+          generateImageStream({ ...common, cardText: optB, promptOverride: state.promptOverride, splitPosition: 'b', onProgress }),
+        ])
+      );
+      const results = await Promise.all(pairs);
+      state.generatedBatch = results.map(([resultA, resultB]) => {
+        // Merge the two log entries into one so Recent generations shows
+        // a single combined split card instead of two separate thumbnails.
+        if (resultA.logId && resultB.logId) {
+          mergeLogEntries({
+            keepId: resultA.logId,
+            mergeId: resultB.logId,
+            updates: {
+              image_url_b: resultB.imageUrl,
+              text: state.cardFormText,
+              card_special: 'Split',
+              options_json: JSON.stringify([optA, optB]),
+            },
+          }).catch(err => console.warn('[admin-image-gen] merge log entries failed:', err));
+        }
+        return {
+          imageUrl: resultA.imageUrl,
+          imageUrlB: resultB.imageUrl,
+          provider: resultA.provider,
+          promptSent: resultA.promptSent,
+          promptSentB: resultB.promptSent,
+          tokensUsed: (resultA.tokensUsed || 0) + (resultB.tokensUsed || 0) || null,
+          costUsd: (resultA.costUsd || 0) + (resultB.costUsd || 0) || null,
+        };
       });
-      state.generated = result;
+    } else {
+      const requests = Array.from({ length: count }, () =>
+        generateImageStream({
+          providerId: state.selectedProviderId,
+          cardText: state.cardFormText,
+          cardPrompt: state.cardFormPrompt,
+          deckType: state.cardFormDeckType,
+          style: state.style,
+          promptOverride: state.promptOverride,
+          options: { width: dims.width, height: dims.height },
+          onProgress,
+        })
+      );
+      state.generatedBatch = await Promise.all(requests);
     }
-    // Refresh the Recent generations gallery so the new entry appears
-    // at the top. Fire-and-forget — the main render() below doesn't
-    // need to wait for it.
+    // For single results, pre-select. For batch, leave unselected until clicked.
+    if (state.generatedBatch.length === 1) {
+      state.selectedBatchIdx = 0;
+      state.generated = state.generatedBatch[0];
+    } else {
+      state.selectedBatchIdx = null;
+      state.generated = null;
+    }
     loadGenerationLog();
   } catch (err) {
     console.error('[admin-image-gen] generate failed:', err);
     state.generateError = err?.message || 'Image generation failed';
   } finally {
+    stopProgressTimer();
     state.generating = false;
     render();
   }
 }
 
-async function handleSaveToCard() {
-  if (!state.generated || !state.selectedPackId || !state.selectedCardId) return;
+async function handleSaveToCard(batchIdx = 0) {
+  const item = state.generatedBatch[batchIdx] || state.generated;
+  if (!item || !state.selectedPackId || !state.selectedCardId) return;
   state.saving = true;
   state.saveError = null;
   render();
@@ -1214,9 +1453,9 @@ async function handleSaveToCard() {
     // (/uploads/card-images/...) rather than a provider URL. The
     // /image-from-url endpoint uses fetch() which can't resolve a
     // relative path — prefix with location.origin so it can round-trip.
-    const srcUrl = state.generated.imageUrl.startsWith('/')
-      ? `${location.origin}${state.generated.imageUrl}`
-      : state.generated.imageUrl;
+    const srcUrl = item.imageUrl.startsWith('/')
+      ? `${location.origin}${item.imageUrl}`
+      : item.imageUrl;
     const updated = await saveImageToCard(
       state.selectedPackId,
       state.selectedCardId,
@@ -1308,7 +1547,7 @@ function hydrateFromLog(logId) {
   state.cardFormOption1 = opts[0] || '';
   state.cardFormOption2 = opts[1] || '';
   state.promptOverride = null;
-  state.generated = {
+  const restoredResult = {
     imageUrl: entry.image_url,
     imageUrlB: entry.image_url_b || '',
     provider: entry.provider,
@@ -1316,6 +1555,8 @@ function hydrateFromLog(logId) {
     tokensUsed: entry.tokens_used ?? null,
     costUsd: entry.cost_usd ?? null,
   };
+  state.generated = restoredResult;
+  state.generatedBatch = [restoredResult];
   state.generateError = null;
   recomputePromptPreview();
   render();
