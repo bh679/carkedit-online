@@ -6,6 +6,10 @@
 
 import { render as renderCardFace } from './card.js';
 import { buildCard } from '../data/card.js';
+// Side-effect import: installs the document-level swipe handler for any
+// `.hand__inspect-overlay` modal opened from a card in these lists. Safe
+// to double-import (the module uses an idempotent window flag).
+import './swipe-overlay.js';
 
 function escAttr(s) {
   return String(s ?? '')
