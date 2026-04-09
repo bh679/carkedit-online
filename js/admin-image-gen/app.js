@@ -2089,4 +2089,32 @@ export async function mount({ container, firebaseUser, providers, signOut }) {
 
   // Pre-load the mystery card reference image (fire-and-forget).
   loadMysteryRefImage();
+
+  // If the URL contains ?pack=…&card=… (e.g. from the card editor's
+  // "Generate Image" button), auto-switch to the Pick tab and pre-select
+  // the pack + card so the user lands ready to generate.
+  const urlParams = new URLSearchParams(window.location.search);
+  const linkedPackId = urlParams.get('pack');
+  const linkedCardId = urlParams.get('card');
+  if (linkedPackId) {
+    state.activeTab = 'pick';
+    state.packsLoading = true;
+    render();
+    try {
+      state.packs = await listAllPacks();
+    } catch (err) {
+      console.error('[admin-image-gen] deep-link loadPacks failed:', err);
+      state.packs = [];
+    }
+    state.packsLoading = false;
+    state.selectedPackId = linkedPackId;
+    try {
+      const pack = await getPackWithCards(linkedPackId);
+      state.selectedPack = pack;
+      if (linkedCardId) hydrateFromCard(linkedCardId);
+    } catch (err) {
+      console.error('[admin-image-gen] deep-link loadPackCards failed:', err);
+    }
+    render();
+  }
 }

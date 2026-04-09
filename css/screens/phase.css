@@ -333,6 +333,7 @@
 .btn--disabled {
   opacity: 0.4;
   cursor: not-allowed;
+  pointer-events: none;
 }
 
 /* ── Phase 1 turn states ──────────────────────────────── */

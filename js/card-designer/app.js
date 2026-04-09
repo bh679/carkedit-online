@@ -480,6 +480,14 @@ function renderCardForm() {
           ${editing ? `<button class="btn btn--ghost btn--danger" data-action="delete-card" data-card-id="${esc(editing.id)}">Delete</button>` : ''}
           <button class="btn btn--primary" data-action="save-card">${editing ? 'Update Card' : 'Save Card'}</button>
         </div>
+        <div class="designer__form-actions" style="justify-content: center;">
+          <a class="btn btn--secondary${state.authUser?.is_admin ? '' : ' btn--disabled'}"
+             href="/admin-image-gen.html?pack=${encodeURIComponent(state.currentPack?.id || '')}&card=${encodeURIComponent(editing?.id || '')}"
+             ${state.authUser?.is_admin ? '' : 'aria-disabled="true" tabindex="-1"'}
+             style="text-decoration: none;">
+             Generate Image
+          </a>
+        </div>
       </div>
       <div class="designer__back-wrap">
         <button class="btn mode-select__back-btn menu__site-link" data-action="back-to-editor">&larr; Back to Pack</button>
