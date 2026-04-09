@@ -331,6 +331,9 @@ function render() {
   if (!state.container) return;
   const batchSize = Math.max(state.generatedBatch.length, state.batchCount || 1);
   const isBatch = batchSize > 1;
+  // Show the batch panel whenever there are generated results to click on
+  // (even a single hydrated-from-log entry) so the user can select one.
+  const showBatchPanel = isBatch || state.generatedBatch.length > 0;
   // Each extra card adds ~300px (220px card + padding + border + gap).
   // Base is 900px which already fits 1 card in the right column.
   const extraCards = isBatch ? batchSize - 1 : 0;
@@ -350,7 +353,7 @@ function render() {
           ${renderGenerationPanel()}
         </section>
         <section class="admin-img-gen__col admin-img-gen__col--right">
-          ${isBatch ? renderBatchResultsPanel() : renderPreviewPanel()}
+          ${showBatchPanel ? renderBatchResultsPanel() : renderPreviewPanel()}
           ${renderGeneratedPanel()}
         </section>
       </div>
@@ -694,9 +697,8 @@ function renderGeneratedPanel() {
   }
   if (!batch || batch.length === 0) return '';
 
-  // In batch mode, hide until a card is selected.
-  const isBatch = batch.length > 1;
-  if (isBatch && state.selectedBatchIdx === null) return '';
+  // Hide until a card is selected in the Card previews panel.
+  if (state.selectedBatchIdx === null) return '';
 
   // Show the selected batch item (or the only item).
   const idx = state.selectedBatchIdx ?? 0;
@@ -1076,7 +1078,7 @@ function onClick(e) {
 
     case 'hydrate-from-log': {
       const id = target.getAttribute('data-log-id');
-      if (id) hydrateFromLog(id);
+      if (id) hydrateFromLog(id, { addToBatch: e.shiftKey });
       return;
     }
 
@@ -1532,8 +1534,13 @@ async function loadGenerationLog() {
  * can see the logged image in the preview and iterate on the card
  * text / style fields without losing the original entry (the log is
  * append-only from the client's perspective).
+ *
+ * @param {string} logId   - generation_log row ID
+ * @param {object} [opts]
+ * @param {boolean} [opts.addToBatch=false] - true to append to existing
+ *   Card previews (shift-click) instead of replacing them.
  */
-function hydrateFromLog(logId) {
+function hydrateFromLog(logId, { addToBatch = false } = {}) {
   const entry = state.generationLog.find(e => e.id === logId);
   if (!entry) return;
   state.activeTab = 'scratch';
@@ -1555,8 +1562,15 @@ function hydrateFromLog(logId) {
     tokensUsed: entry.tokens_used ?? null,
     costUsd: entry.cost_usd ?? null,
   };
-  state.generated = restoredResult;
-  state.generatedBatch = [restoredResult];
+  // Don't auto-select — the user must click the card in Card previews
+  // to open the Generated image panel.
+  state.generated = null;
+  state.selectedBatchIdx = null;
+  if (addToBatch) {
+    state.generatedBatch = [...state.generatedBatch, restoredResult];
+  } else {
+    state.generatedBatch = [restoredResult];
+  }
   state.generateError = null;
   recomputePromptPreview();
   render();
