@@ -95,6 +95,8 @@ const state = {
   generationLogScope: 'all',      // 'all' | 'mine' | 'admins'
   generationLogLoading: false,
   generationLogError: null,
+  generationLogVisibleRows: 5,     // how many rows to show (Load More adds 10 rows)
+  generationLogCols: 5,            // auto-detected grid column count (updated after render)
 };
 
 // ---------------------------------------------------------------------------
@@ -336,6 +338,13 @@ function render() {
       ${renderGenerationLog()}
     </div>
   `;
+
+  // Measure actual grid column count so row-based pagination is accurate.
+  const logGrid = state.container.querySelector('.admin-img-gen__log-grid');
+  if (logGrid) {
+    const cols = getComputedStyle(logGrid).gridTemplateColumns.split(' ').length;
+    if (cols > 0) state.generationLogCols = cols;
+  }
 }
 
 function renderAuthBar() {
@@ -688,7 +697,10 @@ function renderGenerationLog() {
   } else if (state.generationLog.length === 0) {
     body = '<p class="admin-img-gen__muted">No generations yet — click Generate to start.</p>';
   } else {
-    const cells = state.generationLog.map((entry, idx) => {
+    const visibleCount = state.generationLogVisibleRows * state.generationLogCols;
+    const visible = state.generationLog.slice(0, visibleCount);
+    const hasMore = state.generationLog.length > visibleCount;
+    const cells = visible.map((entry, idx) => {
       let optsArr = null;
       try { optsArr = entry.options_json ? JSON.parse(entry.options_json) : null; } catch {}
       const isSplit = entry.deck_type === 'die' && entry.card_special === 'Split';
@@ -737,7 +749,11 @@ function renderGenerationLog() {
         </button>
       `;
     }).join('');
-    body = `<div class="admin-img-gen__log-grid">${cells}</div>`;
+    const remaining = state.generationLog.length - visibleCount;
+    const loadMoreBtn = hasMore
+      ? `<div style="text-align:center;margin-top:0.75rem"><button class="btn" data-action="load-more-log">Load More (${remaining} remaining)</button></div>`
+      : '';
+    body = `<div class="admin-img-gen__log-grid">${cells}</div>${loadMoreBtn}`;
   }
 
   return `
@@ -845,6 +861,11 @@ function onClick(e) {
 
     case 'save-to-card':
       handleSaveToCard();
+      return;
+
+    case 'load-more-log':
+      state.generationLogVisibleRows += 10;
+      render();
       return;
 
     case 'set-log-scope': {
@@ -1204,6 +1225,7 @@ async function saveStyle() {
 async function loadGenerationLog() {
   state.generationLogLoading = true;
   state.generationLogError = null;
+  state.generationLogVisibleRows = 5;
   render();
   try {
     const entries = await listGenerationLog({ scope: state.generationLogScope, limit: 50 });
