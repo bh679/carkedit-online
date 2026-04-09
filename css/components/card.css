@@ -26,7 +26,6 @@
   object-fit: contain;
   object-position: bottom left;
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
-  pointer-events: none;
   z-index: 2;
   /* Same anti-drag protection as .card__img. */
   -webkit-user-drag: none;
@@ -54,12 +53,16 @@
 }
 
 /* Disable native image-drag, selection, and iOS long-press callout on
- * every card-image class. `pointer-events: none` routes clicks to the
- * parent `.card` (or `.card-list__item`) so the drag-to-scroll delegate
- * in `js/components/swipe-overlay.js` can pan the list even when the
- * pointer started on a card illustration. The contextmenu event is
- * additionally suppressed by swipe-overlay.js so right-click-save is
- * also blocked.
+ * every card-image class. The `dragstart` event is additionally blocked
+ * by swipe-overlay.js so the browser never starts its built-in
+ * ghost-cursor image-drag. The `contextmenu` event is suppressed there
+ * too, so right-click-save is also blocked.
+ *
+ * NOTE: we intentionally do NOT use `pointer-events: none` here — it
+ * breaks click propagation inside horizontally-scrollable card lists
+ * (lobby pack preview, expansion packs, dashboard analytics) because
+ * the drag-to-scroll handler's setPointerCapture interferes with the
+ * browser's click synthesis when pointer events are rerouted.
  */
 .card__img,
 .card-back__image,
@@ -69,7 +72,6 @@
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
-  pointer-events: none;
 }
 
 .card__image-placeholder {
