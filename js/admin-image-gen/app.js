@@ -110,6 +110,85 @@ function esc(s) {
     .replace(/>/g, '&gt;');
 }
 
+/**
+ * Word-by-word diff between two strings. Returns an array of
+ * { type: 'equal'|'added'|'removed', text: string } segments.
+ * Uses a simple longest-common-subsequence approach on word tokens.
+ */
+function wordDiff(oldStr, newStr) {
+  const oldWords = (oldStr || '').split(/(\s+)/);
+  const newWords = (newStr || '').split(/(\s+)/);
+
+  // Build LCS table
+  const m = oldWords.length, n = newWords.length;
+  const dp = Array.from({ length: m + 1 }, () => new Uint16Array(n + 1));
+  for (let i = m - 1; i >= 0; i--) {
+    for (let j = n - 1; j >= 0; j--) {
+      if (oldWords[i] === newWords[j]) dp[i][j] = dp[i + 1][j + 1] + 1;
+      else dp[i][j] = Math.max(dp[i + 1][j], dp[i][j + 1]);
+    }
+  }
+
+  // Walk the table to produce diff segments
+  const segments = [];
+  let i = 0, j = 0;
+  while (i < m || j < n) {
+    if (i < m && j < n && oldWords[i] === newWords[j]) {
+      segments.push({ type: 'equal', text: oldWords[i] });
+      i++; j++;
+    } else if (j < n && (i >= m || dp[i][j + 1] >= dp[i + 1][j])) {
+      segments.push({ type: 'added', text: newWords[j] });
+      j++;
+    } else {
+      segments.push({ type: 'removed', text: oldWords[i] });
+      i++;
+    }
+  }
+
+  // Merge consecutive segments of the same type
+  const merged = [];
+  for (const seg of segments) {
+    if (merged.length > 0 && merged[merged.length - 1].type === seg.type) {
+      merged[merged.length - 1].text += seg.text;
+    } else {
+      merged.push({ ...seg });
+    }
+  }
+  return merged;
+}
+
+/**
+ * Render a word diff as HTML.
+ * - changesOnly: only show added/removed words (default, compact view).
+ * - full: show all words with added/removed highlighted inline.
+ */
+function renderWordDiff(oldStr, newStr, { changesOnly = false } = {}) {
+  const segments = wordDiff(oldStr, newStr);
+  if (changesOnly) {
+    // Show only changed segments with a small "…" separator between non-adjacent chunks.
+    const parts = [];
+    let lastWasChange = false;
+    for (const seg of segments) {
+      if (seg.type === 'equal') {
+        lastWasChange = false;
+        continue;
+      }
+      if (!lastWasChange && parts.length > 0) parts.push('<span class="prompt-diff--ellipsis">… </span>');
+      const escaped = esc(seg.text);
+      if (seg.type === 'added') parts.push(`<ins class="prompt-diff--added">${escaped}</ins>`);
+      else parts.push(`<del class="prompt-diff--removed">${escaped}</del>`);
+      lastWasChange = true;
+    }
+    return parts.join('');
+  }
+  return segments.map(seg => {
+    const escaped = esc(seg.text);
+    if (seg.type === 'added') return `<ins class="prompt-diff--added">${escaped}</ins>`;
+    if (seg.type === 'removed') return `<del class="prompt-diff--removed">${escaped}</del>`;
+    return `<span class="prompt-diff--equal">${escaped}</span>`;
+  }).join('');
+}
+
 function humanizeKey(key) {
   return key
     .replace(/_/g, ' ')
@@ -193,7 +272,7 @@ function resetStyle() {
  */
 function targetDimensions(deckType, special) {
   if (deckType === 'die' && special === 'Split') {
-    return { width: 1152, height: 800 };   // ≈10:7 landscape per split half
+    return { width: 960, height: 1344 };   // 5:7 portrait — each half fills the full card area, clipped diagonally
   }
   if (deckType === 'die') {
     return { width: 960, height: 1344 };   // exact 5:7 portrait (full card)
@@ -206,6 +285,7 @@ function currentCardForPreview() {
   const isSplit = isDie && state.cardFormSpecial === 'Split';
   const isMystery = isDie && state.cardFormSpecial === '?';
   const generatedUrl = state.generated?.imageUrl || '';
+  const generatedUrlB = state.generated?.imageUrlB || '';
   return {
     title: state.cardFormText || 'Card text preview…',
     description: '',
@@ -216,11 +296,8 @@ function currentCardForPreview() {
     image: '',
     // Non-split variants fill the whole graphic area with a single image.
     graphicImage: isSplit ? '' : generatedUrl,
-    // Split variants render two half-slots. Today we only generate one
-    // image at a time, so it lands in the top slot and the bottom slot
-    // shows the default --split-bg-b colour (visible proof that the
-    // two-slot layout is in place). When dual-gen lands, pass both URLs.
-    graphicImages: isSplit ? [generatedUrl, ''] : null,
+    // Split variants render two half-slots — one image per option.
+    graphicImages: isSplit ? [generatedUrl, generatedUrlB] : null,
     illustrationKey: '',
     deckType: state.cardFormDeckType,
     brandImageUrl: state.selectedPack?.brand_image_url || '',
@@ -466,6 +543,16 @@ function renderStyleFields() {
   const deckRows = ['die', 'live', 'bye'].map(deck => {
     const cfg = (decks[deck] && typeof decks[deck] === 'object') ? decks[deck] : {};
     const cap = deck.charAt(0).toUpperCase() + deck.slice(1);
+    // Split composition fields only apply to die deck (WYR cards).
+    const splitFields = deck === 'die' ? `
+        <label class="designer__label admin-img-gen__style-row">
+          Split Composition A
+          <input class="designer__input admin-img-gen__style-input" type="text" data-field="deck-config" data-deck="${deck}" data-key="splitCompositionA" placeholder="(e.g. 'Subject positioned in the top-left')" value="${esc(cfg.splitCompositionA ?? '')}">
+        </label>
+        <label class="designer__label admin-img-gen__style-row">
+          Split Composition B
+          <input class="designer__input admin-img-gen__style-input" type="text" data-field="deck-config" data-deck="${deck}" data-key="splitCompositionB" placeholder="(e.g. 'Subject positioned in the top-right')" value="${esc(cfg.splitCompositionB ?? '')}">
+        </label>` : '';
     return `
       <div class="admin-img-gen__deck-group">
         <div class="admin-img-gen__deck-group-label">${cap}</div>
@@ -477,6 +564,7 @@ function renderStyleFields() {
           Annotation
           <input class="designer__input admin-img-gen__style-input" type="text" data-field="deck-config" data-deck="${deck}" data-key="annotation" placeholder="(e.g. '${deck} card for a board game')" value="${esc(cfg.annotation ?? '')}">
         </label>
+        ${splitFields}
       </div>
     `;
   }).join('');
@@ -529,21 +617,45 @@ function renderGeneratedPanel() {
   }
   const g = state.generated;
   if (!g) return '';
+  const isSplit = state.cardFormDeckType === 'die' && state.cardFormSpecial === 'Split';
   const canSave = state.activeTab === 'pick' && !!state.selectedPackId && !!state.selectedCardId;
   const saveBtn = canSave
     ? `<button class="btn btn--primary" data-action="save-to-card" ${state.saving ? 'disabled' : ''}>${state.saving ? 'Saving…' : 'Save to card'}</button>`
     : `<button class="btn btn--primary" disabled title="Pick a card in the Pick tab to enable">Save to card</button>`;
+
+  // Split cards show both images side by side.
+  const imagesHtml = isSplit && g.imageUrlB
+    ? `<div class="admin-img-gen__generated-split">
+        <div class="admin-img-gen__generated-half">
+          <div class="admin-img-gen__generated-label">Option A</div>
+          <img class="admin-img-gen__generated" src="${esc(g.imageUrl)}" alt="Generated image — Option A">
+          <a class="btn btn--small" href="${esc(g.imageUrl)}" download="card-A-${Date.now()}.png" target="_blank" rel="noopener">Download A</a>
+        </div>
+        <div class="admin-img-gen__generated-half">
+          <div class="admin-img-gen__generated-label">Option B</div>
+          <img class="admin-img-gen__generated" src="${esc(g.imageUrlB)}" alt="Generated image — Option B">
+          <a class="btn btn--small" href="${esc(g.imageUrlB)}" download="card-B-${Date.now()}.png" target="_blank" rel="noopener">Download B</a>
+        </div>
+      </div>`
+    : `<img class="admin-img-gen__generated" src="${esc(g.imageUrl)}" alt="Generated card illustration">
+       <a class="btn" href="${esc(g.imageUrl)}" download="card-${Date.now()}.png" target="_blank" rel="noopener">Download</a>`;
+
+  // Show both prompts if they differ for split cards.
+  const promptMeta = isSplit && g.promptSentB && g.promptSentB !== g.promptSent
+    ? `<strong>Prompt A:</strong> <span class="admin-img-gen__muted">${esc(g.promptSent)}</span><br>
+       <strong>Prompt B:</strong> <span class="admin-img-gen__muted">${esc(g.promptSentB)}</span>`
+    : `<strong>Prompt sent:</strong> <span class="admin-img-gen__muted">${esc(g.promptSent)}</span>`;
+
   return `
     <div class="admin-img-gen__section">
-      <h2 class="admin-img-gen__section-title">Generated image</h2>
-      <img class="admin-img-gen__generated" src="${esc(g.imageUrl)}" alt="Generated card illustration">
+      <h2 class="admin-img-gen__section-title">Generated image${isSplit && g.imageUrlB ? 's' : ''}</h2>
+      ${imagesHtml}
       <div class="admin-img-gen__gen-meta">
         <strong>Provider:</strong> ${esc(g.provider)}<br>
-        <strong>Prompt sent:</strong> <span class="admin-img-gen__muted">${esc(g.promptSent)}</span>
+        ${promptMeta}
       </div>
       ${state.saveError ? `<p class="admin-img-gen__error">${esc(state.saveError)}</p>` : ''}
       <div class="admin-img-gen__gen-actions">
-        <a class="btn" href="${esc(g.imageUrl)}" download="card-${Date.now()}.png" target="_blank" rel="noopener">Download</a>
         ${saveBtn}
       </div>
     </div>
@@ -576,7 +688,7 @@ function renderGenerationLog() {
   } else if (state.generationLog.length === 0) {
     body = '<p class="admin-img-gen__muted">No generations yet — click Generate to start.</p>';
   } else {
-    const cells = state.generationLog.map(entry => {
+    const cells = state.generationLog.map((entry, idx) => {
       let optsArr = null;
       try { optsArr = entry.options_json ? JSON.parse(entry.options_json) : null; } catch {}
       const isSplit = entry.deck_type === 'die' && entry.card_special === 'Split';
@@ -592,9 +704,30 @@ function renderGenerationLog() {
         special: entry.deck_type === 'die' ? (entry.card_special || '') : '',
         options: optsArr,
       }));
+
+      // Word-by-word prompt diff vs the previous (older) entry.
+      // The log is newest-first, so the "previous" generation is idx+1.
+      // Shows changes-only by default; click to expand full diff.
+      let diffHtml = '';
+      const prevEntry = state.generationLog[idx + 1];
+      if (prevEntry) {
+        const curPrompt = entry.prompt_sent || '';
+        const prevPrompt = prevEntry.prompt_sent || '';
+        if (curPrompt !== prevPrompt) {
+          const compact = renderWordDiff(prevPrompt, curPrompt, { changesOnly: true });
+          const full = renderWordDiff(prevPrompt, curPrompt);
+          diffHtml = `
+            <div class="prompt-diff prompt-diff--compact" data-action="expand-diff">${compact}</div>
+            <div class="prompt-diff prompt-diff--full" data-action="collapse-diff">${full}</div>`;
+        } else {
+          diffHtml = '<div class="prompt-diff prompt-diff--same">(same prompt)</div>';
+        }
+      }
+
       return `
         <button class="admin-img-gen__log-cell" data-action="hydrate-from-log" data-log-id="${esc(entry.id)}" title="${esc(entry.text || '')}&#10;${esc(entry.provider)} · ${esc(entry.created_at)}">
           ${cardHtml}
+          ${diffHtml}
         </button>
       `;
     }).join('');
@@ -713,6 +846,28 @@ function onClick(e) {
       if (scope === state.generationLogScope) return;
       state.generationLogScope = scope;
       loadGenerationLog();
+      return;
+    }
+
+    case 'expand-diff': {
+      const cell = target.closest('.admin-img-gen__log-cell');
+      if (cell) {
+        cell.querySelector('.prompt-diff--compact').style.display = 'none';
+        cell.querySelector('.prompt-diff--full').style.display = 'block';
+      }
+      e.stopPropagation();
+      e.preventDefault();
+      return;
+    }
+
+    case 'collapse-diff': {
+      const cell = target.closest('.admin-img-gen__log-cell');
+      if (cell) {
+        cell.querySelector('.prompt-diff--compact').style.display = 'block';
+        cell.querySelector('.prompt-diff--full').style.display = 'none';
+      }
+      e.stopPropagation();
+      e.preventDefault();
       return;
     }
 
@@ -923,16 +1078,43 @@ async function generate() {
     // Size the generation request to the target card region so the
     // provider renders the right aspect ratio instead of the default 1:1.
     const dims = targetDimensions(state.cardFormDeckType, state.cardFormSpecial);
-    const result = await generateImage({
-      providerId: state.selectedProviderId,
-      cardText: state.cardFormText,
-      cardPrompt: state.cardFormPrompt,
-      deckType: state.cardFormDeckType,
-      style: state.style,
-      promptOverride: state.promptOverride,
-      options: { width: dims.width, height: dims.height },
-    });
-    state.generated = result;
+    const isSplit = state.cardFormDeckType === 'die' && state.cardFormSpecial === 'Split';
+
+    if (isSplit) {
+      // Split / WYR cards need two images — one per option. Fire both
+      // generation requests in parallel so the user waits ~1x, not ~2x.
+      const optA = state.cardFormOption1 || 'Option A';
+      const optB = state.cardFormOption2 || 'Option B';
+      const common = {
+        providerId: state.selectedProviderId,
+        cardPrompt: state.cardFormPrompt,
+        deckType: state.cardFormDeckType,
+        style: state.style,
+        options: { width: dims.width, height: dims.height },
+      };
+      const [resultA, resultB] = await Promise.all([
+        generateImage({ ...common, cardText: optA, promptOverride: state.promptOverride, splitPosition: 'a' }),
+        generateImage({ ...common, cardText: optB, promptOverride: state.promptOverride, splitPosition: 'b' }),
+      ]);
+      state.generated = {
+        imageUrl: resultA.imageUrl,
+        imageUrlB: resultB.imageUrl,
+        provider: resultA.provider,
+        promptSent: resultA.promptSent,
+        promptSentB: resultB.promptSent,
+      };
+    } else {
+      const result = await generateImage({
+        providerId: state.selectedProviderId,
+        cardText: state.cardFormText,
+        cardPrompt: state.cardFormPrompt,
+        deckType: state.cardFormDeckType,
+        style: state.style,
+        promptOverride: state.promptOverride,
+        options: { width: dims.width, height: dims.height },
+      });
+      state.generated = result;
+    }
     // Refresh the Recent generations gallery so the new entry appears
     // at the top. Fire-and-forget — the main render() below doesn't
     // need to wait for it.
@@ -1051,6 +1233,7 @@ function hydrateFromLog(logId) {
   state.promptOverride = null;
   state.generated = {
     imageUrl: entry.image_url,
+    imageUrlB: entry.image_url_b || '',
     provider: entry.provider,
     promptSent: entry.prompt_sent,
   };

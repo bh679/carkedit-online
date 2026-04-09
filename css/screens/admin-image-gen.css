@@ -333,6 +333,31 @@ html, body {
   background: rgba(0, 0, 0, 0.25);
 }
 
+/* Dual-image layout for split / WYR cards */
+.admin-img-gen__generated-split {
+  display: flex;
+  gap: 0.75rem;
+  margin: 0.5rem 0;
+}
+.admin-img-gen__generated-half {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+}
+.admin-img-gen__generated-half .admin-img-gen__generated {
+  max-width: 100%;
+  margin: 0;
+}
+.admin-img-gen__generated-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted, #9a9ab0);
+}
+
 .admin-img-gen__gen-meta {
   font-size: 0.78rem;
   color: var(--color-text-muted, #888);
@@ -342,4 +367,51 @@ html, body {
 }
 .admin-img-gen__gen-meta strong {
   color: var(--color-text, #f0f0f0);
+}
+
+/* --- Prompt word-diff in generation log --- */
+
+.prompt-diff {
+  font-size: 0.65rem;
+  line-height: 1.4;
+  margin-top: 0.35rem;
+  padding: 0.25rem 0.35rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  word-break: break-word;
+  max-height: 4.5em;
+  overflow-y: auto;
+  text-align: left;
+  pointer-events: auto;
+}
+.prompt-diff--compact {
+  cursor: pointer;
+}
+.prompt-diff--full {
+  display: none;
+  cursor: pointer;
+}
+.prompt-diff--same {
+  color: var(--color-text-muted, #888);
+  font-style: italic;
+}
+.prompt-diff--ellipsis {
+  color: var(--color-text-muted, #666);
+}
+.prompt-diff--added {
+  background: rgba(34, 197, 94, 0.25);
+  color: #4ade80;
+  text-decoration: none;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+.prompt-diff--removed {
+  background: rgba(239, 68, 68, 0.25);
+  color: #f87171;
+  text-decoration: line-through;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+.prompt-diff--equal {
+  color: var(--color-text-muted, #999);
 }
