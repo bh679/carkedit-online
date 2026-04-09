@@ -154,14 +154,14 @@
   opacity: 0.5;
 }
 
-.online-lobby__settings-summary:empty {
-  display: none;
-}
-
 .online-lobby__summary-chip {
   pointer-events: none;
   font-size: 0.85rem;
   padding: 0.5rem 0.75rem;
+}
+
+.online-lobby__summary-chip--faded {
+  opacity: 0.4;
 }
 
 /* ── Host settings ───────────────────────────────────── */

@@ -380,11 +380,17 @@ export function renderSettingsSummary(state) {
   if (gs.wildcardCount !== d.wildcardCount) cards.push(['Wildcards', gs.wildcardCount]);
   if (gs.eulogistCount !== d.eulogistCount) cards.push(['Eulogists', gs.eulogistCount]);
 
-  const packCount = (state.selectedPackIds || []).length;
-  if (packCount > 0) cards.push(['Packs', packCount]);
+  const selectedIds = state.selectedPackIds || [];
+  const expansionCount = selectedIds.filter(id => id !== 'base').length;
+  const baseOff = !selectedIds.includes('base');
+
+  if (baseOff) cards.push([null, 'Base Pack', true]);
+  if (expansionCount > 0) cards.push(['Packs', expansionCount]);
 
   if (cards.length === 0) {
-    return `<div id="settings-summary-panel" class="online-lobby__settings-summary"></div>`;
+    return `<div id="settings-summary-panel" class="online-lobby__settings-summary">
+      <span class="online-lobby__summary-chip online-lobby__summary-chip--faded">Settings</span>
+    </div>`;
   }
 
   return `
