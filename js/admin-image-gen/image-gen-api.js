@@ -85,6 +85,20 @@ export async function generateImage({
 }
 
 /**
+ * POST /image-gen/style — persist the current style JSON back to the
+ * shipped default file on disk at <CLIENT_DIR>/js/data/image-gen-style.json.
+ * Admin-only. Returns `{ ok: true, bytes, path }` on success.
+ */
+export async function saveStyleJson(style) {
+  const res = await fetch(`${API_BASE}/image-gen/style`, {
+    method: 'POST',
+    headers: await authHeaders(),
+    body: JSON.stringify({ style }),
+  });
+  return handleJson(res, 'Failed to save style JSON');
+}
+
+/**
  * POST /packs/:id/cards/:cardId/image-from-url — server downloads the remote
  * image, writes it to uploads/card-images/, and sets card.image_url. Returns
  * the updated card.

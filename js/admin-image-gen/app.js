@@ -22,6 +22,7 @@ import {
   listProviders,
   generateImage,
   saveImageToCard,
+  saveStyleJson,
   listMyPacks,
   getPackWithCards,
 } from './image-gen-api.js';
@@ -73,6 +74,11 @@ const state = {
   // Save-to-card status
   saving: false,
   saveError: null,
+
+  // Save-style-to-disk status (Save JSON button)
+  savingStyle: false,
+  saveStyleError: null,
+  savedAt: 0,                     // ms timestamp of last successful save (for "Saved ✓" flash)
 };
 
 // ---------------------------------------------------------------------------
@@ -390,8 +396,14 @@ function renderGenerationPanel() {
         <div>
           <button class="btn btn--small btn--ghost" data-action="toggle-style-mode">${state.rawJsonMode ? 'Switch to fields' : 'Edit raw JSON'}</button>
           <button class="btn btn--small btn--ghost" data-action="reset-style">Reset</button>
+          <button class="btn btn--small btn--ghost" data-action="save-style" ${state.savingStyle || state.rawJsonError ? 'disabled' : ''} title="Write the current style JSON back to js/data/image-gen-style.json on disk">${
+            state.savingStyle ? 'Saving…'
+            : (state.savedAt && (Date.now() - state.savedAt < 2000)) ? 'Saved \u2713'
+            : 'Save JSON'
+          }</button>
         </div>
       </div>
+      ${state.saveStyleError ? `<p class="admin-img-gen__error">${esc(state.saveStyleError)}</p>` : ''}
       ${styleBody}
 
       <label class="designer__label">
@@ -587,6 +599,10 @@ function onClick(e) {
     case 'reset-style':
       resetStyle();
       render();
+      return;
+
+    case 'save-style':
+      saveStyle();
       return;
 
     case 'reset-prompt':
@@ -836,6 +852,35 @@ async function handleSaveToCard() {
     state.saveError = err?.message || 'Save failed';
   } finally {
     state.saving = false;
+    render();
+  }
+}
+
+/**
+ * Write the current `state.style` back to the shipped default file on
+ * disk via `POST /api/carkedit/image-gen/style`. The button in the
+ * style header is disabled while this is in flight, and flashes
+ * "Saved ✓" for 2 seconds on success.
+ */
+async function saveStyle() {
+  if (state.savingStyle) return;
+  if (state.rawJsonError) return;  // don't save known-invalid JSON
+  state.savingStyle = true;
+  state.saveStyleError = null;
+  render();
+  try {
+    await saveStyleJson(state.style);
+    state.savedAt = Date.now();
+    // Clear the "Saved ✓" flash after 2 seconds.
+    setTimeout(() => {
+      state.savedAt = 0;
+      render();
+    }, 2000);
+  } catch (err) {
+    console.error('[admin-image-gen] saveStyle failed:', err);
+    state.saveStyleError = err?.message || 'Save failed';
+  } finally {
+    state.savingStyle = false;
     render();
   }
 }
