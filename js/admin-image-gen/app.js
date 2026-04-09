@@ -22,6 +22,7 @@ import { buildCard } from '../data/card.js';
 import {
   listProviders,
   generateImage,
+  mergeLogEntries,
   saveImageToCard,
   saveStyleJson,
   getStyleJson,
@@ -1109,6 +1110,20 @@ async function generate() {
         promptSent: resultA.promptSent,
         promptSentB: resultB.promptSent,
       };
+      // Merge the two log entries into one so Recent generations shows
+      // a single combined split card instead of two separate thumbnails.
+      if (resultA.logId && resultB.logId) {
+        mergeLogEntries({
+          keepId: resultA.logId,
+          mergeId: resultB.logId,
+          updates: {
+            image_url_b: resultB.imageUrl,
+            text: state.cardFormText,
+            card_special: 'Split',
+            options_json: JSON.stringify([optA, optB]),
+          },
+        }).catch(err => console.warn('[admin-image-gen] merge log entries failed:', err));
+      }
     } else {
       const result = await generateImage({
         providerId: state.selectedProviderId,
