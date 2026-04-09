@@ -892,12 +892,25 @@ function renderGenerationLog() {
         }
       }
 
-      const costBadge = entry.cost_usd != null
-        ? `<span class="admin-img-gen__log-cost">$${Number(entry.cost_usd).toFixed(4)}</span>`
+      // Use stored cost, or estimate from provider pricing + image dimensions
+      let entryCost = entry.cost_usd != null ? Number(entry.cost_usd) : null;
+      let costEstimated = false;
+      if (entryCost == null && entry.provider) {
+        const prov = state.providers.find(p => p.id === entry.provider);
+        if (prov?.pricing?.costPerMegapixel) {
+          const dims = targetDimensions(entry.deck_type, entry.card_special);
+          const mp = (dims.width * dims.height) / 1_000_000;
+          const images = (entry.card_special === 'Split' && entry.image_url_b) ? 2 : 1;
+          entryCost = prov.pricing.costPerMegapixel * mp * images;
+          costEstimated = true;
+        }
+      }
+      const costBadge = entryCost != null
+        ? `<span class="admin-img-gen__log-cost${costEstimated ? ' admin-img-gen__log-cost--est' : ''}">$${entryCost.toFixed(4)}${costEstimated ? '*' : ''}</span>`
         : '';
 
       return `
-        <button class="admin-img-gen__log-cell" data-action="hydrate-from-log" data-log-id="${esc(entry.id)}" title="${esc(entry.text || '')}&#10;${esc(entry.provider)} · ${esc(entry.created_at)}${entry.cost_usd != null ? ` · $${Number(entry.cost_usd).toFixed(4)}` : ''}">
+        <button class="admin-img-gen__log-cell" data-action="hydrate-from-log" data-log-id="${esc(entry.id)}" title="${esc(entry.text || '')}&#10;${esc(entry.provider)} · ${esc(entry.created_at)}${entryCost != null ? ` · $${entryCost.toFixed(4)}${costEstimated ? ' (est.)' : ''}` : ''}">
           ${cardHtml}
           ${costBadge}
           ${diffHtml}
@@ -911,7 +924,17 @@ function renderGenerationLog() {
     body = `<div class="admin-img-gen__log-grid">${cells}</div>${loadMoreBtn}`;
   }
 
-  const totalCost = state.generationLog.reduce((sum, e) => sum + (e.cost_usd || 0), 0);
+  const totalCost = state.generationLog.reduce((sum, e) => {
+    if (e.cost_usd != null) return sum + Number(e.cost_usd);
+    const prov = state.providers.find(p => p.id === e.provider);
+    if (prov?.pricing?.costPerMegapixel) {
+      const dims = targetDimensions(e.deck_type, e.card_special);
+      const mp = (dims.width * dims.height) / 1_000_000;
+      const images = (e.card_special === 'Split' && e.image_url_b) ? 2 : 1;
+      return sum + prov.pricing.costPerMegapixel * mp * images;
+    }
+    return sum;
+  }, 0);
   const totalDisplay = totalCost > 0
     ? `<span class="admin-img-gen__log-total">Total: $${totalCost.toFixed(2)}</span>`
     : '';
