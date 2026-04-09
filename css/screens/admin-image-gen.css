@@ -29,6 +29,9 @@ html, body {
   padding: 1.5rem 1.5rem 4rem;
   color: var(--color-text, #f0f0f0);
 }
+/* When batch count > 1, an inline max-width is applied to .admin-img-gen
+ * to scale proportionally with the number of cards. No static --wide
+ * class needed — the JS calculates 900 + (extraCards * 240) px. */
 
 .admin-img-gen__loading {
   padding: 3rem;
@@ -84,7 +87,7 @@ html, body {
 
 .admin-img-gen__grid {
   display: grid;
-  grid-template-columns: minmax(280px, 1.4fr) minmax(220px, 1fr);
+  grid-template-columns: minmax(280px, 480px) 1fr;
   gap: 1.25rem;
   align-items: start;
 }
@@ -99,6 +102,7 @@ html, body {
   flex-direction: column;
   gap: 1rem;
 }
+/* Left column max-width is handled by the grid template (480px cap). */
 
 .admin-img-gen__section {
   background: var(--color-surface, #252540);
@@ -356,6 +360,93 @@ html, body {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--color-text-muted, #9a9ab0);
+}
+
+/* --- Batch generation row --- */
+.admin-img-gen__section--batch {
+  max-width: none;
+}
+.admin-img-gen__batch-row {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+.admin-img-gen__batch-item {
+  flex: 0 0 auto;
+  width: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  background: transparent;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  padding: 0.5rem;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  transition: border-color 0.15s ease;
+}
+.admin-img-gen__batch-item:hover {
+  border-color: rgba(152, 66, 255, 0.4);
+}
+.admin-img-gen__batch-item--active {
+  border-color: var(--color-primary, #9842ff);
+  background: rgba(152, 66, 255, 0.08);
+}
+.admin-img-gen__batch-item .admin-img-gen__generated {
+  max-width: 220px;
+  width: 100%;
+  margin: 0;
+}
+.admin-img-gen__batch-num {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--color-text-muted, #9a9ab0);
+  letter-spacing: 0.04em;
+}
+.admin-img-gen__batch-actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+}
+.admin-img-gen__batch-card-preview {
+  display: flex;
+  justify-content: center;
+}
+.admin-img-gen__batch-card-preview .card {
+  width: 220px;
+  max-width: 100%;
+}
+.admin-img-gen__batch-generated {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+}
+.admin-img-gen__generated-split--batch {
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.admin-img-gen__generated-split--batch .admin-img-gen__generated-half {
+  flex-direction: row;
+  gap: 0.5rem;
+}
+
+/* Batch count input next to Generate button */
+.admin-img-gen__batch-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  color: var(--color-text-muted, #9a9ab0);
+}
+.admin-img-gen__batch-input {
+  width: 3.5em;
+  text-align: center;
+  padding: 0.35em 0.25em;
 }
 
 .admin-img-gen__gen-meta {
