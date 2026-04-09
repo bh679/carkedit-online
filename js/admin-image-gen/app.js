@@ -504,13 +504,27 @@ function renderGenerationPanel() {
     ? state.promptOverride
     : state.promptPreview;
 
+  const selectedProvider = state.providers.find(p => p.id === state.selectedProviderId);
+  const pricingInfo = selectedProvider?.pricing
+    ? (() => {
+        const url = selectedProvider.pricing.pricingUrl;
+        const cost = `$${selectedProvider.pricing.costPerMegapixel.toFixed(3)}/MP`;
+        return url
+          ? `<a href="${esc(url)}" target="_blank" rel="noopener" class="admin-img-gen__pricing-link">${cost}</a>`
+          : `<span class="admin-img-gen__pricing-link">${cost}</span>`;
+      })()
+    : '';
+
   return `
     <div class="admin-img-gen__section">
       <h2 class="admin-img-gen__section-title">Image generation</h2>
 
       <label class="designer__label">
         Provider
-        <select class="designer__input" data-action="select-provider">${providerOpts}</select>
+        <div class="admin-img-gen__provider-row">
+          <select class="designer__input" data-action="select-provider">${providerOpts}</select>
+          ${pricingInfo}
+        </div>
       </label>
 
       <div class="admin-img-gen__style-header">
@@ -723,7 +737,14 @@ function renderGeneratedPanel() {
       <h2 class="admin-img-gen__section-title">Generated image${batchLabel}</h2>
       ${imagesHtml}
       <div class="admin-img-gen__gen-meta">
-        <strong>Provider:</strong> ${esc(g.provider)}<br>
+        <strong>Provider:</strong> ${esc(g.provider)}${g.costUsd != null ? (() => {
+          const prov = state.providers.find(p => p.id === g.provider);
+          const url = prov?.pricing?.pricingUrl;
+          const costText = `$${Number(g.costUsd).toFixed(4)}${g.tokensUsed != null ? ` (${g.tokensUsed} tokens)` : ''}`;
+          return url
+            ? ` — <a href="${esc(url)}" target="_blank" rel="noopener" class="admin-img-gen__pricing-link">${costText}</a>`
+            : ` — ${costText}`;
+        })() : ''}<br>
         ${promptMeta}
       </div>
       ${state.saveError ? `<p class="admin-img-gen__error">${esc(state.saveError)}</p>` : ''}
@@ -871,9 +892,14 @@ function renderGenerationLog() {
         }
       }
 
+      const costBadge = entry.cost_usd != null
+        ? `<span class="admin-img-gen__log-cost">$${Number(entry.cost_usd).toFixed(4)}</span>`
+        : '';
+
       return `
-        <button class="admin-img-gen__log-cell" data-action="hydrate-from-log" data-log-id="${esc(entry.id)}" title="${esc(entry.text || '')}&#10;${esc(entry.provider)} · ${esc(entry.created_at)}">
+        <button class="admin-img-gen__log-cell" data-action="hydrate-from-log" data-log-id="${esc(entry.id)}" title="${esc(entry.text || '')}&#10;${esc(entry.provider)} · ${esc(entry.created_at)}${entry.cost_usd != null ? ` · $${Number(entry.cost_usd).toFixed(4)}` : ''}">
           ${cardHtml}
+          ${costBadge}
           ${diffHtml}
         </button>
       `;
@@ -885,9 +911,14 @@ function renderGenerationLog() {
     body = `<div class="admin-img-gen__log-grid">${cells}</div>${loadMoreBtn}`;
   }
 
+  const totalCost = state.generationLog.reduce((sum, e) => sum + (e.cost_usd || 0), 0);
+  const totalDisplay = totalCost > 0
+    ? `<span class="admin-img-gen__log-total">Total: $${totalCost.toFixed(2)}</span>`
+    : '';
+
   return `
     <div class="admin-img-gen__section admin-img-gen__log-section">
-      <h2 class="admin-img-gen__section-title">Recent generations</h2>
+      <h2 class="admin-img-gen__section-title">Recent generations ${totalDisplay}</h2>
       <div class="admin-img-gen__log-filters">${filters}</div>
       ${body}
     </div>
@@ -1152,6 +1183,7 @@ function onChange(e) {
     else render();
   } else if (action === 'select-provider') {
     state.selectedProviderId = t.value || null;
+    render();
   }
 }
 
@@ -1372,6 +1404,8 @@ async function generate() {
           provider: resultA.provider,
           promptSent: resultA.promptSent,
           promptSentB: resultB.promptSent,
+          tokensUsed: (resultA.tokensUsed || 0) + (resultB.tokensUsed || 0) || null,
+          costUsd: (resultA.costUsd || 0) + (resultB.costUsd || 0) || null,
         };
       });
     } else {
@@ -1518,6 +1552,8 @@ function hydrateFromLog(logId) {
     imageUrlB: entry.image_url_b || '',
     provider: entry.provider,
     promptSent: entry.prompt_sent,
+    tokensUsed: entry.tokens_used ?? null,
+    costUsd: entry.cost_usd ?? null,
   };
   state.generated = restoredResult;
   state.generatedBatch = [restoredResult];
