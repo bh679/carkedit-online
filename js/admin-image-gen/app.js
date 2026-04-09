@@ -571,7 +571,7 @@ function renderCardForm() {
     <div class="designer__field" style="margin-top: 4px">
       <span class="designer__label" style="font-size: 0.85em; color: ${state.mysteryRefImageBase64 ? '#2a7' : state.mysteryRefImageError ? '#c44' : '#888'}">
         ${state.mysteryRefImageBase64
-          ? 'Image-editing mode: using questionmark.png as reference'
+          ? 'Image-editing mode: using <a href="assets/questionmark.png" target="_blank" style="color: inherit; text-decoration: underline">questionmark.png</a> as reference'
           : state.mysteryRefImageLoading
             ? 'Loading reference image...'
             : state.mysteryRefImageError
