@@ -636,8 +636,12 @@ function renderGeneratedPanel() {
   }
   if (!batch || batch.length === 0) return '';
 
-  // Always show a single generated image — the selected batch item.
-  const idx = state.selectedBatchIdx;
+  // In batch mode, hide until a card is selected.
+  const isBatch = batch.length > 1;
+  if (isBatch && state.selectedBatchIdx === null) return '';
+
+  // Show the selected batch item (or the only item).
+  const idx = state.selectedBatchIdx ?? 0;
   const g = batch[idx] || batch[0];
   if (!g) return '';
 
@@ -935,8 +939,14 @@ function onClick(e) {
 
     case 'select-batch': {
       const idx = parseInt(target.getAttribute('data-batch-idx') || '0', 10);
-      state.selectedBatchIdx = idx;
-      state.generated = state.generatedBatch[idx] || state.generatedBatch[0] || null;
+      // Toggle: clicking the already-selected card deselects it.
+      if (state.selectedBatchIdx === idx) {
+        state.selectedBatchIdx = null;
+        state.generated = null;
+      } else {
+        state.selectedBatchIdx = idx;
+        state.generated = state.generatedBatch[idx] || state.generatedBatch[0] || null;
+      }
       render();
       return;
     }
@@ -1184,7 +1194,7 @@ async function generate() {
   state.generateError = null;
   state.generated = null;
   state.generatedBatch = [];
-  state.selectedBatchIdx = 0;
+  state.selectedBatchIdx = null;
   state.saveError = null;
   render();
   try {
@@ -1234,8 +1244,14 @@ async function generate() {
       );
       state.generatedBatch = await Promise.all(requests);
     }
-    // Keep compat: state.generated = first result
-    state.generated = state.generatedBatch[0] || null;
+    // For single results, pre-select. For batch, leave unselected until clicked.
+    if (state.generatedBatch.length === 1) {
+      state.selectedBatchIdx = 0;
+      state.generated = state.generatedBatch[0];
+    } else {
+      state.selectedBatchIdx = null;
+      state.generated = null;
+    }
     // Refresh the Recent generations gallery so the new entry appears
     // at the top. Fire-and-forget — the main render() below doesn't
     // need to wait for it.
