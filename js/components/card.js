@@ -53,13 +53,15 @@ function renderTextOnlyInner(title, description, prompt, deckType, special, opti
     if (isSplit) {
       // Two-image split layout: ship an empty array by default so the
       // halves always render with fallback colours, giving a visible
-      // top/bottom divide even before any image is generated. When the
+      // diagonal divide even before any image is generated. When the
       // caller passes `graphicImages: [urlA, urlB]`, each half picks up
       // its own background. The single-image `graphicImage` still works
       // on the parent for backwards compat when `graphicImages` isn't set.
+      // Slot A is the upper-left triangle, slot B is the lower-right
+      // triangle (see .card__split-half--{a,b} clip-paths in card.css).
       const imgs = Array.isArray(graphicImages) ? graphicImages : [];
-      const topImg = imgs[0] || '';
-      const botImg = imgs[1] || '';
+      const imgA = imgs[0] || '';
+      const imgB = imgs[1] || '';
       // If the caller provided `graphicImages` at all (even empty slots),
       // use the two-halves layout. Otherwise keep backwards-compatible
       // single-fill behaviour via the parent-level `bgStyle`.
@@ -67,8 +69,8 @@ function renderTextOnlyInner(title, description, prompt, deckType, special, opti
       const parentStyle = useHalves ? '' : bgStyle;
       const halvesMarkup = useHalves
         ? `
-          <div class="card__split-half card__split-half--top"${halfStyle(topImg, '--split-bg-a')}></div>
-          <div class="card__split-half card__split-half--bottom"${halfStyle(botImg, '--split-bg-b')}></div>`
+          <div class="card__split-half card__split-half--a"${halfStyle(imgA, '--split-bg-a')}></div>
+          <div class="card__split-half card__split-half--b"${halfStyle(imgB, '--split-bg-b')}></div>`
         : '';
       return `
         <div class="card__graphic-area card__graphic-area--${deckType} card__graphic-area--split"${parentStyle}>${halvesMarkup}
