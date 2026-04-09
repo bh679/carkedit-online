@@ -210,4 +210,19 @@ if (typeof window !== 'undefined' && !window.__swipeOverlayInit) {
 
   document.addEventListener('pointerup', endDrag, { passive: true });
   document.addEventListener('pointercancel', endDrag, { passive: true });
+
+  // ── Suppress right-click / long-press context menu on card images ──
+  //
+  // Pair with the CSS rules on `.card__img` / `.card-back__image` /
+  // `.ld-profile__card-img` that set `pointer-events: none`. Even though
+  // the img itself no longer receives events, browsers may still show a
+  // context menu on long-press of the image area (iOS Safari) or when the
+  // pointer walks through the parent element. Prevent the default menu
+  // whenever the contextmenu event occurs on (or inside) a `.card` or
+  // any of the card-image classes — so users can't save the illustration.
+  document.addEventListener('contextmenu', (e) => {
+    if (e.target.closest('.card, .card__img, .card-back__image, .ld-profile__card-img, .pack-bg__card')) {
+      e.preventDefault();
+    }
+  }, { capture: true });
 }

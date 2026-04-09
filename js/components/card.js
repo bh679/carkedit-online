@@ -153,7 +153,7 @@ function renderInner(card, spec) {
 /** Shared brand-image HTML for every deck. */
 function renderBrand(brandImageUrl) {
   if (!brandImageUrl) return '';
-  return `<img class="card__brand" src="${escAttr(brandImageUrl)}" alt="" onerror="this.style.display='none'">`;
+  return `<img class="card__brand" src="${escAttr(brandImageUrl)}" alt="" draggable="false" onerror="this.style.display='none'">`;
 }
 
 /**
@@ -200,7 +200,7 @@ export function render(card) {
     const altText = [card.title, card.description, card.prompt].filter(Boolean).join(' — ');
     return `
     <div class="card card--${deckType}${spec.extraClasses}">
-      <img src="${escAttr(card.image)}" alt="${escAttr(altText)}" class="card__img" onerror="${onError}">
+      <img src="${escAttr(card.image)}" alt="${escAttr(altText)}" class="card__img" draggable="false" onerror="${onError}">
       ${brandHtml}
       ${spec.isMystery ? '<span class="card__mystery-badge">?</span>' : ''}
     </div>`;

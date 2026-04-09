@@ -28,6 +28,12 @@
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
   pointer-events: none;
   z-index: 2;
+  /* Same anti-drag protection as .card__img. */
+  -webkit-user-drag: none;
+  user-drag: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 /* Deck colour accents */
@@ -45,6 +51,25 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+/* Disable native image-drag, selection, and iOS long-press callout on
+ * every card-image class. `pointer-events: none` routes clicks to the
+ * parent `.card` (or `.card-list__item`) so the drag-to-scroll delegate
+ * in `js/components/swipe-overlay.js` can pan the list even when the
+ * pointer started on a card illustration. The contextmenu event is
+ * additionally suppressed by swipe-overlay.js so right-click-save is
+ * also blocked.
+ */
+.card__img,
+.card-back__image,
+.ld-profile__card-img {
+  -webkit-user-drag: none;
+  user-drag: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  pointer-events: none;
 }
 
 .card__image-placeholder {

@@ -91,7 +91,7 @@ export function render({
     // text-only card via renderCard() instead of a blank placeholder, so
     // custom cards are visible in the profile thumbnail strip.
     const thumbContent = imgSrc
-      ? `<img src="${imgSrc}" alt="${safeTitle}" class="ld-profile__card-img" loading="lazy">`
+      ? `<img src="${imgSrc}" alt="${safeTitle}" class="ld-profile__card-img" draggable="false" loading="lazy">`
       : `<div class="ld-profile__card-placeholder ld-profile__card-placeholder--text-only">${renderCard(card)}</div>`;
     return `
       <button class="ld-profile__card-thumb" onclick="window.game.inspectProfileCard(${index})" aria-label="View ${safeTitle}">

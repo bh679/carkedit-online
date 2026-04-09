@@ -583,7 +583,7 @@ function renderPreview() {
   const imgSrc = getCardImage(card.card_id, card.card_deck);
 
   const cardHtml = imgSrc
-    ? `<div class="card card--${deckType}"><img src="${imgSrc}" alt="${card.card_text}" class="card__img"></div>`
+    ? `<div class="card card--${deckType}"><img src="${imgSrc}" alt="${card.card_text}" class="card__img" draggable="false"></div>`
     : `<div class="card card--${deckType}">
         <div class="card__image"><div class="card__image-placeholder"></div></div>
         <div class="card__body"><h3 class="card__title">${card.card_text}</h3></div>
@@ -620,7 +620,7 @@ function previewCard(text, deck, cardId) {
     const deckType = deckTypeForCard(deck);
     const imgSrc = cardId ? getCardImage(cardId, deck) : null;
     const cardHtml = imgSrc
-      ? `<div class="card card--${deckType}"><img src="${imgSrc}" alt="${text}" class="card__img"></div>`
+      ? `<div class="card card--${deckType}"><img src="${imgSrc}" alt="${text}" class="card__img" draggable="false"></div>`
       : `<div class="card card--${deckType}">
           <div class="card__image"><div class="card__image-placeholder"></div></div>
           <div class="card__body"><h3 class="card__title">${text}</h3></div>
@@ -667,7 +667,7 @@ function renderMiniCard(text, deck, cardId) {
   return `
     <div class="card card--${deckType} detail__mini-card" onclick="event.stopPropagation(); window.dash.previewCard('${escAttr(text)}', '${escAttr(deck)}'${idAttr})">
       ${imgSrc
-        ? `<img src="${imgSrc}" alt="${text}" class="card__img">`
+        ? `<img src="${imgSrc}" alt="${text}" class="card__img" draggable="false">`
         : `<div class="card__body"><h3 class="card__title">${text}</h3></div>`}
     </div>`;
 }
