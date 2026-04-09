@@ -64,6 +64,8 @@ const state = {
   rawJsonMode: false,             // false = per-field inputs, true = textarea
   rawJsonDraft: '',               // when in rawJsonMode, the textarea contents
   rawJsonError: null,
+  styleCollapsed: false,          // collapse the Style JSON body (field or raw)
+  decksCollapsed: false,          // collapse only the Decks subsection
   promptOverride: null,           // null = use auto-assembled, string = overridden
   promptPreview: '',              // last auto-assembled prompt for the UI
 
@@ -402,7 +404,10 @@ function renderGenerationPanel() {
       </label>
 
       <div class="admin-img-gen__style-header">
-        <span class="designer__label">Style JSON</span>
+        <button class="admin-img-gen__collapse-toggle" data-action="toggle-style-collapse" aria-expanded="${!state.styleCollapsed}">
+          <span class="admin-img-gen__caret">${state.styleCollapsed ? '\u25B8' : '\u25BE'}</span>
+          <span class="designer__label">Style JSON</span>
+        </button>
         <div>
           <button class="btn btn--small btn--ghost" data-action="toggle-style-mode">${state.rawJsonMode ? 'Switch to fields' : 'Edit raw JSON'}</button>
           <button class="btn btn--small btn--ghost" data-action="reset-style">Reset</button>
@@ -414,7 +419,7 @@ function renderGenerationPanel() {
         </div>
       </div>
       ${state.saveStyleError ? `<p class="admin-img-gen__error">${esc(state.saveStyleError)}</p>` : ''}
-      ${styleBody}
+      ${state.styleCollapsed ? '' : styleBody}
 
       <label class="designer__label">
         Final prompt (editable — override auto-assembly)
@@ -474,9 +479,12 @@ function renderStyleFields() {
   return `
     <div class="admin-img-gen__style-fields">${rows}</div>
     <div class="admin-img-gen__style-header" style="margin-top: 0.75rem">
-      <span class="designer__label">Decks</span>
+      <button class="admin-img-gen__collapse-toggle" data-action="toggle-decks-collapse" aria-expanded="${!state.decksCollapsed}">
+        <span class="admin-img-gen__caret">${state.decksCollapsed ? '\u25B8' : '\u25BE'}</span>
+        <span class="designer__label">Decks</span>
+      </button>
     </div>
-    <div class="admin-img-gen__style-fields">${deckRows}</div>
+    ${state.decksCollapsed ? '' : `<div class="admin-img-gen__style-fields">${deckRows}</div>`}
   `;
 }
 
@@ -707,6 +715,16 @@ function onClick(e) {
       if (id) hydrateFromLog(id);
       return;
     }
+
+    case 'toggle-style-collapse':
+      state.styleCollapsed = !state.styleCollapsed;
+      render();
+      return;
+
+    case 'toggle-decks-collapse':
+      state.decksCollapsed = !state.decksCollapsed;
+      render();
+      return;
   }
 }
 

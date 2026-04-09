@@ -177,6 +177,32 @@ html, body {
   gap: 0.4rem;
 }
 
+/* Section collapse toggle — caret + label, click toggles the body.
+ * Used by Style JSON and Decks sub-section. Session-only state. */
+.admin-img-gen__collapse-toggle {
+  background: transparent;
+  border: none;
+  padding: 0.2rem 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  text-align: left;
+}
+.admin-img-gen__collapse-toggle:hover .designer__label {
+  color: var(--color-text, #f0f0f0);
+}
+.admin-img-gen__caret {
+  display: inline-block;
+  width: 0.9em;
+  font-size: 0.85em;
+  opacity: 0.7;
+  line-height: 1;
+}
+
 .admin-img-gen__style-fields {
   display: flex;
   flex-direction: column;
