@@ -226,14 +226,19 @@ function humanizeKey(key) {
  *   - `annotation` — parenthesized and appended as "<cardText>. (<annotation>)"
  * The nested `decks` key is filtered out of the style clause.
  */
-function buildPromptClient({ cardText, cardPrompt, deckType, style }) {
+function buildPromptClient({ cardText, cardPrompt, deckType, style, cardSpecial }) {
   // Extract per-deck config from the nested `decks` sub-object.
   let deckPrefix = '';
   let deckAnnotation = '';
   if (style && typeof style === 'object' && style.decks && typeof style.decks === 'object' && deckType) {
     const cfg = style.decks[deckType];
     if (cfg && typeof cfg === 'object') {
-      if (typeof cfg.prefix === 'string' && cfg.prefix.trim()) deckPrefix = cfg.prefix.trim();
+      // Mystery cards use their own prefix when available.
+      if (cardSpecial === '?' && typeof cfg.mysteryPrefix === 'string' && cfg.mysteryPrefix.trim()) {
+        deckPrefix = cfg.mysteryPrefix.trim();
+      } else if (typeof cfg.prefix === 'string' && cfg.prefix.trim()) {
+        deckPrefix = cfg.prefix.trim();
+      }
       if (typeof cfg.annotation === 'string' && cfg.annotation.trim()) deckAnnotation = cfg.annotation.trim();
     }
   }
@@ -269,6 +274,7 @@ function recomputePromptPreview() {
     cardPrompt: state.cardFormPrompt,
     deckType: state.cardFormDeckType,
     style: state.style,
+    cardSpecial: state.cardFormSpecial || null,
   });
 }
 
@@ -613,8 +619,12 @@ function renderStyleFields() {
   const deckRows = ['die', 'live', 'bye'].map(deck => {
     const cfg = (decks[deck] && typeof decks[deck] === 'object') ? decks[deck] : {};
     const cap = deck.charAt(0).toUpperCase() + deck.slice(1);
-    // Split composition fields only apply to die deck (WYR cards).
-    const splitFields = deck === 'die' ? `
+    // Split/mystery composition fields only apply to die deck.
+    const dieExtraFields = deck === 'die' ? `
+        <label class="designer__label admin-img-gen__style-row">
+          Mystery Prefix
+          <input class="designer__input admin-img-gen__style-input" type="text" data-field="deck-config" data-deck="${deck}" data-key="mysteryPrefix" placeholder="(e.g. 'texture the ? and background inspired by the following')" value="${esc(cfg.mysteryPrefix ?? '')}">
+        </label>
         <label class="designer__label admin-img-gen__style-row">
           Split Composition A
           <input class="designer__input admin-img-gen__style-input" type="text" data-field="deck-config" data-deck="${deck}" data-key="splitCompositionA" placeholder="(e.g. 'Subject positioned in the top-left')" value="${esc(cfg.splitCompositionA ?? '')}">
@@ -634,7 +644,7 @@ function renderStyleFields() {
           Annotation
           <input class="designer__input admin-img-gen__style-input" type="text" data-field="deck-config" data-deck="${deck}" data-key="annotation" placeholder="(e.g. '${deck} card for a board game')" value="${esc(cfg.annotation ?? '')}">
         </label>
-        ${splitFields}
+        ${dieExtraFields}
       </div>
     `;
   }).join('');
@@ -1440,6 +1450,7 @@ async function generate() {
         deckType: state.cardFormDeckType,
         style: state.style,
         options: { width: dims.width, height: dims.height },
+        cardSpecial: state.cardFormSpecial || undefined,
         onProgress,
       };
       const pairs = Array.from({ length: count }, () =>
@@ -1485,6 +1496,7 @@ async function generate() {
           promptOverride: state.promptOverride,
           options: { width: dims.width, height: dims.height },
           inputImage,
+          cardSpecial: state.cardFormSpecial || undefined,
           onProgress,
         })
       );
