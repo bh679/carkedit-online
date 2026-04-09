@@ -138,9 +138,11 @@ if (typeof window !== 'undefined' && !window.__swipeOverlayInit) {
       active: false,
       pointerId: e.pointerId,
     };
-    // Pointer capture makes pointermove/pointerup fire reliably on this
-    // element even if the cursor leaves it.
-    try { container.setPointerCapture(e.pointerId); } catch { /* not all elements allow it */ }
+    // NOTE: we intentionally do NOT call setPointerCapture here.
+    // Capturing during pointerdown breaks click-event synthesis on
+    // child elements (the browser can't reconcile mousedown/mouseup
+    // targets across the capture boundary). Instead we defer capture
+    // to the pointermove handler once the drag threshold is exceeded.
   }, { passive: true });
 
   document.addEventListener('pointermove', (e) => {
@@ -149,6 +151,10 @@ if (typeof window !== 'undefined' && !window.__swipeOverlayInit) {
     const dx = e.clientX - drag.startX;
     if (!drag.active && Math.abs(dx) > DRAG_THRESHOLD) {
       drag.active = true;
+      // Now that the user is genuinely dragging, capture the pointer so
+      // pointermove/pointerup fire reliably even if the cursor leaves
+      // the scroll container.
+      try { drag.container.setPointerCapture(drag.pointerId); } catch { /* not all elements allow it */ }
       drag.container.style.cursor = 'grabbing';
       drag.container.style.userSelect = 'none';
       // Temporarily disable scroll-snap AND scroll-behavior:smooth so
@@ -211,15 +217,24 @@ if (typeof window !== 'undefined' && !window.__swipeOverlayInit) {
   document.addEventListener('pointerup', endDrag, { passive: true });
   document.addEventListener('pointercancel', endDrag, { passive: true });
 
+  // ── Suppress native image-drag on card images ──────────────────────
+  //
+  // `draggable="false"` + CSS `-webkit-user-drag: none` cover most
+  // browsers, but some (older Safari, some Chromium builds) still start
+  // the built-in ghost-cursor image-drag. A capture-phase `dragstart`
+  // handler is the final backstop: if the drag originates inside a card
+  // or card-image element, prevent it unconditionally.
+  document.addEventListener('dragstart', (e) => {
+    if (e.target.closest('.card, .card__img, .card-back__image, .ld-profile__card-img, .pack-bg__card')) {
+      e.preventDefault();
+    }
+  }, { capture: true });
+
   // ── Suppress right-click / long-press context menu on card images ──
   //
-  // Pair with the CSS rules on `.card__img` / `.card-back__image` /
-  // `.ld-profile__card-img` that set `pointer-events: none`. Even though
-  // the img itself no longer receives events, browsers may still show a
-  // context menu on long-press of the image area (iOS Safari) or when the
-  // pointer walks through the parent element. Prevent the default menu
-  // whenever the contextmenu event occurs on (or inside) a `.card` or
-  // any of the card-image classes — so users can't save the illustration.
+  // Prevent the default context menu whenever the event occurs on (or
+  // inside) a `.card` or any of the card-image classes — so users can't
+  // right-click-save or long-press-save the illustration.
   document.addEventListener('contextmenu', (e) => {
     if (e.target.closest('.card, .card__img, .card-back__image, .ld-profile__card-img, .pack-bg__card')) {
       e.preventDefault();
