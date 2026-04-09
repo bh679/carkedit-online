@@ -321,10 +321,15 @@ function currentCardForPreview() {
 
 function render() {
   if (!state.container) return;
-  const isBatch = state.generatedBatch.length > 1 || state.batchCount > 1;
+  const batchSize = Math.max(state.generatedBatch.length, state.batchCount || 1);
+  const isBatch = batchSize > 1;
+  // Each extra card beyond the first adds ~240px (220px card + 20px gap).
+  // Base is 900px which already fits 1 card in the right column.
+  const extraCards = isBatch ? batchSize - 1 : 0;
+  const wideStyle = isBatch ? ` style="max-width: ${900 + extraCards * 240}px"` : '';
   state.container.innerHTML = `
     ${renderAuthBar()}
-    <div class="admin-img-gen ${isBatch ? 'admin-img-gen--wide' : ''}">
+    <div class="admin-img-gen"${wideStyle}>
       <header class="admin-img-gen__header">
         <h1 class="admin-img-gen__title">Card Image Generator</h1>
         <p class="admin-img-gen__subtitle">Test AI image generation styles against a structured prompt. Admin only.</p>
@@ -337,8 +342,7 @@ function render() {
           ${renderGenerationPanel()}
         </section>
         <section class="admin-img-gen__col admin-img-gen__col--right">
-          ${isBatch ? renderBatchResultsPanel() : ''}
-          ${renderPreviewPanel()}
+          ${isBatch ? renderBatchResultsPanel() : renderPreviewPanel()}
           ${renderGeneratedPanel()}
         </section>
       </div>

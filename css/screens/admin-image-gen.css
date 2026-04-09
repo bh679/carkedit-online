@@ -29,18 +29,9 @@ html, body {
   padding: 1.5rem 1.5rem 4rem;
   color: var(--color-text, #f0f0f0);
 }
-/* When batch count > 1, expand to use full viewport width.
- * The grid switches to auto columns so the right column can grow
- * to fit the batch row without being constrained to a fraction. */
-.admin-img-gen--wide {
-  max-width: 100%;
-}
-.admin-img-gen--wide .admin-img-gen__grid {
-  grid-template-columns: 320px 1fr;
-}
-.admin-img-gen--wide .admin-img-gen__col--right {
-  overflow-x: auto;
-}
+/* When batch count > 1, an inline max-width is applied to .admin-img-gen
+ * to scale proportionally with the number of cards. No static --wide
+ * class needed — the JS calculates 900 + (extraCards * 240) px. */
 
 .admin-img-gen__loading {
   padding: 3rem;
