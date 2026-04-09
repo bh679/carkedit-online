@@ -73,6 +73,7 @@ let filterStatus = 'all'; // 'all' | 'finished' | 'abandoned' | 'live'
 const cardDataMap = {}; // key: `${deck}-${id}` → card object with illustrationKey
 
 async function loadCardData() {
+  // Load base-game cards from static JSON
   const deckFiles = [
     { file: 'js/data/cards/die.json', deck: 'die', deckType: 'die' },
     { file: 'js/data/cards/live.json', deck: 'living', deckType: 'live' },
@@ -88,10 +89,31 @@ async function loadCardData() {
       }
     } catch {}
   }));
+
+  // Load expansion-pack cards so we can resolve their image_url
+  try {
+    const res = await authFetch(`${API_BASE}/api/carkedit/packs`);
+    if (res.ok) {
+      const data = await res.json();
+      const packs = data.packs ?? data ?? [];
+      await Promise.all(packs.map(async (p) => {
+        try {
+          const pr = await authFetch(`${API_BASE}/api/carkedit/packs/${p.id}`);
+          if (!pr.ok) return;
+          const pack = await pr.json();
+          for (const c of (pack.cards ?? [])) {
+            const deck = c.deck_type === 'live' ? 'living' : c.deck_type;
+            cardDataMap[`${deck}-${c.id}`] = { ...c, deck, deckType: c.deck_type === 'live' ? 'live' : c.deck_type, image_url: c.image_url || '' };
+          }
+        } catch {}
+      }));
+    }
+  } catch {}
 }
 
 function getCardImage(cardId, cardDeck) {
   const data = cardDataMap[`${cardDeck}-${cardId}`];
+  if (data?.image_url) return data.image_url;
   if (data?.illustrationKey) {
     const deckType = cardDeck === 'living' ? 'live' : cardDeck === 'bye' ? 'bye' : 'die';
     return `assets/illustrations/${deckType}/${data.illustrationKey}.jpg`;

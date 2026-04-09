@@ -94,35 +94,14 @@ function syncDiePhaseState(room) {
   const currentPlayerIndex = turnOrder.indexOf(currentTurn);
   const currentPlayer = room.state.players.get(currentTurn);
 
-  // Get the die card from the current player's hand
+  // Get the die card from the current player's hand. Use serverCardToLocal()
+  // so image_url is included and buildCard() canonicalises the result.
   let currentCard = null;
   let cardRevealed = false;
   if (currentPlayer?.hand?.length > 0) {
     const serverCard = currentPlayer.hand[0];
     cardRevealed = serverCard.faceUp;
-    // Look up the full card from the local die deck by matching ID
-    const dieCards = state.decks?.die ?? [];
-    const localCard = dieCards.find(c => String(c.id) === serverCard.id);
-    const serverOptions = serverCard.options ? Array.from(serverCard.options) : [];
-    if (localCard) {
-      currentCard = {
-        ...localCard,
-        deckType: 'die',
-        prompt: serverCard.prompt || localCard.prompt || null,
-        special: serverCard.special || localCard.special || '',
-        options: serverOptions.length ? serverOptions : (localCard.options ?? null),
-      };
-    } else {
-      // Fallback: expansion card with no local match — use server data only
-      currentCard = {
-        id: serverCard.id,
-        title: serverCard.text,
-        prompt: serverCard.prompt || null,
-        special: serverCard.special || '',
-        options: serverOptions.length ? serverOptions : null,
-        deckType: 'die',
-      };
-    }
+    currentCard = serverCardToLocal(serverCard);
   }
 
   return {
