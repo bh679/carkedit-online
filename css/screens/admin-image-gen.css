@@ -387,6 +387,21 @@ html, body {
   flex-direction: column;
   align-items: center;
   gap: 0.4rem;
+  background: transparent;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  padding: 0.5rem;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  transition: border-color 0.15s ease;
+}
+.admin-img-gen__batch-item:hover {
+  border-color: rgba(152, 66, 255, 0.4);
+}
+.admin-img-gen__batch-item--active {
+  border-color: var(--color-primary, #9842ff);
+  background: rgba(152, 66, 255, 0.08);
 }
 .admin-img-gen__batch-item .admin-img-gen__generated {
   max-width: 220px;

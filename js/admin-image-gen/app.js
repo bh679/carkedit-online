@@ -76,6 +76,7 @@ const state = {
 
   // Batch generation
   batchCount: 1,                  // 1–20, number of images to generate in parallel
+  selectedBatchIdx: 0,            // which batch item is selected (shown in generated panel)
 
   // Generation status
   generating: false,
@@ -288,8 +289,10 @@ function currentCardForPreview() {
   const isDie = state.cardFormDeckType === 'die';
   const isSplit = isDie && state.cardFormSpecial === 'Split';
   const isMystery = isDie && state.cardFormSpecial === '?';
-  const generatedUrl = state.generated?.imageUrl || '';
-  const generatedUrlB = state.generated?.imageUrlB || '';
+  // Use the selected batch item if available, otherwise fall back to state.generated
+  const selectedItem = state.generatedBatch[state.selectedBatchIdx] || state.generated;
+  const generatedUrl = selectedItem?.imageUrl || '';
+  const generatedUrlB = selectedItem?.imageUrlB || '';
   return {
     title: state.cardFormText || 'Card text preview…',
     description: '',
@@ -334,8 +337,9 @@ function render() {
           ${renderGenerationPanel()}
         </section>
         <section class="admin-img-gen__col admin-img-gen__col--right">
-          ${isBatch ? renderBatchResultsPanel() : renderPreviewPanel()}
-          ${!isBatch ? renderGeneratedPanel() : ''}
+          ${isBatch ? renderBatchResultsPanel() : ''}
+          ${renderPreviewPanel()}
+          ${renderGeneratedPanel()}
         </section>
       </div>
       ${renderGenerationLog()}
@@ -628,122 +632,66 @@ function renderGeneratedPanel() {
   }
   if (!batch || batch.length === 0) return '';
 
+  // Always show a single generated image — the selected batch item.
+  const idx = state.selectedBatchIdx;
+  const g = batch[idx] || batch[0];
+  if (!g) return '';
+
   const isSplit = state.cardFormDeckType === 'die' && state.cardFormSpecial === 'Split';
-  const isBatch = batch.length > 1;
   const canSave = state.activeTab === 'pick' && !!state.selectedPackId && !!state.selectedCardId;
+  const saveBtn = canSave
+    ? `<button class="btn btn--primary" data-action="save-to-card" data-batch-idx="${idx}" ${state.saving ? 'disabled' : ''}>${state.saving ? 'Saving…' : 'Save to card'}</button>`
+    : `<button class="btn btn--primary" disabled title="Pick a card in the Pick tab to enable">Save to card</button>`;
 
-  // --- Single result (batch of 1) — keep original layout ---
-  if (!isBatch) {
-    const g = batch[0];
-    const saveBtn = canSave
-      ? `<button class="btn btn--primary" data-action="save-to-card" data-batch-idx="0" ${state.saving ? 'disabled' : ''}>${state.saving ? 'Saving…' : 'Save to card'}</button>`
-      : `<button class="btn btn--primary" disabled title="Pick a card in the Pick tab to enable">Save to card</button>`;
-
-    const imagesHtml = isSplit && g.imageUrlB
-      ? `<div class="admin-img-gen__generated-split">
-          <div class="admin-img-gen__generated-half">
-            <div class="admin-img-gen__generated-label">Option A</div>
-            <img class="admin-img-gen__generated" src="${esc(g.imageUrl)}" alt="Generated image — Option A">
-            <a class="btn btn--small" href="${esc(g.imageUrl)}" download="card-A-${Date.now()}.png" target="_blank" rel="noopener">Download A</a>
-          </div>
-          <div class="admin-img-gen__generated-half">
-            <div class="admin-img-gen__generated-label">Option B</div>
-            <img class="admin-img-gen__generated" src="${esc(g.imageUrlB)}" alt="Generated image — Option B">
-            <a class="btn btn--small" href="${esc(g.imageUrlB)}" download="card-B-${Date.now()}.png" target="_blank" rel="noopener">Download B</a>
-          </div>
-        </div>`
-      : `<img class="admin-img-gen__generated" src="${esc(g.imageUrl)}" alt="Generated card illustration">
-         <a class="btn" href="${esc(g.imageUrl)}" download="card-${Date.now()}.png" target="_blank" rel="noopener">Download</a>`;
-
-    const promptMeta = isSplit && g.promptSentB && g.promptSentB !== g.promptSent
-      ? `<strong>Prompt A:</strong> <span class="admin-img-gen__muted">${esc(g.promptSent)}</span><br>
-         <strong>Prompt B:</strong> <span class="admin-img-gen__muted">${esc(g.promptSentB)}</span>`
-      : `<strong>Prompt sent:</strong> <span class="admin-img-gen__muted">${esc(g.promptSent)}</span>`;
-
-    return `
-      <div class="admin-img-gen__section">
-        <h2 class="admin-img-gen__section-title">Generated image${isSplit && g.imageUrlB ? 's' : ''}</h2>
-        ${imagesHtml}
-        <div class="admin-img-gen__gen-meta">
-          <strong>Provider:</strong> ${esc(g.provider)}<br>
-          ${promptMeta}
+  const imagesHtml = isSplit && g.imageUrlB
+    ? `<div class="admin-img-gen__generated-split">
+        <div class="admin-img-gen__generated-half">
+          <div class="admin-img-gen__generated-label">Option A</div>
+          <img class="admin-img-gen__generated" src="${esc(g.imageUrl)}" alt="Generated image — Option A">
+          <a class="btn btn--small" href="${esc(g.imageUrl)}" download="card-A-${Date.now()}.png" target="_blank" rel="noopener">Download A</a>
         </div>
-        ${state.saveError ? `<p class="admin-img-gen__error">${esc(state.saveError)}</p>` : ''}
-        <div class="admin-img-gen__gen-actions">
-          ${saveBtn}
+        <div class="admin-img-gen__generated-half">
+          <div class="admin-img-gen__generated-label">Option B</div>
+          <img class="admin-img-gen__generated" src="${esc(g.imageUrlB)}" alt="Generated image — Option B">
+          <a class="btn btn--small" href="${esc(g.imageUrlB)}" download="card-B-${Date.now()}.png" target="_blank" rel="noopener">Download B</a>
         </div>
-    </div>
-  `;
-  }
+      </div>`
+    : `<img class="admin-img-gen__generated" src="${esc(g.imageUrl)}" alt="Generated card illustration">
+       <a class="btn" href="${esc(g.imageUrl)}" download="card-${Date.now()}.png" target="_blank" rel="noopener">Download</a>`;
 
-  // --- Batch results (> 1 image) — horizontal scrollable row ---
-  const batchCards = batch.map((g, idx) => {
-    const saveBtn = canSave
-      ? `<button class="btn btn--small btn--primary" data-action="save-to-card" data-batch-idx="${idx}" ${state.saving ? 'disabled' : ''}>Save</button>`
-      : '';
-
-    if (isSplit && g.imageUrlB) {
-      return `
-        <div class="admin-img-gen__batch-item">
-          <div class="admin-img-gen__batch-num">#${idx + 1}</div>
-          <div class="admin-img-gen__generated-split admin-img-gen__generated-split--batch">
-            <div class="admin-img-gen__generated-half">
-              <div class="admin-img-gen__generated-label">A</div>
-              <img class="admin-img-gen__generated" src="${esc(g.imageUrl)}" alt="Batch ${idx + 1} — Option A">
-              <a class="btn btn--small" href="${esc(g.imageUrl)}" download="card-${idx + 1}-A-${Date.now()}.png" target="_blank" rel="noopener">DL A</a>
-            </div>
-            <div class="admin-img-gen__generated-half">
-              <div class="admin-img-gen__generated-label">B</div>
-              <img class="admin-img-gen__generated" src="${esc(g.imageUrlB)}" alt="Batch ${idx + 1} — Option B">
-              <a class="btn btn--small" href="${esc(g.imageUrlB)}" download="card-${idx + 1}-B-${Date.now()}.png" target="_blank" rel="noopener">DL B</a>
-            </div>
-          </div>
-          ${saveBtn}
-        </div>`;
-    }
-
-    return `
-      <div class="admin-img-gen__batch-item">
-        <div class="admin-img-gen__batch-num">#${idx + 1}</div>
-        <img class="admin-img-gen__generated" src="${esc(g.imageUrl)}" alt="Batch result ${idx + 1}">
-        <div class="admin-img-gen__batch-actions">
-          <a class="btn btn--small" href="${esc(g.imageUrl)}" download="card-${idx + 1}-${Date.now()}.png" target="_blank" rel="noopener">Download</a>
-          ${saveBtn}
-        </div>
-      </div>`;
-  }).join('');
-
-  const g = batch[0];
   const promptMeta = isSplit && g.promptSentB && g.promptSentB !== g.promptSent
     ? `<strong>Prompt A:</strong> <span class="admin-img-gen__muted">${esc(g.promptSent)}</span><br>
        <strong>Prompt B:</strong> <span class="admin-img-gen__muted">${esc(g.promptSentB)}</span>`
     : `<strong>Prompt sent:</strong> <span class="admin-img-gen__muted">${esc(g.promptSent)}</span>`;
 
+  const batchLabel = batch.length > 1 ? ` (${idx + 1} of ${batch.length})` : '';
+
   return `
-    <div class="admin-img-gen__section admin-img-gen__section--batch">
-      <h2 class="admin-img-gen__section-title">Generated images (${batch.length})</h2>
-      <div class="admin-img-gen__batch-row">
-        ${batchCards}
-      </div>
+    <div class="admin-img-gen__section">
+      <h2 class="admin-img-gen__section-title">Generated image${batchLabel}</h2>
+      ${imagesHtml}
       <div class="admin-img-gen__gen-meta">
         <strong>Provider:</strong> ${esc(g.provider)}<br>
         ${promptMeta}
       </div>
       ${state.saveError ? `<p class="admin-img-gen__error">${esc(state.saveError)}</p>` : ''}
+      <div class="admin-img-gen__gen-actions">
+        ${saveBtn}
+      </div>
     </div>
   `;
 }
 
 /**
- * Full-width batch results panel — card previews + generated images
- * rendered side by side. Shown below the grid when batchCount > 1.
+ * Batch card previews — horizontal scrollable row of clickable cards.
+ * Clicking a card sets selectedBatchIdx and updates the card preview
+ * and generated image panels to show that item.
  */
 function renderBatchResultsPanel() {
   const batch = state.generatedBatch;
   const isSplit = state.cardFormDeckType === 'die' && state.cardFormSpecial === 'Split';
-  const canSave = state.activeTab === 'pick' && !!state.selectedPackId && !!state.selectedCardId;
+  const isDie = state.cardFormDeckType === 'die';
 
-  // Show generating state
   if (state.generating) {
     const count = Math.max(1, state.batchCount || 1);
     return `
@@ -757,16 +705,14 @@ function renderBatchResultsPanel() {
   if (!batch || batch.length === 0) {
     return `
       <div class="admin-img-gen__section admin-img-gen__section--batch">
-        <h2 class="admin-img-gen__section-title">Batch results</h2>
-        <p class="admin-img-gen__muted">Set count above 1 and click Generate to see batch results here.</p>
+        <h2 class="admin-img-gen__section-title">Batch card previews</h2>
+        <p class="admin-img-gen__muted">Set count above 1 and click Generate to compare results here.</p>
       </div>
     `;
   }
 
-  // Build a card preview + generated image for each batch item
-  const isDie = state.cardFormDeckType === 'die';
+  // Build clickable card previews for each batch item
   const items = batch.map((g, idx) => {
-    // Build card data with this batch item's generated image
     const cardData = {
       title: state.cardFormText || 'Card text preview…',
       description: '',
@@ -783,64 +729,21 @@ function renderBatchResultsPanel() {
         : null,
     };
     const cardHtml = renderCard(buildCard(cardData));
-
-    const saveBtn = canSave
-      ? `<button class="btn btn--small btn--primary" data-action="save-to-card" data-batch-idx="${idx}" ${state.saving ? 'disabled' : ''}>Save to card</button>`
-      : '';
-
-    // Generated image(s) below the card
-    let genImagesHtml;
-    if (isSplit && g.imageUrlB) {
-      genImagesHtml = `
-        <div class="admin-img-gen__generated-split admin-img-gen__generated-split--batch">
-          <div class="admin-img-gen__generated-half">
-            <div class="admin-img-gen__generated-label">A</div>
-            <img class="admin-img-gen__generated" src="${esc(g.imageUrl)}" alt="Batch ${idx + 1} — Option A">
-            <a class="btn btn--small" href="${esc(g.imageUrl)}" download="card-${idx + 1}-A-${Date.now()}.png" target="_blank" rel="noopener">DL A</a>
-          </div>
-          <div class="admin-img-gen__generated-half">
-            <div class="admin-img-gen__generated-label">B</div>
-            <img class="admin-img-gen__generated" src="${esc(g.imageUrlB)}" alt="Batch ${idx + 1} — Option B">
-            <a class="btn btn--small" href="${esc(g.imageUrlB)}" download="card-${idx + 1}-B-${Date.now()}.png" target="_blank" rel="noopener">DL B</a>
-          </div>
-        </div>`;
-    } else {
-      genImagesHtml = `
-        <img class="admin-img-gen__generated" src="${esc(g.imageUrl)}" alt="Batch result ${idx + 1}">
-        <a class="btn btn--small" href="${esc(g.imageUrl)}" download="card-${idx + 1}-${Date.now()}.png" target="_blank" rel="noopener">Download</a>`;
-    }
+    const isSelected = idx === state.selectedBatchIdx;
 
     return `
-      <div class="admin-img-gen__batch-item">
+      <button class="admin-img-gen__batch-item ${isSelected ? 'admin-img-gen__batch-item--active' : ''}" data-action="select-batch" data-batch-idx="${idx}">
         <div class="admin-img-gen__batch-num">#${idx + 1}</div>
         <div class="admin-img-gen__batch-card-preview">${cardHtml}</div>
-        <div class="admin-img-gen__batch-generated">
-          ${genImagesHtml}
-        </div>
-        <div class="admin-img-gen__batch-actions">
-          ${saveBtn}
-        </div>
-      </div>`;
+      </button>`;
   }).join('');
-
-  const g = batch[0];
-  const promptMeta = isSplit && g.promptSentB && g.promptSentB !== g.promptSent
-    ? `<strong>Prompt A:</strong> <span class="admin-img-gen__muted">${esc(g.promptSent)}</span><br>
-       <strong>Prompt B:</strong> <span class="admin-img-gen__muted">${esc(g.promptSentB)}</span>`
-    : `<strong>Prompt sent:</strong> <span class="admin-img-gen__muted">${esc(g.promptSent)}</span>`;
 
   return `
     <div class="admin-img-gen__section admin-img-gen__section--batch">
-      <h2 class="admin-img-gen__section-title">Batch results (${batch.length})</h2>
+      <h2 class="admin-img-gen__section-title">Card previews (${batch.length}) — click to select</h2>
       <div class="admin-img-gen__batch-row">
         ${items}
       </div>
-      <div class="admin-img-gen__gen-meta">
-        <strong>Provider:</strong> ${esc(g.provider)}<br>
-        ${promptMeta}
-      </div>
-      ${state.generateError ? `<p class="admin-img-gen__error">${esc(state.generateError)}</p>` : ''}
-      ${state.saveError ? `<p class="admin-img-gen__error">${esc(state.saveError)}</p>` : ''}
     </div>
   `;
 }
@@ -1023,6 +926,14 @@ function onClick(e) {
     case 'pick-card': {
       const id = target.getAttribute('data-card-id');
       hydrateFromCard(id);
+      return;
+    }
+
+    case 'select-batch': {
+      const idx = parseInt(target.getAttribute('data-batch-idx') || '0', 10);
+      state.selectedBatchIdx = idx;
+      state.generated = state.generatedBatch[idx] || state.generatedBatch[0] || null;
+      render();
       return;
     }
 
@@ -1269,6 +1180,7 @@ async function generate() {
   state.generateError = null;
   state.generated = null;
   state.generatedBatch = [];
+  state.selectedBatchIdx = 0;
   state.saveError = null;
   render();
   try {
