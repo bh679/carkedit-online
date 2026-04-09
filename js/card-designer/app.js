@@ -458,12 +458,12 @@ function renderCardForm() {
           <div class="designer__deck-picker">${picker}</div>
         </div>
         ${variantPicker}
+        ${mysteryField}
         <label class="designer__label">
-          Card Text${isSplit ? ' (auto-generated for Split cards)' : ''}${isMystery ? ' (auto-generated for Mystery cards)' : ''}
-          <textarea class="designer__input designer__textarea" data-field="card-text" maxlength="200" placeholder="Enter card text..."${isSplit || isMystery ? ' readonly' : ''}>${esc(state.cardFormText)}</textarea>
+          Card Text${isSplit ? ' (auto-generated for Split cards)' : ''}
+          <textarea class="designer__input designer__textarea" data-field="card-text" maxlength="200" placeholder="Enter card text..."${isSplit ? ' readonly' : ''}>${esc(state.cardFormText)}</textarea>
         </label>
         <div class="designer__char-count">${state.cardFormText.length}/200</div>
-        ${mysteryField}
         ${splitFields}
         ${isDie ? '' : `
         <label class="designer__label">
@@ -654,8 +654,8 @@ function onDocInput(e) {
       const textEl = document.querySelector('[data-field="card-text"]');
       if (textEl && textEl.value !== state.cardFormText) textEl.value = state.cardFormText;
     }
-    // For Mystery cards, derive the card text from the adjective
-    if (isMystery) {
+    // For Mystery cards, derive the card text from the adjective (only when adj field changed)
+    if (isMystery && e.target.matches('[data-field="card-mystery-adj"]')) {
       const adj = state.cardFormMysteryAdj.trim();
       state.cardFormText = adj ? `Pick the ${adj} Way to Die` : '';
       const textEl = document.querySelector('[data-field="card-text"]');
