@@ -83,7 +83,7 @@ export function render({
   });
 
   const thumbsHtml = allProfileCards.map(({ card, label }, index) => {
-    const imgSrc = card.graphicImage || card.image || (card.illustrationKey && card.deckType
+    const imgSrc = card.image || (card.illustrationKey && card.deckType
       ? `assets/illustrations/${card.deckType}/${card.illustrationKey}.jpg`
       : '');
     const safeTitle = (card.title || label).replace(/"/g, '&quot;');
