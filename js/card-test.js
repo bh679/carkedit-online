@@ -32,8 +32,6 @@ function render() {
     </button>
   `).join('');
 
-  const imagePath = card ? `assets/illustrations/${card.typeId}/${card.illustrationKey}.jpg` : '';
-
   let cardHtml;
   if (state.showBack) {
     cardHtml = `<div class="card-test__card" style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden;width:100%">
@@ -41,7 +39,7 @@ function render() {
       </div>`;
   } else if (card) {
     cardHtml = `<div class="card-test__card" style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden;width:100%">
-        ${renderCard({ title: card.title, description: card.description ?? '', prompt: card.prompt ?? '', image: imagePath, deckType: state.deckType })}
+        ${renderCard(card)}
       </div>`;
   } else {
     cardHtml = '<p style="color:var(--color-text-muted)">No cards loaded.</p>';

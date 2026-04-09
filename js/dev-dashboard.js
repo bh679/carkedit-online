@@ -372,16 +372,8 @@ function renderMiniCardTester() {
     >${type.toUpperCase()}</button>
   `).join('');
 
-  const imagePath = card ? `assets/illustrations/${card.typeId}/${card.illustrationKey}.jpg` : '';
-
   const cardHtml = card
-    ? renderCard({
-        title: card.title,
-        description: card.description ?? '',
-        prompt: card.prompt ?? '',
-        image: imagePath,
-        deckType: miniState.deckType
-      })
+    ? renderCard(card)
     : '<p class="dash-empty">Loading cards...</p>';
 
   const counter = deck.length

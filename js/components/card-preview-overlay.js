@@ -6,6 +6,7 @@
 'use strict';
 
 import { render as renderCardFace } from './card.js';
+import { buildCard } from '../data/card.js';
 
 // Reuse the lobby's overlay id so we inherit its full-screen fixed CSS
 // (#lobby-card-preview-overlay { position: fixed; inset: 0; z-index: 200 }).
@@ -36,13 +37,13 @@ export function showAt(index) {
     overlay.id = OVERLAY_ID;
     document.body.appendChild(overlay);
   }
-  const cardHtml = renderCardFace({
+  const cardHtml = renderCardFace(buildCard({
     title: item.text,
     image: item.imgSrc || '',
     deckType,
-    special: item.special || '',
+    special: item.special || null,
     options: item.options || null,
-  });
+  }));
   const showNav = _list.length > 1;
   const prevBtn = showNav
     ? `<button class="hand__nav-btn hand__nav-btn--prev" onclick="event.stopPropagation(); window.cardPreview.prev()" aria-label="Previous">&#8249;</button>`

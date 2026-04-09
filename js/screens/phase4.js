@@ -4,6 +4,7 @@
 import { render as renderPhaseLayout } from '../components/phase-layout.js';
 import { render as renderGameboard, renderActiveCard } from '../components/gameboard.js';
 import { render as renderCard } from '../components/card.js';
+import { buildCard } from '../data/card.js';
 import { render as renderLivingDeadProfile } from '../components/living-dead-profile.js';
 import { render as renderPassPhone } from '../components/pass-phone.js';
 import { render as renderPhaseHeader } from '../components/phase-header.js';
@@ -81,14 +82,14 @@ function renderOnlineWildcardIntro(state) {
   const wildcardPlayers = state.wildcardPlayers ?? [];
   const hasWildcards = wildcardPlayers.length > 0;
 
-  const wildcardDisplayCard = {
+  const wildcardDisplayCard = buildCard({
     id: 'wildcard-intro',
     title: 'Wildcard Eulogy',
     description: 'Save this card until the end, for a chance at bonus points!',
     prompt: 'Bonus Mini-Game: pick 2 players to give your Eulogy!',
     illustrationKey: 'wildcard-eulogy',
     deckType: 'bye',
-  };
+  });
   const wildcardCardHtml = renderActiveCard(
     renderCard(wildcardDisplayCard),
     { label: 'Wildcard Eulogy' },
@@ -335,14 +336,14 @@ function renderWildcardIntro(state) {
   const hasWildcards = wildcardPlayers.length > 0;
 
   // Hardcoded wildcard card for intro display
-  const wildcardDisplayCard = {
+  const wildcardDisplayCard = buildCard({
     id: 'wildcard-intro',
     title: 'Wildcard Eulogy',
     description: 'Save this card until the end, for a chance at bonus points!',
     prompt: 'Bonus Mini-Game: pick 2 players to give your Eulogy!',
     illustrationKey: 'wildcard-eulogy',
     deckType: 'bye',
-  };
+  });
   const wildcardCardHtml = renderActiveCard(
     renderCard(wildcardDisplayCard),
     { label: 'Wildcard Eulogy' },
