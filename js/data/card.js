@@ -22,7 +22,8 @@ import { getPackBrand } from '../state.js';
  * @property {string} description
  * @property {string} prompt
  * @property {string} illustrationKey
- * @property {string} image
+ * @property {string} image                          - full-bleed illustration (replaces the whole card)
+ * @property {string} graphicImage                   - AI-generated graphic-area background (from image_url)
  * @property {string} packId
  * @property {string} brandImageUrl
  * @property {null|'mystery'|'split'} special
@@ -89,6 +90,25 @@ function resolveImage(raw, deckType) {
 }
 
 /**
+ * Resolve the graphic-area background image for this card. This is the
+ * AI-generated custom-card art that replaces the deck-splatter pattern in
+ * `.card__graphic-area` (see js/components/card.js) — it intentionally does
+ * NOT cover the full card like `image` above, so the title/body text remain
+ * legible on top.
+ *
+ * Precedence:
+ *  1. an explicit `graphicImage` on the raw object — used by the admin
+ *     image-gen preview for live iteration before save
+ *  2. `image_url` from the DB — persisted by Save to Card and streamed via
+ *     the Colyseus Card schema in online games
+ */
+function resolveGraphicImage(raw) {
+  if (raw?.graphicImage) return String(raw.graphicImage);
+  if (raw?.image_url) return String(raw.image_url);
+  return '';
+}
+
+/**
  * Build a canonical, frozen Card from any raw input.
  *
  * @param {object} raw               - raw card-ish object from any source
@@ -105,6 +125,7 @@ export function buildCard(raw, _opts = {}) {
   const special = normaliseSpecial(raw);
   const options = special === 'split' ? normaliseOptions(raw) : null;
   const image = resolveImage(raw, deckType);
+  const graphicImage = resolveGraphicImage(raw);
   const packId = String(raw.packId ?? raw.pack_id ?? '');
   const brandImageUrl = String(
     raw.brandImageUrl ?? raw.brand_image_url ?? (packId ? getPackBrand(packId) : '')
@@ -122,6 +143,7 @@ export function buildCard(raw, _opts = {}) {
     prompt: raw.prompt == null ? '' : String(raw.prompt),
     illustrationKey: String(raw.illustrationKey ?? raw.illustration_key ?? ''),
     image,
+    graphicImage,
     special,
     options,
     packId,
