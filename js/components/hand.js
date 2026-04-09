@@ -2,6 +2,11 @@
 'use strict';
 
 import { render as renderCard } from './card.js';
+// Side-effect import: installs the document-level swipe handler for any
+// `.hand__inspect-overlay` modal. Imported here so the hand inspect works
+// even on pages where no `.card-list__scroll` has been rendered yet.
+// Safe to double-import (the module uses an idempotent window flag).
+import './swipe-overlay.js';
 
 const CARD_WIDTH = 135;
 
