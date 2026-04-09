@@ -913,8 +913,8 @@ function renderGenerationLog() {
 
       return `
         <button class="admin-img-gen__log-cell" data-action="hydrate-from-log" data-log-id="${esc(entry.id)}" title="${esc(entry.text || '')}&#10;${esc(entry.provider)} · ${esc(entry.created_at)}${entryCost != null ? ` · $${entryCost.toFixed(4)}${costEstimated ? ' (est.)' : ''}` : ''}">
-          ${cardHtml}
           ${costBadge}
+          ${cardHtml}
           ${diffHtml}
         </button>
       `;
