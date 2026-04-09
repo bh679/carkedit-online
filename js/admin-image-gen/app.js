@@ -75,7 +75,7 @@ const state = {
   promptPreview: '',              // last auto-assembled prompt for the UI
 
   // Batch generation
-  batchCount: 1,                  // 1–20, number of images to generate in parallel
+  batchCount: 3,                  // 1–20, number of images to generate in parallel
   selectedBatchIdx: 0,            // which batch item is selected (shown in generated panel)
 
   // Generation status
