@@ -64,8 +64,11 @@ const state = {
   rawJsonMode: false,             // false = per-field inputs, true = textarea
   rawJsonDraft: '',               // when in rawJsonMode, the textarea contents
   rawJsonError: null,
-  styleCollapsed: false,          // collapse the Style JSON body (field or raw)
-  decksCollapsed: false,          // collapse only the Decks subsection
+  // Both style editor sections start collapsed — once the defaults
+  // are dialled in, the user doesn't need to see the editor on every
+  // mount. Click the caret on either header to expand.
+  styleCollapsed: true,           // collapse the Style JSON body (field or raw)
+  decksCollapsed: true,           // collapse only the Decks subsection
   promptOverride: null,           // null = use auto-assembled, string = overridden
   promptPreview: '',              // last auto-assembled prompt for the UI
 
