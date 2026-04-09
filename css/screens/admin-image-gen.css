@@ -306,6 +306,10 @@ html, body {
   text-align: center;
   margin-top: 0.2rem;
 }
+.admin-img-gen__log-cost--est {
+  font-style: italic;
+  opacity: 0.7;
+}
 
 /* Cumulative cost total in log header */
 .admin-img-gen__log-total {
