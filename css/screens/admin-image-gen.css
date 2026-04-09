@@ -274,6 +274,28 @@ html, body {
   pointer-events: none; /* the button captures the click */
 }
 
+/* Provider row — select + pricing on same line */
+.admin-img-gen__provider-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.admin-img-gen__provider-row select {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Pricing link */
+.admin-img-gen__pricing-link {
+  color: #4caf50;
+  text-decoration: none;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+.admin-img-gen__pricing-link:hover {
+  text-decoration: underline;
+}
+
 /* Cost badge on log gallery cells */
 .admin-img-gen__log-cost {
   display: block;

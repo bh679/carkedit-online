@@ -486,13 +486,27 @@ function renderGenerationPanel() {
     ? state.promptOverride
     : state.promptPreview;
 
+  const selectedProvider = state.providers.find(p => p.id === state.selectedProviderId);
+  const pricingInfo = selectedProvider?.pricing
+    ? (() => {
+        const url = selectedProvider.pricing.pricingUrl;
+        const cost = `$${selectedProvider.pricing.baseCostUsd.toFixed(4)}/image`;
+        return url
+          ? `<a href="${esc(url)}" target="_blank" rel="noopener" class="admin-img-gen__pricing-link">${cost}</a>`
+          : `<span class="admin-img-gen__pricing-link">${cost}</span>`;
+      })()
+    : '';
+
   return `
     <div class="admin-img-gen__section">
       <h2 class="admin-img-gen__section-title">Image generation</h2>
 
       <label class="designer__label">
         Provider
-        <select class="designer__input" data-action="select-provider">${providerOpts}</select>
+        <div class="admin-img-gen__provider-row">
+          <select class="designer__input" data-action="select-provider">${providerOpts}</select>
+          ${pricingInfo}
+        </div>
       </label>
 
       <div class="admin-img-gen__style-header">
@@ -661,8 +675,14 @@ function renderGeneratedPanel() {
       <h2 class="admin-img-gen__section-title">Generated image${isSplit && g.imageUrlB ? 's' : ''}</h2>
       ${imagesHtml}
       <div class="admin-img-gen__gen-meta">
-        <strong>Provider:</strong> ${esc(g.provider)}<br>
-        ${g.costUsd != null ? `<strong>Cost:</strong> $${Number(g.costUsd).toFixed(4)}${g.tokensUsed != null ? ` (${g.tokensUsed} tokens)` : ''}<br>` : ''}
+        <strong>Provider:</strong> ${esc(g.provider)}${g.costUsd != null ? (() => {
+          const prov = state.providers.find(p => p.id === g.provider);
+          const url = prov?.pricing?.pricingUrl;
+          const costText = `$${Number(g.costUsd).toFixed(4)}${g.tokensUsed != null ? ` (${g.tokensUsed} tokens)` : ''}`;
+          return url
+            ? ` — <a href="${esc(url)}" target="_blank" rel="noopener" class="admin-img-gen__pricing-link">${costText}</a>`
+            : ` — ${costText}`;
+        })() : ''}<br>
         ${promptMeta}
       </div>
       ${state.saveError ? `<p class="admin-img-gen__error">${esc(state.saveError)}</p>` : ''}
