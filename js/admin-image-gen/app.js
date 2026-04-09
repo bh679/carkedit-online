@@ -334,11 +334,10 @@ function render() {
           ${renderGenerationPanel()}
         </section>
         <section class="admin-img-gen__col admin-img-gen__col--right">
-          ${!isBatch ? renderPreviewPanel() : ''}
+          ${isBatch ? renderBatchResultsPanel() : renderPreviewPanel()}
           ${!isBatch ? renderGeneratedPanel() : ''}
         </section>
       </div>
-      ${isBatch ? renderBatchResultsPanel() : ''}
       ${renderGenerationLog()}
     </div>
   `;

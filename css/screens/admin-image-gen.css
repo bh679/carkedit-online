@@ -29,9 +29,17 @@ html, body {
   padding: 1.5rem 1.5rem 4rem;
   color: var(--color-text, #f0f0f0);
 }
-/* When batch count > 1, expand to use full viewport width */
+/* When batch count > 1, expand to use full viewport width.
+ * The grid switches to auto columns so the right column can grow
+ * to fit the batch row without being constrained to a fraction. */
 .admin-img-gen--wide {
   max-width: 100%;
+}
+.admin-img-gen--wide .admin-img-gen__grid {
+  grid-template-columns: 320px 1fr;
+}
+.admin-img-gen--wide .admin-img-gen__col--right {
+  overflow-x: auto;
 }
 
 .admin-img-gen__loading {
@@ -374,14 +382,15 @@ html, body {
 }
 .admin-img-gen__batch-item {
   flex: 0 0 auto;
-  width: 300px;
+  width: 220px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.4rem;
 }
 .admin-img-gen__batch-item .admin-img-gen__generated {
-  max-width: 100%;
+  max-width: 220px;
+  width: 100%;
   margin: 0;
 }
 .admin-img-gen__batch-num {
