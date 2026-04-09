@@ -263,6 +263,32 @@
     linear-gradient(to bottom right, var(--split-bg-a) 49.7%, var(--split-bg-b) 50.3%) !important;
 }
 
+/* Two-image Split layout — when the card component injects
+ * `.card__split-half` children into a Would You Rather card, each half
+ * fills the whole graphic area and is clipped into a triangle so the
+ * two slots meet along the top-right → bottom-left anti-diagonal,
+ * matching the `linear-gradient(to bottom right, ...)` fallback above.
+ * Each slot holds its own background image and falls back to
+ * --split-bg-a / --split-bg-b when empty. These sit behind
+ * .card__split-option (z-index 2) and .card__split-or (z-index 3) so
+ * the option text and OR circle overlay the half images. */
+.card__split-half {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+.card__split-half--a {
+  background: var(--split-bg-a);
+  /* Upper-left triangle: corners top-left, top-right, bottom-left. */
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+.card__split-half--b {
+  background: var(--split-bg-b);
+  /* Lower-right triangle: corners top-right, bottom-right, bottom-left. */
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+}
+
 .card__split-option {
   position: absolute;
   left: 8%;
