@@ -316,6 +316,61 @@ html, body {
   margin-top: 0.75rem;
 }
 
+/* --- Generation progress bar --- */
+
+.admin-img-gen__progress {
+  padding: 1rem 0;
+}
+.admin-img-gen__progress-bar {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+.admin-img-gen__progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--color-primary, #9842ff), #c084fc);
+  border-radius: 3px;
+  transition: width 0.8s ease-out;
+  position: relative;
+}
+/* Shimmer effect on the fill bar */
+.admin-img-gen__progress-fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.25) 50%,
+    transparent 100%
+  );
+  animation: admin-img-gen-shimmer 1.5s ease-in-out infinite;
+}
+@keyframes admin-img-gen-shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.admin-img-gen__progress-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+.admin-img-gen__progress-status {
+  color: var(--color-text-muted, #9a9ab0);
+  font-size: 0.8rem;
+}
+.admin-img-gen__progress-timer {
+  color: var(--color-text-muted, #888);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
 /* --- Right column: live preview + generated image --- */
 
 .admin-img-gen__card-preview {

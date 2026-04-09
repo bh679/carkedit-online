@@ -88,6 +88,95 @@ export async function generateImage({
 }
 
 /**
+ * POST /image-gen/generate-stream — SSE streaming variant of generateImage.
+ *
+ * Streams progress events during the provider's polling loop so the UI can
+ * show a live progress bar and status text. Returns the final result via
+ * the 'complete' event (same shape as generateImage's response).
+ *
+ * @param {object}   params          — same fields as generateImage
+ * @param {function} params.onProgress — called with { phase, status, elapsed }
+ * @returns {Promise<object>}         — the final generation result
+ */
+export async function generateImageStream({
+  providerId,
+  cardText,
+  cardPrompt,
+  deckType,
+  style,
+  promptOverride,
+  options,
+  splitPosition,
+  onProgress,
+}) {
+  const body = {
+    providerId,
+    cardText,
+    cardPrompt,
+    deckType,
+    style,
+    promptOverride,
+    options,
+  };
+  if (splitPosition) body.splitPosition = splitPosition;
+
+  const res = await fetch(`${API_BASE}/image-gen/generate-stream`, {
+    method: 'POST',
+    headers: await authHeaders(),
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    let err = {};
+    try { err = await res.json(); } catch {}
+    const e = new Error(err.error || 'Image generation failed');
+    e.status = res.status;
+    throw e;
+  }
+
+  // Parse SSE events from the response stream.
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let result = null;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    // SSE events are separated by double newlines.
+    const parts = buffer.split('\n\n');
+    buffer = parts.pop() || '';
+
+    for (const part of parts) {
+      if (!part.trim()) continue;
+      let eventType = 'message';
+      let data = '';
+      for (const line of part.split('\n')) {
+        if (line.startsWith('event: ')) eventType = line.slice(7).trim();
+        else if (line.startsWith('data: ')) data = line.slice(6);
+      }
+      if (!data) continue;
+
+      let parsed;
+      try { parsed = JSON.parse(data); } catch { continue; }
+
+      if (eventType === 'progress' && typeof onProgress === 'function') {
+        onProgress(parsed);
+      } else if (eventType === 'complete') {
+        result = parsed;
+      } else if (eventType === 'error') {
+        throw new Error(parsed.error || 'Image generation failed');
+      }
+    }
+  }
+
+  if (!result) throw new Error('Stream ended without a result');
+  return result;
+}
+
+/**
  * GET /image-gen/log — list recent generation log rows, newest first.
  * `scope` accepts 'all' | 'mine' | 'admins' and filters server-side.
  * Returns `[ { id, creator_id, deck_type, text, prompt, card_special,

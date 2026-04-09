@@ -22,6 +22,7 @@ import { buildCard } from '../data/card.js';
 import {
   listProviders,
   generateImage,
+  generateImageStream,
   mergeLogEntries,
   saveImageToCard,
   saveStyleJson,
@@ -84,6 +85,10 @@ const state = {
   generateError: null,
   generated: null,                // single-result compat (first batch item)
   generatedBatch: [],             // array of { imageUrl, provider, promptSent, meta } (or split objects)
+  generateStartTime: 0,          // ms timestamp when generation started
+  generateElapsed: 0,            // seconds elapsed (updated by timer)
+  generatePhase: '',             // 'submitted' | 'polling' | 'saving'
+  generateStatus: '',            // upstream API status string (e.g. "Pending")
 
   // Save-to-card status
   saving: false,
@@ -637,10 +642,39 @@ function renderGeneratedPanel() {
   }
   if (state.generating) {
     const count = Math.max(1, state.batchCount || 1);
+    const elapsed = state.generateElapsed;
+    const mins = Math.floor(elapsed / 60);
+    const secs = elapsed % 60;
+    const timeStr = `${mins}:${String(secs).padStart(2, '0')}`;
+
+    // Map phase + status to a user-friendly label.
+    let statusLabel = 'Sending request...';
+    if (state.generatePhase === 'polling') {
+      const s = (state.generateStatus || '').toLowerCase();
+      if (s.includes('pending') || s.includes('queued') || s === 'task_not_found') {
+        statusLabel = 'Queued \u2014 waiting for GPU...';
+      } else {
+        statusLabel = count > 1 ? `Generating ${count} images...` : 'Generating image...';
+      }
+    } else if (state.generatePhase === 'saving') {
+      statusLabel = 'Downloading & saving image...';
+    }
+
+    const isSplit = state.cardFormDeckType === 'die' && state.cardFormSpecial === 'Split';
+    if (isSplit && count <= 1) statusLabel = statusLabel.replace('image', '2 images');
+
     return `
       <div class="admin-img-gen__section">
         <h2 class="admin-img-gen__section-title">Generated image${count > 1 ? 's' : ''}</h2>
-        <p class="admin-img-gen__muted">Generating ${count > 1 ? count + ' images' : ''}… (this can take 10–60 seconds)</p>
+        <div class="admin-img-gen__progress">
+          <div class="admin-img-gen__progress-bar">
+            <div class="admin-img-gen__progress-fill" data-progress-fill></div>
+          </div>
+          <div class="admin-img-gen__progress-info">
+            <span class="admin-img-gen__progress-status" data-progress-status>${esc(statusLabel)}</span>
+            <span class="admin-img-gen__progress-timer" data-progress-timer>${timeStr}</span>
+          </div>
+        </div>
       </div>
     `;
   }
@@ -1206,6 +1240,74 @@ function hydrateFromCard(cardId) {
   render();
 }
 
+// Reference for the elapsed-time interval so we can clear it on completion.
+let _generateTimer = null;
+
+/** Start the 1-second timer that updates the progress UI without a full re-render. */
+function startProgressTimer() {
+  state.generateStartTime = Date.now();
+  state.generateElapsed = 0;
+  state.generatePhase = 'submitted';
+  state.generateStatus = '';
+  _generateTimer = setInterval(() => {
+    state.generateElapsed = Math.floor((Date.now() - state.generateStartTime) / 1000);
+    // Direct DOM update — avoids full render() which would reset CSS animations.
+    const timerEl = document.querySelector('[data-progress-timer]');
+    if (timerEl) {
+      const m = Math.floor(state.generateElapsed / 60);
+      const s = state.generateElapsed % 60;
+      timerEl.textContent = `${m}:${String(s).padStart(2, '0')}`;
+    }
+    // Update progress bar fill width based on elapsed time.
+    const fillEl = document.querySelector('[data-progress-fill]');
+    if (fillEl) {
+      let pct;
+      if (state.generatePhase === 'saving') {
+        pct = 95;
+      } else if (state.generateElapsed < 30) {
+        // 0-30s → 0%-85% (fast ramp)
+        pct = (state.generateElapsed / 30) * 85;
+      } else if (state.generateElapsed < 60) {
+        // 30-60s → 85%-95% (slow ramp)
+        pct = 85 + ((state.generateElapsed - 30) / 30) * 10;
+      } else {
+        // 60s+ → hold at 95%
+        pct = 95;
+      }
+      fillEl.style.width = `${pct}%`;
+    }
+  }, 1000);
+}
+
+function stopProgressTimer() {
+  if (_generateTimer) {
+    clearInterval(_generateTimer);
+    _generateTimer = null;
+  }
+}
+
+/** Update the status label in the DOM without a full re-render. */
+function updateProgressStatus(phase, status) {
+  state.generatePhase = phase;
+  state.generateStatus = status;
+  const statusEl = document.querySelector('[data-progress-status]');
+  if (!statusEl) return;
+  let label = 'Sending request...';
+  if (phase === 'polling') {
+    const s = (status || '').toLowerCase();
+    if (s.includes('pending') || s.includes('queued') || s === 'task_not_found') {
+      label = 'Queued \u2014 waiting for GPU...';
+    } else {
+      label = 'Generating image...';
+    }
+  } else if (phase === 'saving') {
+    label = 'Downloading & saving image...';
+  }
+  const isSplit = state.cardFormDeckType === 'die' && state.cardFormSpecial === 'Split';
+  if (isSplit) label = label.replace('image', '2 images');
+  statusEl.textContent = label;
+}
+
 async function generate() {
   if (!state.selectedProviderId) {
     state.generateError = 'Pick a provider first.';
@@ -1219,12 +1321,15 @@ async function generate() {
   state.selectedBatchIdx = null;
   state.saveError = null;
   render();
+  startProgressTimer();
   try {
-    // Size the generation request to the target card region so the
-    // provider renders the right aspect ratio instead of the default 1:1.
     const dims = targetDimensions(state.cardFormDeckType, state.cardFormSpecial);
     const isSplit = state.cardFormDeckType === 'die' && state.cardFormSpecial === 'Split';
     const count = Math.max(1, Math.min(20, state.batchCount || 1));
+
+    const onProgress = (info) => {
+      updateProgressStatus(info.phase, info.status);
+    };
 
     if (isSplit) {
       // Split / WYR cards need two images per batch item — one per option.
@@ -1237,11 +1342,12 @@ async function generate() {
         deckType: state.cardFormDeckType,
         style: state.style,
         options: { width: dims.width, height: dims.height },
+        onProgress,
       };
       const pairs = Array.from({ length: count }, () =>
         Promise.all([
-          generateImage({ ...common, cardText: optA, promptOverride: state.promptOverride, splitPosition: 'a' }),
-          generateImage({ ...common, cardText: optB, promptOverride: state.promptOverride, splitPosition: 'b' }),
+          generateImageStream({ ...common, cardText: optA, promptOverride: state.promptOverride, splitPosition: 'a', onProgress }),
+          generateImageStream({ ...common, cardText: optB, promptOverride: state.promptOverride, splitPosition: 'b', onProgress }),
         ])
       );
       const results = await Promise.all(pairs);
@@ -1270,7 +1376,7 @@ async function generate() {
       });
     } else {
       const requests = Array.from({ length: count }, () =>
-        generateImage({
+        generateImageStream({
           providerId: state.selectedProviderId,
           cardText: state.cardFormText,
           cardPrompt: state.cardFormPrompt,
@@ -1278,6 +1384,7 @@ async function generate() {
           style: state.style,
           promptOverride: state.promptOverride,
           options: { width: dims.width, height: dims.height },
+          onProgress,
         })
       );
       state.generatedBatch = await Promise.all(requests);
@@ -1290,14 +1397,12 @@ async function generate() {
       state.selectedBatchIdx = null;
       state.generated = null;
     }
-    // Refresh the Recent generations gallery so the new entry appears
-    // at the top. Fire-and-forget — the main render() below doesn't
-    // need to wait for it.
     loadGenerationLog();
   } catch (err) {
     console.error('[admin-image-gen] generate failed:', err);
     state.generateError = err?.message || 'Image generation failed';
   } finally {
+    stopProgressTimer();
     state.generating = false;
     render();
   }
