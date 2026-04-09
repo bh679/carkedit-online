@@ -712,6 +712,7 @@ function renderStyleFieldRow(key, value, fieldType = 'style-key') {
   const idx = isArr ? (state.styleArrayIndices[key] || 0) % value.length : 0;
   const displayValue = isArr ? (value[idx] ?? '') : (value ?? '');
   const label = esc(humanizeKey(key));
+  const ekKey = esc(key);
 
   if (isArr) {
     return `
@@ -719,20 +720,27 @@ function renderStyleFieldRow(key, value, fieldType = 'style-key') {
         <div class="admin-img-gen__style-row-header">
           <span>${label}</span>
           <div class="admin-img-gen__style-arrows">
-            <button class="admin-img-gen__style-arrow" data-action="style-arr-prev" data-key="${esc(key)}" data-field-type="${fieldType}" title="Previous option">\u25C0</button>
+            <button class="admin-img-gen__style-arrow" data-action="style-arr-prev" data-key="${ekKey}" title="Previous option">\u25C0</button>
             <span class="admin-img-gen__style-arrow-idx">${idx + 1}/${value.length}</span>
-            <button class="admin-img-gen__style-arrow" data-action="style-arr-next" data-key="${esc(key)}" data-field-type="${fieldType}" title="Next option">\u25B6</button>
+            <button class="admin-img-gen__style-arrow" data-action="style-arr-next" data-key="${ekKey}" title="Next option">\u25B6</button>
+            <button class="admin-img-gen__style-arrow admin-img-gen__style-arrow--add" data-action="style-arr-add" data-key="${ekKey}" data-field-type="${fieldType}" title="Add option">+</button>
+            <button class="admin-img-gen__style-arrow admin-img-gen__style-arrow--remove" data-action="style-arr-remove" data-key="${ekKey}" data-field-type="${fieldType}" title="Remove this option">\u2212</button>
           </div>
         </div>
-        <textarea class="designer__input designer__textarea admin-img-gen__style-input" data-field="${fieldType}" data-key="${esc(key)}" rows="2">${esc(displayValue)}</textarea>
+        <textarea class="designer__input designer__textarea admin-img-gen__style-input" data-field="${fieldType}" data-key="${ekKey}" rows="2">${esc(displayValue)}</textarea>
       </div>`;
   }
 
   return `
-    <label class="designer__label admin-img-gen__style-row">
-      ${label}
-      <textarea class="designer__input designer__textarea admin-img-gen__style-input" data-field="${fieldType}" data-key="${esc(key)}" rows="2">${esc(displayValue)}</textarea>
-    </label>`;
+    <div class="designer__label admin-img-gen__style-row">
+      <div class="admin-img-gen__style-row-header">
+        <span>${label}</span>
+        <div class="admin-img-gen__style-arrows">
+          <button class="admin-img-gen__style-arrow admin-img-gen__style-arrow--add" data-action="style-arr-add" data-key="${ekKey}" data-field-type="${fieldType}" title="Add variation">+</button>
+        </div>
+      </div>
+      <textarea class="designer__input designer__textarea admin-img-gen__style-input" data-field="${fieldType}" data-key="${ekKey}" rows="2">${esc(displayValue)}</textarea>
+    </div>`;
 }
 
 function renderStyleFields() {
@@ -769,25 +777,33 @@ function renderStyleFields() {
       const idx = isArr ? (state.styleArrayIndices[arrKey] || 0) % val.length : 0;
       const displayValue = isArr ? (val[idx] ?? '') : (val ?? '');
       const label = esc(humanizeKey(dk));
+      const ekKey = esc(arrKey);
       if (isArr) {
         return `
           <div class="designer__label admin-img-gen__style-row">
             <div class="admin-img-gen__style-row-header">
               <span>${label}</span>
               <div class="admin-img-gen__style-arrows">
-                <button class="admin-img-gen__style-arrow" data-action="style-arr-prev" data-key="${esc(arrKey)}">\u25C0</button>
+                <button class="admin-img-gen__style-arrow" data-action="style-arr-prev" data-key="${ekKey}">\u25C0</button>
                 <span class="admin-img-gen__style-arrow-idx">${idx + 1}/${val.length}</span>
-                <button class="admin-img-gen__style-arrow" data-action="style-arr-next" data-key="${esc(arrKey)}">\u25B6</button>
+                <button class="admin-img-gen__style-arrow" data-action="style-arr-next" data-key="${ekKey}">\u25B6</button>
+                <button class="admin-img-gen__style-arrow admin-img-gen__style-arrow--add" data-action="style-arr-add" data-key="${ekKey}" data-field-type="deck-config" data-deck="${deck}" data-deck-key="${dk}" title="Add option">+</button>
+                <button class="admin-img-gen__style-arrow admin-img-gen__style-arrow--remove" data-action="style-arr-remove" data-key="${ekKey}" data-field-type="deck-config" data-deck="${deck}" data-deck-key="${dk}" title="Remove this option">\u2212</button>
               </div>
             </div>
             <input class="designer__input admin-img-gen__style-input" type="text" data-field="deck-config" data-deck="${deck}" data-key="${dk}" placeholder="${esc(placeholders[dk] || '')}" value="${esc(displayValue)}">
           </div>`;
       }
       return `
-        <label class="designer__label admin-img-gen__style-row">
-          ${label}
+        <div class="designer__label admin-img-gen__style-row">
+          <div class="admin-img-gen__style-row-header">
+            <span>${label}</span>
+            <div class="admin-img-gen__style-arrows">
+              <button class="admin-img-gen__style-arrow admin-img-gen__style-arrow--add" data-action="style-arr-add" data-key="${ekKey}" data-field-type="deck-config" data-deck="${deck}" data-deck-key="${dk}" title="Add variation">+</button>
+            </div>
+          </div>
           <input class="designer__input admin-img-gen__style-input" type="text" data-field="deck-config" data-deck="${deck}" data-key="${dk}" placeholder="${esc(placeholders[dk] || '')}" value="${esc(displayValue)}">
-        </label>`;
+        </div>`;
     }).join('');
     return `
       <div class="admin-img-gen__deck-group">
@@ -1314,7 +1330,6 @@ function onClick(e) {
     case 'style-arr-next': {
       const key = target.getAttribute('data-key');
       if (!key) return;
-      // Resolve the array from the style object using the dot-path key.
       const arr = getStyleValueByPath(state.style, key);
       if (!Array.isArray(arr) || arr.length === 0) return;
       const cur = state.styleArrayIndices[key] || 0;
@@ -1322,6 +1337,78 @@ function onClick(e) {
       state.styleArrayIndices[key] = action === 'style-arr-next'
         ? (cur + 1) % len
         : (cur - 1 + len) % len;
+      recomputePromptPreview();
+      render();
+      return;
+    }
+
+    case 'style-arr-add': {
+      const key = target.getAttribute('data-key');
+      const fieldType = target.getAttribute('data-field-type');
+      if (!key) return;
+      if (fieldType === 'deck-config') {
+        // Deck config field — key is "decks.<deck>.<dk>"
+        const deck = target.getAttribute('data-deck');
+        const dk = target.getAttribute('data-deck-key');
+        if (!deck || !dk) return;
+        if (!state.style.decks) state.style.decks = {};
+        if (!state.style.decks[deck]) state.style.decks[deck] = {};
+        const cur = state.style.decks[deck][dk];
+        if (Array.isArray(cur)) {
+          // Insert a blank after the current index
+          const idx = (state.styleArrayIndices[key] || 0) % cur.length;
+          cur.splice(idx + 1, 0, '');
+          state.styleArrayIndices[key] = idx + 1;
+        } else {
+          // Convert string to array: [existing, blank]
+          state.style.decks[deck][dk] = [cur || '', ''];
+          state.styleArrayIndices[key] = 1;
+        }
+      } else {
+        // Top-level style field
+        const topKey = key; // no dots for top-level
+        const cur = state.style[topKey];
+        if (Array.isArray(cur)) {
+          const idx = (state.styleArrayIndices[key] || 0) % cur.length;
+          cur.splice(idx + 1, 0, '');
+          state.styleArrayIndices[key] = idx + 1;
+        } else {
+          state.style[topKey] = [cur || '', ''];
+          state.styleArrayIndices[key] = 1;
+        }
+      }
+      state.rawJsonDraft = JSON.stringify(state.style, null, 2);
+      recomputePromptPreview();
+      render();
+      return;
+    }
+
+    case 'style-arr-remove': {
+      const key = target.getAttribute('data-key');
+      const fieldType = target.getAttribute('data-field-type');
+      if (!key) return;
+      const arr = getStyleValueByPath(state.style, key);
+      if (!Array.isArray(arr) || arr.length === 0) return;
+      const idx = (state.styleArrayIndices[key] || 0) % arr.length;
+      if (arr.length <= 1) {
+        // Last element — convert back to plain string
+        const val = arr[0] || '';
+        if (fieldType === 'deck-config') {
+          const deck = target.getAttribute('data-deck');
+          const dk = target.getAttribute('data-deck-key');
+          if (deck && dk && state.style.decks?.[deck]) {
+            state.style.decks[deck][dk] = val;
+          }
+        } else {
+          state.style[key] = val;
+        }
+        delete state.styleArrayIndices[key];
+      } else {
+        arr.splice(idx, 1);
+        // Keep index in bounds
+        if (idx >= arr.length) state.styleArrayIndices[key] = arr.length - 1;
+      }
+      state.rawJsonDraft = JSON.stringify(state.style, null, 2);
       recomputePromptPreview();
       render();
       return;
