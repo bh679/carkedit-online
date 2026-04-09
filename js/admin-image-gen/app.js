@@ -1540,7 +1540,8 @@ async function handleSaveToCard(batchIdx = 0) {
     const updated = await saveImageToCard(
       state.selectedPackId,
       state.selectedCardId,
-      srcUrl
+      srcUrl,
+      { textPosition: state.cardFormTextPosition, textColor: state.cardFormTextColor }
     );
     // Patch the cached card so the card list shows the ✓ checkmark next load.
     if (state.selectedPack?.cards) {

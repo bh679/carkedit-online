@@ -247,13 +247,13 @@ export async function saveStyleJson(style) {
  * image, writes it to uploads/card-images/, and sets card.image_url. Returns
  * the updated card.
  */
-export async function saveImageToCard(packId, cardId, imageUrl) {
+export async function saveImageToCard(packId, cardId, imageUrl, { textPosition, textColor } = {}) {
   const res = await fetch(
     `${API_BASE}/packs/${encodeURIComponent(packId)}/cards/${encodeURIComponent(cardId)}/image-from-url`,
     {
       method: 'POST',
       headers: await authHeaders(),
-      body: JSON.stringify({ imageUrl }),
+      body: JSON.stringify({ imageUrl, text_position: textPosition, text_color: textColor }),
     }
   );
   return handleJson(res, 'Failed to save image to card');
