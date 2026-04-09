@@ -6,19 +6,29 @@
 // script in admin-image-gen.html — this module does not initialize Firebase
 // itself (that's the HTML's job) to keep the bundle lean and avoid coupling
 // to the game-wide auth-manager state.
+//
+// The token getter is stored on a `window` global rather than in module
+// scope because the admin page's dynamic import uses a cache-bust query
+// string (`?v=…`) while app.js statically imports this module without one.
+// Those two URLs resolve to TWO separate module instances in the browser's
+// ES-module cache — so a module-scoped `_tokenGetter` written by one
+// instance would be invisible to the other, and the API calls would go out
+// without an Authorization header. Using `window.__carkedit_...` keeps the
+// getter on a single shared surface regardless of how many instances load.
 
 'use strict';
 
 const API_BASE = `${window.location.origin}/api/carkedit`;
 
-let _tokenGetter = async () => null;
+const TOKEN_GETTER_KEY = '__carkedItImageGenGetToken';
 
 export function setAuthTokenGetter(fn) {
-  _tokenGetter = fn || (async () => null);
+  window[TOKEN_GETTER_KEY] = fn || null;
 }
 
 async function authHeaders() {
-  const token = await _tokenGetter();
+  const getter = window[TOKEN_GETTER_KEY];
+  const token = typeof getter === 'function' ? await getter() : null;
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers.Authorization = `Bearer ${token}`;
   return headers;

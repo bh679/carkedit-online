@@ -13,15 +13,15 @@
   "decks": {
     "die": {
       "prefix": "Died from",
-      "annotation": "die card for a board game"
+      "annotation": "a death-themed playing card illustration"
     },
     "bye": {
       "prefix": "",
-      "annotation": "bye card for a board game"
+      "annotation": "a death-themed playing card illustration"
     },
     "live": {
       "prefix": "",
-      "annotation": "live card for a board game"
+      "annotation": "a death-themed playing card illustration"
     }
   }
 }
