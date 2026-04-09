@@ -1,19 +1,23 @@
-// CarkedIt Online — Swipe Navigation for Inspect Overlays
+// CarkedIt Online — Swipe + Drag Navigation
 //
-// Document-level pointer-event delegate that turns a horizontal swipe inside
-// any `.hand__inspect-overlay` into a click on the overlay's matching
-// `.hand__nav-btn--prev` / `.hand__nav-btn--next` button.
+// Two document-level pointer-event delegates in one module:
 //
-// Every full-screen card preview in the app (hand inspect, judging card
-// inspect, dashboard card preview, lobby card preview, expansion pack detail
-// preview) renders the same `.hand__inspect-overlay` markup with the same
-// prev/next buttons. Because this module delegates at the document level
-// based purely on that shared markup contract, none of those call sites
-// need to change.
+// 1. **Inspect overlay swipe** — a horizontal swipe inside any
+//    `.hand__inspect-overlay` clicks the overlay's matching
+//    `.hand__nav-btn--prev` / `.hand__nav-btn--next` button. Every
+//    full-screen card preview in the app (hand inspect, judging card
+//    inspect, dashboard card preview, lobby card preview, expansion pack
+//    detail preview) shares that markup, so none of those call sites
+//    need to change. Overlays without prev/next buttons no-op cleanly.
 //
-// Overlays that have no prev/next buttons (e.g. single-card previews, Living
-// Dead profile Close-only view) are naturally no-ops — the querySelector
-// returns null and the handler returns without clicking anything.
+// 2. **Drag-to-scroll** — on non-touch pointers (mouse/pen), clicking and
+//    dragging horizontally inside any element whose computed `overflow-x`
+//    is `auto` or `scroll` pans that element's `scrollLeft`. Touch
+//    pointers bail out so native touch-scroll + CSS scroll-snap continue
+//    to work on mobile. Covers `.card-list__scroll`, `.player-list`,
+//    `.detail__player-cards`, `.detail__phases-row`, `.detail__phase-cards`,
+//    `.dashboard__pack-stats-wrap`, and any future horizontal scroll
+//    container without a per-surface allowlist.
 'use strict';
 
 // Idempotent install guard: this module is imported from both `card-list.js`
@@ -88,4 +92,122 @@ if (typeof window !== 'undefined' && !window.__swipeOverlayInit) {
     e.stopPropagation();
     e.preventDefault();
   }, { capture: true });
+
+  // ── Part C: drag-to-scroll for horizontal lists ─────────────────────
+  //
+  // On non-touch pointers (mouse, pen), click-and-drag horizontally inside
+  // any horizontally-scrollable ancestor pans its scrollLeft. This gives
+  // desktop users a gestural alternative to the arrow buttons. Touch
+  // pointers bail out so native touch-scroll + CSS scroll-snap continue
+  // to work on mobile.
+
+  const DRAG_THRESHOLD = 5; // px: pointer movement before drag is "active"
+  const INTERACTIVE_SEL = 'button, input, select, textarea, a[href], [role="button"], [contenteditable], [contenteditable=""], [contenteditable="true"]';
+
+  let drag = null; // { container, startX, startScrollLeft, active, pointerId }
+
+  function findScrollableAncestor(el) {
+    let n = el;
+    while (n && n !== document.body && n.nodeType === 1) {
+      if (n.scrollWidth > n.clientWidth) {
+        const cs = getComputedStyle(n);
+        if (cs.overflowX === 'auto' || cs.overflowX === 'scroll') return n;
+      }
+      n = n.parentElement;
+    }
+    return null;
+  }
+
+  document.addEventListener('pointerdown', (e) => {
+    // Touch devices use native scroll + Part A scroll-snap; don't interfere.
+    if (e.pointerType === 'touch') return;
+    // Only left-button drags (mouse) or primary pen contact.
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    // Skip interactive controls so their taps still work.
+    if (e.target.closest(INTERACTIVE_SEL)) return;
+    // Let Part B (overlay swipe) handle taps inside an inspect overlay.
+    if (e.target.closest('.hand__inspect-overlay')) return;
+
+    const container = findScrollableAncestor(e.target);
+    if (!container) return;
+
+    drag = {
+      container,
+      startX: e.clientX,
+      startScrollLeft: container.scrollLeft,
+      active: false,
+      pointerId: e.pointerId,
+    };
+    // Pointer capture makes pointermove/pointerup fire reliably on this
+    // element even if the cursor leaves it.
+    try { container.setPointerCapture(e.pointerId); } catch { /* not all elements allow it */ }
+  }, { passive: true });
+
+  document.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    if (e.pointerId !== drag.pointerId) return;
+    const dx = e.clientX - drag.startX;
+    if (!drag.active && Math.abs(dx) > DRAG_THRESHOLD) {
+      drag.active = true;
+      drag.container.style.cursor = 'grabbing';
+      drag.container.style.userSelect = 'none';
+      // Temporarily disable scroll-snap AND scroll-behavior:smooth so
+      // the drag can pan fluidly. The shared `.card-list__scroll`
+      // stylesheet sets both (snap to card boundaries, smooth arrow
+      // button scrolls), but during a drag we want instant, unsnapped
+      // 1:1 pixel response. We restore both inline overrides on release
+      // — the natural resting position then snaps to the nearest card
+      // boundary, giving free "snap on release".
+      drag.prevSnapType = drag.container.style.scrollSnapType;
+      drag.prevScrollBehavior = drag.container.style.scrollBehavior;
+      drag.container.style.scrollSnapType = 'none';
+      drag.container.style.scrollBehavior = 'auto';
+    }
+    if (drag.active) {
+      drag.container.scrollLeft = drag.startScrollLeft - dx;
+      // Non-passive so we can preventDefault to stop native text selection
+      // and back/forward swipe navigation on trackpads.
+      if (e.cancelable) e.preventDefault();
+    }
+  }, { passive: false });
+
+  function endDrag(e) {
+    if (!drag) return;
+    if (e && e.pointerId !== drag.pointerId) return;
+    const wasActive = drag.active;
+    const container = drag.container;
+    try { container.releasePointerCapture(drag.pointerId); } catch { /* may already be released */ }
+    container.style.cursor = '';
+    container.style.userSelect = '';
+    if (drag.active) {
+      // Restore scroll-snap + scroll-behavior. Writing back the original
+      // inline values (empty string if we didn't have one) lets the
+      // stylesheet rules take over again. The current scrollLeft then
+      // settles to the nearest card boundary, giving a "snap on release"
+      // UX for free.
+      container.style.scrollSnapType = drag.prevSnapType || '';
+      container.style.scrollBehavior = drag.prevScrollBehavior || '';
+    }
+    drag = null;
+    if (wasActive) {
+      // Swallow the trailing click so a drag doesn't open a card/pack.
+      // One-shot capture-phase listener — removes itself after firing or
+      // after a short timeout if no click arrives.
+      let consumed = false;
+      const killOnce = (ev) => {
+        if (consumed) return;
+        consumed = true;
+        ev.stopPropagation();
+        ev.preventDefault();
+        document.removeEventListener('click', killOnce, true);
+      };
+      document.addEventListener('click', killOnce, { capture: true });
+      setTimeout(() => {
+        if (!consumed) document.removeEventListener('click', killOnce, true);
+      }, 300);
+    }
+  }
+
+  document.addEventListener('pointerup', endDrag, { passive: true });
+  document.addEventListener('pointercancel', endDrag, { passive: true });
 }
