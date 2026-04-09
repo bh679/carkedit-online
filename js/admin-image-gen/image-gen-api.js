@@ -105,6 +105,19 @@ export async function listGenerationLog({ scope = 'all', limit = 50, offset = 0 
 }
 
 /**
+ * POST /image-gen/log/merge — merge two split-card log entries into one.
+ * Folds mergeId's image into keepId's image_url_b, then deletes mergeId.
+ */
+export async function mergeLogEntries({ keepId, mergeId, updates }) {
+  const res = await fetch(`${API_BASE}/image-gen/log/merge`, {
+    method: 'POST',
+    headers: await authHeaders(),
+    body: JSON.stringify({ keepId, mergeId, updates }),
+  });
+  return handleJson(res, 'Failed to merge log entries');
+}
+
+/**
  * GET /image-gen/style — load the current style JSON from the API.
  *
  * Replaces the previous direct fetch of the static
