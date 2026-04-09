@@ -722,6 +722,12 @@ function renderGenerationLog() {
         } else {
           diffHtml = '<div class="prompt-diff prompt-diff--same">(same prompt)</div>';
         }
+        // Show model/provider change between consecutive entries
+        const curProvider = entry.provider || '';
+        const prevProvider = prevEntry.provider || '';
+        if (curProvider !== prevProvider) {
+          diffHtml += `<div class="prompt-diff prompt-diff--model-change"><del class="prompt-diff--removed">${esc(prevProvider)}</del> → <ins class="prompt-diff--added">${esc(curProvider)}</ins></div>`;
+        }
       }
 
       return `
