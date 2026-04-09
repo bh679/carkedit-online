@@ -67,19 +67,22 @@ export async function generateImage({
   style,
   promptOverride,
   options,
+  splitPosition,
 }) {
+  const body = {
+    providerId,
+    cardText,
+    cardPrompt,
+    deckType,
+    style,
+    promptOverride,
+    options,
+  };
+  if (splitPosition) body.splitPosition = splitPosition;
   const res = await fetch(`${API_BASE}/image-gen/generate`, {
     method: 'POST',
     headers: await authHeaders(),
-    body: JSON.stringify({
-      providerId,
-      cardText,
-      cardPrompt,
-      deckType,
-      style,
-      promptOverride,
-      options,
-    }),
+    body: JSON.stringify(body),
   });
   return handleJson(res, 'Image generation failed');
 }
