@@ -740,10 +740,10 @@ function renderBatchResultsPanel() {
     const isSelected = idx === state.selectedBatchIdx;
 
     return `
-      <button class="admin-img-gen__batch-item ${isSelected ? 'admin-img-gen__batch-item--active' : ''}" data-action="select-batch" data-batch-idx="${idx}">
+      <div class="admin-img-gen__batch-item ${isSelected ? 'admin-img-gen__batch-item--active' : ''}" data-action="select-batch" data-batch-idx="${idx}">
         <div class="admin-img-gen__batch-num">#${idx + 1}</div>
         <div class="admin-img-gen__batch-card-preview">${cardHtml}</div>
-      </button>`;
+      </div>`;
   }).join('');
 
   return `
