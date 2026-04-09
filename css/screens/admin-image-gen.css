@@ -351,6 +351,41 @@ html, body {
   margin: 0.25rem 0 0.75rem;
 }
 
+/* --- Variation mode controls --- */
+
+.admin-img-gen__variation-mode {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 0.6rem 0.75rem 0.5rem;
+  margin: 0.5rem 0 0.25rem;
+}
+.admin-img-gen__variation-mode legend {
+  padding: 0 0.3rem;
+  font-size: 0.75rem;
+}
+.admin-img-gen__variation-option {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  color: var(--color-text, #f0f0f0);
+  padding: 0.2rem 0;
+  cursor: pointer;
+}
+.admin-img-gen__variation-option input[type="radio"] {
+  accent-color: var(--color-primary, #9842ff);
+  margin: 0;
+}
+.admin-img-gen__variation-option--inline {
+  flex-wrap: wrap;
+}
+.admin-img-gen__variation-field-select {
+  font-size: 0.8rem;
+  padding: 0.2em 0.4em;
+  min-width: 8em;
+  max-width: 14em;
+}
+
 .admin-img-gen__gen-actions {
   display: flex;
   gap: 0.5rem;
