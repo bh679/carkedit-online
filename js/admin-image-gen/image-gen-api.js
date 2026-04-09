@@ -156,10 +156,14 @@ export async function saveImageToCard(packId, cardId, imageUrl) {
 
 // --- Pack endpoints (read-only reuse for the Pick-from-pack tab) ---
 
-/** GET /packs?creator_id=... — packs owned by the given user. */
-export async function listMyPacks(userId) {
+/**
+ * GET /packs — every pack from every creator. Used by the admin
+ * image-gen page's Pick-a-Pack dropdown, which iterates across every
+ * custom pack regardless of who created it. The admin test tool
+ * isn't scoped to a single creator, so no creator_id filter.
+ */
+export async function listAllPacks() {
   const url = new URL(`${API_BASE}/packs`);
-  if (userId) url.searchParams.set('creator_id', userId);
   url.searchParams.set('limit', '200');
   const res = await fetch(url, { headers: await authHeaders() });
   const data = await handleJson(res, 'Failed to list packs');
