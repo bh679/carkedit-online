@@ -68,6 +68,8 @@ export async function generateImage({
   promptOverride,
   options,
   splitPosition,
+  inputImage,
+  cardSpecial,
 }) {
   const body = {
     providerId,
@@ -79,6 +81,8 @@ export async function generateImage({
     options,
   };
   if (splitPosition) body.splitPosition = splitPosition;
+  if (inputImage) body.inputImage = inputImage;
+  if (cardSpecial) body.cardSpecial = cardSpecial;
   const res = await fetch(`${API_BASE}/image-gen/generate`, {
     method: 'POST',
     headers: await authHeaders(),
@@ -107,6 +111,8 @@ export async function generateImageStream({
   promptOverride,
   options,
   splitPosition,
+  inputImage,
+  cardSpecial,
   onProgress,
 }) {
   const body = {
@@ -119,6 +125,8 @@ export async function generateImageStream({
     options,
   };
   if (splitPosition) body.splitPosition = splitPosition;
+  if (inputImage) body.inputImage = inputImage;
+  if (cardSpecial) body.cardSpecial = cardSpecial;
 
   const res = await fetch(`${API_BASE}/image-gen/generate-stream`, {
     method: 'POST',
