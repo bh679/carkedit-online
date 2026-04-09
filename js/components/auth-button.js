@@ -20,6 +20,7 @@ export function renderAuthButton(state) {
       <a class="auth-menu__item" href="dashboard">Dashboard</a>
       <a class="auth-menu__item" href="admin-users">User Management</a>
       <a class="auth-menu__item" href="dev-dashboard">Dev Dashboard</a>
+      <a class="auth-menu__item" href="admin-image-gen">Image Generator</a>
     ` : '';
 
     const menu = state.showUserMenu ? `
