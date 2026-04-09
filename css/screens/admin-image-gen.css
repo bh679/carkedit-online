@@ -1,13 +1,30 @@
 /* CarkedIt Online — Admin Card Image Generator
  *
- * Two-column admin test page for AI image generation. Reuses `.designer__*`
- * form tokens from card-designer.css for inputs and `.card` tokens from
- * components/card.css for the live preview, so it stays visually consistent
- * with the rest of the app.
+ * Tablet-width admin test page for AI image generation. Matches the
+ * 900px-max-width pattern from admin-users.html. Reuses `.designer__*`
+ * form tokens from card-designer.css and `.card` tokens from
+ * components/card.css so it stays visually consistent with the rest
+ * of the app.
  */
 
+/* Base styles lock body/#app to 100vh with overflow:hidden (game screens
+ * run full-viewport). For this admin page we need normal document-level
+ * scrolling, so release the clamp. */
+html, body {
+  height: auto !important;
+  min-height: 100vh;
+  overflow: auto !important;
+}
+#app {
+  height: auto !important;
+  overflow: visible !important;
+  min-height: 100vh;
+  max-width: none !important;
+  display: block !important;
+}
+
 .admin-img-gen {
-  max-width: 1400px;
+  max-width: 900px;
   margin: 0 auto;
   padding: 1.5rem 1.5rem 4rem;
   color: var(--color-text, #f0f0f0);
@@ -67,11 +84,11 @@
 
 .admin-img-gen__grid {
   display: grid;
-  grid-template-columns: minmax(320px, 1.5fr) minmax(280px, 1fr);
-  gap: 1.5rem;
+  grid-template-columns: minmax(280px, 1.4fr) minmax(220px, 1fr);
+  gap: 1.25rem;
   align-items: start;
 }
-@media (max-width: 900px) {
+@media (max-width: 720px) {
   .admin-img-gen__grid {
     grid-template-columns: 1fr;
   }
