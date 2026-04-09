@@ -107,6 +107,13 @@ const state = {
   generationLogLoading: false,
   generationLogError: null,
   generationLogVisibleRows: 5,     // how many rows to show (Load More adds 10 rows)
+
+  // Mystery card reference image (base64) — loaded once from /assets/questionmark.png.
+  // When present and a mystery (?) card is being generated, this is sent as
+  // `inputImage` so BFL reskins the question mark rather than generating from scratch.
+  mysteryRefImageBase64: null,
+  mysteryRefImageLoading: false,
+  mysteryRefImageError: null,
   generationLogCols: 5,            // auto-detected grid column count (updated after render)
 };
 
@@ -453,6 +460,19 @@ function renderCardForm() {
       </div>
     </div>` : '';
 
+  const mysteryRefBanner = isMystery ? `
+    <div class="designer__field" style="margin-top: 4px">
+      <span class="designer__label" style="font-size: 0.85em; color: ${state.mysteryRefImageBase64 ? '#2a7' : state.mysteryRefImageError ? '#c44' : '#888'}">
+        ${state.mysteryRefImageBase64
+          ? 'Image-editing mode: using questionmark.png as reference'
+          : state.mysteryRefImageLoading
+            ? 'Loading reference image...'
+            : state.mysteryRefImageError
+              ? 'Reference image failed to load — will fall back to text-to-image'
+              : 'Reference image not loaded'}
+      </span>
+    </div>` : '';
+
   const splitFields = isSplit ? `
     <label class="designer__label">
       Option A
@@ -479,6 +499,7 @@ function renderCardForm() {
           <div class="designer__deck-picker">${deckPicker}</div>
         </div>
         ${variantPicker}
+        ${mysteryRefBanner}
         <label class="designer__label">
           Card Text${isSplit ? ' (auto-generated for Split cards)' : ''}
           <textarea class="designer__input designer__textarea" data-field="card-text" maxlength="200" placeholder="What's on the card..."${isSplit ? ' readonly' : ''}>${esc(state.cardFormText)}</textarea>
@@ -1404,6 +1425,10 @@ async function generate() {
       updateProgressStatus(info.phase, info.status);
     };
 
+    // Mystery (?) cards use image-editing mode with the reference question mark.
+    const isMystery = state.cardFormDeckType === 'die' && state.cardFormSpecial === '?';
+    const inputImage = isMystery ? state.mysteryRefImageBase64 : undefined;
+
     if (isSplit) {
       // Split / WYR cards need two images per batch item — one per option.
       // Fire all pairs in parallel.
@@ -1459,6 +1484,7 @@ async function generate() {
           style: state.style,
           promptOverride: state.promptOverride,
           options: { width: dims.width, height: dims.height },
+          inputImage,
           onProgress,
         })
       );
@@ -1551,6 +1577,34 @@ async function saveStyle() {
  * clicks a scope filter button. Fire-and-forget — errors land in
  * state.generationLogError and render inline.
  */
+/**
+ * Load the mystery card reference image (/assets/questionmark.png) and
+ * convert it to a base64 data-URL. Cached in state.mysteryRefImageBase64
+ * so subsequent mystery card generations don't re-fetch.
+ */
+async function loadMysteryRefImage() {
+  if (state.mysteryRefImageBase64 || state.mysteryRefImageLoading) return;
+  state.mysteryRefImageLoading = true;
+  try {
+    const res = await fetch('/assets/questionmark.png');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+    // BFL expects raw base64 without the data-URL prefix.
+    state.mysteryRefImageBase64 = base64.replace(/^data:image\/\w+;base64,/, '');
+  } catch (err) {
+    console.warn('[admin-image-gen] Failed to load mystery reference image:', err);
+    state.mysteryRefImageError = err?.message || 'Failed to load reference image';
+  } finally {
+    state.mysteryRefImageLoading = false;
+  }
+}
+
 async function loadGenerationLog() {
   state.generationLogLoading = true;
   state.generationLogError = null;
@@ -1654,4 +1708,7 @@ export async function mount({ container, firebaseUser, providers, signOut }) {
   // Kick off the Recent generations load now that the basic UI is
   // mounted. Fire-and-forget — it'll re-render when the fetch returns.
   loadGenerationLog();
+
+  // Pre-load the mystery card reference image (fire-and-forget).
+  loadMysteryRefImage();
 }
