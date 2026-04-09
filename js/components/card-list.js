@@ -5,6 +5,7 @@
 'use strict';
 
 import { render as renderCardFace } from './card.js';
+import { buildCard } from '../data/card.js';
 
 function escAttr(s) {
   return String(s ?? '')
@@ -27,13 +28,13 @@ function deckTypeFor(deck) {
  * card swaps to the same text-only styling used for custom packs).
  */
 function renderItemFace(item) {
-  return renderCardFace({
+  return renderCardFace(buildCard({
     title: item.text || '',
     image: item.imgSrc || '',
     deckType: deckTypeFor(item.deck),
-    special: item.special || '',
+    special: item.special || null,
     options: item.options || null,
-  });
+  }));
 }
 
 /**

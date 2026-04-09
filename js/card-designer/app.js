@@ -1,6 +1,7 @@
 'use strict';
 
 import { render as renderCard } from '../components/card.js';
+import { buildCard } from '../data/card.js';
 import { render as renderPackBg } from '../components/pack-card-background.js';
 import { render as renderCardList, bindScrollArrows } from '../components/card-list.js';
 import {
@@ -262,7 +263,13 @@ function renderPackEditor() {
     ? state.currentPackCards.find(c => String(c.id) === String(pack.featured_card_id))
     : null;
   const featureHtml = featureCard
-    ? renderCard({ title: featureCard.text, description: '', prompt: '', image: '', illustrationKey: '', deckType: featureCard.deck_type, brandImageUrl: pack.brand_image_url || '', special: featureCard.card_special || '', options: parseCardOptions(featureCard) })
+    ? renderCard(buildCard({
+        title: featureCard.text,
+        deckType: featureCard.deck_type,
+        brandImageUrl: pack.brand_image_url || '',
+        special: featureCard.card_special || null,
+        options: parseCardOptions(featureCard),
+      }, { source: 'designer' }))
     : '<span class="designer__feature-empty">None</span>';
   const sections = deckTypes.map(type => {
     const cards = state.currentPackCards.filter(c => c.deck_type === type);
@@ -401,17 +408,14 @@ function renderCardForm() {
   const isSplit = isDie && state.cardFormSpecial === 'Split';
   const isMystery = isDie && state.cardFormSpecial === '?';
 
-  const preview = renderCard({
+  const preview = renderCard(buildCard({
     title: state.cardFormText || 'Card text here...',
-    description: '',
     prompt: state.cardFormPrompt,
-    image: '',
-    illustrationKey: '',
     deckType: state.cardFormDeckType,
     brandImageUrl: state.currentPack?.brand_image_url || '',
-    special: isDie ? state.cardFormSpecial : '',
+    special: isDie ? state.cardFormSpecial : null,
     options: isSplit ? [state.cardFormOption1 || 'Option A', state.cardFormOption2 || 'Option B'] : null,
-  });
+  }, { source: 'designer' }));
 
   const variantPicker = isDie ? `
         <div class="designer__field">
@@ -635,14 +639,14 @@ function onDocInput(e) {
     const previewEl = document.querySelector('.designer__preview');
     const countEls = document.querySelectorAll('.designer__char-count');
     if (previewEl) {
-      previewEl.innerHTML = renderCard({
+      previewEl.innerHTML = renderCard(buildCard({
         title: state.cardFormText || 'Card text here...',
-        description: '', prompt: state.cardFormPrompt, image: '', illustrationKey: '',
+        prompt: state.cardFormPrompt,
         deckType: state.cardFormDeckType,
         brandImageUrl: state.currentPack?.brand_image_url || '',
-        special: isDie ? state.cardFormSpecial : '',
+        special: isDie ? state.cardFormSpecial : null,
         options: isSplit ? [state.cardFormOption1 || 'Option A', state.cardFormOption2 || 'Option B'] : null,
-      });
+      }, { source: 'designer' }));
     }
     if (countEls[0]) countEls[0].textContent = `${state.cardFormText.length}/200`;
     if (countEls[1]) countEls[1].textContent = `${state.cardFormPrompt.length}/200`;

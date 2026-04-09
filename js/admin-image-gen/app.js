@@ -18,6 +18,7 @@
 'use strict';
 
 import { render as renderCard } from '../components/card.js';
+import { buildCard } from '../data/card.js';
 import {
   listProviders,
   generateImage,
@@ -499,7 +500,7 @@ function renderStyleRaw() {
 }
 
 function renderPreviewPanel() {
-  const cardHtml = renderCard(currentCardForPreview());
+  const cardHtml = renderCard(buildCard(currentCardForPreview()));
   return `
     <div class="admin-img-gen__section">
       <h2 class="admin-img-gen__section-title">Card preview</h2>
@@ -578,7 +579,7 @@ function renderGenerationLog() {
       let optsArr = null;
       try { optsArr = entry.options_json ? JSON.parse(entry.options_json) : null; } catch {}
       const isSplit = entry.deck_type === 'die' && entry.card_special === 'Split';
-      const cardHtml = renderCard({
+      const cardHtml = renderCard(buildCard({
         title: entry.text || '(untitled)',
         description: '',
         prompt: entry.prompt || '',
@@ -586,9 +587,10 @@ function renderGenerationLog() {
         graphicImage: isSplit ? '' : (entry.image_url || ''),
         graphicImages: isSplit ? [entry.image_url || '', entry.image_url_b || ''] : null,
         deckType: entry.deck_type,
+        // buildCard normalises '?'/'Split' → 'mystery'/'split' so pass the raw DB value through.
         special: entry.deck_type === 'die' ? (entry.card_special || '') : '',
         options: optsArr,
-      });
+      }));
       return `
         <button class="admin-img-gen__log-cell" data-action="hydrate-from-log" data-log-id="${esc(entry.id)}" title="${esc(entry.text || '')}&#10;${esc(entry.provider)} · ${esc(entry.created_at)}">
           ${cardHtml}
@@ -824,7 +826,7 @@ function onChange(e) {
 // keystroke. Full render() is still used for tab/provider/style-mode changes.
 function updatePreviewParts() {
   const previewContainer = state.container?.querySelector('.admin-img-gen__card-preview');
-  if (previewContainer) previewContainer.innerHTML = renderCard(currentCardForPreview());
+  if (previewContainer) previewContainer.innerHTML = renderCard(buildCard(currentCardForPreview()));
   updatePromptPreviewText();
 }
 

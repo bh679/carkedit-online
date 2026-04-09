@@ -112,7 +112,7 @@ function getPitchingPlayerName(state) {
 
 function renderDieCard(card) {
   if (!card) return '';
-  return renderActiveCard(renderCard({ ...card, deckType: 'die' }));
+  return renderActiveCard(renderCard(card));
 }
 
 function renderLivingDeadScreen(config, state, playerListOptions, livingDeadName) {
@@ -328,7 +328,7 @@ function renderWinnerScreen(config, state, playerListOptions) {
   const winnerName = state.roundWinner ?? '';
   const winnerCard = state.roundWinnerCard;
   const activeCardHtml = winnerCard
-    ? renderActiveCard(renderCard({ ...winnerCard, deckType: winnerCard.deckType || config.deckType }))
+    ? renderActiveCard(renderCard(winnerCard))
     : '';
 
   return layout(config, state, playerListOptions, `
@@ -439,7 +439,7 @@ function renderOnlineReveal(config, state, playerListOptions) {
       // Already flipped — show face-up directly (no animation)
       return `
         <div class="card-grid__item">
-          ${renderCard({ ...card, deckType: card.deckType || config.deckType })}
+          ${renderCard(card)}
           <span class="card-grid__label">Card ${i + 1}</span>
         </div>
       `;
@@ -449,7 +449,7 @@ function renderOnlineReveal(config, state, playerListOptions) {
       <div class="card-grid__item card-flip" data-reveal-index="${i}">
         <div class="card-flip__inner">
           <div class="card-flip__back">${renderCardBack({ deckType: config.deckType })}</div>
-          <div class="card-flip__front">${renderCard({ ...card, deckType: card.deckType || config.deckType })}</div>
+          <div class="card-flip__front">${renderCard(card)}</div>
         </div>
         <span class="card-grid__label">Card ${i + 1}</span>
       </div>
@@ -582,7 +582,7 @@ function renderOnlineWinner(config, state, playerListOptions) {
   const winnerName = state.roundWinner ?? '';
   const winnerCard = state.roundWinnerCard;
   const activeCardHtml = winnerCard
-    ? renderActiveCard(renderCard({ ...winnerCard, deckType: winnerCard.deckType || config.deckType }))
+    ? renderActiveCard(renderCard(winnerCard))
     : '';
 
   return layout(config, state, playerListOptions, `

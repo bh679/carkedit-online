@@ -87,12 +87,16 @@ export function render({
       ? `assets/illustrations/${card.deckType}/${card.illustrationKey}.jpg`
       : '');
     const safeTitle = (card.title || label).replace(/"/g, '&quot;');
+    // When the card has no illustration (e.g. custom pack), render the full
+    // text-only card via renderCard() instead of a blank placeholder, so
+    // custom cards are visible in the profile thumbnail strip.
+    const thumbContent = imgSrc
+      ? `<img src="${imgSrc}" alt="${safeTitle}" class="ld-profile__card-img" loading="lazy">`
+      : `<div class="ld-profile__card-placeholder ld-profile__card-placeholder--text-only">${renderCard(card)}</div>`;
     return `
       <button class="ld-profile__card-thumb" onclick="window.game.inspectProfileCard(${index})" aria-label="View ${safeTitle}">
         <div class="ld-profile__card-img-wrap">
-          ${imgSrc
-            ? `<img src="${imgSrc}" alt="${safeTitle}" class="ld-profile__card-img" loading="lazy">`
-            : `<div class="ld-profile__card-placeholder"></div>`}
+          ${thumbContent}
         </div>
         <span class="ld-profile__card-label">${label}</span>
       </button>
@@ -107,7 +111,7 @@ export function render({
     const colClass = `ld-profile__submitted--cols-${cols}`;
     const cardEls = submittedPlayerNames.map(name => {
       const cardHtml = submittedRevealed
-        ? renderCard({ ...submittedCards[name], deckType: submittedCards[name].deckType || deckType })
+        ? renderCard(submittedCards[name])
         : renderCardBack({ deckType });
       return `
         <div class="ld-profile__submitted-card">
