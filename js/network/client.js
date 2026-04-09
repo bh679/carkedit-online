@@ -155,6 +155,11 @@ function serverCardToLocal(serverCard) {
         prompt: serverCard.prompt || match.prompt || '',
         special: serverCard.special || match.special || null,
         options: serverOptions.length ? serverOptions : (match.options ?? null),
+        // Custom-card illustration. Prefer the server value (authoritative
+        // at game-start) but fall back to the local pack's copy so we stay
+        // resilient during a mid-deploy window where the server hasn't
+        // rolled out the new @type("string") image_url field yet.
+        image_url: serverCard.image_url || match.image_url || '',
       }
     : {
         id: serverCard.id,
@@ -166,6 +171,7 @@ function serverCardToLocal(serverCard) {
         options: serverOptions.length ? serverOptions : null,
         faceUp: serverCard.faceUp,
         submittedBy: serverCard.submittedBy,
+        image_url: serverCard.image_url || '',
       };
   return buildCard(merged, { source: 'server' });
 }
