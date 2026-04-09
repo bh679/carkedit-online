@@ -1034,6 +1034,7 @@ function onChange(e) {
     else render();
   } else if (action === 'select-provider') {
     state.selectedProviderId = t.value || null;
+    render();
   }
 }
 
