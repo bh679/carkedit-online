@@ -274,6 +274,23 @@ html, body {
   pointer-events: none; /* the button captures the click */
 }
 
+/* Cost badge on log gallery cells */
+.admin-img-gen__log-cost {
+  display: block;
+  font-size: 0.6rem;
+  color: var(--color-text-muted, #888);
+  text-align: center;
+  margin-top: 0.2rem;
+}
+
+/* Cumulative cost total in log header */
+.admin-img-gen__log-total {
+  font-size: 0.78rem;
+  color: #4caf50;
+  font-weight: 600;
+  margin-left: 0.75rem;
+}
+
 /* Per-deck config groups — each of die/live/bye gets its own card-
  * like container with a capitalised label and two inputs inside
  * (Prefix + Annotation). */

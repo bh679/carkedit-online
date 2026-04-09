@@ -662,6 +662,7 @@ function renderGeneratedPanel() {
       ${imagesHtml}
       <div class="admin-img-gen__gen-meta">
         <strong>Provider:</strong> ${esc(g.provider)}<br>
+        ${g.costUsd != null ? `<strong>Cost:</strong> $${Number(g.costUsd).toFixed(4)}${g.tokensUsed != null ? ` (${g.tokensUsed} tokens)` : ''}<br>` : ''}
         ${promptMeta}
       </div>
       ${state.saveError ? `<p class="admin-img-gen__error">${esc(state.saveError)}</p>` : ''}
@@ -743,9 +744,14 @@ function renderGenerationLog() {
         }
       }
 
+      const costBadge = entry.cost_usd != null
+        ? `<span class="admin-img-gen__log-cost">$${Number(entry.cost_usd).toFixed(4)}</span>`
+        : '';
+
       return `
-        <button class="admin-img-gen__log-cell" data-action="hydrate-from-log" data-log-id="${esc(entry.id)}" title="${esc(entry.text || '')}&#10;${esc(entry.provider)} · ${esc(entry.created_at)}">
+        <button class="admin-img-gen__log-cell" data-action="hydrate-from-log" data-log-id="${esc(entry.id)}" title="${esc(entry.text || '')}&#10;${esc(entry.provider)} · ${esc(entry.created_at)}${entry.cost_usd != null ? ` · $${Number(entry.cost_usd).toFixed(4)}` : ''}">
           ${cardHtml}
+          ${costBadge}
           ${diffHtml}
         </button>
       `;
@@ -757,9 +763,14 @@ function renderGenerationLog() {
     body = `<div class="admin-img-gen__log-grid">${cells}</div>${loadMoreBtn}`;
   }
 
+  const totalCost = state.generationLog.reduce((sum, e) => sum + (e.cost_usd || 0), 0);
+  const totalDisplay = totalCost > 0
+    ? `<span class="admin-img-gen__log-total">Total: $${totalCost.toFixed(2)}</span>`
+    : '';
+
   return `
     <div class="admin-img-gen__section admin-img-gen__log-section">
-      <h2 class="admin-img-gen__section-title">Recent generations</h2>
+      <h2 class="admin-img-gen__section-title">Recent generations ${totalDisplay}</h2>
       <div class="admin-img-gen__log-filters">${filters}</div>
       ${body}
     </div>
@@ -1130,6 +1141,8 @@ async function generate() {
         provider: resultA.provider,
         promptSent: resultA.promptSent,
         promptSentB: resultB.promptSent,
+        tokensUsed: (resultA.tokensUsed || 0) + (resultB.tokensUsed || 0) || null,
+        costUsd: (resultA.costUsd || 0) + (resultB.costUsd || 0) || null,
       };
       // Merge the two log entries into one so Recent generations shows
       // a single combined split card instead of two separate thumbnails.
@@ -1279,6 +1292,8 @@ function hydrateFromLog(logId) {
     imageUrlB: entry.image_url_b || '',
     provider: entry.provider,
     promptSent: entry.prompt_sent,
+    tokensUsed: entry.tokens_used ?? null,
+    costUsd: entry.cost_usd ?? null,
   };
   state.generateError = null;
   recomputePromptPreview();
