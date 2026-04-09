@@ -490,7 +490,7 @@ function renderGenerationPanel() {
   const pricingInfo = selectedProvider?.pricing
     ? (() => {
         const url = selectedProvider.pricing.pricingUrl;
-        const cost = `$${selectedProvider.pricing.baseCostUsd.toFixed(4)}/image`;
+        const cost = `$${selectedProvider.pricing.costPerMegapixel.toFixed(3)}/MP`;
         return url
           ? `<a href="${esc(url)}" target="_blank" rel="noopener" class="admin-img-gen__pricing-link">${cost}</a>`
           : `<span class="admin-img-gen__pricing-link">${cost}</span>`;
