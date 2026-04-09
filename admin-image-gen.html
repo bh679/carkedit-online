@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CarkedIt — Card Image Generator (Admin)</title>
+    <link rel="stylesheet" href="css/base.css?v=1.06.0052">
+    <link rel="stylesheet" href="css/components/auth.css?v=1.06.0052">
+    <link rel="stylesheet" href="css/components/card.css?v=1.06.0052">
+    <link rel="stylesheet" href="css/screens/card-designer.css?v=1.06.0052">
+    <link rel="stylesheet" href="css/screens/admin-image-gen.css?v=1.06.0052">
+</head>
+<body>
+    <div id="app">
+        <div class="admin-img-gen__loading">Loading…</div>
+    </div>
+    <script type="module">
+    'use strict';
+
+    // Same Firebase config as every other CarkedIt Online admin page —
+    // we roll our own init here (rather than reusing js/managers/auth-manager)
+    // to keep this standalone admin page free of game-state side effects.
+    const FIREBASE_CONFIG = {
+      apiKey: "AIzaSyC6QJz6jTzJkBWV7Shd9XpCfHWrovJ9vaI",
+      authDomain: "carkedit-5cc8e.firebaseapp.com",
+      projectId: "carkedit-5cc8e",
+      storageBucket: "carkedit-5cc8e.firebasestorage.app",
+      messagingSenderId: "144073275425",
+      appId: "1:144073275425:web:2301fbbccc2be69c654b60",
+    };
+
+    let firebaseAuth = null;
+    let authModule = null;
+    let currentFbUser = null;
+
+    async function loadFirebaseAuth() {
+      const [appMod, authMod] = await Promise.all([
+        import('https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js'),
+        import('https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js'),
+      ]);
+      const app = appMod.initializeApp(FIREBASE_CONFIG);
+      firebaseAuth = authMod.getAuth(app);
+      authModule = authMod;
+      return authMod;
+    }
+
+    async function getToken() {
+      if (!firebaseAuth?.currentUser) return null;
+      return firebaseAuth.currentUser.getIdToken();
+    }
+
+    function renderGate(msg, opts = {}) {
+      const { showSignIn = false, showSignOut = false } = opts;
+      document.getElementById('app').innerHTML = `
+        <div class="admin-img-gen__gate">
+          <div>
+            <h1>Card Image Generator</h1>
+            <p>${msg}</p>
+            ${showSignIn ? '<button class="btn btn--google" id="gate-sign-in">Sign in with Google</button>' : ''}
+            ${showSignOut ? '<button class="btn" id="gate-sign-out" style="margin-left:0.5em">Sign out</button>' : ''}
+            <div style="margin-top:1.5em">
+              <a href="/" class="btn" style="background:transparent;color:var(--color-text-muted,#888);text-decoration:none">Back to Main Menu</a>
+            </div>
+          </div>
+        </div>`;
+      const si = document.getElementById('gate-sign-in');
+      if (si) {
+        si.addEventListener('click', async () => {
+          try {
+            const provider = new authModule.GoogleAuthProvider();
+            await authModule.signInWithPopup(firebaseAuth, provider);
+          } catch (err) {
+            console.error('[admin-image-gen] sign-in error:', err);
+          }
+        });
+      }
+      const so = document.getElementById('gate-sign-out');
+      if (so) {
+        so.addEventListener('click', async () => {
+          try { await authModule.signOut(firebaseAuth); } catch {}
+        });
+      }
+    }
+
+    async function boot() {
+      try {
+        await loadFirebaseAuth();
+      } catch (err) {
+        console.error('[admin-image-gen] Firebase load failed:', err);
+        renderGate('Failed to load Firebase — check your network.');
+        return;
+      }
+
+      authModule.onAuthStateChanged(firebaseAuth, async (fbUser) => {
+        currentFbUser = fbUser;
+        if (!fbUser) {
+          renderGate('Sign in with an admin Google account to continue.', { showSignIn: true });
+          return;
+        }
+
+        // Provider list endpoint doubles as an admin gate — 403 means the
+        // signed-in user isn't flagged is_admin in the carkedit-api users table.
+        let providers = [];
+        try {
+          const token = await fbUser.getIdToken();
+          const res = await fetch('/api/carkedit/image-gen/providers', {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (res.status === 403) {
+            renderGate('Your account is not an admin. Ask an admin to flag you via /admin-users, then reload.', { showSignOut: true });
+            return;
+          }
+          if (!res.ok) {
+            const body = await res.text().catch(() => '');
+            renderGate(`Failed to verify admin access (${res.status}). ${body.slice(0,200)}`, { showSignOut: true });
+            return;
+          }
+          const data = await res.json();
+          providers = Array.isArray(data.providers) ? data.providers : [];
+        } catch (err) {
+          console.error('[admin-image-gen] admin check failed:', err);
+          renderGate('Failed to reach the API. Is the server running?', { showSignOut: true });
+          return;
+        }
+
+        // Gate passed — hand off to the main app.
+        try {
+          const apiMod = await import('./js/admin-image-gen/image-gen-api.js');
+          apiMod.setAuthTokenGetter(getToken);
+          const appMod = await import('./js/admin-image-gen/app.js');
+          await appMod.mount({
+            container: document.getElementById('app'),
+            firebaseUser: fbUser,
+            providers,
+            signOut: () => authModule.signOut(firebaseAuth),
+          });
+        } catch (err) {
+          console.error('[admin-image-gen] app mount failed:', err);
+          renderGate(`Failed to load the page app: ${err?.message || err}`, { showSignOut: true });
+        }
+      });
+    }
+
+    boot();
+    </script>
+</body>
+</html>
