@@ -24,6 +24,7 @@ import {
   generateImage,
   saveImageToCard,
   saveStyleJson,
+  getStyleJson,
   listGenerationLog,
   listMyPacks,
   getPackWithCards,
@@ -1068,18 +1069,16 @@ export async function mount({ container, firebaseUser, providers, signOut }) {
   const firstConfigured = state.providers.find(p => p.configured) || state.providers[0];
   state.selectedProviderId = firstConfigured?.id || null;
 
-  // Load the default style JSON.
+  // Load the current style JSON from the API (single source of truth).
+  // The previous static-file fetch at /js/data/image-gen-style.json
+  // broke on production where the admin page is mounted under a
+  // subpath — see the header in that file for context.
   try {
-    const res = await fetch('/js/data/image-gen-style.json');
-    if (res.ok) {
-      state.defaultStyle = await res.json();
-      state.style = JSON.parse(JSON.stringify(state.defaultStyle));
-      state.rawJsonDraft = JSON.stringify(state.style, null, 2);
-    } else {
-      throw new Error(`Style JSON ${res.status}`);
-    }
+    state.defaultStyle = await getStyleJson();
+    state.style = JSON.parse(JSON.stringify(state.defaultStyle));
+    state.rawJsonDraft = JSON.stringify(state.style, null, 2);
   } catch (err) {
-    console.warn('[admin-image-gen] Failed to load default style JSON, using empty:', err);
+    console.warn('[admin-image-gen] Failed to load style JSON, using empty:', err);
     state.defaultStyle = {};
     state.style = {};
     state.rawJsonDraft = '{}';

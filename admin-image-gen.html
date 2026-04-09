@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CarkedIt — Card Image Generator (Admin)</title>
-    <link rel="stylesheet" href="css/base.css?v=1.06.0081">
-    <link rel="stylesheet" href="css/components/auth.css?v=1.06.0081">
-    <link rel="stylesheet" href="css/components/card.css?v=1.06.0081">
-    <link rel="stylesheet" href="css/screens/card-designer.css?v=1.06.0081">
-    <link rel="stylesheet" href="css/screens/admin-image-gen.css?v=1.06.0081">
+    <link rel="stylesheet" href="css/base.css?v=1.06.0082">
+    <link rel="stylesheet" href="css/components/auth.css?v=1.06.0082">
+    <link rel="stylesheet" href="css/components/card.css?v=1.06.0082">
+    <link rel="stylesheet" href="css/screens/card-designer.css?v=1.06.0082">
+    <link rel="stylesheet" href="css/screens/admin-image-gen.css?v=1.06.0082">
 </head>
 <body>
     <div id="app">
@@ -125,9 +125,9 @@
 
         // Gate passed — hand off to the main app.
         try {
-          const apiMod = await import('./js/admin-image-gen/image-gen-api.js?v=1.06.0081');
+          const apiMod = await import('./js/admin-image-gen/image-gen-api.js?v=1.06.0082');
           apiMod.setAuthTokenGetter(getToken);
-          const appMod = await import('./js/admin-image-gen/app.js?v=1.06.0081');
+          const appMod = await import('./js/admin-image-gen/app.js?v=1.06.0082');
           await appMod.mount({
             container: document.getElementById('app'),
             firebaseUser: fbUser,
