@@ -323,10 +323,10 @@ function render() {
   if (!state.container) return;
   const batchSize = Math.max(state.generatedBatch.length, state.batchCount || 1);
   const isBatch = batchSize > 1;
-  // Each extra card beyond the first adds ~240px (220px card + 20px gap).
+  // Each extra card adds ~300px (220px card + padding + border + gap).
   // Base is 900px which already fits 1 card in the right column.
   const extraCards = isBatch ? batchSize - 1 : 0;
-  const wideStyle = isBatch ? ` style="max-width: ${900 + extraCards * 240}px"` : '';
+  const wideStyle = isBatch ? ` style="max-width: ${900 + extraCards * 300}px"` : '';
   state.container.innerHTML = `
     ${renderAuthBar()}
     <div class="admin-img-gen"${wideStyle}>
