@@ -147,7 +147,11 @@ function currentCardForPreview() {
     title: state.cardFormText || 'Card text preview…',
     description: '',
     prompt: state.cardFormPrompt,
-    image: state.generated?.imageUrl || '',
+    // `image` (full-bleed illustration) left blank — AI-generated art uses
+    // the new `graphicImage` path in card.js which keeps the text-only
+    // layout and just swaps the splatter pattern for the rendered image.
+    image: '',
+    graphicImage: state.generated?.imageUrl || '',
     illustrationKey: '',
     deckType: state.cardFormDeckType,
     brandImageUrl: state.selectedPack?.brand_image_url || '',
