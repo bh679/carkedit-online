@@ -70,6 +70,25 @@ async function ghFetch(path) {
   return data;
 }
 
+async function ghPost(path, body) {
+  const token = getToken();
+  if (!token) throw new Error('GitHub token required — add ?token=ghp_...');
+  const res = await fetch(`${API}${path}`, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/vnd.github.v3+json',
+      Authorization: `token ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `GitHub API ${res.status}`);
+  }
+  return res.json();
+}
+
 // ── localStorage Persistence (rate-limit fallback) ────
 
 const LS_PREFIX = 'gh-persist:';
@@ -653,6 +672,7 @@ function renderDashboard(sections) {
         </div>
         <div class="dash-header__meta">
           <span id="rate-limit"></span>
+          <button class="btn btn--accent" style="padding:0.3rem 0.6rem;font-size:0.7rem" onclick="devDash.tagDeploy()">Tag &amp; Deploy</button>
           <a href="index.html" target="_blank" class="btn btn--primary" style="padding:0.3rem 0.75rem;font-size:0.75rem;text-decoration:none">Play Game</a>
           <button class="btn btn--secondary" style="padding:0.3rem 0.6rem;font-size:0.7rem" onclick="location.reload()">Refresh</button>
         </div>
@@ -701,6 +721,7 @@ function renderDashboard(sections) {
         </div>
 
       </div>
+      <div id="deploy-modal-root"></div>
     </div>
   `;
 }
@@ -942,9 +963,122 @@ async function init() {
   }
 }
 
+// ── Tag & Deploy ─────────────────────────────────────
+
+const TAG_REPOS = [
+  { name: 'bh679/carkedit-online', label: 'online' },
+  { name: 'bh679/carkedit-api', label: 'api' },
+];
+
+async function fetchRepoTagInfo(repo) {
+  const pkgContent = await ghFetch(`/repos/${repo}/contents/package.json?ref=main`);
+  const pkg = JSON.parse(atob(pkgContent.content));
+  const version = pkg.version;
+  const tag = `v${version}`;
+
+  let tagExists = false;
+  try {
+    await ghFetch(`/repos/${repo}/git/ref/tags/${tag}`);
+    tagExists = true;
+  } catch { tagExists = false; }
+
+  const ref = await ghFetch(`/repos/${repo}/git/ref/heads/main`);
+  const sha = ref.object.sha;
+
+  return { repo, version, tag, tagExists, sha };
+}
+
+function renderDeployModal(infos, state) {
+  const rows = infos.map((info, i) => {
+    const status = state === 'loading' ? '<span class="deploy-status deploy-status--pending">checking...</span>'
+      : info.tagExists ? '<span class="deploy-status deploy-status--exists">tag exists</span>'
+      : '<span class="deploy-status deploy-status--new">will create</span>';
+    const result = info.result
+      ? (info.result === 'ok' ? '<span class="deploy-status deploy-status--ok">done</span>'
+        : `<span class="deploy-status deploy-status--error">${info.result}</span>`)
+      : '';
+    return `<tr>
+      <td><strong>${info.label || info.repo.split('/')[1]}</strong></td>
+      <td><code>${info.tag || '...'}</code></td>
+      <td><code style="font-size:0.6rem">${info.sha ? info.sha.slice(0, 7) : '...'}</code></td>
+      <td>${result || status}</td>
+    </tr>`;
+  }).join('');
+
+  const canDeploy = state === 'ready' && infos.some(i => !i.tagExists);
+  const buttons = state === 'done'
+    ? `<button class="btn btn--secondary" onclick="devDash.closeDeployModal()">Close</button>`
+    : state === 'deploying'
+    ? `<button class="btn btn--secondary" disabled>Tagging...</button>`
+    : `<button class="btn btn--secondary" onclick="devDash.closeDeployModal()">Cancel</button>
+       <button class="btn btn--primary" ${canDeploy ? `onclick="devDash.confirmDeploy()"` : 'disabled'}>${canDeploy ? 'Create Tags' : 'All tagged'}</button>`;
+
+  return `<div class="deploy-overlay" onclick="devDash.closeDeployModal()">
+    <div class="deploy-modal" onclick="event.stopPropagation()">
+      <div class="deploy-modal__title">Tag & Deploy</div>
+      <table class="deploy-table">
+        <thead><tr><th>Repo</th><th>Tag</th><th>SHA</th><th>Status</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div class="deploy-modal__actions">${buttons}</div>
+    </div>
+  </div>`;
+}
+
+let _deployInfos = [];
+
+async function tagDeploy() {
+  const el = document.getElementById('deploy-modal-root');
+  if (!el) return;
+
+  // Show loading state
+  const placeholders = TAG_REPOS.map(r => ({ repo: r.name, label: r.label }));
+  el.innerHTML = renderDeployModal(placeholders, 'loading');
+
+  try {
+    _deployInfos = await Promise.all(TAG_REPOS.map(r =>
+      fetchRepoTagInfo(r.name).then(info => ({ ...info, label: r.label }))
+    ));
+    el.innerHTML = renderDeployModal(_deployInfos, 'ready');
+  } catch (err) {
+    el.innerHTML = renderDeployModal(
+      [{ repo: 'error', label: 'Error', tag: '', sha: '', tagExists: false, result: err.message }],
+      'done'
+    );
+  }
+}
+
+async function confirmDeploy() {
+  const el = document.getElementById('deploy-modal-root');
+  if (!el) return;
+
+  el.innerHTML = renderDeployModal(_deployInfos, 'deploying');
+
+  for (const info of _deployInfos) {
+    if (info.tagExists) { info.result = 'ok'; continue; }
+    try {
+      await ghPost(`/repos/${info.repo}/git/refs`, {
+        ref: `refs/tags/${info.tag}`,
+        sha: info.sha,
+      });
+      info.result = 'ok';
+    } catch (err) {
+      info.result = err.message;
+    }
+    el.innerHTML = renderDeployModal(_deployInfos, 'deploying');
+  }
+
+  el.innerHTML = renderDeployModal(_deployInfos, 'done');
+}
+
+function closeDeployModal() {
+  const el = document.getElementById('deploy-modal-root');
+  if (el) el.innerHTML = '';
+}
+
 // ── Public API ────────────────────────────────────────
 
-window.devDash = { switchDeck: miniSwitchDeck, nextCard: miniNextCard, showMore, toggleDoc };
+window.devDash = { switchDeck: miniSwitchDeck, nextCard: miniNextCard, showMore, toggleDoc, tagDeploy, confirmDeploy, closeDeployModal };
 
 // ── Admin Auth Gate ─────────────────────────────────
 let _fbAuth = null;
