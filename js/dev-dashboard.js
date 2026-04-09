@@ -672,7 +672,7 @@ function renderDashboard(sections) {
         </div>
         <div class="dash-header__meta">
           <span id="rate-limit"></span>
-          <button class="btn btn--accent" style="padding:0.3rem 0.6rem;font-size:0.7rem" onclick="devDash.tagDeploy()">Tag &amp; Deploy</button>
+          <button class="btn btn--accent-warn deploy-btn" style="padding:0.3rem 0.6rem;font-size:0.7rem" onclick="devDash.tagDeploy()">Tag &amp; Deploy</button>
           <a href="index.html" target="_blank" class="btn btn--primary" style="padding:0.3rem 0.75rem;font-size:0.75rem;text-decoration:none">Play Game</a>
           <button class="btn btn--secondary" style="padding:0.3rem 0.6rem;font-size:0.7rem" onclick="location.reload()">Refresh</button>
         </div>
@@ -970,17 +970,34 @@ const TAG_REPOS = [
   { name: 'bh679/carkedit-api', label: 'api' },
 ];
 
-async function fetchRepoTagInfo(repo) {
+let _isOnMain = false;
+
+async function detectIfOnMain() {
+  try {
+    const localPkg = await fetch('package.json').then(r => r.json());
+    const remotePkgContent = await ghFetch(`/repos/bh679/carkedit-online/contents/package.json?ref=main`);
+    const remotePkg = JSON.parse(atob(remotePkgContent.content));
+    return localPkg.version === remotePkg.version;
+  } catch {
+    return false;
+  }
+}
+
+function tagPrefix() {
+  return _isOnMain ? 'v' : 't';
+}
+
+async function fetchRepoTagInfo(repo, prefix) {
   const pkgContent = await ghFetch(`/repos/${repo}/contents/package.json?ref=main`);
   const pkg = JSON.parse(atob(pkgContent.content));
   const version = pkg.version;
-  const tag = `v${version}`;
+  const tag = `${prefix}${version}`;
 
   let tagExists = false;
   try {
     await ghFetch(`/repos/${repo}/git/ref/tags/${tag}`);
     tagExists = true;
-  } catch { tagExists = false; }
+  } catch (e) { tagExists = false; }
 
   const ref = await ghFetch(`/repos/${repo}/git/ref/heads/main`);
   const sha = ref.object.sha;
@@ -988,7 +1005,11 @@ async function fetchRepoTagInfo(repo) {
   return { repo, version, tag, tagExists, sha };
 }
 
-function renderDeployModal(infos, state) {
+function renderDeployModal(infos, state, isOnMain) {
+  const modeLabel = isOnMain
+    ? '<span class="deploy-status deploy-status--ok">PRODUCTION (v-tag, triggers deploy)</span>'
+    : '<span class="deploy-status deploy-status--warn">TEST (t-tag, no deploy)</span>';
+
   const rows = infos.map((info, i) => {
     const status = state === 'loading' ? '<span class="deploy-status deploy-status--pending">checking...</span>'
       : info.tagExists ? '<span class="deploy-status deploy-status--exists">tag exists</span>'
@@ -1006,16 +1027,18 @@ function renderDeployModal(infos, state) {
   }).join('');
 
   const canDeploy = state === 'ready' && infos.some(i => !i.tagExists);
+  const btnLabel = isOnMain ? 'Create Tags & Deploy' : 'Create Test Tags';
   const buttons = state === 'done'
     ? `<button class="btn btn--secondary" onclick="devDash.closeDeployModal()">Close</button>`
     : state === 'deploying'
     ? `<button class="btn btn--secondary" disabled>Tagging...</button>`
     : `<button class="btn btn--secondary" onclick="devDash.closeDeployModal()">Cancel</button>
-       <button class="btn btn--primary" ${canDeploy ? `onclick="devDash.confirmDeploy()"` : 'disabled'}>${canDeploy ? 'Create Tags' : 'All tagged'}</button>`;
+       <button class="btn ${isOnMain ? 'btn--primary' : 'btn--accent-warn'}" ${canDeploy ? `onclick="devDash.confirmDeploy()"` : 'disabled'}>${canDeploy ? btnLabel : 'All tagged'}</button>`;
 
   return `<div class="deploy-overlay" onclick="devDash.closeDeployModal()">
     <div class="deploy-modal" onclick="event.stopPropagation()">
       <div class="deploy-modal__title">Tag & Deploy</div>
+      <div class="deploy-modal__mode">${modeLabel}</div>
       <table class="deploy-table">
         <thead><tr><th>Repo</th><th>Tag</th><th>SHA</th><th>Status</th></tr></thead>
         <tbody>${rows}</tbody>
@@ -1033,17 +1056,25 @@ async function tagDeploy() {
 
   // Show loading state
   const placeholders = TAG_REPOS.map(r => ({ repo: r.name, label: r.label }));
-  el.innerHTML = renderDeployModal(placeholders, 'loading');
+  el.innerHTML = renderDeployModal(placeholders, 'loading', _isOnMain);
 
   try {
+    _isOnMain = await detectIfOnMain();
+    const prefix = tagPrefix();
     _deployInfos = await Promise.all(TAG_REPOS.map(r =>
-      fetchRepoTagInfo(r.name).then(info => ({ ...info, label: r.label }))
+      fetchRepoTagInfo(r.name, prefix).then(info => ({ ...info, label: r.label }))
     ));
-    el.innerHTML = renderDeployModal(_deployInfos, 'ready');
+    el.innerHTML = renderDeployModal(_deployInfos, 'ready', _isOnMain);
+
+    // Update button color to reflect branch state
+    const btn = document.querySelector('.deploy-btn');
+    if (btn) {
+      btn.className = `btn ${_isOnMain ? 'btn--accent' : 'btn--accent-warn'}`;
+    }
   } catch (err) {
     el.innerHTML = renderDeployModal(
       [{ repo: 'error', label: 'Error', tag: '', sha: '', tagExists: false, result: err.message }],
-      'done'
+      'done', _isOnMain
     );
   }
 }
@@ -1052,7 +1083,7 @@ async function confirmDeploy() {
   const el = document.getElementById('deploy-modal-root');
   if (!el) return;
 
-  el.innerHTML = renderDeployModal(_deployInfos, 'deploying');
+  el.innerHTML = renderDeployModal(_deployInfos, 'deploying', _isOnMain);
 
   for (const info of _deployInfos) {
     if (info.tagExists) { info.result = 'ok'; continue; }
@@ -1065,10 +1096,10 @@ async function confirmDeploy() {
     } catch (err) {
       info.result = err.message;
     }
-    el.innerHTML = renderDeployModal(_deployInfos, 'deploying');
+    el.innerHTML = renderDeployModal(_deployInfos, 'deploying', _isOnMain);
   }
 
-  el.innerHTML = renderDeployModal(_deployInfos, 'done');
+  el.innerHTML = renderDeployModal(_deployInfos, 'done', _isOnMain);
 }
 
 function closeDeployModal() {

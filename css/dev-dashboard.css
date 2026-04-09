@@ -485,6 +485,11 @@
   color: var(--color-white);
 }
 
+.btn--accent-warn {
+  background: var(--color-die);
+  color: var(--color-white);
+}
+
 .deploy-overlay {
   position: fixed;
   inset: 0;
@@ -537,11 +542,17 @@
   justify-content: flex-end;
 }
 
+.deploy-modal__mode {
+  margin-bottom: var(--space-sm);
+  font-size: 0.75rem;
+}
+
 .deploy-status { font-size: 0.7rem; font-weight: 600; }
 .deploy-status--pending { color: var(--color-text-muted); }
 .deploy-status--exists { color: var(--color-text-muted); }
 .deploy-status--new { color: var(--color-live); }
 .deploy-status--ok { color: var(--color-live); }
+.deploy-status--warn { color: var(--color-die); }
 .deploy-status--error { color: var(--color-primary); }
 
 .dash-empty {
