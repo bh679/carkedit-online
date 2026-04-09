@@ -358,6 +358,63 @@ html, body {
   color: var(--color-text-muted, #9a9ab0);
 }
 
+/* --- Batch generation row --- */
+.admin-img-gen__section--batch {
+  max-width: none;
+}
+.admin-img-gen__batch-row {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+.admin-img-gen__batch-item {
+  flex: 0 0 auto;
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+}
+.admin-img-gen__batch-item .admin-img-gen__generated {
+  max-width: 100%;
+  margin: 0;
+}
+.admin-img-gen__batch-num {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--color-text-muted, #9a9ab0);
+  letter-spacing: 0.04em;
+}
+.admin-img-gen__batch-actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+}
+.admin-img-gen__generated-split--batch {
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.admin-img-gen__generated-split--batch .admin-img-gen__generated-half {
+  flex-direction: row;
+  gap: 0.5rem;
+}
+
+/* Batch count input next to Generate button */
+.admin-img-gen__batch-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  color: var(--color-text-muted, #9a9ab0);
+}
+.admin-img-gen__batch-input {
+  width: 3.5em;
+  text-align: center;
+  padding: 0.35em 0.25em;
+}
+
 .admin-img-gen__gen-meta {
   font-size: 0.78rem;
   color: var(--color-text-muted, #888);

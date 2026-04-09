@@ -74,10 +74,14 @@ const state = {
   promptOverride: null,           // null = use auto-assembled, string = overridden
   promptPreview: '',              // last auto-assembled prompt for the UI
 
+  // Batch generation
+  batchCount: 1,                  // 1–20, number of images to generate in parallel
+
   // Generation status
   generating: false,
   generateError: null,
-  generated: null,                // { imageUrl, provider, promptSent, meta }
+  generated: null,                // single-result compat (first batch item)
+  generatedBatch: [],             // array of { imageUrl, provider, promptSent, meta } (or split objects)
 
   // Save-to-card status
   saving: false,
@@ -514,6 +518,10 @@ function renderGenerationPanel() {
       ${state.generateError ? `<p class="admin-img-gen__error">${esc(state.generateError)}</p>` : ''}
 
       <div class="admin-img-gen__gen-actions">
+        <label class="admin-img-gen__batch-label">
+          Count
+          <input type="number" class="designer__input admin-img-gen__batch-input" data-field="batch-count" min="1" max="20" value="${state.batchCount}">
+        </label>
         <button class="btn btn--primary" data-action="generate" ${state.generating ? 'disabled' : ''}>${state.generating ? 'Generating…' : 'Generate image'}</button>
       </div>
     </div>
@@ -599,7 +607,8 @@ function renderPreviewPanel() {
 }
 
 function renderGeneratedPanel() {
-  if (!state.generated && !state.generating && !state.generateError) {
+  const batch = state.generatedBatch;
+  if ((!batch || batch.length === 0) && !state.generating && !state.generateError) {
     return `
       <div class="admin-img-gen__section">
         <h2 class="admin-img-gen__section-title">Generated image</h2>
@@ -608,56 +617,118 @@ function renderGeneratedPanel() {
     `;
   }
   if (state.generating) {
+    const count = Math.max(1, state.batchCount || 1);
     return `
       <div class="admin-img-gen__section">
-        <h2 class="admin-img-gen__section-title">Generated image</h2>
-        <p class="admin-img-gen__muted">Generating… (this can take 10–60 seconds)</p>
+        <h2 class="admin-img-gen__section-title">Generated image${count > 1 ? 's' : ''}</h2>
+        <p class="admin-img-gen__muted">Generating ${count > 1 ? count + ' images' : ''}… (this can take 10–60 seconds)</p>
       </div>
     `;
   }
-  const g = state.generated;
-  if (!g) return '';
+  if (!batch || batch.length === 0) return '';
+
   const isSplit = state.cardFormDeckType === 'die' && state.cardFormSpecial === 'Split';
+  const isBatch = batch.length > 1;
   const canSave = state.activeTab === 'pick' && !!state.selectedPackId && !!state.selectedCardId;
-  const saveBtn = canSave
-    ? `<button class="btn btn--primary" data-action="save-to-card" ${state.saving ? 'disabled' : ''}>${state.saving ? 'Saving…' : 'Save to card'}</button>`
-    : `<button class="btn btn--primary" disabled title="Pick a card in the Pick tab to enable">Save to card</button>`;
 
-  // Split cards show both images side by side.
-  const imagesHtml = isSplit && g.imageUrlB
-    ? `<div class="admin-img-gen__generated-split">
-        <div class="admin-img-gen__generated-half">
-          <div class="admin-img-gen__generated-label">Option A</div>
-          <img class="admin-img-gen__generated" src="${esc(g.imageUrl)}" alt="Generated image — Option A">
-          <a class="btn btn--small" href="${esc(g.imageUrl)}" download="card-A-${Date.now()}.png" target="_blank" rel="noopener">Download A</a>
-        </div>
-        <div class="admin-img-gen__generated-half">
-          <div class="admin-img-gen__generated-label">Option B</div>
-          <img class="admin-img-gen__generated" src="${esc(g.imageUrlB)}" alt="Generated image — Option B">
-          <a class="btn btn--small" href="${esc(g.imageUrlB)}" download="card-B-${Date.now()}.png" target="_blank" rel="noopener">Download B</a>
-        </div>
-      </div>`
-    : `<img class="admin-img-gen__generated" src="${esc(g.imageUrl)}" alt="Generated card illustration">
-       <a class="btn" href="${esc(g.imageUrl)}" download="card-${Date.now()}.png" target="_blank" rel="noopener">Download</a>`;
+  // --- Single result (batch of 1) — keep original layout ---
+  if (!isBatch) {
+    const g = batch[0];
+    const saveBtn = canSave
+      ? `<button class="btn btn--primary" data-action="save-to-card" data-batch-idx="0" ${state.saving ? 'disabled' : ''}>${state.saving ? 'Saving…' : 'Save to card'}</button>`
+      : `<button class="btn btn--primary" disabled title="Pick a card in the Pick tab to enable">Save to card</button>`;
 
-  // Show both prompts if they differ for split cards.
+    const imagesHtml = isSplit && g.imageUrlB
+      ? `<div class="admin-img-gen__generated-split">
+          <div class="admin-img-gen__generated-half">
+            <div class="admin-img-gen__generated-label">Option A</div>
+            <img class="admin-img-gen__generated" src="${esc(g.imageUrl)}" alt="Generated image — Option A">
+            <a class="btn btn--small" href="${esc(g.imageUrl)}" download="card-A-${Date.now()}.png" target="_blank" rel="noopener">Download A</a>
+          </div>
+          <div class="admin-img-gen__generated-half">
+            <div class="admin-img-gen__generated-label">Option B</div>
+            <img class="admin-img-gen__generated" src="${esc(g.imageUrlB)}" alt="Generated image — Option B">
+            <a class="btn btn--small" href="${esc(g.imageUrlB)}" download="card-B-${Date.now()}.png" target="_blank" rel="noopener">Download B</a>
+          </div>
+        </div>`
+      : `<img class="admin-img-gen__generated" src="${esc(g.imageUrl)}" alt="Generated card illustration">
+         <a class="btn" href="${esc(g.imageUrl)}" download="card-${Date.now()}.png" target="_blank" rel="noopener">Download</a>`;
+
+    const promptMeta = isSplit && g.promptSentB && g.promptSentB !== g.promptSent
+      ? `<strong>Prompt A:</strong> <span class="admin-img-gen__muted">${esc(g.promptSent)}</span><br>
+         <strong>Prompt B:</strong> <span class="admin-img-gen__muted">${esc(g.promptSentB)}</span>`
+      : `<strong>Prompt sent:</strong> <span class="admin-img-gen__muted">${esc(g.promptSent)}</span>`;
+
+    return `
+      <div class="admin-img-gen__section">
+        <h2 class="admin-img-gen__section-title">Generated image${isSplit && g.imageUrlB ? 's' : ''}</h2>
+        ${imagesHtml}
+        <div class="admin-img-gen__gen-meta">
+          <strong>Provider:</strong> ${esc(g.provider)}<br>
+          ${promptMeta}
+        </div>
+        ${state.saveError ? `<p class="admin-img-gen__error">${esc(state.saveError)}</p>` : ''}
+        <div class="admin-img-gen__gen-actions">
+          ${saveBtn}
+        </div>
+    </div>
+  `;
+  }
+
+  // --- Batch results (> 1 image) — horizontal scrollable row ---
+  const batchCards = batch.map((g, idx) => {
+    const saveBtn = canSave
+      ? `<button class="btn btn--small btn--primary" data-action="save-to-card" data-batch-idx="${idx}" ${state.saving ? 'disabled' : ''}>Save</button>`
+      : '';
+
+    if (isSplit && g.imageUrlB) {
+      return `
+        <div class="admin-img-gen__batch-item">
+          <div class="admin-img-gen__batch-num">#${idx + 1}</div>
+          <div class="admin-img-gen__generated-split admin-img-gen__generated-split--batch">
+            <div class="admin-img-gen__generated-half">
+              <div class="admin-img-gen__generated-label">A</div>
+              <img class="admin-img-gen__generated" src="${esc(g.imageUrl)}" alt="Batch ${idx + 1} — Option A">
+              <a class="btn btn--small" href="${esc(g.imageUrl)}" download="card-${idx + 1}-A-${Date.now()}.png" target="_blank" rel="noopener">DL A</a>
+            </div>
+            <div class="admin-img-gen__generated-half">
+              <div class="admin-img-gen__generated-label">B</div>
+              <img class="admin-img-gen__generated" src="${esc(g.imageUrlB)}" alt="Batch ${idx + 1} — Option B">
+              <a class="btn btn--small" href="${esc(g.imageUrlB)}" download="card-${idx + 1}-B-${Date.now()}.png" target="_blank" rel="noopener">DL B</a>
+            </div>
+          </div>
+          ${saveBtn}
+        </div>`;
+    }
+
+    return `
+      <div class="admin-img-gen__batch-item">
+        <div class="admin-img-gen__batch-num">#${idx + 1}</div>
+        <img class="admin-img-gen__generated" src="${esc(g.imageUrl)}" alt="Batch result ${idx + 1}">
+        <div class="admin-img-gen__batch-actions">
+          <a class="btn btn--small" href="${esc(g.imageUrl)}" download="card-${idx + 1}-${Date.now()}.png" target="_blank" rel="noopener">Download</a>
+          ${saveBtn}
+        </div>
+      </div>`;
+  }).join('');
+
+  const g = batch[0];
   const promptMeta = isSplit && g.promptSentB && g.promptSentB !== g.promptSent
     ? `<strong>Prompt A:</strong> <span class="admin-img-gen__muted">${esc(g.promptSent)}</span><br>
        <strong>Prompt B:</strong> <span class="admin-img-gen__muted">${esc(g.promptSentB)}</span>`
     : `<strong>Prompt sent:</strong> <span class="admin-img-gen__muted">${esc(g.promptSent)}</span>`;
 
   return `
-    <div class="admin-img-gen__section">
-      <h2 class="admin-img-gen__section-title">Generated image${isSplit && g.imageUrlB ? 's' : ''}</h2>
-      ${imagesHtml}
+    <div class="admin-img-gen__section admin-img-gen__section--batch">
+      <h2 class="admin-img-gen__section-title">Generated images (${batch.length})</h2>
+      <div class="admin-img-gen__batch-row">
+        ${batchCards}
+      </div>
       <div class="admin-img-gen__gen-meta">
         <strong>Provider:</strong> ${esc(g.provider)}<br>
         ${promptMeta}
       </div>
       ${state.saveError ? `<p class="admin-img-gen__error">${esc(state.saveError)}</p>` : ''}
-      <div class="admin-img-gen__gen-actions">
-        ${saveBtn}
-      </div>
     </div>
   `;
 }
@@ -843,9 +914,11 @@ function onClick(e) {
       return;
     }
 
-    case 'save-to-card':
-      handleSaveToCard();
+    case 'save-to-card': {
+      const batchIdx = parseInt(target.getAttribute('data-batch-idx') || '0', 10);
+      handleSaveToCard(batchIdx);
       return;
+    }
 
     case 'set-log-scope': {
       const scope = target.getAttribute('data-scope') || 'all';
@@ -966,6 +1039,11 @@ function onInput(e) {
     case 'prompt-override':
       state.promptOverride = t.value;
       return;
+    case 'batch-count': {
+      const n = parseInt(t.value, 10);
+      state.batchCount = Number.isFinite(n) ? Math.max(1, Math.min(20, n)) : 1;
+      return;
+    }
   }
 }
 
@@ -1078,6 +1156,7 @@ async function generate() {
   state.generating = true;
   state.generateError = null;
   state.generated = null;
+  state.generatedBatch = [];
   state.saveError = null;
   render();
   try {
@@ -1085,10 +1164,11 @@ async function generate() {
     // provider renders the right aspect ratio instead of the default 1:1.
     const dims = targetDimensions(state.cardFormDeckType, state.cardFormSpecial);
     const isSplit = state.cardFormDeckType === 'die' && state.cardFormSpecial === 'Split';
+    const count = Math.max(1, Math.min(20, state.batchCount || 1));
 
     if (isSplit) {
-      // Split / WYR cards need two images — one per option. Fire both
-      // generation requests in parallel so the user waits ~1x, not ~2x.
+      // Split / WYR cards need two images per batch item — one per option.
+      // Fire all pairs in parallel.
       const optA = state.cardFormOption1 || 'Option A';
       const optB = state.cardFormOption2 || 'Option B';
       const common = {
@@ -1098,29 +1178,36 @@ async function generate() {
         style: state.style,
         options: { width: dims.width, height: dims.height },
       };
-      const [resultA, resultB] = await Promise.all([
-        generateImage({ ...common, cardText: optA, promptOverride: state.promptOverride, splitPosition: 'a' }),
-        generateImage({ ...common, cardText: optB, promptOverride: state.promptOverride, splitPosition: 'b' }),
-      ]);
-      state.generated = {
+      const pairs = Array.from({ length: count }, () =>
+        Promise.all([
+          generateImage({ ...common, cardText: optA, promptOverride: state.promptOverride, splitPosition: 'a' }),
+          generateImage({ ...common, cardText: optB, promptOverride: state.promptOverride, splitPosition: 'b' }),
+        ])
+      );
+      const results = await Promise.all(pairs);
+      state.generatedBatch = results.map(([resultA, resultB]) => ({
         imageUrl: resultA.imageUrl,
         imageUrlB: resultB.imageUrl,
         provider: resultA.provider,
         promptSent: resultA.promptSent,
         promptSentB: resultB.promptSent,
-      };
+      }));
     } else {
-      const result = await generateImage({
-        providerId: state.selectedProviderId,
-        cardText: state.cardFormText,
-        cardPrompt: state.cardFormPrompt,
-        deckType: state.cardFormDeckType,
-        style: state.style,
-        promptOverride: state.promptOverride,
-        options: { width: dims.width, height: dims.height },
-      });
-      state.generated = result;
+      const requests = Array.from({ length: count }, () =>
+        generateImage({
+          providerId: state.selectedProviderId,
+          cardText: state.cardFormText,
+          cardPrompt: state.cardFormPrompt,
+          deckType: state.cardFormDeckType,
+          style: state.style,
+          promptOverride: state.promptOverride,
+          options: { width: dims.width, height: dims.height },
+        })
+      );
+      state.generatedBatch = await Promise.all(requests);
     }
+    // Keep compat: state.generated = first result
+    state.generated = state.generatedBatch[0] || null;
     // Refresh the Recent generations gallery so the new entry appears
     // at the top. Fire-and-forget — the main render() below doesn't
     // need to wait for it.
@@ -1134,8 +1221,9 @@ async function generate() {
   }
 }
 
-async function handleSaveToCard() {
-  if (!state.generated || !state.selectedPackId || !state.selectedCardId) return;
+async function handleSaveToCard(batchIdx = 0) {
+  const item = state.generatedBatch[batchIdx] || state.generated;
+  if (!item || !state.selectedPackId || !state.selectedCardId) return;
   state.saving = true;
   state.saveError = null;
   render();
@@ -1144,9 +1232,9 @@ async function handleSaveToCard() {
     // (/uploads/card-images/...) rather than a provider URL. The
     // /image-from-url endpoint uses fetch() which can't resolve a
     // relative path — prefix with location.origin so it can round-trip.
-    const srcUrl = state.generated.imageUrl.startsWith('/')
-      ? `${location.origin}${state.generated.imageUrl}`
-      : state.generated.imageUrl;
+    const srcUrl = item.imageUrl.startsWith('/')
+      ? `${location.origin}${item.imageUrl}`
+      : item.imageUrl;
     const updated = await saveImageToCard(
       state.selectedPackId,
       state.selectedCardId,
@@ -1237,12 +1325,14 @@ function hydrateFromLog(logId) {
   state.cardFormOption1 = opts[0] || '';
   state.cardFormOption2 = opts[1] || '';
   state.promptOverride = null;
-  state.generated = {
+  const restoredResult = {
     imageUrl: entry.image_url,
     imageUrlB: entry.image_url_b || '',
     provider: entry.provider,
     promptSent: entry.prompt_sent,
   };
+  state.generated = restoredResult;
+  state.generatedBatch = [restoredResult];
   state.generateError = null;
   recomputePromptPreview();
   render();
