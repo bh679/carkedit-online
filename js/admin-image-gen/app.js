@@ -1962,7 +1962,7 @@ async function loadMysteryRefImage() {
   if (state.mysteryRefImageBase64 || state.mysteryRefImageLoading) return;
   state.mysteryRefImageLoading = true;
   try {
-    const res = await fetch('/assets/questionmark.png');
+    const res = await fetch('assets/questionmark.png');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const blob = await res.blob();
     const base64 = await new Promise((resolve, reject) => {
