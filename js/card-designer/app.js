@@ -482,7 +482,7 @@ function renderCardForm() {
         </div>
         <div class="designer__form-actions" style="justify-content: center;">
           <a class="btn btn--secondary${state.authUser?.is_admin ? '' : ' btn--disabled'}"
-             href="/admin-image-gen.html?pack=${encodeURIComponent(state.currentPack?.id || '')}&card=${encodeURIComponent(editing?.id || '')}"
+             href="admin-image-gen?pack=${encodeURIComponent(state.currentPack?.id || '')}&card=${encodeURIComponent(editing?.id || '')}"
              ${state.authUser?.is_admin ? '' : 'aria-disabled="true" tabindex="-1"'}
              style="text-decoration: none;">
              Generate Image
