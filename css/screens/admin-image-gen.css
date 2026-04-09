@@ -206,6 +206,24 @@ html, body {
   min-height: 260px;
 }
 
+/* Per-deck config groups — each of die/live/bye gets its own card-
+ * like container with a capitalised label and two inputs inside
+ * (Prefix + Annotation). */
+.admin-img-gen__deck-group {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+  padding: 0.5rem 0.75rem 0.6rem;
+  margin-bottom: 0.5rem;
+}
+.admin-img-gen__deck-group-label {
+  font-size: 0.7rem;
+  color: var(--color-text, #f0f0f0);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  margin-bottom: 0.3rem;
+}
+
 /* --- Prompt preview / generate actions --- */
 
 .admin-img-gen__prompt-preview {

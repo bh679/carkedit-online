@@ -9,5 +9,19 @@
   "fills": "No gradients — flat fills only with occasional subtle highlight shapes",
   "mood": "Slightly vintage/folk art feel",
   "editorialStyle": "Clean editorial illustration style",
-  "brandAesthetic": "Australian indie board game aesthetic"
+  "brandAesthetic": "Australian indie board game aesthetic",
+  "decks": {
+    "die": {
+      "prefix": "Died from",
+      "annotation": "die card for a board game"
+    },
+    "bye": {
+      "prefix": "",
+      "annotation": "bye card for a board game"
+    },
+    "live": {
+      "prefix": "",
+      "annotation": "live card for a board game"
+    }
+  }
 }

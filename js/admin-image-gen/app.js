@@ -99,20 +99,39 @@ function humanizeKey(key) {
  * Mirror of the server's buildPrompt() — lets us show a live prompt preview
  * in the UI without a round-trip. Must stay in sync with
  * carkedit-api/src/services/image-gen/buildPrompt.ts.
+ *
+ * Per-deck config is pulled from `style.decks[deckType]`:
+ *   - `prefix`     — prepended as "<prefix>: <cardText>…"
+ *   - `annotation` — parenthesized and appended as "<cardText>. (<annotation>)"
+ * The nested `decks` key is filtered out of the style clause.
  */
 function buildPromptClient({ cardText, cardPrompt, deckType, style }) {
+  // Extract per-deck config from the nested `decks` sub-object.
+  let deckPrefix = '';
+  let deckAnnotation = '';
+  if (style && typeof style === 'object' && style.decks && typeof style.decks === 'object' && deckType) {
+    const cfg = style.decks[deckType];
+    if (cfg && typeof cfg === 'object') {
+      if (typeof cfg.prefix === 'string' && cfg.prefix.trim()) deckPrefix = cfg.prefix.trim();
+      if (typeof cfg.annotation === 'string' && cfg.annotation.trim()) deckAnnotation = cfg.annotation.trim();
+    }
+  }
+
   const parts = [];
   if (cardText && cardText.trim()) parts.push(cardText.trim());
   if (cardPrompt && cardPrompt.trim()) parts.push(cardPrompt.trim());
-  if (deckType && deckType.trim()) {
-    parts.push(`(${deckType.trim()} card for a board game)`);
-  }
-  const cardSection = parts.join('. ');
+  if (deckAnnotation) parts.push(`(${deckAnnotation})`);
+  const cardBody = parts.join('. ');
+  const cardSection = deckPrefix && cardBody
+    ? `${deckPrefix}: ${cardBody}`
+    : (deckPrefix || cardBody);
 
   let styleSection = '';
   if (style && typeof style === 'object') {
     const styleParts = Object.entries(style)
-      .filter(([, v]) => typeof v === 'string' && v.trim().length > 0)
+      // Skip the nested `decks` object — its prefix/annotation are used
+      // above, not as flat style fields.
+      .filter(([k, v]) => k !== 'decks' && typeof v === 'string' && v.trim().length > 0)
       .map(([k, v]) => `${humanizeKey(k)}: ${v.trim()}`);
     if (styleParts.length > 0) {
       styleSection = `Style: ${styleParts.join('; ')}.`;
@@ -393,14 +412,50 @@ function renderGenerationPanel() {
 }
 
 function renderStyleFields() {
-  const keys = Object.keys(state.style);
-  const rows = keys.map(k => `
+  // Main style fields: iterate all keys EXCEPT the nested `decks` object
+  // — that renders in its own dedicated sub-section below.
+  const styleKeys = Object.keys(state.style).filter(k => k !== 'decks');
+  const rows = styleKeys.map(k => `
     <label class="designer__label admin-img-gen__style-row">
       ${esc(humanizeKey(k))}
       <textarea class="designer__input designer__textarea admin-img-gen__style-input" data-field="style-key" data-key="${esc(k)}" rows="2">${esc(state.style[k])}</textarea>
     </label>
   `).join('');
-  return `<div class="admin-img-gen__style-fields">${rows}</div>`;
+
+  // Dedicated sub-section for per-deck config. Each deck gets two inputs:
+  // - Prefix:     prepended to card text ("Died from: <card>…")
+  // - Annotation: parenthesized and joined with card sentences
+  //               ("<card>. (die card for a board game)")
+  // Either or both can be blank. The full `decks` object also appears
+  // verbatim in the raw-JSON view when the user toggles it.
+  const decks = (state.style.decks && typeof state.style.decks === 'object')
+    ? state.style.decks
+    : {};
+  const deckRows = ['die', 'live', 'bye'].map(deck => {
+    const cfg = (decks[deck] && typeof decks[deck] === 'object') ? decks[deck] : {};
+    const cap = deck.charAt(0).toUpperCase() + deck.slice(1);
+    return `
+      <div class="admin-img-gen__deck-group">
+        <div class="admin-img-gen__deck-group-label">${cap}</div>
+        <label class="designer__label admin-img-gen__style-row">
+          Prefix
+          <input class="designer__input admin-img-gen__style-input" type="text" data-field="deck-config" data-deck="${deck}" data-key="prefix" placeholder="(e.g. 'Died from')" value="${esc(cfg.prefix ?? '')}">
+        </label>
+        <label class="designer__label admin-img-gen__style-row">
+          Annotation
+          <input class="designer__input admin-img-gen__style-input" type="text" data-field="deck-config" data-deck="${deck}" data-key="annotation" placeholder="(e.g. '${deck} card for a board game')" value="${esc(cfg.annotation ?? '')}">
+        </label>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="admin-img-gen__style-fields">${rows}</div>
+    <div class="admin-img-gen__style-header" style="margin-top: 0.75rem">
+      <span class="designer__label">Decks</span>
+    </div>
+    <div class="admin-img-gen__style-fields">${deckRows}</div>
+  `;
 }
 
 function renderStyleRaw() {
@@ -587,6 +642,21 @@ function onInput(e) {
       const key = t.getAttribute('data-key');
       if (!key) return;
       state.style[key] = t.value;
+      recomputePromptPreview();
+      updatePromptPreviewText();
+      return;
+    }
+    case 'deck-config': {
+      const deck = t.getAttribute('data-deck');
+      const key = t.getAttribute('data-key');
+      if (!deck || !key) return;
+      if (!state.style.decks || typeof state.style.decks !== 'object') {
+        state.style.decks = { die: {}, bye: {}, live: {} };
+      }
+      if (!state.style.decks[deck] || typeof state.style.decks[deck] !== 'object') {
+        state.style.decks[deck] = {};
+      }
+      state.style.decks[deck][key] = t.value;
       recomputePromptPreview();
       updatePromptPreviewText();
       return;
