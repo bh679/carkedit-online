@@ -415,3 +415,7 @@ html, body {
 .prompt-diff--equal {
   color: var(--color-text-muted, #999);
 }
+.prompt-diff--model-change {
+  font-weight: 600;
+  font-style: italic;
+}
