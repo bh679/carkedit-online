@@ -220,6 +220,39 @@ html, body {
   text-transform: capitalize;
   color: var(--color-text-muted, #9a9ab0);
 }
+.admin-img-gen__style-row-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.2rem;
+}
+.admin-img-gen__style-arrows {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.admin-img-gen__style-arrow {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  color: var(--color-text, #f0f0f0);
+  font-size: 0.6rem;
+  padding: 0.15em 0.4em;
+  cursor: pointer;
+  line-height: 1;
+}
+.admin-img-gen__style-arrow:hover {
+  background: rgba(152, 66, 255, 0.25);
+  border-color: var(--color-primary, #9842ff);
+}
+.admin-img-gen__style-arrow-idx {
+  font-size: 0.65rem;
+  color: var(--color-text-muted, #888);
+  min-width: 2em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
 .admin-img-gen__style-input {
   text-transform: none;
   color: var(--color-text, #f0f0f0);

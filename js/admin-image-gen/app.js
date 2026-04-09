@@ -84,6 +84,9 @@ const state = {
   variationMode: 'same',          // 'same' | 'random' | 'sequential' | 'single-field'
   variationField: null,           // which field varies in 'single-field' mode
 
+  // Per-field array index — tracks which array element is shown in field mode
+  styleArrayIndices: {},           // { 'background': 0, 'decks.die.prefix': 1, … }
+
   // Generation status
   generating: false,
   generateError: null,
@@ -274,6 +277,17 @@ function resetStyle() {
   state.rawJsonDraft = JSON.stringify(state.style, null, 2);
   state.rawJsonError = null;
   recomputePromptPreview();
+}
+
+/** Resolve a dot-path key like "decks.die.prefix" against the style object. */
+function getStyleValueByPath(style, path) {
+  const parts = path.split('.');
+  let cur = style;
+  for (const p of parts) {
+    if (cur == null || typeof cur !== 'object') return undefined;
+    cur = cur[p];
+  }
+  return cur;
 }
 
 /**
@@ -689,16 +703,43 @@ function renderVariationModeControls() {
   `;
 }
 
+/**
+ * Render a single style field row. If the value is an array, shows
+ * left/right arrows to navigate options and an index indicator.
+ */
+function renderStyleFieldRow(key, value, fieldType = 'style-key') {
+  const isArr = Array.isArray(value) && value.length > 0;
+  const idx = isArr ? (state.styleArrayIndices[key] || 0) % value.length : 0;
+  const displayValue = isArr ? (value[idx] ?? '') : (value ?? '');
+  const label = esc(humanizeKey(key));
+
+  if (isArr) {
+    return `
+      <div class="designer__label admin-img-gen__style-row">
+        <div class="admin-img-gen__style-row-header">
+          <span>${label}</span>
+          <div class="admin-img-gen__style-arrows">
+            <button class="admin-img-gen__style-arrow" data-action="style-arr-prev" data-key="${esc(key)}" data-field-type="${fieldType}" title="Previous option">\u25C0</button>
+            <span class="admin-img-gen__style-arrow-idx">${idx + 1}/${value.length}</span>
+            <button class="admin-img-gen__style-arrow" data-action="style-arr-next" data-key="${esc(key)}" data-field-type="${fieldType}" title="Next option">\u25B6</button>
+          </div>
+        </div>
+        <textarea class="designer__input designer__textarea admin-img-gen__style-input" data-field="${fieldType}" data-key="${esc(key)}" rows="2">${esc(displayValue)}</textarea>
+      </div>`;
+  }
+
+  return `
+    <label class="designer__label admin-img-gen__style-row">
+      ${label}
+      <textarea class="designer__input designer__textarea admin-img-gen__style-input" data-field="${fieldType}" data-key="${esc(key)}" rows="2">${esc(displayValue)}</textarea>
+    </label>`;
+}
+
 function renderStyleFields() {
   // Main style fields: iterate all keys EXCEPT the nested `decks` object
   // — that renders in its own dedicated sub-section below.
   const styleKeys = Object.keys(state.style).filter(k => k !== 'decks');
-  const rows = styleKeys.map(k => `
-    <label class="designer__label admin-img-gen__style-row">
-      ${esc(humanizeKey(k))}
-      <textarea class="designer__input designer__textarea admin-img-gen__style-input" data-field="style-key" data-key="${esc(k)}" rows="2">${esc(state.style[k])}</textarea>
-    </label>
-  `).join('');
+  const rows = styleKeys.map(k => renderStyleFieldRow(k, state.style[k])).join('');
 
   // Dedicated sub-section for per-deck config. Each deck gets two inputs:
   // - Prefix:     prepended to card text ("Died from: <card>…")
@@ -713,27 +754,45 @@ function renderStyleFields() {
     const cfg = (decks[deck] && typeof decks[deck] === 'object') ? decks[deck] : {};
     const cap = deck.charAt(0).toUpperCase() + deck.slice(1);
     // Split composition fields only apply to die deck (WYR cards).
-    const splitFields = deck === 'die' ? `
+    const splitKeys = deck === 'die' ? ['splitCompositionA', 'splitCompositionB'] : [];
+    const allKeys = ['prefix', 'annotation', ...splitKeys];
+    const placeholders = {
+      prefix: "(e.g. 'Died from')",
+      annotation: `(e.g. '${deck} card for a board game')`,
+      splitCompositionA: "(e.g. 'Subject positioned in the top-left')",
+      splitCompositionB: "(e.g. 'Subject positioned in the top-right')",
+    };
+    const fieldRows = allKeys.map(dk => {
+      const val = cfg[dk];
+      const arrKey = `decks.${deck}.${dk}`;
+      const isArr = Array.isArray(val) && val.length > 0;
+      const idx = isArr ? (state.styleArrayIndices[arrKey] || 0) % val.length : 0;
+      const displayValue = isArr ? (val[idx] ?? '') : (val ?? '');
+      const label = esc(humanizeKey(dk));
+      if (isArr) {
+        return `
+          <div class="designer__label admin-img-gen__style-row">
+            <div class="admin-img-gen__style-row-header">
+              <span>${label}</span>
+              <div class="admin-img-gen__style-arrows">
+                <button class="admin-img-gen__style-arrow" data-action="style-arr-prev" data-key="${esc(arrKey)}">\u25C0</button>
+                <span class="admin-img-gen__style-arrow-idx">${idx + 1}/${val.length}</span>
+                <button class="admin-img-gen__style-arrow" data-action="style-arr-next" data-key="${esc(arrKey)}">\u25B6</button>
+              </div>
+            </div>
+            <input class="designer__input admin-img-gen__style-input" type="text" data-field="deck-config" data-deck="${deck}" data-key="${dk}" placeholder="${esc(placeholders[dk] || '')}" value="${esc(displayValue)}">
+          </div>`;
+      }
+      return `
         <label class="designer__label admin-img-gen__style-row">
-          Split Composition A
-          <input class="designer__input admin-img-gen__style-input" type="text" data-field="deck-config" data-deck="${deck}" data-key="splitCompositionA" placeholder="(e.g. 'Subject positioned in the top-left')" value="${esc(cfg.splitCompositionA ?? '')}">
-        </label>
-        <label class="designer__label admin-img-gen__style-row">
-          Split Composition B
-          <input class="designer__input admin-img-gen__style-input" type="text" data-field="deck-config" data-deck="${deck}" data-key="splitCompositionB" placeholder="(e.g. 'Subject positioned in the top-right')" value="${esc(cfg.splitCompositionB ?? '')}">
-        </label>` : '';
+          ${label}
+          <input class="designer__input admin-img-gen__style-input" type="text" data-field="deck-config" data-deck="${deck}" data-key="${dk}" placeholder="${esc(placeholders[dk] || '')}" value="${esc(displayValue)}">
+        </label>`;
+    }).join('');
     return `
       <div class="admin-img-gen__deck-group">
         <div class="admin-img-gen__deck-group-label">${cap}</div>
-        <label class="designer__label admin-img-gen__style-row">
-          Prefix
-          <input class="designer__input admin-img-gen__style-input" type="text" data-field="deck-config" data-deck="${deck}" data-key="prefix" placeholder="(e.g. 'Died from')" value="${esc(cfg.prefix ?? '')}">
-        </label>
-        <label class="designer__label admin-img-gen__style-row">
-          Annotation
-          <input class="designer__input admin-img-gen__style-input" type="text" data-field="deck-config" data-deck="${deck}" data-key="annotation" placeholder="(e.g. '${deck} card for a board game')" value="${esc(cfg.annotation ?? '')}">
-        </label>
-        ${splitFields}
+        ${fieldRows}
       </div>
     `;
   }).join('');
@@ -1250,6 +1309,23 @@ function onClick(e) {
       state.decksCollapsed = !state.decksCollapsed;
       render();
       return;
+
+    case 'style-arr-prev':
+    case 'style-arr-next': {
+      const key = target.getAttribute('data-key');
+      if (!key) return;
+      // Resolve the array from the style object using the dot-path key.
+      const arr = getStyleValueByPath(state.style, key);
+      if (!Array.isArray(arr) || arr.length === 0) return;
+      const cur = state.styleArrayIndices[key] || 0;
+      const len = arr.length;
+      state.styleArrayIndices[key] = action === 'style-arr-next'
+        ? (cur + 1) % len
+        : (cur - 1 + len) % len;
+      recomputePromptPreview();
+      render();
+      return;
+    }
   }
 }
 
@@ -1283,7 +1359,13 @@ function onInput(e) {
     case 'style-key': {
       const key = t.getAttribute('data-key');
       if (!key) return;
-      state.style[key] = t.value;
+      // If the field is an array, update the currently-visible element.
+      if (Array.isArray(state.style[key]) && state.style[key].length > 0) {
+        const idx = (state.styleArrayIndices[key] || 0) % state.style[key].length;
+        state.style[key][idx] = t.value;
+      } else {
+        state.style[key] = t.value;
+      }
       recomputePromptPreview();
       updatePromptPreviewText();
       return;
@@ -1298,7 +1380,15 @@ function onInput(e) {
       if (!state.style.decks[deck] || typeof state.style.decks[deck] !== 'object') {
         state.style.decks[deck] = {};
       }
-      state.style.decks[deck][key] = t.value;
+      // If the deck field is an array, update the currently-visible element.
+      const arrKey = `decks.${deck}.${key}`;
+      const deckVal = state.style.decks[deck][key];
+      if (Array.isArray(deckVal) && deckVal.length > 0) {
+        const idx = (state.styleArrayIndices[arrKey] || 0) % deckVal.length;
+        deckVal[idx] = t.value;
+      } else {
+        state.style.decks[deck][key] = t.value;
+      }
       recomputePromptPreview();
       updatePromptPreviewText();
       return;
