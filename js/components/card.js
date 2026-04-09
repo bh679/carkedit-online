@@ -112,9 +112,10 @@ function renderDieInner(card, spec) {
 
   const bgStyle = graphicBgStyle(card.graphicImage, deckType);
   if (spec.isMystery) {
+    const hasImage = !!card.graphicImage;
     return `
       <div class="card__graphic-area card__graphic-area--${deckType} card__graphic-area--mystery card__graphic-area--title-top"${bgStyle}>
-        <div class="card__mystery-mark" aria-hidden="true"></div>
+        ${hasImage ? '' : '<div class="card__mystery-mark" aria-hidden="true"></div>'}
         <h3 class="card__title-overlay card__title-overlay--top">${safeTitle}</h3>
       </div>`;
   }
