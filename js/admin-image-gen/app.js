@@ -52,6 +52,8 @@ const state = {
   cardFormSpecial: '',            // '' | '?' | 'Split'
   cardFormOption1: '',
   cardFormOption2: '',
+  cardFormTextPosition: 'top',    // 'top' | 'bottom' (standard die only)
+  cardFormTextColor: 'black',     // 'black' | 'white' (standard die only)
 
   // Pick-from-pack state
   packs: [],
@@ -79,6 +81,13 @@ const state = {
   // Batch generation
   batchCount: 3,                  // 1–20, number of images to generate in parallel
   selectedBatchIdx: 0,            // which batch item is selected (shown in generated panel)
+
+  // Variation mode — controls how array-valued style fields resolve per batch item
+  variationMode: 'same',          // 'same' | 'random' | 'sequential' | 'single-field'
+  variationField: null,           // which field varies in 'single-field' mode
+
+  // Per-field array index — tracks which array element is shown in field mode
+  styleArrayIndices: {},           // { 'background': 0, 'decks.die.prefix': 1, … }
 
   // Generation status
   generating: false,
@@ -285,6 +294,96 @@ function resetStyle() {
   recomputePromptPreview();
 }
 
+/** Resolve a dot-path key like "decks.die.prefix" against the style object. */
+function getStyleValueByPath(style, path) {
+  const parts = path.split('.');
+  let cur = style;
+  for (const p of parts) {
+    if (cur == null || typeof cur !== 'object') return undefined;
+    cur = cur[p];
+  }
+  return cur;
+}
+
+/**
+ * Return the list of top-level style field names whose value is an array.
+ * Also checks inside `decks.<deck>.<key>` for array values.
+ * Returns flat keys like "colorPalette" or "decks.die.prefix".
+ */
+function getArrayFields(style) {
+  const fields = [];
+  if (!style || typeof style !== 'object') return fields;
+  for (const [k, v] of Object.entries(style)) {
+    if (k === 'decks' && v && typeof v === 'object') {
+      for (const [deck, cfg] of Object.entries(v)) {
+        if (cfg && typeof cfg === 'object') {
+          for (const [dk, dv] of Object.entries(cfg)) {
+            if (Array.isArray(dv) && dv.length > 0) {
+              fields.push(`decks.${deck}.${dk}`);
+            }
+          }
+        }
+      }
+    } else if (Array.isArray(v) && v.length > 0) {
+      fields.push(k);
+    }
+  }
+  return fields;
+}
+
+/**
+ * Resolve a style object so every array-valued field becomes a single string,
+ * based on the current variation mode and batch index.
+ *
+ * @param {object} style           — the (possibly array-containing) style object
+ * @param {number} batchIndex      — 0-based index of this item in the batch
+ * @param {string} mode            — 'same' | 'random' | 'sequential' | 'single-field'
+ * @param {string|null} singleKey  — which field to vary in 'single-field' mode
+ * @returns {object} — a new style object with all values as strings
+ */
+function resolveStyle(style, batchIndex, mode, singleKey) {
+  if (!style || typeof style !== 'object') return style;
+
+  function pick(arr, fieldPath) {
+    if (!Array.isArray(arr) || arr.length === 0) return arr;
+    switch (mode) {
+      case 'same':
+        return arr[0];
+      case 'random':
+        return arr[Math.floor(Math.random() * arr.length)];
+      case 'sequential':
+        return arr[batchIndex % arr.length];
+      case 'single-field':
+        if (fieldPath === singleKey) return arr[batchIndex % arr.length];
+        return arr[0];
+      default:
+        return arr[0];
+    }
+  }
+
+  const out = {};
+  for (const [k, v] of Object.entries(style)) {
+    if (k === 'decks' && v && typeof v === 'object') {
+      out.decks = {};
+      for (const [deck, cfg] of Object.entries(v)) {
+        if (cfg && typeof cfg === 'object') {
+          out.decks[deck] = {};
+          for (const [dk, dv] of Object.entries(cfg)) {
+            out.decks[deck][dk] = Array.isArray(dv)
+              ? pick(dv, `decks.${deck}.${dk}`)
+              : dv;
+          }
+        } else {
+          out.decks[deck] = cfg;
+        }
+      }
+    } else {
+      out[k] = Array.isArray(v) ? pick(v, k) : v;
+    }
+  }
+  return out;
+}
+
 /**
  * Target pixel dimensions for an image generation request, sized to the
  * actual card region the image will fill. Values are BFL-friendly
@@ -333,6 +432,8 @@ function currentCardForPreview() {
     options: isSplit
       ? [state.cardFormOption1 || 'Option A', state.cardFormOption2 || 'Option B']
       : null,
+    textPosition: state.cardFormTextPosition,
+    textColor: state.cardFormTextColor,
   };
 }
 
@@ -479,6 +580,23 @@ function renderCardForm() {
       </span>
     </div>` : '';
 
+  const isStandardDie = isDie && !isSplit && !isMystery;
+  const layoutPickers = isStandardDie ? `
+    <div class="designer__field">
+      <span class="designer__label">Text Position</span>
+      <div class="designer__deck-picker">
+        <button class="btn btn--small designer__deck-btn ${state.cardFormTextPosition === 'top' ? 'designer__deck-btn--active' : ''}" data-action="set-text-position" data-position="top">Top</button>
+        <button class="btn btn--small designer__deck-btn ${state.cardFormTextPosition === 'bottom' ? 'designer__deck-btn--active' : ''}" data-action="set-text-position" data-position="bottom">Bottom</button>
+      </div>
+    </div>
+    <div class="designer__field">
+      <span class="designer__label">Text Color</span>
+      <div class="designer__deck-picker">
+        <button class="btn btn--small designer__deck-btn ${state.cardFormTextColor === 'black' ? 'designer__deck-btn--active' : ''}" data-action="set-text-color" data-color="black">Black</button>
+        <button class="btn btn--small designer__deck-btn ${state.cardFormTextColor === 'white' ? 'designer__deck-btn--active' : ''}" data-action="set-text-color" data-color="white">White</button>
+      </div>
+    </div>` : '';
+
   const splitFields = isSplit ? `
     <label class="designer__label">
       Option A
@@ -506,6 +624,7 @@ function renderCardForm() {
         </div>
         ${variantPicker}
         ${mysteryRefBanner}
+        ${layoutPickers}
         <label class="designer__label">
           Card Text${isSplit ? ' (auto-generated for Split cards)' : ''}
           <textarea class="designer__input designer__textarea" data-field="card-text" maxlength="200" placeholder="What's on the card..."${isSplit ? ' readonly' : ''}>${esc(state.cardFormText)}</textarea>
@@ -583,6 +702,8 @@ function renderGenerationPanel() {
         <button class="btn btn--small btn--ghost" data-action="reset-prompt">Reset to auto-assembled</button>
       </div>
 
+      ${renderVariationModeControls()}
+
       ${state.generateError ? `<p class="admin-img-gen__error">${esc(state.generateError)}</p>` : ''}
 
       <div class="admin-img-gen__gen-actions">
@@ -596,16 +717,86 @@ function renderGenerationPanel() {
   `;
 }
 
+function renderVariationModeControls() {
+  const arrayFields = getArrayFields(state.style);
+  if (arrayFields.length === 0) return '';
+
+  const mode = state.variationMode;
+  const fieldOptions = arrayFields.map(f =>
+    `<option value="${esc(f)}" ${state.variationField === f ? 'selected' : ''}>${esc(humanizeKey(f))}</option>`
+  ).join('');
+
+  return `
+    <fieldset class="admin-img-gen__variation-mode">
+      <legend class="designer__label">Variation mode</legend>
+      <label class="admin-img-gen__variation-option">
+        <input type="radio" name="variation-mode" value="same" data-field="variation-mode" ${mode === 'same' ? 'checked' : ''}>
+        Keep prompt same
+      </label>
+      <label class="admin-img-gen__variation-option">
+        <input type="radio" name="variation-mode" value="random" data-field="variation-mode" ${mode === 'random' ? 'checked' : ''}>
+        Random variations
+      </label>
+      <label class="admin-img-gen__variation-option">
+        <input type="radio" name="variation-mode" value="sequential" data-field="variation-mode" ${mode === 'sequential' ? 'checked' : ''}>
+        Every card different
+      </label>
+      <label class="admin-img-gen__variation-option admin-img-gen__variation-option--inline">
+        <input type="radio" name="variation-mode" value="single-field" data-field="variation-mode" ${mode === 'single-field' ? 'checked' : ''}>
+        All same but
+        <select class="designer__input admin-img-gen__variation-field-select" data-field="variation-field" ${mode !== 'single-field' ? 'disabled' : ''}>
+          ${fieldOptions}
+        </select>
+      </label>
+    </fieldset>
+  `;
+}
+
+/**
+ * Render a single style field row. If the value is an array, shows
+ * left/right arrows to navigate options and an index indicator.
+ */
+function renderStyleFieldRow(key, value, fieldType = 'style-key') {
+  const isArr = Array.isArray(value) && value.length > 0;
+  const idx = isArr ? (state.styleArrayIndices[key] || 0) % value.length : 0;
+  const displayValue = isArr ? (value[idx] ?? '') : (value ?? '');
+  const label = esc(humanizeKey(key));
+  const ekKey = esc(key);
+
+  if (isArr) {
+    return `
+      <div class="designer__label admin-img-gen__style-row">
+        <div class="admin-img-gen__style-row-header">
+          <span>${label}</span>
+          <div class="admin-img-gen__style-arrows">
+            <button class="admin-img-gen__style-arrow" data-action="style-arr-prev" data-key="${ekKey}" title="Previous option">\u25C0</button>
+            <span class="admin-img-gen__style-arrow-idx">${idx + 1}/${value.length}</span>
+            <button class="admin-img-gen__style-arrow" data-action="style-arr-next" data-key="${ekKey}" title="Next option">\u25B6</button>
+            <button class="admin-img-gen__style-arrow admin-img-gen__style-arrow--add" data-action="style-arr-add" data-key="${ekKey}" data-field-type="${fieldType}" title="Add option">+</button>
+            <button class="admin-img-gen__style-arrow admin-img-gen__style-arrow--remove" data-action="style-arr-remove" data-key="${ekKey}" data-field-type="${fieldType}" title="Remove this option">\u2212</button>
+          </div>
+        </div>
+        <textarea class="designer__input designer__textarea admin-img-gen__style-input" data-field="${fieldType}" data-key="${ekKey}" rows="2">${esc(displayValue)}</textarea>
+      </div>`;
+  }
+
+  return `
+    <div class="designer__label admin-img-gen__style-row">
+      <div class="admin-img-gen__style-row-header">
+        <span>${label}</span>
+        <div class="admin-img-gen__style-arrows">
+          <button class="admin-img-gen__style-arrow admin-img-gen__style-arrow--add" data-action="style-arr-add" data-key="${ekKey}" data-field-type="${fieldType}" title="Add variation">+</button>
+        </div>
+      </div>
+      <textarea class="designer__input designer__textarea admin-img-gen__style-input" data-field="${fieldType}" data-key="${ekKey}" rows="2">${esc(displayValue)}</textarea>
+    </div>`;
+}
+
 function renderStyleFields() {
   // Main style fields: iterate all keys EXCEPT the nested `decks` object
   // — that renders in its own dedicated sub-section below.
   const styleKeys = Object.keys(state.style).filter(k => k !== 'decks');
-  const rows = styleKeys.map(k => `
-    <label class="designer__label admin-img-gen__style-row">
-      ${esc(humanizeKey(k))}
-      <textarea class="designer__input designer__textarea admin-img-gen__style-input" data-field="style-key" data-key="${esc(k)}" rows="2">${esc(state.style[k])}</textarea>
-    </label>
-  `).join('');
+  const rows = styleKeys.map(k => renderStyleFieldRow(k, state.style[k])).join('');
 
   // Dedicated sub-section for per-deck config. Each deck gets two inputs:
   // - Prefix:     prepended to card text ("Died from: <card>…")
@@ -619,32 +810,55 @@ function renderStyleFields() {
   const deckRows = ['die', 'live', 'bye'].map(deck => {
     const cfg = (decks[deck] && typeof decks[deck] === 'object') ? decks[deck] : {};
     const cap = deck.charAt(0).toUpperCase() + deck.slice(1);
-    // Split/mystery composition fields only apply to die deck.
-    const dieExtraFields = deck === 'die' ? `
-        <label class="designer__label admin-img-gen__style-row">
-          Mystery Prefix
-          <input class="designer__input admin-img-gen__style-input" type="text" data-field="deck-config" data-deck="${deck}" data-key="mysteryPrefix" placeholder="(e.g. 'texture the ? and background inspired by the following')" value="${esc(cfg.mysteryPrefix ?? '')}">
-        </label>
-        <label class="designer__label admin-img-gen__style-row">
-          Split Composition A
-          <input class="designer__input admin-img-gen__style-input" type="text" data-field="deck-config" data-deck="${deck}" data-key="splitCompositionA" placeholder="(e.g. 'Subject positioned in the top-left')" value="${esc(cfg.splitCompositionA ?? '')}">
-        </label>
-        <label class="designer__label admin-img-gen__style-row">
-          Split Composition B
-          <input class="designer__input admin-img-gen__style-input" type="text" data-field="deck-config" data-deck="${deck}" data-key="splitCompositionB" placeholder="(e.g. 'Subject positioned in the top-right')" value="${esc(cfg.splitCompositionB ?? '')}">
-        </label>` : '';
+    // Mystery prefix + split composition fields only apply to die deck.
+    const dieExtraKeys = deck === 'die' ? ['mysteryPrefix', 'splitCompositionA', 'splitCompositionB'] : [];
+    const allKeys = ['prefix', 'annotation', ...dieExtraKeys];
+    const placeholders = {
+      prefix: "(e.g. 'Died from')",
+      annotation: `(e.g. '${deck} card for a board game')`,
+      mysteryPrefix: "(e.g. 'texture the ? and background inspired by the following')",
+      splitCompositionA: "(e.g. 'Subject positioned in the top-left')",
+      splitCompositionB: "(e.g. 'Subject positioned in the top-right')",
+    };
+    const fieldRows = allKeys.map(dk => {
+      const val = cfg[dk];
+      const arrKey = `decks.${deck}.${dk}`;
+      const isArr = Array.isArray(val) && val.length > 0;
+      const idx = isArr ? (state.styleArrayIndices[arrKey] || 0) % val.length : 0;
+      const displayValue = isArr ? (val[idx] ?? '') : (val ?? '');
+      const label = esc(humanizeKey(dk));
+      const ekKey = esc(arrKey);
+      if (isArr) {
+        return `
+          <div class="designer__label admin-img-gen__style-row">
+            <div class="admin-img-gen__style-row-header">
+              <span>${label}</span>
+              <div class="admin-img-gen__style-arrows">
+                <button class="admin-img-gen__style-arrow" data-action="style-arr-prev" data-key="${ekKey}">\u25C0</button>
+                <span class="admin-img-gen__style-arrow-idx">${idx + 1}/${val.length}</span>
+                <button class="admin-img-gen__style-arrow" data-action="style-arr-next" data-key="${ekKey}">\u25B6</button>
+                <button class="admin-img-gen__style-arrow admin-img-gen__style-arrow--add" data-action="style-arr-add" data-key="${ekKey}" data-field-type="deck-config" data-deck="${deck}" data-deck-key="${dk}" title="Add option">+</button>
+                <button class="admin-img-gen__style-arrow admin-img-gen__style-arrow--remove" data-action="style-arr-remove" data-key="${ekKey}" data-field-type="deck-config" data-deck="${deck}" data-deck-key="${dk}" title="Remove this option">\u2212</button>
+              </div>
+            </div>
+            <input class="designer__input admin-img-gen__style-input" type="text" data-field="deck-config" data-deck="${deck}" data-key="${dk}" placeholder="${esc(placeholders[dk] || '')}" value="${esc(displayValue)}">
+          </div>`;
+      }
+      return `
+        <div class="designer__label admin-img-gen__style-row">
+          <div class="admin-img-gen__style-row-header">
+            <span>${label}</span>
+            <div class="admin-img-gen__style-arrows">
+              <button class="admin-img-gen__style-arrow admin-img-gen__style-arrow--add" data-action="style-arr-add" data-key="${ekKey}" data-field-type="deck-config" data-deck="${deck}" data-deck-key="${dk}" title="Add variation">+</button>
+            </div>
+          </div>
+          <input class="designer__input admin-img-gen__style-input" type="text" data-field="deck-config" data-deck="${deck}" data-key="${dk}" placeholder="${esc(placeholders[dk] || '')}" value="${esc(displayValue)}">
+        </div>`;
+    }).join('');
     return `
       <div class="admin-img-gen__deck-group">
         <div class="admin-img-gen__deck-group-label">${cap}</div>
-        <label class="designer__label admin-img-gen__style-row">
-          Prefix
-          <input class="designer__input admin-img-gen__style-input" type="text" data-field="deck-config" data-deck="${deck}" data-key="prefix" placeholder="(e.g. 'Died from')" value="${esc(cfg.prefix ?? '')}">
-        </label>
-        <label class="designer__label admin-img-gen__style-row">
-          Annotation
-          <input class="designer__input admin-img-gen__style-input" type="text" data-field="deck-config" data-deck="${deck}" data-key="annotation" placeholder="(e.g. '${deck} card for a board game')" value="${esc(cfg.annotation ?? '')}">
-        </label>
-        ${dieExtraFields}
+        ${fieldRows}
       </div>
     `;
   }).join('');
@@ -833,6 +1047,8 @@ function renderBatchResultsPanel() {
       options: isSplit
         ? [state.cardFormOption1 || 'Option A', state.cardFormOption2 || 'Option B']
         : null,
+      textPosition: state.cardFormTextPosition,
+      textColor: state.cardFormTextColor,
     };
     const cardHtml = renderCard(buildCard(cardData));
     const isSelected = idx === state.selectedBatchIdx;
@@ -898,6 +1114,8 @@ function renderGenerationLog() {
         // buildCard normalises '?'/'Split' → 'mystery'/'split' so pass the raw DB value through.
         special: entry.deck_type === 'die' ? (entry.card_special || '') : '',
         options: optsArr,
+        textPosition: entry.text_position || 'top',
+        textColor: entry.text_color || 'black',
       }));
 
       // Word-by-word prompt diff vs the previous (older) entry.
@@ -1020,6 +1238,18 @@ function onClick(e) {
         // Option fields are irrelevant for non-Split cards.
       }
       recomputePromptPreview();
+      render();
+      return;
+    }
+
+    case 'set-text-position': {
+      state.cardFormTextPosition = target.getAttribute('data-position') || 'top';
+      render();
+      return;
+    }
+
+    case 'set-text-color': {
+      state.cardFormTextColor = target.getAttribute('data-color') || 'black';
       render();
       return;
     }
@@ -1161,6 +1391,94 @@ function onClick(e) {
       state.decksCollapsed = !state.decksCollapsed;
       render();
       return;
+
+    case 'style-arr-prev':
+    case 'style-arr-next': {
+      const key = target.getAttribute('data-key');
+      if (!key) return;
+      const arr = getStyleValueByPath(state.style, key);
+      if (!Array.isArray(arr) || arr.length === 0) return;
+      const cur = state.styleArrayIndices[key] || 0;
+      const len = arr.length;
+      state.styleArrayIndices[key] = action === 'style-arr-next'
+        ? (cur + 1) % len
+        : (cur - 1 + len) % len;
+      recomputePromptPreview();
+      render();
+      return;
+    }
+
+    case 'style-arr-add': {
+      const key = target.getAttribute('data-key');
+      const fieldType = target.getAttribute('data-field-type');
+      if (!key) return;
+      if (fieldType === 'deck-config') {
+        // Deck config field — key is "decks.<deck>.<dk>"
+        const deck = target.getAttribute('data-deck');
+        const dk = target.getAttribute('data-deck-key');
+        if (!deck || !dk) return;
+        if (!state.style.decks) state.style.decks = {};
+        if (!state.style.decks[deck]) state.style.decks[deck] = {};
+        const cur = state.style.decks[deck][dk];
+        if (Array.isArray(cur)) {
+          // Insert a blank after the current index
+          const idx = (state.styleArrayIndices[key] || 0) % cur.length;
+          cur.splice(idx + 1, 0, '');
+          state.styleArrayIndices[key] = idx + 1;
+        } else {
+          // Convert string to array: [existing, blank]
+          state.style.decks[deck][dk] = [cur || '', ''];
+          state.styleArrayIndices[key] = 1;
+        }
+      } else {
+        // Top-level style field
+        const topKey = key; // no dots for top-level
+        const cur = state.style[topKey];
+        if (Array.isArray(cur)) {
+          const idx = (state.styleArrayIndices[key] || 0) % cur.length;
+          cur.splice(idx + 1, 0, '');
+          state.styleArrayIndices[key] = idx + 1;
+        } else {
+          state.style[topKey] = [cur || '', ''];
+          state.styleArrayIndices[key] = 1;
+        }
+      }
+      state.rawJsonDraft = JSON.stringify(state.style, null, 2);
+      recomputePromptPreview();
+      render();
+      return;
+    }
+
+    case 'style-arr-remove': {
+      const key = target.getAttribute('data-key');
+      const fieldType = target.getAttribute('data-field-type');
+      if (!key) return;
+      const arr = getStyleValueByPath(state.style, key);
+      if (!Array.isArray(arr) || arr.length === 0) return;
+      const idx = (state.styleArrayIndices[key] || 0) % arr.length;
+      if (arr.length <= 1) {
+        // Last element — convert back to plain string
+        const val = arr[0] || '';
+        if (fieldType === 'deck-config') {
+          const deck = target.getAttribute('data-deck');
+          const dk = target.getAttribute('data-deck-key');
+          if (deck && dk && state.style.decks?.[deck]) {
+            state.style.decks[deck][dk] = val;
+          }
+        } else {
+          state.style[key] = val;
+        }
+        delete state.styleArrayIndices[key];
+      } else {
+        arr.splice(idx, 1);
+        // Keep index in bounds
+        if (idx >= arr.length) state.styleArrayIndices[key] = arr.length - 1;
+      }
+      state.rawJsonDraft = JSON.stringify(state.style, null, 2);
+      recomputePromptPreview();
+      render();
+      return;
+    }
   }
 }
 
@@ -1194,7 +1512,13 @@ function onInput(e) {
     case 'style-key': {
       const key = t.getAttribute('data-key');
       if (!key) return;
-      state.style[key] = t.value;
+      // If the field is an array, update the currently-visible element.
+      if (Array.isArray(state.style[key]) && state.style[key].length > 0) {
+        const idx = (state.styleArrayIndices[key] || 0) % state.style[key].length;
+        state.style[key][idx] = t.value;
+      } else {
+        state.style[key] = t.value;
+      }
       recomputePromptPreview();
       updatePromptPreviewText();
       return;
@@ -1209,7 +1533,15 @@ function onInput(e) {
       if (!state.style.decks[deck] || typeof state.style.decks[deck] !== 'object') {
         state.style.decks[deck] = {};
       }
-      state.style.decks[deck][key] = t.value;
+      // If the deck field is an array, update the currently-visible element.
+      const arrKey = `decks.${deck}.${key}`;
+      const deckVal = state.style.decks[deck][key];
+      if (Array.isArray(deckVal) && deckVal.length > 0) {
+        const idx = (state.styleArrayIndices[arrKey] || 0) % deckVal.length;
+        deckVal[idx] = t.value;
+      } else {
+        state.style.decks[deck][key] = t.value;
+      }
       recomputePromptPreview();
       updatePromptPreviewText();
       return;
@@ -1245,7 +1577,24 @@ function onInput(e) {
 
 function onChange(e) {
   const t = e.target;
+  const field = t?.getAttribute?.('data-field');
   const action = t?.getAttribute?.('data-action');
+
+  if (field === 'variation-mode') {
+    state.variationMode = t.value;
+    // Auto-select the first array field when switching to single-field mode
+    if (t.value === 'single-field' && !state.variationField) {
+      const fields = getArrayFields(state.style);
+      if (fields.length > 0) state.variationField = fields[0];
+    }
+    render();
+    return;
+  }
+  if (field === 'variation-field') {
+    state.variationField = t.value || null;
+    return;
+  }
+
   if (action === 'select-pack') {
     const id = t.value || null;
     state.selectedPackId = id;
@@ -1339,6 +1688,8 @@ function hydrateFromCard(cardId) {
   try { opts = card.options_json ? JSON.parse(card.options_json) : []; } catch {}
   state.cardFormOption1 = opts[0] || '';
   state.cardFormOption2 = opts[1] || '';
+  state.cardFormTextPosition = card.text_position || 'top';
+  state.cardFormTextColor = card.text_color || 'black';
   state.promptOverride = null;
   recomputePromptPreview();
   render();
@@ -1439,26 +1790,34 @@ async function generate() {
     const isMystery = state.cardFormDeckType === 'die' && state.cardFormSpecial === '?';
     const inputImage = isMystery ? state.mysteryRefImageBase64 : undefined;
 
+    // Resolve style per batch item when array-valued fields exist.
+    const hasArrayFields = getArrayFields(state.style).length > 0;
+    const userOverrode = state.promptOverride !== null;
+
     if (isSplit) {
       // Split / WYR cards need two images per batch item — one per option.
       // Fire all pairs in parallel.
       const optA = state.cardFormOption1 || 'Option A';
       const optB = state.cardFormOption2 || 'Option B';
-      const common = {
-        providerId: state.selectedProviderId,
-        cardPrompt: state.cardFormPrompt,
-        deckType: state.cardFormDeckType,
-        style: state.style,
-        options: { width: dims.width, height: dims.height },
-        cardSpecial: state.cardFormSpecial || undefined,
-        onProgress,
-      };
-      const pairs = Array.from({ length: count }, () =>
-        Promise.all([
-          generateImageStream({ ...common, cardText: optA, promptOverride: state.promptOverride, splitPosition: 'a', onProgress }),
-          generateImageStream({ ...common, cardText: optB, promptOverride: state.promptOverride, splitPosition: 'b', onProgress }),
-        ])
-      );
+      const pairs = Array.from({ length: count }, (_, i) => {
+        const itemStyle = hasArrayFields
+          ? resolveStyle(state.style, i, state.variationMode, state.variationField)
+          : state.style;
+        const itemPromptOverride = userOverrode ? state.promptOverride : null;
+        const common = {
+          providerId: state.selectedProviderId,
+          cardPrompt: state.cardFormPrompt,
+          deckType: state.cardFormDeckType,
+          style: itemStyle,
+          options: { width: dims.width, height: dims.height },
+          cardSpecial: state.cardFormSpecial || undefined,
+          onProgress,
+        };
+        return Promise.all([
+          generateImageStream({ ...common, cardText: optA, promptOverride: itemPromptOverride, splitPosition: 'a', onProgress }),
+          generateImageStream({ ...common, cardText: optB, promptOverride: itemPromptOverride, splitPosition: 'b', onProgress }),
+        ]);
+      });
       const results = await Promise.all(pairs);
       state.generatedBatch = results.map(([resultA, resultB]) => {
         // Merge the two log entries into one so Recent generations shows
@@ -1486,20 +1845,24 @@ async function generate() {
         };
       });
     } else {
-      const requests = Array.from({ length: count }, () =>
-        generateImageStream({
+      const requests = Array.from({ length: count }, (_, i) => {
+        const itemStyle = hasArrayFields
+          ? resolveStyle(state.style, i, state.variationMode, state.variationField)
+          : state.style;
+        const itemPromptOverride = userOverrode ? state.promptOverride : null;
+        return generateImageStream({
           providerId: state.selectedProviderId,
           cardText: state.cardFormText,
           cardPrompt: state.cardFormPrompt,
           deckType: state.cardFormDeckType,
-          style: state.style,
-          promptOverride: state.promptOverride,
+          style: itemStyle,
+          promptOverride: itemPromptOverride,
           options: { width: dims.width, height: dims.height },
           inputImage,
           cardSpecial: state.cardFormSpecial || undefined,
           onProgress,
-        })
-      );
+        });
+      });
       state.generatedBatch = await Promise.all(requests);
     }
     // For single results, pre-select. For batch, leave unselected until clicked.
@@ -1538,7 +1901,8 @@ async function handleSaveToCard(batchIdx = 0) {
     const updated = await saveImageToCard(
       state.selectedPackId,
       state.selectedCardId,
-      srcUrl
+      srcUrl,
+      { textPosition: state.cardFormTextPosition, textColor: state.cardFormTextColor }
     );
     // Patch the cached card so the card list shows the ✓ checkmark next load.
     if (state.selectedPack?.cards) {
@@ -1658,6 +2022,8 @@ function hydrateFromLog(logId, { addToBatch = false } = {}) {
   try { opts = entry.options_json ? JSON.parse(entry.options_json) : []; } catch {}
   state.cardFormOption1 = opts[0] || '';
   state.cardFormOption2 = opts[1] || '';
+  state.cardFormTextPosition = entry.text_position || 'top';
+  state.cardFormTextColor = entry.text_color || 'black';
   state.promptOverride = null;
   const restoredResult = {
     imageUrl: entry.image_url,

@@ -220,6 +220,55 @@ html, body {
   text-transform: capitalize;
   color: var(--color-text-muted, #9a9ab0);
 }
+.admin-img-gen__style-row-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.2rem;
+}
+.admin-img-gen__style-arrows {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.admin-img-gen__style-arrow {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  color: var(--color-text, #f0f0f0);
+  font-size: 0.6rem;
+  padding: 0.15em 0.4em;
+  cursor: pointer;
+  line-height: 1;
+}
+.admin-img-gen__style-arrow:hover {
+  background: rgba(152, 66, 255, 0.25);
+  border-color: var(--color-primary, #9842ff);
+}
+.admin-img-gen__style-arrow--add,
+.admin-img-gen__style-arrow--remove {
+  font-weight: 700;
+  font-size: 0.7rem;
+  padding: 0.1em 0.35em;
+}
+.admin-img-gen__style-arrow--add:hover {
+  background: rgba(34, 197, 94, 0.25);
+  border-color: #4ade80;
+  color: #4ade80;
+}
+.admin-img-gen__style-arrow--remove:hover {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: #f87171;
+  color: #f87171;
+}
+.admin-img-gen__style-arrow-idx {
+  font-size: 0.65rem;
+  color: var(--color-text-muted, #888);
+  min-width: 2em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
 .admin-img-gen__style-input {
   text-transform: none;
   color: var(--color-text, #f0f0f0);
@@ -349,6 +398,41 @@ html, body {
   display: flex;
   gap: 0.5rem;
   margin: 0.25rem 0 0.75rem;
+}
+
+/* --- Variation mode controls --- */
+
+.admin-img-gen__variation-mode {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 0.6rem 0.75rem 0.5rem;
+  margin: 0.5rem 0 0.25rem;
+}
+.admin-img-gen__variation-mode legend {
+  padding: 0 0.3rem;
+  font-size: 0.75rem;
+}
+.admin-img-gen__variation-option {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  color: var(--color-text, #f0f0f0);
+  padding: 0.2rem 0;
+  cursor: pointer;
+}
+.admin-img-gen__variation-option input[type="radio"] {
+  accent-color: var(--color-primary, #9842ff);
+  margin: 0;
+}
+.admin-img-gen__variation-option--inline {
+  flex-wrap: wrap;
+}
+.admin-img-gen__variation-field-select {
+  font-size: 0.8rem;
+  padding: 0.2em 0.4em;
+  min-width: 8em;
+  max-width: 14em;
 }
 
 .admin-img-gen__gen-actions {

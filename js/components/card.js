@@ -118,9 +118,11 @@ function renderDieInner(card, spec) {
         <h3 class="card__title-overlay card__title-overlay--top">${safeTitle}</h3>
       </div>`;
   }
+  const pos = card.textPosition === 'bottom' ? 'bottom' : 'top';
+  const colorCls = card.textColor === 'white' ? ' card__title-overlay--light' : '';
   return `
-    <div class="card__graphic-area card__graphic-area--${deckType} card__graphic-area--title-top"${bgStyle}>
-      <h3 class="card__title-overlay card__title-overlay--top">${safeTitle}</h3>
+    <div class="card__graphic-area card__graphic-area--${deckType} card__graphic-area--title-${pos}"${bgStyle}>
+      <h3 class="card__title-overlay card__title-overlay--${pos}${colorCls}">${safeTitle}</h3>
     </div>`;
 }
 
