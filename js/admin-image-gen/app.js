@@ -26,7 +26,7 @@ import {
   saveStyleJson,
   getStyleJson,
   listGenerationLog,
-  listMyPacks,
+  listAllPacks,
   getPackWithCards,
 } from './image-gen-api.js';
 
@@ -864,7 +864,11 @@ async function loadPacks() {
   state.packsLoading = true;
   render();
   try {
-    const packs = await listMyPacks(state.firebaseUser?.uid || null);
+    // Admin test tool — show every pack from every creator, not
+    // just the signed-in admin's own. (The old call also had a
+    // latent bug: firebaseUser.uid is a Firebase UID, which doesn't
+    // match expansion_packs.creator_id = users.id in the DB.)
+    const packs = await listAllPacks();
     state.packs = packs;
   } catch (err) {
     console.error('[admin-image-gen] loadPacks failed:', err);
