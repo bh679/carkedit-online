@@ -206,6 +206,48 @@ html, body {
   min-height: 260px;
 }
 
+/* Recent generations gallery — full-width section below the main
+ * grid. Each entry is a clickable card thumbnail; clicking hydrates
+ * the form with that entry's captured card context. */
+.admin-img-gen__log-section {
+  margin-top: 1.5rem;
+}
+.admin-img-gen__log-filters {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+.admin-img-gen__log-filter--active {
+  outline: 2px solid var(--color-primary, #9842ff);
+  outline-offset: 2px;
+}
+.admin-img-gen__log-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.75rem;
+}
+.admin-img-gen__log-cell {
+  display: block;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 0.35rem;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  transition: border-color 0.15s ease;
+}
+.admin-img-gen__log-cell:hover {
+  border-color: rgba(152, 66, 255, 0.5);
+}
+.admin-img-gen__log-cell .card {
+  width: 100%;
+  max-width: 140px;
+  margin: 0 auto;
+  pointer-events: none; /* the button captures the click */
+}
+
 /* Per-deck config groups — each of die/live/bye gets its own card-
  * like container with a capitalised label and two inputs inside
  * (Prefix + Annotation). */

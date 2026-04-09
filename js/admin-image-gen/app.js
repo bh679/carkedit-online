@@ -23,6 +23,7 @@ import {
   generateImage,
   saveImageToCard,
   saveStyleJson,
+  listGenerationLog,
   listMyPacks,
   getPackWithCards,
 } from './image-gen-api.js';
@@ -79,6 +80,14 @@ const state = {
   savingStyle: false,
   saveStyleError: null,
   savedAt: 0,                     // ms timestamp of last successful save (for "Saved ✓" flash)
+
+  // Recent generations gallery — driven by /api/carkedit/image-gen/log.
+  // Loaded once at mount + refreshed after every successful generate +
+  // when the user clicks a scope filter button.
+  generationLog: [],
+  generationLogScope: 'all',      // 'all' | 'mine' | 'admins'
+  generationLogLoading: false,
+  generationLogError: null,
 };
 
 // ---------------------------------------------------------------------------
@@ -240,6 +249,7 @@ function render() {
           ${renderGeneratedPanel()}
         </section>
       </div>
+      ${renderGenerationLog()}
     </div>
   `;
 }
@@ -527,6 +537,65 @@ function renderGeneratedPanel() {
   `;
 }
 
+/**
+ * Recent generations gallery — full-width section below the main grid.
+ * Every successful generate auto-saves a row to `generation_log` on the
+ * server; this renders the latest 50 (default scope) as a grid of
+ * clickable card thumbnails. Clicking a thumbnail hydrates the form
+ * with the logged card context so the user can iterate.
+ */
+function renderGenerationLog() {
+  const scopes = [
+    { id: 'all', label: 'Everything' },
+    { id: 'mine', label: 'Mine' },
+    { id: 'admins', label: 'All admins' },
+  ];
+  const filters = scopes.map(s => {
+    const active = state.generationLogScope === s.id ? 'admin-img-gen__log-filter--active' : '';
+    return `<button class="btn btn--small ${active}" data-action="set-log-scope" data-scope="${s.id}">${s.label}</button>`;
+  }).join('');
+
+  let body = '';
+  if (state.generationLogLoading) {
+    body = '<p class="admin-img-gen__muted">Loading…</p>';
+  } else if (state.generationLogError) {
+    body = `<p class="admin-img-gen__error">${esc(state.generationLogError)}</p>`;
+  } else if (state.generationLog.length === 0) {
+    body = '<p class="admin-img-gen__muted">No generations yet — click Generate to start.</p>';
+  } else {
+    const cells = state.generationLog.map(entry => {
+      let optsArr = null;
+      try { optsArr = entry.options_json ? JSON.parse(entry.options_json) : null; } catch {}
+      const isSplit = entry.deck_type === 'die' && entry.card_special === 'Split';
+      const cardHtml = renderCard({
+        title: entry.text || '(untitled)',
+        description: '',
+        prompt: entry.prompt || '',
+        image: '',
+        graphicImage: isSplit ? '' : (entry.image_url || ''),
+        graphicImages: isSplit ? [entry.image_url || '', entry.image_url_b || ''] : null,
+        deckType: entry.deck_type,
+        special: entry.deck_type === 'die' ? (entry.card_special || '') : '',
+        options: optsArr,
+      });
+      return `
+        <button class="admin-img-gen__log-cell" data-action="hydrate-from-log" data-log-id="${esc(entry.id)}" title="${esc(entry.text || '')}&#10;${esc(entry.provider)} · ${esc(entry.created_at)}">
+          ${cardHtml}
+        </button>
+      `;
+    }).join('');
+    body = `<div class="admin-img-gen__log-grid">${cells}</div>`;
+  }
+
+  return `
+    <div class="admin-img-gen__section admin-img-gen__log-section">
+      <h2 class="admin-img-gen__section-title">Recent generations</h2>
+      <div class="admin-img-gen__log-filters">${filters}</div>
+      ${body}
+    </div>
+  `;
+}
+
 // ---------------------------------------------------------------------------
 // Event handlers
 // ---------------------------------------------------------------------------
@@ -624,6 +693,20 @@ function onClick(e) {
     case 'save-to-card':
       handleSaveToCard();
       return;
+
+    case 'set-log-scope': {
+      const scope = target.getAttribute('data-scope') || 'all';
+      if (scope === state.generationLogScope) return;
+      state.generationLogScope = scope;
+      loadGenerationLog();
+      return;
+    }
+
+    case 'hydrate-from-log': {
+      const id = target.getAttribute('data-log-id');
+      if (id) hydrateFromLog(id);
+      return;
+    }
   }
 }
 
@@ -822,6 +905,10 @@ async function generate() {
       options: { width: dims.width, height: dims.height },
     });
     state.generated = result;
+    // Refresh the Recent generations gallery so the new entry appears
+    // at the top. Fire-and-forget — the main render() below doesn't
+    // need to wait for it.
+    loadGenerationLog();
   } catch (err) {
     console.error('[admin-image-gen] generate failed:', err);
     state.generateError = err?.message || 'Image generation failed';
@@ -837,10 +924,17 @@ async function handleSaveToCard() {
   state.saveError = null;
   render();
   try {
+    // The backend's /generate route now returns a local URL
+    // (/uploads/card-images/...) rather than a provider URL. The
+    // /image-from-url endpoint uses fetch() which can't resolve a
+    // relative path — prefix with location.origin so it can round-trip.
+    const srcUrl = state.generated.imageUrl.startsWith('/')
+      ? `${location.origin}${state.generated.imageUrl}`
+      : state.generated.imageUrl;
     const updated = await saveImageToCard(
       state.selectedPackId,
       state.selectedCardId,
-      state.generated.imageUrl
+      srcUrl
     );
     // Patch the cached card so the card list shows the ✓ checkmark next load.
     if (state.selectedPack?.cards) {
@@ -885,6 +979,58 @@ async function saveStyle() {
   }
 }
 
+/**
+ * Fetch the Recent generations list from the server and re-render.
+ * Called on mount, after every successful generate, and when the user
+ * clicks a scope filter button. Fire-and-forget — errors land in
+ * state.generationLogError and render inline.
+ */
+async function loadGenerationLog() {
+  state.generationLogLoading = true;
+  state.generationLogError = null;
+  render();
+  try {
+    const entries = await listGenerationLog({ scope: state.generationLogScope, limit: 50 });
+    state.generationLog = entries;
+  } catch (err) {
+    console.error('[admin-image-gen] loadGenerationLog failed:', err);
+    state.generationLogError = err?.message || 'Failed to load recent generations';
+  } finally {
+    state.generationLogLoading = false;
+    render();
+  }
+}
+
+/**
+ * Hydrate the form + generated panel from a log entry, so the user
+ * can see the logged image in the preview and iterate on the card
+ * text / style fields without losing the original entry (the log is
+ * append-only from the client's perspective).
+ */
+function hydrateFromLog(logId) {
+  const entry = state.generationLog.find(e => e.id === logId);
+  if (!entry) return;
+  state.activeTab = 'scratch';
+  state.selectedCardId = null;
+  state.cardFormDeckType = entry.deck_type || 'die';
+  state.cardFormText = entry.text || '';
+  state.cardFormPrompt = entry.prompt || '';
+  state.cardFormSpecial = entry.card_special || '';
+  let opts = [];
+  try { opts = entry.options_json ? JSON.parse(entry.options_json) : []; } catch {}
+  state.cardFormOption1 = opts[0] || '';
+  state.cardFormOption2 = opts[1] || '';
+  state.promptOverride = null;
+  state.generated = {
+    imageUrl: entry.image_url,
+    provider: entry.provider,
+    promptSent: entry.prompt_sent,
+  };
+  state.generateError = null;
+  recomputePromptPreview();
+  render();
+}
+
 // ---------------------------------------------------------------------------
 // Mount
 // ---------------------------------------------------------------------------
@@ -922,4 +1068,8 @@ export async function mount({ container, firebaseUser, providers, signOut }) {
   container.addEventListener('click', onClick);
   container.addEventListener('input', onInput);
   container.addEventListener('change', onChange);
+
+  // Kick off the Recent generations load now that the basic UI is
+  // mounted. Fire-and-forget — it'll re-render when the fetch returns.
+  loadGenerationLog();
 }

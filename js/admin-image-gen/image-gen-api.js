@@ -85,6 +85,23 @@ export async function generateImage({
 }
 
 /**
+ * GET /image-gen/log — list recent generation log rows, newest first.
+ * `scope` accepts 'all' | 'mine' | 'admins' and filters server-side.
+ * Returns `[ { id, creator_id, deck_type, text, prompt, card_special,
+ * options_json, image_url, image_url_b, provider, prompt_sent,
+ * created_at } ]`.
+ */
+export async function listGenerationLog({ scope = 'all', limit = 50, offset = 0 } = {}) {
+  const url = new URL(`${API_BASE}/image-gen/log`);
+  url.searchParams.set('scope', scope);
+  url.searchParams.set('limit', String(limit));
+  if (offset) url.searchParams.set('offset', String(offset));
+  const res = await fetch(url, { headers: await authHeaders() });
+  const data = await handleJson(res, 'Failed to list generation log');
+  return Array.isArray(data?.entries) ? data.entries : [];
+}
+
+/**
  * POST /image-gen/style — persist the current style JSON back to the
  * shipped default file on disk at <CLIENT_DIR>/js/data/image-gen-style.json.
  * Admin-only. Returns `{ ok: true, bytes, path }` on success.
