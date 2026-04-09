@@ -172,8 +172,17 @@
   gap: var(--space-sm);
 }
 
-.online-lobby__start-btn {
-  width: 100%;
+.online-lobby__host-row {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.online-lobby__host-row .online-lobby__ready-btn {
+  flex: 1;
+}
+
+.online-lobby__host-row .online-lobby__start-btn {
+  flex: 2;
 }
 
 .online-lobby__confirm-msg {

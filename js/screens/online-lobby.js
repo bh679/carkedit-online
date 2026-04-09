@@ -142,25 +142,28 @@ function renderConnectedLobby(state) {
   const myPlayer = onlinePlayers.find(p => p.sessionId === state.mySessionId);
   const amReady = myPlayer?.ready ?? false;
 
+  const readyLabel = isHost
+    ? (amReady ? 'Not Ready' : 'Ready')
+    : (amReady ? 'Not Ready' : 'Ready to Die');
+
   const readyBtn = `
     <button
       class="btn ${amReady ? 'btn--secondary' : 'btn--primary'} online-lobby__ready-btn"
       onclick="window.game.toggleReady()"
     >
-      ${amReady ? 'Not Ready' : 'Ready to Die'}
+      ${readyLabel}
     </button>
   `;
 
   const hostControls = isHost
-    ? `${readyBtn}
-       <div class="online-lobby__divider"></div>
-       <div class="online-lobby__start-container">
+    ? `<div class="online-lobby__host-row">
+         ${readyBtn}
          <button
           class="btn btn--primary online-lobby__start-btn"
           onclick="window.game.startOnlineGame()"
           ${onlinePlayers.length < 2 ? 'disabled' : ''}
         >
-          Start Game (${onlinePlayers.length} players)
+          Start Game
         </button>
        </div>`
     : `${readyBtn}
