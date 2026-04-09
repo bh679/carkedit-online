@@ -52,6 +52,8 @@ const state = {
   cardFormSpecial: '',            // '' | '?' | 'Split'
   cardFormOption1: '',
   cardFormOption2: '',
+  cardFormTextPosition: 'top',    // 'top' | 'bottom' (standard die only)
+  cardFormTextColor: 'black',     // 'black' | 'white' (standard die only)
 
   // Pick-from-pack state
   packs: [],
@@ -320,6 +322,8 @@ function currentCardForPreview() {
     options: isSplit
       ? [state.cardFormOption1 || 'Option A', state.cardFormOption2 || 'Option B']
       : null,
+    textPosition: state.cardFormTextPosition,
+    textColor: state.cardFormTextColor,
   };
 }
 
@@ -453,6 +457,23 @@ function renderCardForm() {
       </div>
     </div>` : '';
 
+  const isStandardDie = isDie && !isSplit && !isMystery;
+  const layoutPickers = isStandardDie ? `
+    <div class="designer__field">
+      <span class="designer__label">Text Position</span>
+      <div class="designer__deck-picker">
+        <button class="btn btn--small designer__deck-btn ${state.cardFormTextPosition === 'top' ? 'designer__deck-btn--active' : ''}" data-action="set-text-position" data-position="top">Top</button>
+        <button class="btn btn--small designer__deck-btn ${state.cardFormTextPosition === 'bottom' ? 'designer__deck-btn--active' : ''}" data-action="set-text-position" data-position="bottom">Bottom</button>
+      </div>
+    </div>
+    <div class="designer__field">
+      <span class="designer__label">Text Color</span>
+      <div class="designer__deck-picker">
+        <button class="btn btn--small designer__deck-btn ${state.cardFormTextColor === 'black' ? 'designer__deck-btn--active' : ''}" data-action="set-text-color" data-color="black">Black</button>
+        <button class="btn btn--small designer__deck-btn ${state.cardFormTextColor === 'white' ? 'designer__deck-btn--active' : ''}" data-action="set-text-color" data-color="white">White</button>
+      </div>
+    </div>` : '';
+
   const splitFields = isSplit ? `
     <label class="designer__label">
       Option A
@@ -479,6 +500,7 @@ function renderCardForm() {
           <div class="designer__deck-picker">${deckPicker}</div>
         </div>
         ${variantPicker}
+        ${layoutPickers}
         <label class="designer__label">
           Card Text${isSplit ? ' (auto-generated for Split cards)' : ''}
           <textarea class="designer__input designer__textarea" data-field="card-text" maxlength="200" placeholder="What's on the card..."${isSplit ? ' readonly' : ''}>${esc(state.cardFormText)}</textarea>
@@ -802,6 +824,8 @@ function renderBatchResultsPanel() {
       options: isSplit
         ? [state.cardFormOption1 || 'Option A', state.cardFormOption2 || 'Option B']
         : null,
+      textPosition: state.cardFormTextPosition,
+      textColor: state.cardFormTextColor,
     };
     const cardHtml = renderCard(buildCard(cardData));
     const isSelected = idx === state.selectedBatchIdx;
@@ -867,6 +891,8 @@ function renderGenerationLog() {
         // buildCard normalises '?'/'Split' → 'mystery'/'split' so pass the raw DB value through.
         special: entry.deck_type === 'die' ? (entry.card_special || '') : '',
         options: optsArr,
+        textPosition: entry.text_position || 'top',
+        textColor: entry.text_color || 'black',
       }));
 
       // Word-by-word prompt diff vs the previous (older) entry.
@@ -989,6 +1015,18 @@ function onClick(e) {
         // Option fields are irrelevant for non-Split cards.
       }
       recomputePromptPreview();
+      render();
+      return;
+    }
+
+    case 'set-text-position': {
+      state.cardFormTextPosition = target.getAttribute('data-position') || 'top';
+      render();
+      return;
+    }
+
+    case 'set-text-color': {
+      state.cardFormTextColor = target.getAttribute('data-color') || 'black';
       render();
       return;
     }
@@ -1308,6 +1346,8 @@ function hydrateFromCard(cardId) {
   try { opts = card.options_json ? JSON.parse(card.options_json) : []; } catch {}
   state.cardFormOption1 = opts[0] || '';
   state.cardFormOption2 = opts[1] || '';
+  state.cardFormTextPosition = card.text_position || 'top';
+  state.cardFormTextColor = card.text_color || 'black';
   state.promptOverride = null;
   recomputePromptPreview();
   render();
@@ -1592,6 +1632,8 @@ function hydrateFromLog(logId, { addToBatch = false } = {}) {
   try { opts = entry.options_json ? JSON.parse(entry.options_json) : []; } catch {}
   state.cardFormOption1 = opts[0] || '';
   state.cardFormOption2 = opts[1] || '';
+  state.cardFormTextPosition = entry.text_position || 'top';
+  state.cardFormTextColor = entry.text_color || 'black';
   state.promptOverride = null;
   const restoredResult = {
     imageUrl: entry.image_url,

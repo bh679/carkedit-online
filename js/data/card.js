@@ -148,6 +148,8 @@ export function buildCard(raw, _opts = {}) {
     options,
     packId,
     brandImageUrl,
+    textPosition: String(raw.textPosition ?? raw.text_position ?? 'top'),
+    textColor: String(raw.textColor ?? raw.text_color ?? 'black'),
   };
 
   return Object.freeze(canonical);
