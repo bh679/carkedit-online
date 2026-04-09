@@ -139,19 +139,47 @@ function resetStyle() {
   recomputePromptPreview();
 }
 
+/**
+ * Target pixel dimensions for an image generation request, sized to the
+ * actual card region the image will fill. Values are BFL-friendly
+ * (multiples of 32) and also work for Leonardo.
+ *
+ * - Die standard / mystery fill the whole 5:7 card → portrait.
+ * - Die split (Would You Rather) carves the card into two horizontal
+ *   halves, so each half is ~10:7 landscape.
+ * - Live / Bye graphic area is the top ~55% with a 4% margin → ~4:3
+ *   landscape.
+ */
+function targetDimensions(deckType, special) {
+  if (deckType === 'die' && special === 'Split') {
+    return { width: 1152, height: 800 };   // ≈10:7 landscape per split half
+  }
+  if (deckType === 'die') {
+    return { width: 960, height: 1344 };   // exact 5:7 portrait (full card)
+  }
+  return { width: 1024, height: 768 };     // exact 4:3 landscape (live/bye)
+}
+
 function currentCardForPreview() {
   const isDie = state.cardFormDeckType === 'die';
   const isSplit = isDie && state.cardFormSpecial === 'Split';
   const isMystery = isDie && state.cardFormSpecial === '?';
+  const generatedUrl = state.generated?.imageUrl || '';
   return {
     title: state.cardFormText || 'Card text preview…',
     description: '',
     prompt: state.cardFormPrompt,
     // `image` (full-bleed illustration) left blank — AI-generated art uses
-    // the new `graphicImage` path in card.js which keeps the text-only
-    // layout and just swaps the splatter pattern for the rendered image.
+    // the new `graphicImage` / `graphicImages` paths in card.js which keep
+    // the text-only layout and just swap the splatter pattern.
     image: '',
-    graphicImage: state.generated?.imageUrl || '',
+    // Non-split variants fill the whole graphic area with a single image.
+    graphicImage: isSplit ? '' : generatedUrl,
+    // Split variants render two half-slots. Today we only generate one
+    // image at a time, so it lands in the top slot and the bottom slot
+    // shows the default --split-bg-b colour (visible proof that the
+    // two-slot layout is in place). When dual-gen lands, pass both URLs.
+    graphicImages: isSplit ? [generatedUrl, ''] : null,
     illustrationKey: '',
     deckType: state.cardFormDeckType,
     brandImageUrl: state.selectedPack?.brand_image_url || '',
@@ -695,6 +723,9 @@ async function generate() {
   state.saveError = null;
   render();
   try {
+    // Size the generation request to the target card region so the
+    // provider renders the right aspect ratio instead of the default 1:1.
+    const dims = targetDimensions(state.cardFormDeckType, state.cardFormSpecial);
     const result = await generateImage({
       providerId: state.selectedProviderId,
       cardText: state.cardFormText,
@@ -702,6 +733,7 @@ async function generate() {
       deckType: state.cardFormDeckType,
       style: state.style,
       promptOverride: state.promptOverride,
+      options: { width: dims.width, height: dims.height },
     });
     state.generated = result;
   } catch (err) {

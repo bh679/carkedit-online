@@ -28,7 +28,7 @@ function escAttr(s) {
  * so no `!important` is needed. Used by AI-generated card images so the
  * title overlay / body text / rounded graphic-area corners are preserved.
  */
-function renderTextOnlyInner(title, description, prompt, deckType, special, options, graphicImage = '') {
+function renderTextOnlyInner(title, description, prompt, deckType, special, options, graphicImage = '', graphicImages = null) {
   // `!important` is required here: the mystery (.card__graphic-area--mystery,
   // card.css line 216) and split (.card__graphic-area--split, line 263)
   // variants ship their own `background: … !important` declarations, and an
@@ -39,13 +39,39 @@ function renderTextOnlyInner(title, description, prompt, deckType, special, opti
     ? ` style="background: url('${escAttr(graphicImage)}') center / cover no-repeat, var(--color-${deckType}) !important"`
     : '';
 
+  // Per-half background styles for the Die Split two-image layout. When a
+  // slot is empty we return no inline style so the default
+  // `.card__split-half--{top|bottom}` fallback colour shows through.
+  const halfStyle = (url, fallbackVar) => url
+    ? ` style="background: url('${escAttr(url)}') center / cover no-repeat, var(${fallbackVar})"`
+    : '';
+
   if (deckType === 'die') {
     const isSplit = special === 'Split' && Array.isArray(options) && options.length === 2;
     const isMystery = special === '?';
     const safeTitle = escAttr(title);
     if (isSplit) {
+      // Two-image split layout: ship an empty array by default so the
+      // halves always render with fallback colours, giving a visible
+      // top/bottom divide even before any image is generated. When the
+      // caller passes `graphicImages: [urlA, urlB]`, each half picks up
+      // its own background. The single-image `graphicImage` still works
+      // on the parent for backwards compat when `graphicImages` isn't set.
+      const imgs = Array.isArray(graphicImages) ? graphicImages : [];
+      const topImg = imgs[0] || '';
+      const botImg = imgs[1] || '';
+      // If the caller provided `graphicImages` at all (even empty slots),
+      // use the two-halves layout. Otherwise keep backwards-compatible
+      // single-fill behaviour via the parent-level `bgStyle`.
+      const useHalves = Array.isArray(graphicImages);
+      const parentStyle = useHalves ? '' : bgStyle;
+      const halvesMarkup = useHalves
+        ? `
+          <div class="card__split-half card__split-half--top"${halfStyle(topImg, '--split-bg-a')}></div>
+          <div class="card__split-half card__split-half--bottom"${halfStyle(botImg, '--split-bg-b')}></div>`
+        : '';
       return `
-        <div class="card__graphic-area card__graphic-area--${deckType} card__graphic-area--split"${bgStyle}>
+        <div class="card__graphic-area card__graphic-area--${deckType} card__graphic-area--split"${parentStyle}>${halvesMarkup}
           <span class="card__split-option card__split-option--top">${escAttr(options[0])}</span>
           <span class="card__split-or" aria-hidden="true">OR</span>
           <span class="card__split-option card__split-option--bottom">${escAttr(options[1])}</span>
@@ -72,7 +98,7 @@ function renderTextOnlyInner(title, description, prompt, deckType, special, opti
       </div>`;
 }
 
-export function render({ title = '', description = '', prompt = '', image = '', graphicImage = '', illustrationKey = '', deckType = '', brandImageUrl = '', packId = '', special = '', options = null } = {}) {
+export function render({ title = '', description = '', prompt = '', image = '', graphicImage = '', graphicImages = null, illustrationKey = '', deckType = '', brandImageUrl = '', packId = '', special = '', options = null } = {}) {
   const imgSrc = image || (illustrationKey && deckType ? `assets/illustrations/${deckType}/${illustrationKey}.jpg` : '');
   const altText = [title, description, prompt].filter(Boolean).join(' — ');
   const brand = brandImageUrl || getPackBrand(packId);
@@ -81,14 +107,16 @@ export function render({ title = '', description = '', prompt = '', image = '', 
     : '';
   const optsArr = Array.isArray(options) ? options : (options && typeof options[Symbol.iterator] === 'function' ? Array.from(options) : null);
 
-  // graphicImage path — AI-generated art that replaces only the splatter
-  // pattern in the text-only layout. Keeps title overlay / body text /
-  // rounded graphic-area corners / brand badge intact. Used by the admin
-  // image-gen preview and (future) in-game rendering of saved AI cards.
-  if (graphicImage) {
+  // graphicImage / graphicImages path — AI-generated art that replaces
+  // only the splatter pattern in the text-only layout. Keeps title
+  // overlay / body text / rounded graphic-area corners / brand badge
+  // intact. `graphicImages` (array) is the Die Split two-slot layout;
+  // `graphicImage` (string) is the single-fill path used by every other
+  // variant. If either is set, we take the text-only layout branch.
+  if (graphicImage || Array.isArray(graphicImages)) {
     return `
     <div class="card card--${deckType} card--text-only${special === '?' ? ' card--mystery' : ''}${special === 'Split' ? ' card--split' : ''}">
-      ${renderTextOnlyInner(title, description, prompt, deckType, special, optsArr, graphicImage)}
+      ${renderTextOnlyInner(title, description, prompt, deckType, special, optsArr, graphicImage, graphicImages)}
       ${brandHtml}
       ${special === '?' ? '<span class="card__mystery-badge">?</span>' : ''}
     </div>`;
