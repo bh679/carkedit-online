@@ -479,6 +479,12 @@ function renderCardForm() {
           <button class="btn btn--ghost" data-action="back-to-editor">Cancel</button>
           ${editing ? `<button class="btn btn--ghost btn--danger" data-action="delete-card" data-card-id="${esc(editing.id)}">Delete</button>` : ''}
           <button class="btn btn--primary" data-action="save-card">${editing ? 'Update Card' : 'Save Card'}</button>
+          <a class="btn btn--secondary${state.authUser?.is_admin ? '' : ' btn--disabled'}"
+             href="/admin-image-gen.html"
+             ${state.authUser?.is_admin ? '' : 'aria-disabled="true" tabindex="-1"'}
+             style="pointer-events: ${state.authUser?.is_admin ? 'auto' : 'none'}; opacity: ${state.authUser?.is_admin ? '1' : '0.4'};">
+             Generate Image
+          </a>
         </div>
       </div>
       <div class="designer__back-wrap">
