@@ -50,6 +50,7 @@ let state = {
   cardFormSpecial: '',          // '' | '?' | 'Split'
   cardFormOption1: '',
   cardFormOption2: '',
+  cardFormMysteryAdj: '',
   pickingFeature: false,
   loading: false,
   error: null,
@@ -112,6 +113,7 @@ if (typeof window !== 'undefined') {
   window.cardDesigner.editCardById = (id) => {
     const card = state.currentPackCards.find(c => String(c.id) === String(id));
     if (!card) return;
+    const isMystery = card.card_special === '?';
     setState({
       view: 'add-card',
       editingCard: card,
@@ -121,6 +123,7 @@ if (typeof window !== 'undefined') {
       cardFormSpecial: card.card_special || '',
       cardFormOption1: parseOptions(card.options_json)[0] || '',
       cardFormOption2: parseOptions(card.options_json)[1] || '',
+      cardFormMysteryAdj: isMystery ? parseMysteryAdj(card.text) : '',
       error: null,
     });
   };
@@ -427,6 +430,12 @@ function renderCardForm() {
           </div>
         </div>` : '';
 
+  const mysteryField = isMystery ? `
+        <label class="designer__label">
+          Way to Die
+          <input class="designer__input" type="text" data-field="card-mystery-adj" maxlength="50" placeholder='e.g. "Best", "Worst", "Funniest"' value="${esc(state.cardFormMysteryAdj)}">
+        </label>` : '';
+
   const splitFields = isSplit ? `
         <label class="designer__label">
           Option A
@@ -449,6 +458,7 @@ function renderCardForm() {
           <div class="designer__deck-picker">${picker}</div>
         </div>
         ${variantPicker}
+        ${mysteryField}
         <label class="designer__label">
           Card Text${isSplit ? ' (auto-generated for Split cards)' : ''}
           <textarea class="designer__input designer__textarea" data-field="card-text" maxlength="200" placeholder="Enter card text..."${isSplit ? ' readonly' : ''}>${esc(state.cardFormText)}</textarea>
@@ -544,6 +554,12 @@ async function onDocClick(e) {
           updates.cardFormText = '';
         }
       }
+      if (special !== '?') {
+        updates.cardFormMysteryAdj = '';
+      } else {
+        // Clear free-form text when switching to mystery
+        updates.cardFormText = '';
+      }
       setState(updates);
       break;
     }
@@ -612,7 +628,8 @@ function onDocInput(e) {
     e.target.matches('[data-field="card-text"]') ||
     e.target.matches('[data-field="card-prompt"]') ||
     e.target.matches('[data-field="card-option-1"]') ||
-    e.target.matches('[data-field="card-option-2"]')
+    e.target.matches('[data-field="card-option-2"]') ||
+    e.target.matches('[data-field="card-mystery-adj"]')
   ) {
     if (e.target.matches('[data-field="card-text"]')) {
       state.cardFormText = e.target.value;
@@ -622,15 +639,25 @@ function onDocInput(e) {
       state.cardFormOption1 = e.target.value;
     } else if (e.target.matches('[data-field="card-option-2"]')) {
       state.cardFormOption2 = e.target.value;
+    } else if (e.target.matches('[data-field="card-mystery-adj"]')) {
+      state.cardFormMysteryAdj = e.target.value;
     }
 
     // For Split cards, derive the card text from the two options
     const isDie = state.cardFormDeckType === 'die';
     const isSplit = isDie && state.cardFormSpecial === 'Split';
+    const isMystery = isDie && state.cardFormSpecial === '?';
     if (isSplit) {
       const a = state.cardFormOption1.trim();
       const b = state.cardFormOption2.trim();
       state.cardFormText = a && b ? `${a} or ${b}` : (a || b);
+      const textEl = document.querySelector('[data-field="card-text"]');
+      if (textEl && textEl.value !== state.cardFormText) textEl.value = state.cardFormText;
+    }
+    // For Mystery cards, derive the card text from the adjective (only when adj field changed)
+    if (isMystery && e.target.matches('[data-field="card-mystery-adj"]')) {
+      const adj = state.cardFormMysteryAdj.trim();
+      state.cardFormText = adj ? `Pick the ${adj} Way to Die` : '';
       const textEl = document.querySelector('[data-field="card-text"]');
       if (textEl && textEl.value !== state.cardFormText) textEl.value = state.cardFormText;
     }
@@ -756,14 +783,22 @@ async function handleShowAddCard() {
     cardFormSpecial: '',
     cardFormOption1: '',
     cardFormOption2: '',
+    cardFormMysteryAdj: '',
     error: null,
   });
+}
+
+/** Extract the adjective from a mystery card title like "Pick the Best Way to Die". */
+function parseMysteryAdj(text) {
+  const m = (text || '').match(/^Pick (?:the|a) (.+?) Way to Die$/i);
+  return m ? m[1] : '';
 }
 
 function handleEditCard(cardJson) {
   try {
     const card = JSON.parse(cardJson);
     const opts = parseOptions(card.options_json);
+    const isMystery = card.card_special === '?';
     setState({
       view: 'add-card',
       editingCard: card,
@@ -773,6 +808,7 @@ function handleEditCard(cardJson) {
       cardFormSpecial: card.card_special || '',
       cardFormOption1: opts[0] || '',
       cardFormOption2: opts[1] || '',
+      cardFormMysteryAdj: isMystery ? parseMysteryAdj(card.text) : '',
       error: null,
     });
   } catch { /* ignore parse errors */ }
@@ -824,6 +860,7 @@ async function handleSaveCard() {
       cardFormSpecial: '',
       cardFormOption1: '',
       cardFormOption2: '',
+      cardFormMysteryAdj: '',
       view: 'editor',
     });
   } catch (err) {
