@@ -815,7 +815,7 @@ function renderBatchResultsPanel() {
 
   return `
     <div class="admin-img-gen__section admin-img-gen__section--batch">
-      <h2 class="admin-img-gen__section-title">Card previews (${batch.length}) — click to select</h2>
+      <h2 class="admin-img-gen__section-title">Card previews (${batch.length}) — click to select, shift-click to remove</h2>
       <div class="admin-img-gen__batch-row">
         ${items}
       </div>
@@ -1046,6 +1046,22 @@ function onClick(e) {
 
     case 'select-batch': {
       const idx = parseInt(target.getAttribute('data-batch-idx') || '0', 10);
+
+      // Shift-click: remove this item from the batch
+      if (e.shiftKey) {
+        state.generatedBatch.splice(idx, 1);
+        // Fix up selectedBatchIdx after removal
+        if (state.selectedBatchIdx === idx) {
+          state.selectedBatchIdx = null;
+          state.generated = null;
+        } else if (state.selectedBatchIdx !== null && state.selectedBatchIdx > idx) {
+          state.selectedBatchIdx--;
+          state.generated = state.generatedBatch[state.selectedBatchIdx] || null;
+        }
+        render();
+        return;
+      }
+
       // Toggle: clicking the already-selected card deselects it.
       if (state.selectedBatchIdx === idx) {
         state.selectedBatchIdx = null;
