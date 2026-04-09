@@ -2,6 +2,7 @@
 'use strict';
 
 import { getState, setState } from '../state.js';
+import { buildCard } from '../data/card.js';
 import { startPlayCardTimer, clearPlayCardTimer, startPitchTimer, clearPitchTimer, clearAllTimers } from '../managers/online-timer.js';
 import { startRevealSequence, clearRevealTimer } from '../managers/reveal-timer.js';
 import { saveGameToHistory } from '../managers/game-history.js';
@@ -134,30 +135,39 @@ function syncDiePhaseState(room) {
   };
 }
 
-/** Map a server Card schema object to the local card format */
+/** Map a server Card schema object to the local canonical Card. */
 function serverCardToLocal(serverCard) {
   const state = getState();
   const deckType = serverCard.deck === 'living' ? 'live' : serverCard.deck;
   const localDeck = state.decks?.[deckType] ?? [];
   const match = localDeck.find(c => String(c.id) === serverCard.id);
   const serverOptions = serverCard.options ? Array.from(serverCard.options) : [];
-  return match
+  // Merge server + local, then hand to buildCard for final canonicalization.
+  // buildCard normalises deckType / special / options / image / brandImageUrl
+  // and freezes the result so every downstream consumer sees one shape.
+  const merged = match
     ? {
-        ...match, deckType,
-        faceUp: serverCard.faceUp, submittedBy: serverCard.submittedBy,
-        packId: serverCard.packId || '',
-        prompt: serverCard.prompt || match.prompt || null,
-        special: serverCard.special || match.special || '',
+        ...match,
+        deckType,
+        faceUp: serverCard.faceUp,
+        submittedBy: serverCard.submittedBy,
+        packId: serverCard.packId || match.packId || '',
+        prompt: serverCard.prompt || match.prompt || '',
+        special: serverCard.special || match.special || null,
         options: serverOptions.length ? serverOptions : (match.options ?? null),
       }
     : {
-        id: serverCard.id, title: serverCard.text,
+        id: serverCard.id,
+        title: serverCard.text,
+        deckType,
         packId: serverCard.packId || '',
-        prompt: serverCard.prompt || null,
-        special: serverCard.special || '',
+        prompt: serverCard.prompt || '',
+        special: serverCard.special || null,
         options: serverOptions.length ? serverOptions : null,
-        deckType, faceUp: serverCard.faceUp, submittedBy: serverCard.submittedBy,
+        faceUp: serverCard.faceUp,
+        submittedBy: serverCard.submittedBy,
       };
+  return buildCard(merged, { source: 'server' });
 }
 
 /** Build state for the living/bye phase from server room state */

@@ -85,12 +85,11 @@ export function render(promptCard = '', hint = '', {
   let mainCardHtml = promptCard;
   if (pitchingPlayer && playedCards[pitchingPlayer]) {
     const card = playedCards[pitchingPlayer];
-    const dt = card.deckType || deckType;
     const flipCard = `
       <div class="card-flip"${card.faceUp ? ' data-pitch-reveal' : ''}>
         <div class="card-flip__inner">
-          <div class="card-flip__back">${renderCardBack({ deckType: dt })}</div>
-          <div class="card-flip__front">${renderCard({ ...card, deckType: dt })}</div>
+          <div class="card-flip__back">${renderCardBack({ deckType: card.deckType })}</div>
+          <div class="card-flip__front">${renderCard(card)}</div>
         </div>
       </div>`;
     mainCardHtml = renderActiveCard(flipCard, { label: `${pitchingPlayer}'s card` });

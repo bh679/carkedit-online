@@ -44,7 +44,7 @@ export function render(state) {
         ? `<p class="phase1__card-prompt">${state.currentCard.prompt}</p>`
         : '';
       boardContent = renderActiveCard(
-        renderCard({ ...state.currentCard, deckType: 'die' }),
+        renderCard(state.currentCard),
         { label: isMyTurn ? 'Your death' : `${currentPlayer.name}'s death`, extraHtml: promptHtml },
       );
       handContent = isMyTurn

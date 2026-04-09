@@ -2,6 +2,7 @@
 'use strict';
 
 import { render as renderCard } from './card.js';
+import { buildCard } from '../data/card.js';
 
 /**
  * Render an absolutely-positioned background for a pack row.
@@ -25,7 +26,7 @@ export function render(pack) {
   if (!ftext && die === 0 && live === 0 && bye === 0) return '';
 
   const cardLayer = ftext && fdeck
-    ? `<div class="pack-bg__card">${renderCard({ title: ftext, deckType: fdeck, brandImageUrl: pack?.brand_image_url || '' })}</div>`
+    ? `<div class="pack-bg__card">${renderCard(buildCard({ title: ftext, deckType: fdeck, brandImageUrl: pack?.brand_image_url || '' }))}</div>`
     : '';
 
   // 45° diagonal gradient using card-back colours of decks this pack contains.

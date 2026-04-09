@@ -30,6 +30,7 @@ import { onTimerUpdate } from './managers/online-timer.js';
 import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, logOut, updateUserProfile } from './managers/auth-manager.js';
 import { fetchMyPacks, fetchPublicPacks, fetchFavoritePacks, setPackFavorite, getPack } from './card-designer/pack-manager.js';
 import { render as renderCardFace } from './components/card.js';
+import { buildCard } from './data/card.js';
 import { renderLoginModal } from './components/auth-button.js';
 import {
   startPhase1, doneDying, revealCard,
@@ -716,13 +717,13 @@ window.game = {
       overlay.id = 'lobby-card-preview-overlay';
       document.body.appendChild(overlay);
     }
-    const cardHtml = renderCardFace({
+    const cardHtml = renderCardFace(buildCard({
       title: item.text,
       image: item.imgSrc || '',
       deckType,
-      special: item.special || '',
+      special: item.special || null,
       options: item.options || null,
-    });
+    }));
     const showNav = list.length > 1;
     const prevBtn = showNav
       ? `<button class="hand__nav-btn hand__nav-btn--prev" onclick="event.stopPropagation(); window.game.prevLobbyPreview()" aria-label="Previous">&#8249;</button>`

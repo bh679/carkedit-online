@@ -45,7 +45,7 @@ export function renderInspectOverlay({ selectedCard, deckType, submitLabel, onSu
     <div class="hand__inspect-overlay hand__inspect-overlay--${activedeckType}" onclick="${dismissAction}">
       ${prevBtn}
       <div class="hand__inspect-card-wrapper" onclick="event.stopPropagation()">
-        ${renderCard({ ...selectedCard, deckType: activedeckType })}
+        ${renderCard(selectedCard)}
         <button class="btn btn--${btnStyle} hand__submit-btn" onclick="${onSubmit}">
           ${submitLabel}
         </button>
@@ -98,7 +98,7 @@ export function render(cards = [], { dimmed = false, selectedCard = null, living
     <div class="hand__card${selectedClass}" style="${leftStyle}"
          data-card-id="${c.id}"
          onclick="window.game.inspectCard('${c.id}')">
-      ${renderCard({ ...c, deckType: c.deckType || deckType })}
+      ${renderCard(c)}
     </div>
   `;
   }).join('');
