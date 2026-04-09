@@ -397,6 +397,7 @@ function renderDetail() {
       text: c.text,
       special: c.card_special || '',
       options: parseCardOptions(c),
+      image_url: c.image_url || '',
     }));
     // Capture each item's flat index for the preview overlay.
     const startIdx = previewItems.length;

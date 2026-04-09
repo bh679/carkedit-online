@@ -35,6 +35,7 @@ function renderItemFace(item) {
   return renderCardFace(buildCard({
     title: item.text || '',
     image: item.imgSrc || '',
+    image_url: item.image_url || '',
     deckType: deckTypeFor(item.deck),
     special: item.special || null,
     options: item.options || null,
@@ -160,6 +161,7 @@ export function fromStatRow(card, resolveImage) {
     deck: card.card_deck,
     text: card.card_text,
     imgSrc: resolveImage ? resolveImage(card.card_id, card.card_deck) : undefined,
+    image_url: card.image_url || '',
     stats: {
       play_count: card.play_count,
       draw_count: card.draw_count,

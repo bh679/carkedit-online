@@ -124,7 +124,7 @@ function buildPackPreviewItems(pack, state, disabledSet) {
     else if (typeof c.options_json === 'string' && c.options_json) {
       try { const p = JSON.parse(c.options_json); if (Array.isArray(p)) options = p; } catch {}
     }
-    items.push({ deck, text: c.text || '', special: c.card_special || '', options });
+    items.push({ deck, text: c.text || '', special: c.card_special || '', options, image_url: c.image_url || '' });
   }
   return items;
 }

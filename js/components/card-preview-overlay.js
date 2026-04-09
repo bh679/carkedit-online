@@ -40,6 +40,7 @@ export function showAt(index) {
   const cardHtml = renderCardFace(buildCard({
     title: item.text,
     image: item.imgSrc || '',
+    image_url: item.image_url || '',
     deckType,
     special: item.special || null,
     options: item.options || null,
