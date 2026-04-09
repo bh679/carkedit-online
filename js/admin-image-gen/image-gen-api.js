@@ -102,9 +102,31 @@ export async function listGenerationLog({ scope = 'all', limit = 50, offset = 0 
 }
 
 /**
- * POST /image-gen/style — persist the current style JSON back to the
- * shipped default file on disk at <CLIENT_DIR>/js/data/image-gen-style.json.
- * Admin-only. Returns `{ ok: true, bytes, path }` on success.
+ * GET /image-gen/style — load the current style JSON from the API.
+ *
+ * Replaces the previous direct fetch of the static
+ * `/js/data/image-gen-style.json` file, which broke on production
+ * where the admin page is mounted under a subpath (e.g.
+ * `/carkedit-online/`) and the absolute path hit the wrong origin
+ * root. The API is now the single source of truth for the style JSON
+ * regardless of how the frontend is deployed.
+ */
+export async function getStyleJson() {
+  const res = await fetch(`${API_BASE}/image-gen/style`, {
+    headers: await authHeaders(),
+  });
+  const data = await handleJson(res, 'Failed to load style JSON');
+  return (data && typeof data.style === 'object' && data.style !== null)
+    ? data.style
+    : {};
+}
+
+/**
+ * POST /image-gen/style — persist the current style JSON to the API's
+ * data directory (<api-root>/data/image-gen-style.json). Decoupled
+ * from the frontend deploy path, so save always lands in the same
+ * place that `getStyleJson()` reads from. Admin-only. Returns
+ * `{ ok: true, bytes, path }` on success.
  */
 export async function saveStyleJson(style) {
   const res = await fetch(`${API_BASE}/image-gen/style`, {
