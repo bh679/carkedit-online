@@ -318,9 +318,10 @@ function currentCardForPreview() {
 
 function render() {
   if (!state.container) return;
+  const isBatch = state.generatedBatch.length > 1 || state.batchCount > 1;
   state.container.innerHTML = `
     ${renderAuthBar()}
-    <div class="admin-img-gen">
+    <div class="admin-img-gen ${isBatch ? 'admin-img-gen--wide' : ''}">
       <header class="admin-img-gen__header">
         <h1 class="admin-img-gen__title">Card Image Generator</h1>
         <p class="admin-img-gen__subtitle">Test AI image generation styles against a structured prompt. Admin only.</p>
@@ -333,10 +334,11 @@ function render() {
           ${renderGenerationPanel()}
         </section>
         <section class="admin-img-gen__col admin-img-gen__col--right">
-          ${renderPreviewPanel()}
-          ${renderGeneratedPanel()}
+          ${!isBatch ? renderPreviewPanel() : ''}
+          ${!isBatch ? renderGeneratedPanel() : ''}
         </section>
       </div>
+      ${isBatch ? renderBatchResultsPanel() : ''}
       ${renderGenerationLog()}
     </div>
   `;
@@ -728,6 +730,117 @@ function renderGeneratedPanel() {
         <strong>Provider:</strong> ${esc(g.provider)}<br>
         ${promptMeta}
       </div>
+      ${state.saveError ? `<p class="admin-img-gen__error">${esc(state.saveError)}</p>` : ''}
+    </div>
+  `;
+}
+
+/**
+ * Full-width batch results panel — card previews + generated images
+ * rendered side by side. Shown below the grid when batchCount > 1.
+ */
+function renderBatchResultsPanel() {
+  const batch = state.generatedBatch;
+  const isSplit = state.cardFormDeckType === 'die' && state.cardFormSpecial === 'Split';
+  const canSave = state.activeTab === 'pick' && !!state.selectedPackId && !!state.selectedCardId;
+
+  // Show generating state
+  if (state.generating) {
+    const count = Math.max(1, state.batchCount || 1);
+    return `
+      <div class="admin-img-gen__section admin-img-gen__section--batch">
+        <h2 class="admin-img-gen__section-title">Generating ${count} images…</h2>
+        <p class="admin-img-gen__muted">This can take 10–60 seconds per image (all run in parallel).</p>
+      </div>
+    `;
+  }
+
+  if (!batch || batch.length === 0) {
+    return `
+      <div class="admin-img-gen__section admin-img-gen__section--batch">
+        <h2 class="admin-img-gen__section-title">Batch results</h2>
+        <p class="admin-img-gen__muted">Set count above 1 and click Generate to see batch results here.</p>
+      </div>
+    `;
+  }
+
+  // Build a card preview + generated image for each batch item
+  const isDie = state.cardFormDeckType === 'die';
+  const items = batch.map((g, idx) => {
+    // Build card data with this batch item's generated image
+    const cardData = {
+      title: state.cardFormText || 'Card text preview…',
+      description: '',
+      prompt: state.cardFormPrompt,
+      image: '',
+      graphicImage: isSplit ? '' : (g.imageUrl || ''),
+      graphicImages: isSplit ? [g.imageUrl || '', g.imageUrlB || ''] : null,
+      illustrationKey: '',
+      deckType: state.cardFormDeckType,
+      brandImageUrl: state.selectedPack?.brand_image_url || '',
+      special: isDie ? state.cardFormSpecial : '',
+      options: isSplit
+        ? [state.cardFormOption1 || 'Option A', state.cardFormOption2 || 'Option B']
+        : null,
+    };
+    const cardHtml = renderCard(buildCard(cardData));
+
+    const saveBtn = canSave
+      ? `<button class="btn btn--small btn--primary" data-action="save-to-card" data-batch-idx="${idx}" ${state.saving ? 'disabled' : ''}>Save to card</button>`
+      : '';
+
+    // Generated image(s) below the card
+    let genImagesHtml;
+    if (isSplit && g.imageUrlB) {
+      genImagesHtml = `
+        <div class="admin-img-gen__generated-split admin-img-gen__generated-split--batch">
+          <div class="admin-img-gen__generated-half">
+            <div class="admin-img-gen__generated-label">A</div>
+            <img class="admin-img-gen__generated" src="${esc(g.imageUrl)}" alt="Batch ${idx + 1} — Option A">
+            <a class="btn btn--small" href="${esc(g.imageUrl)}" download="card-${idx + 1}-A-${Date.now()}.png" target="_blank" rel="noopener">DL A</a>
+          </div>
+          <div class="admin-img-gen__generated-half">
+            <div class="admin-img-gen__generated-label">B</div>
+            <img class="admin-img-gen__generated" src="${esc(g.imageUrlB)}" alt="Batch ${idx + 1} — Option B">
+            <a class="btn btn--small" href="${esc(g.imageUrlB)}" download="card-${idx + 1}-B-${Date.now()}.png" target="_blank" rel="noopener">DL B</a>
+          </div>
+        </div>`;
+    } else {
+      genImagesHtml = `
+        <img class="admin-img-gen__generated" src="${esc(g.imageUrl)}" alt="Batch result ${idx + 1}">
+        <a class="btn btn--small" href="${esc(g.imageUrl)}" download="card-${idx + 1}-${Date.now()}.png" target="_blank" rel="noopener">Download</a>`;
+    }
+
+    return `
+      <div class="admin-img-gen__batch-item">
+        <div class="admin-img-gen__batch-num">#${idx + 1}</div>
+        <div class="admin-img-gen__batch-card-preview">${cardHtml}</div>
+        <div class="admin-img-gen__batch-generated">
+          ${genImagesHtml}
+        </div>
+        <div class="admin-img-gen__batch-actions">
+          ${saveBtn}
+        </div>
+      </div>`;
+  }).join('');
+
+  const g = batch[0];
+  const promptMeta = isSplit && g.promptSentB && g.promptSentB !== g.promptSent
+    ? `<strong>Prompt A:</strong> <span class="admin-img-gen__muted">${esc(g.promptSent)}</span><br>
+       <strong>Prompt B:</strong> <span class="admin-img-gen__muted">${esc(g.promptSentB)}</span>`
+    : `<strong>Prompt sent:</strong> <span class="admin-img-gen__muted">${esc(g.promptSent)}</span>`;
+
+  return `
+    <div class="admin-img-gen__section admin-img-gen__section--batch">
+      <h2 class="admin-img-gen__section-title">Batch results (${batch.length})</h2>
+      <div class="admin-img-gen__batch-row">
+        ${items}
+      </div>
+      <div class="admin-img-gen__gen-meta">
+        <strong>Provider:</strong> ${esc(g.provider)}<br>
+        ${promptMeta}
+      </div>
+      ${state.generateError ? `<p class="admin-img-gen__error">${esc(state.generateError)}</p>` : ''}
       ${state.saveError ? `<p class="admin-img-gen__error">${esc(state.saveError)}</p>` : ''}
     </div>
   `;

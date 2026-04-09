@@ -29,6 +29,10 @@ html, body {
   padding: 1.5rem 1.5rem 4rem;
   color: var(--color-text, #f0f0f0);
 }
+/* When batch count > 1, expand to use full viewport width */
+.admin-img-gen--wide {
+  max-width: 100%;
+}
 
 .admin-img-gen__loading {
   padding: 3rem;
@@ -391,6 +395,20 @@ html, body {
   display: flex;
   gap: 0.4rem;
   margin-top: 0.25rem;
+}
+.admin-img-gen__batch-card-preview {
+  display: flex;
+  justify-content: center;
+}
+.admin-img-gen__batch-card-preview .card {
+  width: 220px;
+  max-width: 100%;
+}
+.admin-img-gen__batch-generated {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
 }
 .admin-img-gen__generated-split--batch {
   flex-direction: column;
