@@ -281,22 +281,18 @@ if ($authenticated && isset($_GET['action'])) {
 
     if ($action === 'status') {
         $state = readState($STATE_FILE);
-        $clientBranches = getBranches($CLIENT_DIR);
-        $apiBranches = getBranches($API_DIR);
         $clientOpen = getOpenBranches($CLIENT_DIR);
         $apiOpen = getOpenBranches($API_DIR);
         echo json_encode([
             'client' => [
                 'current' => getCurrentBranch($CLIENT_DIR),
-                'branches' => $clientBranches,
                 'openBranches' => $clientOpen,
-                'versions' => getVersionsForBranches($CLIENT_DIR, $clientBranches),
+                'versions' => getVersionsForBranches($CLIENT_DIR, $clientOpen),
             ],
             'api' => [
                 'current' => getCurrentBranch($API_DIR),
-                'branches' => $apiBranches,
                 'openBranches' => $apiOpen,
-                'versions' => getVersionsForBranches($API_DIR, $apiBranches),
+                'versions' => getVersionsForBranches($API_DIR, $apiOpen),
             ],
             'state' => $state,
         ]);
@@ -838,8 +834,8 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
       fetch(apiUrl + '?action=status')
         .then(r => r.json())
         .then(data => {
-          clientBranches = data.client.branches || [];
-          apiBranches = data.api.branches || [];
+          clientBranches = data.client.openBranches || [];
+          apiBranches = data.api.openBranches || [];
           clientVersions = data.client.versions || {};
           apiVersions = data.api.versions || {};
 
@@ -854,7 +850,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
           document.getElementById('api-current').textContent = apiCur + ' (v' + apiVer + ')';
           populateSelect(document.getElementById('client-select'), clientBranches, clientCur, clientVersions);
           populateSelect(document.getElementById('api-select'), apiBranches, apiCur, apiVersions);
-          populateSelect(document.getElementById('linked-select'), data.client.openBranches || clientBranches, clientCur, clientVersions);
+          populateSelect(document.getElementById('linked-select'), clientBranches, clientCur, clientVersions);
           updateLinkedLabel();
           populateRecent('recent-client', clientBranches.slice(0, 10), clientVersions);
           populateRecent('recent-api', apiBranches.slice(0, 10), apiVersions);
