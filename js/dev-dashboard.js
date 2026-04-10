@@ -383,10 +383,6 @@ async function toggleDoc(file) {
   `;
 }
 
-function escapeHtml(str) {
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
 // ── Section: Mini Card Tester ─────────────────────────
 
 function renderMiniCardTester() {
