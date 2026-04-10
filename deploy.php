@@ -145,13 +145,23 @@ if (!is_array($branchState)) $branchState = [];
 $deployedBranch = $branchState['client'] ?? 'main';
 
 if ($branch !== $deployedBranch) {
-    echo json_encode([
-        'status'  => 'skipped',
-        'message' => "Pushed branch '$branch' doesn't match deployed branch '$deployedBranch'",
-        'target'  => $target,
-        'branch'  => $branch,
-    ]);
-    exit;
+    // If pushing main and the deployed branch was deleted (e.g. merged PR), fall back to main
+    $branchGone = false;
+    if ($branch === 'main' && $deployedBranch !== 'main') {
+        $checkResult = runCmd('sudo -u bitnami bash -c "cd /opt/bitnami/apache/htdocs/carkedit-online && git ls-remote --heads origin ' . escapeshellarg($deployedBranch) . '"');
+        $branchGone = empty(trim(implode('', $checkResult['output'])));
+    }
+
+    if (!$branchGone) {
+        echo json_encode([
+            'status'  => 'skipped',
+            'message' => "Pushed branch '$branch' doesn't match deployed branch '$deployedBranch'",
+            'target'  => $target,
+            'branch'  => $branch,
+        ]);
+        exit;
+    }
+    // Deployed branch was deleted — fall back to deploying main
 }
 
 /* ------------------------------------------------------------------ */
