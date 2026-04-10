@@ -3,6 +3,7 @@
 
 import { render as renderCard } from './card.js';
 import { render as renderCardBack } from './cardBack.js';
+import { escapeHtml } from '../utils/escape.js';
 import { renderInspectOverlay } from './hand.js';
 
 const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -131,7 +132,7 @@ export function render({
   return `
     <div class="ld-profile">
       <div class="ld-profile__hero">
-        <h1 class="ld-profile__name" style="font-size: ${calcNameFontSize(player.name)}">${player.name}</h1>
+        <h1 class="ld-profile__name" style="font-size: ${calcNameFontSize(player.name)}">${escapeHtml(player.name)}</h1>
         ${birthday ? `<p class="ld-profile__birthday">${birthday}</p>` : ''}
         ${allProfileCards.length > 0 ? `
           <div class="ld-profile__cards">

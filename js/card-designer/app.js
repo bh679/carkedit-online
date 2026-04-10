@@ -1072,7 +1072,9 @@ async function loadPacksForUser() {
   setState({ localUserId: userId, loading: true, error: null });
   try {
     const packs = await fetchMyPacks(userId);
-    setState({ localUserId: userId, myPacks: packs, loading: false, view: 'list' });
+    const updates = { localUserId: userId, myPacks: packs, loading: false };
+    if (state.view === 'list') updates.view = 'list';
+    setState(updates);
   } catch (err) {
     setState({ localUserId: userId, loading: false, error: `Failed to load packs: ${err.message}` });
   }
@@ -1112,6 +1114,10 @@ export function unmount() {
  * Notify the designer that the host's auth state changed.
  * Re-fetches packs if the user just logged in.
  */
+export async function editPack(packId) {
+  await handleEditPack(packId);
+}
+
 export function syncAuth(auth) {
   const wasAuthed = !!state.authUser;
   Object.assign(state, {

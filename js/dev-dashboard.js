@@ -4,6 +4,12 @@
 import { loadAllCards } from './data/cardTypes.js';
 import { render as renderCard } from './components/card.js';
 
+// ── Utilities ────────────────────────────────────────
+function escapeHtml(str) {
+  if (typeof str !== 'string') return '';
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 // ── Constants ─────────────────────────────────────────
 const PRIMARY_REPO = 'bh679/carkedit-online';
 const REPOS = [
@@ -247,7 +253,7 @@ function renderCommitsList(commits) {
         <div class="commit-item__row">
           <span class="commit-item__sha" style="color:${repo.color}">${sha}</span>
           <span class="commit-item__repo" style="border-color:${repo.color};color:${repo.color}">${repo.label}</span>
-          <span class="commit-item__msg" title="${msg}">${msg}</span>
+          <span class="commit-item__msg" title="${escapeHtml(msg)}">${escapeHtml(msg)}</span>
           <span class="commit-item__date">${date}</span>
         </div>
         <div class="commit-item__files" id="commit-files-${i}" style="display:none">
@@ -294,7 +300,7 @@ async function toggleCommitFiles(index, sha, repoName) {
     el.innerHTML = renderCommitFiles(detail.files || [], repoName, sha);
     updateRateLimit();
   } catch (err) {
-    el.innerHTML = `<span class="dash-error">${err.message}</span>`;
+    el.innerHTML = `<span class="dash-error">${escapeHtml(err.message)}</span>`;
   }
 }
 
@@ -304,7 +310,7 @@ function renderCommitFiles(files, repoName, sha) {
     ? files.map(f => {
         const adds = f.additions ? `<span class="additions">+${f.additions}</span>` : '';
         const dels = f.deletions ? `<span class="deletions">-${f.deletions}</span>` : '';
-        return `<li>${f.filename} ${adds} ${dels}</li>`;
+        return `<li>${escapeHtml(f.filename)} ${adds} ${dels}</li>`;
       }).join('')
     : '';
 
@@ -485,8 +491,8 @@ function renderWikiUpdates(events) {
     for (const page of event.payload.pages) {
       const wikiIdx = idx++;
       allItems.push(`
-        <li class="wiki-item" data-wiki-idx="${wikiIdx}" data-wiki-page="${page.page_name}" data-wiki-url="${page.html_url}" style="cursor:pointer">
-          <div class="wiki-item__title" style="color:var(--color-text)">${page.page_name.replace(/-/g, ' ')}</div>
+        <li class="wiki-item" data-wiki-idx="${wikiIdx}" data-wiki-page="${escapeHtml(page.page_name)}" data-wiki-url="${escapeHtml(page.html_url)}" style="cursor:pointer">
+          <div class="wiki-item__title" style="color:var(--color-text)">${escapeHtml(page.page_name.replace(/-/g, ' '))}</div>
           <div class="wiki-item__meta">${page.action} &middot; ${relativeTime(event.created_at)}</div>
           <div class="wiki-item__preview" id="wiki-preview-${wikiIdx}" style="display:none"></div>
         </li>
@@ -589,13 +595,13 @@ function renderTodoBoard(issues) {
   const visible = visibleCounts.todo;
   const items = issues.slice(0, visible).map(issue => {
     const labels = issue.labels.map(l =>
-      `<span class="todo-label" style="background:#${l.color}22;color:#${l.color}">${l.name}</span>`
+      `<span class="todo-label" style="background:#${escapeHtml(l.color)}22;color:#${escapeHtml(l.color)}">${escapeHtml(l.name)}</span>`
     ).join('');
 
     return `
       <li class="todo-item">
-        <a href="${issue.html_url}" target="_blank" class="todo-item__title" style="color:var(--color-text);text-decoration:none">
-          ${issue.title}
+        <a href="${escapeHtml(issue.html_url)}" target="_blank" class="todo-item__title" style="color:var(--color-text);text-decoration:none">
+          ${escapeHtml(issue.title)}
         </a>
         <div class="todo-item__meta">#${issue.number} &middot; ${relativeTime(issue.updated_at)}</div>
         ${labels ? `<div class="todo-item__labels">${labels}</div>` : ''}
@@ -914,7 +920,7 @@ async function init() {
       ? renderContribGraph(merged)
       : '<p class="dash-empty">Loading contribution data... (retrying)</p>';
   } else if (contribEl && !cachedContrib) {
-    contribEl.innerHTML = `<span class="dash-error">${contribResults.reason?.message || 'Failed to load'}</span>`;
+    contribEl.innerHTML = `<span class="dash-error">${escapeHtml(contribResults.reason?.message || 'Failed to load')}</span>`;
   }
 
   // Merge and sort all commits by date
@@ -941,7 +947,7 @@ async function init() {
   if (wikiEl) {
     wikiEl.innerHTML = eventsResult.status === 'fulfilled'
       ? renderWikiUpdates(eventsResult.value)
-      : (cachedEvents ? renderWikiUpdates(cachedEvents.data) + renderCachedLabel(cachedEvents.ts) : `<span class="dash-error">${eventsResult.reason?.message || 'Failed to load'}</span>`);
+      : (cachedEvents ? renderWikiUpdates(cachedEvents.data) + renderCachedLabel(cachedEvents.ts) : `<span class="dash-error">${escapeHtml(eventsResult.reason?.message || 'Failed to load')}</span>`);
     attachWikiListeners();
   }
 
@@ -954,7 +960,7 @@ async function init() {
   if (todoEl) {
     todoEl.innerHTML = issuesResult.status === 'fulfilled'
       ? renderTodoBoard(issuesResult.value)
-      : (cachedIssues ? renderTodoBoard(cachedIssues.data) + renderCachedLabel(cachedIssues.ts) : `<span class="dash-error">${issuesResult.reason?.message || 'Failed to load'}</span>`);
+      : (cachedIssues ? renderTodoBoard(cachedIssues.data) + renderCachedLabel(cachedIssues.ts) : `<span class="dash-error">${escapeHtml(issuesResult.reason?.message || 'Failed to load')}</span>`);
   }
 }
 
