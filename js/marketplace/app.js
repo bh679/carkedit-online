@@ -430,13 +430,9 @@ function renderDetail() {
           <h2 class="pack-detail__title">${esc(p.title)}</h2>
           <div class="pack-detail__creator">by ${esc(p.creator_name || 'Unknown')}</div>
         </div>
-        ${state.authUser?.id === p.creator_id ? `
-          <button class="btn btn--small btn--secondary" data-action="edit-pack" data-pack-id="${esc(p.id)}">Edit</button>
-        ` : `
-          <button class="pack-card__save ${fav ? 'pack-card__save--saved' : ''}" data-action="toggle-fav" data-pack-id="${esc(p.id)}" data-fav="${fav}">
-            ${fav ? '★ Saved' : '☆ Save'}
-          </button>
-        `}
+        <button class="pack-card__save ${fav ? 'pack-card__save--saved' : ''}" data-action="toggle-fav" data-pack-id="${esc(p.id)}" data-fav="${fav}">
+          ${fav ? '★ Saved' : '☆ Save'}
+        </button>
       </div>
       ${p.description ? `<p class="pack-detail__desc">${esc(p.description)}</p>` : ''}
       <div class="pack-detail__stats">
@@ -446,6 +442,9 @@ function renderDetail() {
       </div>
       ${sectionsHtml}
       <div class="menu__actions marketplace__actions">
+        ${state.authUser?.id === p.creator_id ? `
+          <button class="btn mode-select__back-btn menu__site-link" data-action="edit-pack" data-pack-id="${esc(p.id)}">Edit Pack</button>
+        ` : ''}
         <button class="btn mode-select__back-btn menu__site-link" data-action="back">&larr; Back</button>
       </div>
     </div>
