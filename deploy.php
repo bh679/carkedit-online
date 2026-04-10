@@ -1,9 +1,10 @@
 <?php
 /**
  * Deploy endpoint — triggers git pull with real-time status.
- * Usage: GET /carkedit-online/deploy.php?token=SECRET&target=client
+ * Usage: GET /carkedit-online/deploy.php?token=SECRET&target=client&branch=main
  *
  * Writes deploy-status.json at each step so deploying.html can show progress.
+ * Optional: &branch=<name> to deploy a specific branch (default: main).
  */
 
 header('Content-Type: application/json');
@@ -124,8 +125,21 @@ if (!in_array($target, ['client'])) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Branch validation                                                  */
+/* ------------------------------------------------------------------ */
+
+$branch = $_GET['branch'] ?? 'main';
+if (!preg_match('/^[a-zA-Z0-9_\-\.\/]+$/', $branch)) {
+    http_response_code(400);
+    echo json_encode(['error' => 'Invalid branch name']);
+    exit;
+}
+
+/* ------------------------------------------------------------------ */
 /*  Deploy with step-by-step status                                    */
 /* ------------------------------------------------------------------ */
+
+$branchStateFile = __DIR__ . '/branch-state.json';
 
 $status = startDeploy($statusFile, $target, $maxHistory);
 $allOutput = [];
@@ -134,10 +148,20 @@ $failed = false;
 // Step: Pull client code
 addStep($status, 'pulling-client');
 writeStatus($statusFile, $status);
-$result = runCmd('sudo -u bitnami bash -c "cd /opt/bitnami/apache/htdocs/carkedit-online && git fetch origin main && git reset --hard origin/main"');
+$escapedBranch = escapeshellarg($branch);
+$result = runCmd('sudo -u bitnami bash -c "cd /opt/bitnami/apache/htdocs/carkedit-online && git fetch origin && git checkout ' . $escapedBranch . ' && git reset --hard origin/' . $escapedBranch . '"');
 $allOutput = array_merge($allOutput, $result['output']);
 if ($result['rc'] !== 0) {
     $failed = true;
+}
+
+// Update branch state
+if (!$failed) {
+    $branchState = is_readable($branchStateFile) ? json_decode(file_get_contents($branchStateFile), true) : [];
+    if (!is_array($branchState)) $branchState = [];
+    $branchState['client'] = $branch;
+    $branchState['clientUpdatedAt'] = gmdate('c');
+    file_put_contents($branchStateFile, json_encode($branchState, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 }
 
 // Finalize
@@ -149,12 +173,14 @@ if ($failed) {
     echo json_encode([
         'status' => 'error',
         'target' => $target,
+        'branch' => $branch,
         'output' => array_values(array_filter($allOutput)),
     ]);
 } else {
     echo json_encode([
         'status' => 'ok',
         'target' => $target,
+        'branch' => $branch,
         'output' => array_values(array_filter($allOutput)),
     ]);
 }

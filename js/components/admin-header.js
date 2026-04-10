@@ -7,6 +7,7 @@ const NAV_LINKS = [
   { label: 'Users',   path: 'admin-users' },
   { label: 'ImageAI', path: 'admin-image-gen' },
   { label: 'Dev',     path: 'dev-dashboard' },
+  { label: 'Branch',  path: 'branch-manager.php' },
 ];
 
 let _menuOpen = false;
