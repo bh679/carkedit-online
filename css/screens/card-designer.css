@@ -297,6 +297,7 @@ body.page--card-designer #app {
   color: var(--color-text-muted);
   font-weight: 600;
   width: 100%;
+  text-align: center;
 }
 
 /* Preview/beta tag inline with a section label */
