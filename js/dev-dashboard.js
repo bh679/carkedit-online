@@ -152,6 +152,26 @@ function getRepoConfig(repoName) {
 
 // ── Section: Contribution Graph ───────────────────────
 
+function participationToCommitActivity(participation) {
+  if (!participation || !Array.isArray(participation.all)) return null;
+  const weeks = participation.all;
+  const now = new Date();
+  // Find the start of the current week (Sunday)
+  const currentSunday = new Date(now);
+  currentSunday.setDate(now.getDate() - now.getDay());
+  currentSunday.setHours(0, 0, 0, 0);
+
+  return weeks.map((total, i) => {
+    const weekOffset = weeks.length - 1 - i;
+    const weekStart = new Date(currentSunday);
+    weekStart.setDate(weekStart.getDate() - weekOffset * 7);
+    const perDay = Math.floor(total / 7);
+    const remainder = total % 7;
+    const days = Array.from({ length: 7 }, (_, d) => perDay + (d < remainder ? 1 : 0));
+    return { week: Math.floor(weekStart.getTime() / 1000), days, total };
+  });
+}
+
 function mergeContribData(datasets) {
   // Each dataset is an array of 52 weeks with days[0..6]
   // Merge by summing day counts across all repos
@@ -905,14 +925,34 @@ async function init() {
         }
       });
       setTimeout(async () => {
+        // Retry commit_activity first
         const retryFetches = allRepos.map(repo =>
           ghFetch(`/repos/${repo.name}/stats/commit_activity`).catch(() => null)
         );
         const retryData = await Promise.all(retryFetches);
-        const retryMerged = mergeContribData(retryData);
-        if (retryMerged && contribEl) {
-          contribEl.innerHTML = renderContribGraph(retryMerged);
-          persistData('contrib', retryData);
+        const stillIncomplete = retryData.some(d => !Array.isArray(d) || d.length === 0);
+
+        if (stillIncomplete) {
+          // Fallback: use stats/participation for repos that still return 202
+          const fallbackData = await Promise.all(
+            retryData.map((d, i) => {
+              if (Array.isArray(d) && d.length > 0) return d;
+              return ghFetch(`/repos/${allRepos[i].name}/stats/participation`)
+                .then(p => participationToCommitActivity(p))
+                .catch(() => null);
+            })
+          );
+          const fallbackMerged = mergeContribData(fallbackData);
+          if (fallbackMerged && contribEl) {
+            contribEl.innerHTML = renderContribGraph(fallbackMerged);
+            persistData('contrib', fallbackData);
+          }
+        } else {
+          const retryMerged = mergeContribData(retryData);
+          if (retryMerged && contribEl) {
+            contribEl.innerHTML = renderContribGraph(retryMerged);
+            persistData('contrib', retryData);
+          }
         }
         updateRateLimit();
       }, 3000);
