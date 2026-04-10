@@ -71,6 +71,17 @@ function getOpenBranches($dir) {
     return array_unique($branches);
 }
 
+function getTags($dir, $limit = 10) {
+    $result = runCmd('sudo -u bitnami bash -c "cd ' . escapeshellarg($dir) . ' && git tag --sort=-creatordate 2>/dev/null"');
+    $tags = [];
+    foreach ($result['output'] as $line) {
+        $line = trim($line);
+        if ($line !== '') $tags[] = $line;
+        if (count($tags) >= $limit) break;
+    }
+    return $tags;
+}
+
 function getCurrentBranch($dir) {
     $result = runCmd('sudo -u bitnami bash -c "cd ' . escapeshellarg($dir) . ' && git branch --show-current 2>/dev/null"');
     return trim(implode('', $result['output'])) ?: 'unknown';
@@ -291,12 +302,14 @@ if ($authenticated && isset($_GET['action'])) {
                 'branches' => $clientBranches,
                 'openBranches' => $clientOpen,
                 'versions' => getVersionsForBranches($CLIENT_DIR, $clientBranches),
+                'tags' => getTags($CLIENT_DIR),
             ],
             'api' => [
                 'current' => getCurrentBranch($API_DIR),
                 'branches' => $apiBranches,
                 'openBranches' => $apiOpen,
                 'versions' => getVersionsForBranches($API_DIR, $apiBranches),
+                'tags' => getTags($API_DIR),
             ],
             'state' => $state,
         ]);
@@ -758,6 +771,24 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
             </div>
           </div>
 
+          <div class="bm__recent">
+            <h2>Recent Tags</h2>
+            <div class="bm__recent-cols">
+              <div class="bm__recent-col">
+                <h3><span class="bm__badge bm__badge--client">client</span> carkedit-online</h3>
+                <ul class="bm__recent-list" id="recent-tags-client">
+                  <li>Loading...</li>
+                </ul>
+              </div>
+              <div class="bm__recent-col">
+                <h3><span class="bm__badge bm__badge--api">api</span> carkedit-api</h3>
+                <ul class="bm__recent-list" id="recent-tags-api">
+                  <li>Loading...</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
           <div class="bm__rescue">
             <a href="rescue.php">Emergency rescue (reset to main without auth)</a>
           </div>
@@ -858,6 +889,8 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
           updateLinkedLabel();
           populateRecent('recent-client', clientBranches.slice(0, 10), clientVersions);
           populateRecent('recent-api', apiBranches.slice(0, 10), apiVersions);
+          populateRecent('recent-tags-client', data.client.tags || [], {});
+          populateRecent('recent-tags-api', data.api.tags || [], {});
           document.getElementById('btn-client').disabled = false;
           document.getElementById('btn-api').disabled = false;
           document.getElementById('btn-linked').disabled = false;
