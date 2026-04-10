@@ -775,12 +775,14 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
             <h2>Recent Tags</h2>
             <div class="bm__recent-cols">
               <div class="bm__recent-col">
+                <div class="bm__current" style="margin-bottom:var(--space-xs)">Current version: <strong id="tags-client-version">loading...</strong></div>
                 <h3><span class="bm__badge bm__badge--client">client</span> carkedit-online</h3>
                 <ul class="bm__recent-list" id="recent-tags-client">
                   <li>Loading...</li>
                 </ul>
               </div>
               <div class="bm__recent-col">
+                <div class="bm__current" style="margin-bottom:var(--space-xs)">Current version: <strong id="tags-api-version">loading...</strong></div>
                 <h3><span class="bm__badge bm__badge--api">api</span> carkedit-api</h3>
                 <ul class="bm__recent-list" id="recent-tags-api">
                   <li>Loading...</li>
@@ -891,6 +893,8 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
           populateRecent('recent-api', apiBranches.slice(0, 10), apiVersions);
           populateRecent('recent-tags-client', data.client.tags || [], {});
           populateRecent('recent-tags-api', data.api.tags || [], {});
+          document.getElementById('tags-client-version').textContent = 'v' + clientVer;
+          document.getElementById('tags-api-version').textContent = 'v' + apiVer;
           document.getElementById('btn-client').disabled = false;
           document.getElementById('btn-api').disabled = false;
           document.getElementById('btn-linked').disabled = false;
