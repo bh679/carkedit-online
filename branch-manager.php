@@ -45,7 +45,7 @@ function writeState($file, $data) {
 }
 
 function getBranches($dir) {
-    $result = runCmd('sudo -u bitnami bash -c "cd ' . escapeshellarg($dir) . ' && git fetch --all --prune 2>/dev/null && git branch -r --no-color 2>/dev/null"');
+    $result = runCmd('sudo -u bitnami bash -c "cd ' . escapeshellarg($dir) . ' && git fetch --all --prune 2>/dev/null && git branch -r --sort=-committerdate --no-color 2>/dev/null"');
     $branches = [];
     foreach ($result['output'] as $line) {
         $line = trim($line);
@@ -54,14 +54,13 @@ function getBranches($dir) {
             $branches[] = substr($line, 7); // strip 'origin/'
         }
     }
-    sort($branches);
     return $branches;
 }
 
 function getOpenBranches($dir) {
-    // Branches not yet merged into main — i.e. still "open"
-    $result = runCmd('sudo -u bitnami bash -c "cd ' . escapeshellarg($dir) . ' && git branch -r --no-merged origin/main --no-color 2>/dev/null"');
-    $branches = ['main']; // always include main
+    // Branches not yet merged into main — i.e. still "open", sorted by most recent commit
+    $result = runCmd('sudo -u bitnami bash -c "cd ' . escapeshellarg($dir) . ' && git branch -r --no-merged origin/main --sort=-committerdate --no-color 2>/dev/null"');
+    $branches = ['main']; // always include main at the top
     foreach ($result['output'] as $line) {
         $line = trim($line);
         if (strpos($line, 'origin/HEAD') !== false) continue;
@@ -69,7 +68,6 @@ function getOpenBranches($dir) {
             $branches[] = substr($line, 7);
         }
     }
-    sort($branches);
     return array_unique($branches);
 }
 
@@ -394,6 +392,16 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         .bm__status.loading { display: block; background: rgba(152,66,255,0.15); border: 1px solid rgba(152,66,255,0.3); color: var(--color-primary); }
         .bm__log { margin-top: var(--space-xs); font-size: 0.75rem; color: var(--color-text-muted); white-space: pre-wrap; max-height: 200px; overflow-y: auto; }
 
+        /* Recent branches */
+        .bm__divider { border: none; border-top: 1px solid var(--color-border); margin: var(--space-md) 0; }
+        .bm__recent { background: var(--color-surface); border-radius: var(--radius-md); padding: var(--space-md); margin-bottom: var(--space-sm); }
+        .bm__recent h2 { font-size: 1rem; margin-bottom: var(--space-sm); }
+        .bm__recent-cols { display: flex; gap: var(--space-md); }
+        .bm__recent-col { flex: 1; }
+        .bm__recent-col h3 { font-size: 0.85rem; margin-bottom: var(--space-xs); display: flex; align-items: center; gap: var(--space-xs); }
+        .bm__recent-list { list-style: none; padding: 0; margin: 0; }
+        .bm__recent-list li { font-size: 0.8rem; color: var(--color-text-muted); padding: 0.2em 0; font-family: monospace; }
+
         /* Rescue link */
         .bm__rescue { text-align: center; margin-top: var(--space-lg); padding-top: var(--space-md); border-top: 1px solid var(--color-border); }
         .bm__rescue a { color: var(--color-text-muted); font-size: 0.8rem; text-decoration: none; }
@@ -527,6 +535,25 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
           <div class="bm__status" id="status-box"></div>
           <div class="bm__log" id="output-log"></div>
 
+          <hr class="bm__divider">
+          <div class="bm__recent">
+            <h2>Recent Branches</h2>
+            <div class="bm__recent-cols">
+              <div class="bm__recent-col">
+                <h3><span class="bm__badge bm__badge--client">client</span> carkedit-online</h3>
+                <ul class="bm__recent-list" id="recent-client">
+                  <li>Loading...</li>
+                </ul>
+              </div>
+              <div class="bm__recent-col">
+                <h3><span class="bm__badge bm__badge--api">api</span> carkedit-api</h3>
+                <ul class="bm__recent-list" id="recent-api">
+                  <li>Loading...</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
           <div class="bm__rescue">
             <a href="rescue.php">Emergency rescue (reset to main without auth)</a>
           </div>
@@ -583,6 +610,21 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
       });
     }
 
+    function populateRecent(elId, branches) {
+      const ul = document.getElementById(elId);
+      if (!ul) return;
+      ul.innerHTML = '';
+      if (branches.length === 0) {
+        ul.innerHTML = '<li>No branches</li>';
+        return;
+      }
+      branches.forEach(b => {
+        const li = document.createElement('li');
+        li.textContent = b;
+        ul.appendChild(li);
+      });
+    }
+
     function loadStatus() {
       fetch(apiUrl + '?action=status')
         .then(r => r.json())
@@ -595,6 +637,8 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
           populateSelect(document.getElementById('api-select'), apiBranches, data.api.current);
           populateSelect(document.getElementById('linked-select'), data.client.openBranches || clientBranches, data.client.current);
           updateLinkedLabel();
+          populateRecent('recent-client', clientBranches.slice(0, 10));
+          populateRecent('recent-api', apiBranches.slice(0, 10));
           document.getElementById('btn-client').disabled = false;
           document.getElementById('btn-api').disabled = false;
           document.getElementById('btn-linked').disabled = false;
