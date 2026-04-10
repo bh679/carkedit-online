@@ -443,7 +443,7 @@ function renderDetail() {
       ${sectionsHtml}
       <div class="menu__actions marketplace__actions">
         ${state.authUser?.id === p.creator_id ? `
-          <button class="btn mode-select__back-btn menu__site-link" data-action="edit-pack" data-pack-id="${esc(p.id)}">Edit Pack</button>
+          <button class="btn btn--primary" data-action="edit-pack" data-pack-id="${esc(p.id)}">Edit Pack</button>
         ` : ''}
         <button class="btn mode-select__back-btn menu__site-link" data-action="back">&larr; Back</button>
       </div>
