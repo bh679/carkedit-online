@@ -979,11 +979,12 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
     if (PHP_AUTHED) {
       // Session still valid — try to get a fresh Firebase token for GH access
       renderDashboard();
-      // Attempt to load GH token in background
+      // Attempt to load GH token in background, then refresh to show PR highlights
       authModule.onAuthStateChanged(firebaseAuth, async (user) => {
         if (user) {
           const idToken = await user.getIdToken();
           await loadGhToken(idToken);
+          if (ghToken) loadStatus(); // re-fetch with PR data now available
         }
       });
     } else {
