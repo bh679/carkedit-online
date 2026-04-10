@@ -622,7 +622,8 @@ body.page--card-designer #app {
 
 /* Visual card-style picker buttons (deck type & die variant) */
 .designer__deck-card-btn {
-  flex: 1;
+  flex: 0 1 80px;
+  max-width: 90px;
   display: flex;
   flex-direction: column;
   align-items: center;
