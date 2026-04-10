@@ -19,6 +19,7 @@
 
 import { render as renderCard } from '../components/card.js';
 import { buildCard } from '../data/card.js';
+import { renderAdminHeader, bindAdminHeader, resetAdminHeaderMenu } from '../components/admin-header.js';
 import {
   listProviders,
   generateImage,
@@ -452,8 +453,9 @@ function render() {
   // Base is 900px which already fits 1 card in the right column.
   const extraCards = isBatch ? batchSize - 1 : 0;
   const wideStyle = isBatch ? ` style="max-width: ${900 + extraCards * 300}px"` : '';
+  resetAdminHeaderMenu();
   state.container.innerHTML = `
-    ${renderAuthBar()}
+    ${renderAdminHeader({ user: state.firebaseUser })}
     <div class="admin-img-gen"${wideStyle}>
       <header class="admin-img-gen__header">
         <h1 class="admin-img-gen__title">Card Image Generator</h1>
@@ -475,29 +477,15 @@ function render() {
     </div>
   `;
 
+  // Bind shared admin header
+  bindAdminHeader(state.container, { user: state.firebaseUser, onSignOut: state.signOut });
+
   // Measure actual grid column count so row-based pagination is accurate.
   const logGrid = state.container.querySelector('.admin-img-gen__log-grid');
   if (logGrid) {
     const cols = getComputedStyle(logGrid).gridTemplateColumns.split(' ').length;
     if (cols > 0) state.generationLogCols = cols;
   }
-}
-
-function renderAuthBar() {
-  const name = state.firebaseUser?.displayName || 'Admin';
-  const photo = state.firebaseUser?.photoURL;
-  const initial = (name || 'A').charAt(0).toUpperCase();
-  const avatar = photo
-    ? `<img class="auth-bar__avatar" src="${esc(photo)}" alt="">`
-    : `<span class="auth-bar__avatar auth-bar__avatar--initial">${esc(initial)}</span>`;
-  return `
-    <div class="page-auth">
-      <div class="auth-bar">
-        <span class="auth-bar__label" style="margin-right:0.5em;color:var(--color-text-muted,#888);font-size:0.85rem">${esc(name)}</span>
-        ${avatar}
-        <button class="btn btn--small" data-action="sign-out" style="margin-left:0.5em">Sign out</button>
-      </div>
-    </div>`;
 }
 
 function renderTabs() {
@@ -1209,10 +1197,6 @@ function onClick(e) {
   const action = target.getAttribute('data-action');
 
   switch (action) {
-    case 'sign-out':
-      state.signOut();
-      return;
-
     case 'set-tab': {
       const tab = target.getAttribute('data-tab');
       if (tab === 'pick' && state.packs.length === 0 && !state.packsLoading) {

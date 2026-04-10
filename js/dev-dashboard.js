@@ -3,6 +3,7 @@
 
 import { loadAllCards } from './data/cardTypes.js';
 import { render as renderCard } from './components/card.js';
+import { renderAdminHeader, bindAdminHeader } from './components/admin-header.js';
 
 // ── Constants ─────────────────────────────────────────
 const PRIMARY_REPO = 'bh679/carkedit-online';
@@ -811,7 +812,17 @@ async function init() {
     todo: '<span class="dash-loading">Loading...</span>',
   };
 
-  app.innerHTML = renderDashboard(loadingSections);
+  app.innerHTML = renderAdminHeader({ user: _fbUserInfo }) + renderDashboard(loadingSections);
+  bindAdminHeader(app, {
+    user: _fbUserInfo,
+    onSignOut: async () => {
+      if (_fbAuth) {
+        const { signOut } = await import('https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js');
+        await signOut(_fbAuth);
+      }
+      window.location.href = '/';
+    },
+  });
 
   // Render static sections immediately
   rerenderSection('palette');
@@ -1118,63 +1129,6 @@ window.devDash = { switchDeck: miniSwitchDeck, nextCard: miniNextCard, showMore,
 let _fbAuth = null;
 let _fbUserInfo = null;
 
-let _showUserMenu = false;
-
-function injectAuthBar() {
-  if (!_fbUserInfo) return;
-  // Remove any existing auth bar
-  document.querySelector('.page-auth')?.remove();
-  const name = _fbUserInfo.displayName || 'Admin';
-  const hasPhoto = !!_fbUserInfo.photoURL;
-  const initial = (name || 'A').charAt(0).toUpperCase();
-
-  const avatarImg = hasPhoto
-    ? `<img class="auth-bar__avatar" src="${_fbUserInfo.photoURL}" alt="" />`
-    : `<span class="auth-bar__avatar auth-bar__avatar--initial">${initial}</span>`;
-
-  const menuHtml = _showUserMenu ? `
-    <div class="auth-menu" onclick="event.stopPropagation()">
-      <div class="auth-menu__name">${name}</div>
-      <div class="auth-menu__divider"></div>
-      <a class="auth-menu__item" href="/dashboard">Dashboard</a>
-      <a class="auth-menu__item" href="/admin-users">User Management</a>
-      <button class="auth-menu__item auth-menu__item--logout" id="dev-sign-out">Sign Out</button>
-    </div>
-  ` : '';
-
-  const wrapper = document.createElement('div');
-  wrapper.className = 'page-auth';
-  wrapper.innerHTML = `
-    <div class="auth-bar">
-      <button class="auth-bar__avatar-btn" id="dev-toggle-menu" aria-label="User menu">
-        ${avatarImg}
-      </button>
-      ${menuHtml}
-    </div>`;
-  (document.getElementById('app') || document.body).appendChild(wrapper);
-
-  document.getElementById('dev-toggle-menu')?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    _showUserMenu = !_showUserMenu;
-    injectAuthBar();
-  });
-  document.getElementById('dev-sign-out')?.addEventListener('click', async () => {
-    if (_fbAuth) {
-      const { signOut } = await import('https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js');
-      await signOut(_fbAuth);
-    }
-    window.location.href = '/';
-  });
-}
-
-// Close user menu on outside click
-document.addEventListener('click', (e) => {
-  if (_showUserMenu && !e.target.closest('.auth-bar')) {
-    _showUserMenu = false;
-    injectAuthBar();
-  }
-});
-
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyC6QJz6jTzJkBWV7Shd9XpCfHWrovJ9vaI",
   authDomain: "carkedit-5cc8e.firebaseapp.com",
@@ -1239,7 +1193,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch { /* ignore — token just won't be available */ }
       }
       await init();
-      injectAuthBar();
     });
   } catch (err) {
     console.warn('[dev-dashboard] Firebase init failed:', err);

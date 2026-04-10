@@ -2,6 +2,7 @@
 'use strict';
 
 import { render as renderCardList, fromStatRow, bindScrollArrows } from './components/card-list.js';
+import { renderAdminHeader, bindAdminHeader, resetAdminHeaderMenu } from './components/admin-header.js';
 
 // ── Firebase Auth for Admin Gate ────────────────────
 const FIREBASE_CONFIG = {
@@ -1354,51 +1355,14 @@ function renderGraph() {
   }
 }
 
-let showUserMenu = false;
-
-function toggleUserMenu() {
-  showUserMenu = !showUserMenu;
-  renderPage();
-}
-
-function renderAuthBar() {
-  const name = authUser?.display_name || firebaseUserInfo?.displayName || 'Admin';
-  const hasPhoto = !!firebaseUserInfo?.photoURL;
-  const initial = (name || 'A').charAt(0).toUpperCase();
-
-  const avatarImg = hasPhoto
-    ? `<img class="auth-bar__avatar" src="${firebaseUserInfo.photoURL}" alt="" />`
-    : `<span class="auth-bar__avatar auth-bar__avatar--initial">${initial}</span>`;
-
-  const menu = showUserMenu ? `
-    <div class="auth-menu" onclick="event.stopPropagation()">
-      <div class="auth-menu__name">${name}</div>
-      <div class="auth-menu__divider"></div>
-      <a class="auth-menu__item" href="/admin-users">User Management</a>
-      <a class="auth-menu__item" href="/dev-dashboard">Dev Dashboard</a>
-      <a class="auth-menu__item" href="/admin-image-gen">Image Generator</a>
-      <button class="auth-menu__item auth-menu__item--logout" onclick="window.dash.signOut()">Sign Out</button>
-    </div>
-  ` : '';
-
-  return `
-    <div class="page-auth">
-      <div class="auth-bar">
-        <button class="auth-bar__avatar-btn" onclick="window.dash.toggleUserMenu()" aria-label="User menu">
-          ${avatarImg}
-        </button>
-        ${menu}
-      </div>
-    </div>`;
-}
-
 function renderPage() {
+  resetAdminHeaderMenu();
   const app = document.getElementById('app');
   app.innerHTML = `
+    ${renderAdminHeader({ user: firebaseUserInfo })}
     <div class="dashboard">
-      ${renderAuthBar()}
       <header class="dashboard__header">
-        <h1 class="dashboard__title"><a href="/" class="dashboard__play-link">&#9654; Play</a> CarkedIt — Game Dashboard
+        <h1 class="dashboard__title">CarkedIt — Game Stats
           <span class="dashboard__versions">
             <span id="dash-version-client" class="dashboard__version-item" data-tooltip="Checking...">...<span class="version-dot version-dot--checking"></span></span>
             <span id="dash-version-server" class="dashboard__version-item" data-tooltip="Checking...">...<span class="version-dot version-dot--checking"></span></span>
@@ -1443,6 +1407,7 @@ function renderPage() {
     </div>
     <div id="card-preview-overlay" style="display:none"></div>
   `;
+  bindAdminHeader(app, { user: firebaseUserInfo, onSignOut: signOut });
   renderStats();
   renderGameList();
   renderCardAnalytics();
@@ -1573,15 +1538,7 @@ async function togglePackDev(id, next) {
   } catch (e) { console.error(e); alert('Failed to toggle dev: ' + e.message); }
 }
 
-window.dash = { cyclePlayTime, cycleGamesCount, toggleGame, cycleDeckFilter, setCardSort, toggleCardSortDir, cycleCardDev, setPackSort, togglePackExpanded, cycleSurveyDev, previewCard, closePreview, prevPreviewCard, nextPreviewCard, scrollCards, loadMoreGames, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange, signInWithGoogle, signOut, toggleUserMenu, toggleGameDev, toggleSurveyDev, togglePackDev };
-
-// Close user menu on outside click
-document.addEventListener('click', (e) => {
-  if (showUserMenu && !e.target.closest('.auth-bar')) {
-    showUserMenu = false;
-    renderPage();
-  }
-});
+window.dash = { cyclePlayTime, cycleGamesCount, toggleGame, cycleDeckFilter, setCardSort, toggleCardSortDir, cycleCardDev, setPackSort, togglePackExpanded, cycleSurveyDev, previewCard, closePreview, prevPreviewCard, nextPreviewCard, scrollCards, loadMoreGames, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange, signInWithGoogle, signOut, toggleGameDev, toggleSurveyDev, togglePackDev };
 
 // ── Auth Gate UI ─────────────────────────────────────
 function renderAuthGate(message, showSignIn = true) {
