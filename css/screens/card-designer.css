@@ -148,6 +148,27 @@
   .designer__media-divider {
     display: none;
   }
+  .designer__media-body {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  .designer__media-actions {
+    flex-direction: row;
+    flex: none;
+    width: 100%;
+  }
+  .designer__media-btn,
+  .designer__media-btn--ghost {
+    width: auto;
+    flex: 1;
+  }
+  .designer__media {
+    padding: 0.75rem;
+  }
+  .designer__editor .lobby__stepper-label {
+    font-size: 0.85rem;
+  }
 }
 
 
