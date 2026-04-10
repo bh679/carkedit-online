@@ -1109,6 +1109,10 @@ export function unmount() {
  * Notify the designer that the host's auth state changed.
  * Re-fetches packs if the user just logged in.
  */
+export async function editPack(packId) {
+  await handleEditPack(packId);
+}
+
 export function syncAuth(auth) {
   const wasAuthed = !!state.authUser;
   Object.assign(state, {

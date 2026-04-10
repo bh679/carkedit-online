@@ -5,7 +5,7 @@ import { render as renderCardList, bindScrollArrows } from '../components/card-l
 import { renderPackCard } from '../components/pack-card.js';
 import { render as renderPackBg } from '../components/pack-card-background.js';
 import { setList as setPreviewList } from '../components/card-preview-overlay.js';
-import { mount as mountDesigner, unmount as unmountDesigner, syncAuth as syncDesignerAuth, getView as getDesignerView } from '../card-designer/app.js';
+import { mount as mountDesigner, unmount as unmountDesigner, syncAuth as syncDesignerAuth, getView as getDesignerView, editPack } from '../card-designer/app.js';
 
 const API_BASE = `${window.location.origin}/api/carkedit`;
 
@@ -430,9 +430,13 @@ function renderDetail() {
           <h2 class="pack-detail__title">${esc(p.title)}</h2>
           <div class="pack-detail__creator">by ${esc(p.creator_name || 'Unknown')}</div>
         </div>
-        <button class="pack-card__save ${fav ? 'pack-card__save--saved' : ''}" data-action="toggle-fav" data-pack-id="${esc(p.id)}" data-fav="${fav}">
-          ${fav ? '★ Saved' : '☆ Save'}
-        </button>
+        ${state.authUser?.id === p.creator_id ? `
+          <button class="btn btn--small btn--secondary" data-action="edit-pack" data-pack-id="${esc(p.id)}">Edit</button>
+        ` : `
+          <button class="pack-card__save ${fav ? 'pack-card__save--saved' : ''}" data-action="toggle-fav" data-pack-id="${esc(p.id)}" data-fav="${fav}">
+            ${fav ? '★ Saved' : '☆ Save'}
+          </button>
+        `}
       </div>
       ${p.description ? `<p class="pack-detail__desc">${esc(p.description)}</p>` : ''}
       <div class="pack-detail__stats">
@@ -500,6 +504,14 @@ function onAction(e) {
       const id = target.getAttribute('data-pack-id');
       const fav = target.getAttribute('data-fav') === 'true';
       if (id) toggleFavorite(id, fav);
+      break;
+    }
+    case 'edit-pack': {
+      const id = target.getAttribute('data-pack-id');
+      if (id) {
+        setState({ tab: 'my-packs', view: 'list', selectedPack: null });
+        editPack(id);
+      }
       break;
     }
     case 'back':
