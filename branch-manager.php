@@ -82,6 +82,22 @@ function validateBranch($branch) {
     return preg_match('/^[a-zA-Z0-9_\-\.\/]+$/', $branch);
 }
 
+function getVersionForBranch($dir, $branch) {
+    $esc = escapeshellarg($branch);
+    $result = runCmd('sudo -u bitnami bash -c "cd ' . escapeshellarg($dir) . ' && git show origin/' . $esc . ':package.json 2>/dev/null"');
+    if ($result['rc'] !== 0) return '?';
+    $json = json_decode(implode("\n", $result['output']), true);
+    return is_array($json) && isset($json['version']) ? $json['version'] : '?';
+}
+
+function getVersionsForBranches($dir, $branches) {
+    $versions = [];
+    foreach ($branches as $branch) {
+        $versions[$branch] = getVersionForBranch($dir, $branch);
+    }
+    return $versions;
+}
+
 /**
  * Verify a Firebase ID token against the carkedit-api admin endpoint.
  * Returns true if the user is an admin, false otherwise.
@@ -267,16 +283,22 @@ if ($authenticated && isset($_GET['action'])) {
 
     if ($action === 'status') {
         $state = readState($STATE_FILE);
+        $clientBranches = getBranches($CLIENT_DIR);
+        $apiBranches = getBranches($API_DIR);
+        $clientOpen = getOpenBranches($CLIENT_DIR);
+        $apiOpen = getOpenBranches($API_DIR);
         echo json_encode([
             'client' => [
                 'current' => getCurrentBranch($CLIENT_DIR),
-                'branches' => getBranches($CLIENT_DIR),
-                'openBranches' => getOpenBranches($CLIENT_DIR),
+                'branches' => $clientBranches,
+                'openBranches' => $clientOpen,
+                'versions' => getVersionsForBranches($CLIENT_DIR, $clientBranches),
             ],
             'api' => [
                 'current' => getCurrentBranch($API_DIR),
-                'branches' => getBranches($API_DIR),
-                'openBranches' => getOpenBranches($API_DIR),
+                'branches' => $apiBranches,
+                'openBranches' => $apiOpen,
+                'versions' => getVersionsForBranches($API_DIR, $apiBranches),
             ],
             'state' => $state,
         ]);
@@ -400,6 +422,29 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         .bm__rescue a:hover { color: var(--color-danger, #e94560); }
 
         .hidden { display: none !important; }
+
+        /* Tag & Deploy button */
+        .bm__deploy-row { display: flex; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-md); }
+        .bm__deploy-row .btn { padding: 0.5rem var(--space-md); font-size: 0.85rem; }
+        .btn--accent { background: var(--color-live, #4caf50); color: #fff; }
+        .btn--accent-warn { background: var(--color-die, #e94560); color: #fff; }
+
+        /* Deploy modal */
+        .deploy-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+        .deploy-modal { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-lg); min-width: 380px; max-width: 90vw; }
+        .deploy-modal__title { font-size: 1rem; font-weight: 700; margin-bottom: var(--space-md); }
+        .deploy-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; margin-bottom: var(--space-md); }
+        .deploy-table th { text-align: left; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); padding: var(--space-xs) var(--space-sm); border-bottom: 1px solid var(--color-border); }
+        .deploy-table td { padding: var(--space-xs) var(--space-sm); }
+        .deploy-modal__actions { display: flex; gap: var(--space-sm); justify-content: flex-end; }
+        .deploy-modal__mode { margin-bottom: var(--space-sm); font-size: 0.75rem; }
+        .deploy-status { font-size: 0.7rem; font-weight: 600; }
+        .deploy-status--pending { color: var(--color-text-muted); }
+        .deploy-status--exists { color: var(--color-text-muted); }
+        .deploy-status--new { color: var(--color-live, #4caf50); }
+        .deploy-status--ok { color: var(--color-live, #4caf50); }
+        .deploy-status--warn { color: var(--color-die, #e94560); }
+        .deploy-status--error { color: var(--color-primary); }
     </style>
 </head>
 <body>
@@ -426,6 +471,144 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
     let fbUserInfo = null;
     let apiBranches = [];
     let clientBranches = [];
+    let clientVersions = {};
+    let apiVersions = {};
+    let currentClientBranch = '';
+    let currentApiBranch = '';
+    let ghToken = null;
+
+    /* ── GitHub API (for Tag & Deploy) ───────────────── */
+
+    const GH_API = 'https://api.github.com';
+    const TAG_REPOS = [
+      { name: 'bh679/carkedit-online', label: 'online' },
+      { name: 'bh679/carkedit-api', label: 'api' },
+    ];
+    let _isOnMain = false;
+    let _deployInfos = [];
+
+    async function ghFetch(path) {
+      const headers = { Accept: 'application/vnd.github.v3+json' };
+      if (ghToken) headers.Authorization = 'token ' + ghToken;
+      const res = await fetch(GH_API + path, { headers });
+      if (!res.ok) throw new Error('GitHub API ' + res.status);
+      return res.json();
+    }
+
+    async function ghPost(path, body) {
+      if (!ghToken) throw new Error('GitHub token required');
+      const res = await fetch(GH_API + path, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/vnd.github.v3+json',
+          Authorization: 'token ' + ghToken,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || 'GitHub API ' + res.status);
+      }
+      return res.json();
+    }
+
+    async function detectIfOnMain() {
+      return currentClientBranch === 'main' && currentApiBranch === 'main';
+    }
+
+    function tagPrefix() { return _isOnMain ? 'v' : 't'; }
+
+    async function fetchRepoTagInfo(repo, prefix) {
+      const pkgContent = await ghFetch('/repos/' + repo + '/contents/package.json?ref=main');
+      const pkg = JSON.parse(atob(pkgContent.content));
+      const version = pkg.version;
+      const tag = prefix + version;
+      let tagExists = false;
+      try { await ghFetch('/repos/' + repo + '/git/ref/tags/' + tag); tagExists = true; } catch {}
+      const ref = await ghFetch('/repos/' + repo + '/git/ref/heads/main');
+      const sha = ref.object.sha;
+      return { repo, version, tag, tagExists, sha };
+    }
+
+    function renderDeployModal(infos, state, isOnMain) {
+      const modeLabel = isOnMain
+        ? '<span class="deploy-status deploy-status--ok">PRODUCTION (v-tag, triggers deploy)</span>'
+        : '<span class="deploy-status deploy-status--warn">TEST (t-tag, no deploy)</span>';
+      const rows = infos.map(info => {
+        const status = state === 'loading' ? '<span class="deploy-status deploy-status--pending">checking...</span>'
+          : info.tagExists ? '<span class="deploy-status deploy-status--exists">tag exists</span>'
+          : '<span class="deploy-status deploy-status--new">will create</span>';
+        const result = info.result
+          ? (info.result === 'ok' ? '<span class="deploy-status deploy-status--ok">done</span>'
+            : '<span class="deploy-status deploy-status--error">' + info.result + '</span>')
+          : '';
+        return '<tr><td><strong>' + (info.label || info.repo.split('/')[1]) + '</strong></td>'
+          + '<td><code>' + (info.tag || '...') + '</code></td>'
+          + '<td><code style="font-size:0.6rem">' + (info.sha ? info.sha.slice(0, 7) : '...') + '</code></td>'
+          + '<td>' + (result || status) + '</td></tr>';
+      }).join('');
+      const canDeploy = state === 'ready' && infos.some(i => !i.tagExists);
+      const btnLabel = isOnMain ? 'Create Tags & Deploy' : 'Create Test Tags';
+      const buttons = state === 'done'
+        ? '<button class="btn btn--secondary" onclick="closeDeployModal()">Close</button>'
+        : state === 'deploying'
+        ? '<button class="btn btn--secondary" disabled>Tagging...</button>'
+        : '<button class="btn btn--secondary" onclick="closeDeployModal()">Cancel</button>'
+          + ' <button class="btn ' + (isOnMain ? 'btn--primary' : 'btn--accent-warn') + '" '
+          + (canDeploy ? 'onclick="confirmDeploy()"' : 'disabled') + '>' + (canDeploy ? btnLabel : 'All tagged') + '</button>';
+      return '<div class="deploy-overlay" onclick="closeDeployModal()">'
+        + '<div class="deploy-modal" onclick="event.stopPropagation()">'
+        + '<div class="deploy-modal__title">Tag & Deploy</div>'
+        + '<div class="deploy-modal__mode">' + modeLabel + '</div>'
+        + '<table class="deploy-table"><thead><tr><th>Repo</th><th>Tag</th><th>SHA</th><th>Status</th></tr></thead>'
+        + '<tbody>' + rows + '</tbody></table>'
+        + '<div class="deploy-modal__actions">' + buttons + '</div></div></div>';
+    }
+
+    async function tagDeploy() {
+      const el = document.getElementById('deploy-modal-root');
+      if (!el) return;
+      const placeholders = TAG_REPOS.map(r => ({ repo: r.name, label: r.label }));
+      el.innerHTML = renderDeployModal(placeholders, 'loading', _isOnMain);
+      try {
+        _isOnMain = await detectIfOnMain();
+        const prefix = tagPrefix();
+        _deployInfos = await Promise.all(TAG_REPOS.map(r =>
+          fetchRepoTagInfo(r.name, prefix).then(info => ({ ...info, label: r.label }))
+        ));
+        el.innerHTML = renderDeployModal(_deployInfos, 'ready', _isOnMain);
+      } catch (err) {
+        el.innerHTML = renderDeployModal(
+          [{ repo: 'error', label: 'Error', tag: '', sha: '', tagExists: false, result: err.message }],
+          'done', _isOnMain
+        );
+      }
+    }
+
+    async function confirmDeploy() {
+      const el = document.getElementById('deploy-modal-root');
+      if (!el) return;
+      el.innerHTML = renderDeployModal(_deployInfos, 'deploying', _isOnMain);
+      for (const info of _deployInfos) {
+        if (info.tagExists) { info.result = 'ok'; continue; }
+        try {
+          await ghPost('/repos/' + info.repo + '/git/refs', { ref: 'refs/tags/' + info.tag, sha: info.sha });
+          info.result = 'ok';
+        } catch (err) { info.result = err.message; }
+        el.innerHTML = renderDeployModal(_deployInfos, 'deploying', _isOnMain);
+      }
+      el.innerHTML = renderDeployModal(_deployInfos, 'done', _isOnMain);
+    }
+
+    function closeDeployModal() {
+      const el = document.getElementById('deploy-modal-root');
+      if (el) el.innerHTML = '';
+    }
+    // Expose for onclick handlers in rendered HTML
+    window.tagDeploy = tagDeploy;
+    window.confirmDeploy = confirmDeploy;
+    window.closeDeployModal = closeDeployModal;
 
     /* ── Firebase ─────────────────────────────────────── */
 
@@ -491,9 +674,9 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
           <h1 class="bm__title">Branch Manager</h1>
           <p class="bm__subtitle">Switch staging branches for carkedit-online and carkedit-api</p>
 
-          <div class="bm__reset">
-            <span>Reset everything to main</span>
-            <button id="btn-reset">Reset to Main</button>
+          <div class="bm__deploy-row">
+            <button class="btn btn--accent" id="btn-tag-deploy" disabled title="Loading...">Tag &amp; Deploy</button>
+            <button id="btn-reset" class="btn btn--secondary" style="padding:0.5rem var(--space-md);font-size:0.85rem">Reset to Main</button>
           </div>
 
           <div class="bm__linked">
@@ -527,6 +710,8 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
           <div class="bm__status" id="status-box"></div>
           <div class="bm__log" id="output-log"></div>
 
+          <div id="deploy-modal-root"></div>
+
           <div class="bm__rescue">
             <a href="rescue.php">Emergency rescue (reset to main without auth)</a>
           </div>
@@ -545,6 +730,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
       document.getElementById('btn-client').addEventListener('click', switchClient);
       document.getElementById('btn-api').addEventListener('click', switchApi);
       document.getElementById('btn-reset').addEventListener('click', resetToMain);
+      document.getElementById('btn-tag-deploy').addEventListener('click', tagDeploy);
     }
 
     function showStatus(msg, type) {
@@ -572,12 +758,13 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
       setTimeout(loadStatus, 1500);
     }
 
-    function populateSelect(el, branches, current) {
+    function populateSelect(el, branches, current, versions) {
       el.innerHTML = '';
       branches.forEach(b => {
         const opt = document.createElement('option');
         opt.value = b;
-        opt.textContent = b + (b === current ? ' (current)' : '');
+        const ver = versions && versions[b] ? ' (v' + versions[b] + ')' : '';
+        opt.textContent = b + ver + (b === current ? ' — current' : '');
         if (b === current) opt.selected = true;
         el.appendChild(opt);
       });
@@ -589,15 +776,35 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         .then(data => {
           clientBranches = data.client.branches || [];
           apiBranches = data.api.branches || [];
-          document.getElementById('client-current').textContent = data.client.current;
-          document.getElementById('api-current').textContent = data.api.current;
-          populateSelect(document.getElementById('client-select'), clientBranches, data.client.current);
-          populateSelect(document.getElementById('api-select'), apiBranches, data.api.current);
-          populateSelect(document.getElementById('linked-select'), data.client.openBranches || clientBranches, data.client.current);
+          clientVersions = data.client.versions || {};
+          apiVersions = data.api.versions || {};
+
+          const clientCur = data.client.current;
+          const apiCur = data.api.current;
+          currentClientBranch = clientCur;
+          currentApiBranch = apiCur;
+          const clientVer = clientVersions[clientCur] || '?';
+          const apiVer = apiVersions[apiCur] || '?';
+
+          document.getElementById('client-current').textContent = clientCur + ' (v' + clientVer + ')';
+          document.getElementById('api-current').textContent = apiCur + ' (v' + apiVer + ')';
+          populateSelect(document.getElementById('client-select'), clientBranches, clientCur, clientVersions);
+          populateSelect(document.getElementById('api-select'), apiBranches, apiCur, apiVersions);
+          populateSelect(document.getElementById('linked-select'), data.client.openBranches || clientBranches, clientCur, clientVersions);
           updateLinkedLabel();
           document.getElementById('btn-client').disabled = false;
           document.getElementById('btn-api').disabled = false;
           document.getElementById('btn-linked').disabled = false;
+
+          // Update Tag & Deploy button state
+          const onMain = clientCur === 'main' && apiCur === 'main';
+          _isOnMain = onMain;
+          const deployBtn = document.getElementById('btn-tag-deploy');
+          if (deployBtn) {
+            deployBtn.disabled = !onMain;
+            deployBtn.className = 'btn ' + (onMain ? 'btn--accent' : 'btn--secondary');
+            deployBtn.title = onMain ? 'Create version tags and trigger deploy' : 'Switch to main to tag & deploy';
+          }
         })
         .catch(err => showStatus('Failed to load status: ' + err.message, 'error'));
     }
@@ -605,11 +812,12 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
     function updateLinkedLabel() {
       const clientBranch = document.getElementById('linked-select').value;
       const matchingApi = apiBranches.indexOf(clientBranch) >= 0 ? clientBranch : 'main';
-      document.getElementById('linked-api-label').textContent = 'API: ' + matchingApi;
+      const apiVer = apiVersions[matchingApi] ? ' (v' + apiVersions[matchingApi] + ')' : '';
+      document.getElementById('linked-api-label').textContent = 'API: ' + matchingApi + apiVer;
     }
 
     function disableAll() {
-      ['btn-client', 'btn-api', 'btn-linked', 'btn-reset'].forEach(id => {
+      ['btn-client', 'btn-api', 'btn-linked', 'btn-reset', 'btn-tag-deploy'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.disabled = true;
       });
@@ -619,6 +827,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         const el = document.getElementById(id);
         if (el) el.disabled = false;
       });
+      // Tag & Deploy re-enabled only if on main (loadStatus will handle)
     }
 
     function switchLinked() {
@@ -665,9 +874,28 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
       renderGate('Failed to load Firebase — check your network.', false);
     }
 
+    async function loadGhToken(firebaseIdToken) {
+      try {
+        const res = await fetch('/api/carkedit/dev/config', {
+          headers: { Authorization: 'Bearer ' + firebaseIdToken },
+        });
+        if (res.ok) {
+          const cfg = await res.json();
+          if (cfg.githubToken) ghToken = cfg.githubToken;
+        }
+      } catch { /* GitHub features will be unavailable */ }
+    }
+
     if (PHP_AUTHED) {
-      // Session still valid — go straight to dashboard
+      // Session still valid — try to get a fresh Firebase token for GH access
       renderDashboard();
+      // Attempt to load GH token in background
+      authModule.onAuthStateChanged(firebaseAuth, async (user) => {
+        if (user) {
+          const idToken = await user.getIdToken();
+          await loadGhToken(idToken);
+        }
+      });
     } else {
       authModule.onAuthStateChanged(firebaseAuth, async (user) => {
         if (!user) {
@@ -679,6 +907,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         try {
           const idToken = await user.getIdToken();
           if (await verifyWithServer(idToken)) {
+            await loadGhToken(idToken);
             renderDashboard();
           } else {
             renderGate('Your account is not an admin. Ask an admin to flag you via /admin-users.', false);
