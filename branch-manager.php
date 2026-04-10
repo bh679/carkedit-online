@@ -270,12 +270,10 @@ if ($authenticated && isset($_GET['action'])) {
         echo json_encode([
             'client' => [
                 'current' => getCurrentBranch($CLIENT_DIR),
-                'branches' => getBranches($CLIENT_DIR),
                 'openBranches' => getOpenBranches($CLIENT_DIR),
             ],
             'api' => [
                 'current' => getCurrentBranch($API_DIR),
-                'branches' => getBranches($API_DIR),
                 'openBranches' => getOpenBranches($API_DIR),
             ],
             'state' => $state,
@@ -587,13 +585,13 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
       fetch(apiUrl + '?action=status')
         .then(r => r.json())
         .then(data => {
-          clientBranches = data.client.branches || [];
-          apiBranches = data.api.branches || [];
+          clientBranches = data.client.openBranches || [];
+          apiBranches = data.api.openBranches || [];
           document.getElementById('client-current').textContent = data.client.current;
           document.getElementById('api-current').textContent = data.api.current;
           populateSelect(document.getElementById('client-select'), clientBranches, data.client.current);
           populateSelect(document.getElementById('api-select'), apiBranches, data.api.current);
-          populateSelect(document.getElementById('linked-select'), data.client.openBranches || clientBranches, data.client.current);
+          populateSelect(document.getElementById('linked-select'), clientBranches, data.client.current);
           updateLinkedLabel();
           document.getElementById('btn-client').disabled = false;
           document.getElementById('btn-api').disabled = false;
