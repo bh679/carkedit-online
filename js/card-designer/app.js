@@ -272,12 +272,13 @@ function renderPackEditor() {
         brandImageUrl: pack.brand_image_url || '',
         special: featureCard.card_special || null,
         options: parseCardOptions(featureCard),
+        image_url: featureCard.image_url || '',
       }, { source: 'designer' }))
     : '<span class="designer__feature-empty">None</span>';
   const sections = deckTypes.map(type => {
     const cards = state.currentPackCards.filter(c => c.deck_type === type);
     const label = type.charAt(0).toUpperCase() + type.slice(1);
-    const items = cards.map(c => ({ id: c.id, deck: c.deck_type, text: c.text, special: c.card_special || '', options: parseCardOptions(c) }));
+    const items = cards.map(c => ({ id: c.id, deck: c.deck_type, text: c.text, special: c.card_special || '', options: parseCardOptions(c), image_url: c.image_url || '' }));
     const listHtml = renderCardList(items, {
       size: 'sm',
       showStats: false,
@@ -418,6 +419,7 @@ function renderCardForm() {
     brandImageUrl: state.currentPack?.brand_image_url || '',
     special: isDie ? state.cardFormSpecial : null,
     options: isSplit ? [state.cardFormOption1 || 'Option A', state.cardFormOption2 || 'Option B'] : null,
+    image_url: editing?.image_url || '',
   }, { source: 'designer' }));
 
   const variantPicker = isDie ? `
@@ -681,6 +683,7 @@ function onDocInput(e) {
         brandImageUrl: state.currentPack?.brand_image_url || '',
         special: isDie ? state.cardFormSpecial : null,
         options: isSplit ? [state.cardFormOption1 || 'Option A', state.cardFormOption2 || 'Option B'] : null,
+        image_url: state.editingCard?.image_url || '',
       }, { source: 'designer' }));
     }
     if (countEls[0]) countEls[0].textContent = `${state.cardFormText.length}/200`;
