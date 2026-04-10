@@ -18,6 +18,8 @@
     <script type="module">
     'use strict';
 
+    import { renderAdminHeader, bindAdminHeader } from './js/components/admin-header.js';
+
     // Same Firebase config as every other CarkedIt Online admin page —
     // we roll our own init here (rather than reusing js/managers/auth-manager)
     // to keep this standalone admin page free of game-state side effects.
@@ -53,17 +55,16 @@
     function renderGate(msg, opts = {}) {
       const { showSignIn = false, showSignOut = false } = opts;
       document.getElementById('app').innerHTML = `
+        ${renderAdminHeader()}
         <div class="admin-img-gen__gate">
           <div>
             <h1>Card Image Generator</h1>
             <p>${msg}</p>
             ${showSignIn ? '<button class="btn btn--google" id="gate-sign-in">Sign in with Google</button>' : ''}
             ${showSignOut ? '<button class="btn" id="gate-sign-out" style="margin-left:0.5em">Sign out</button>' : ''}
-            <div style="margin-top:1.5em">
-              <a href="/" class="btn" style="background:transparent;color:var(--color-text-muted,#888);text-decoration:none">Back to Main Menu</a>
-            </div>
           </div>
         </div>`;
+      bindAdminHeader(document.getElementById('app'), {});
       const si = document.getElementById('gate-sign-in');
       if (si) {
         si.addEventListener('click', async () => {
