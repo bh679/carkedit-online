@@ -451,6 +451,8 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         .bm__recent-col h3 { font-size: 0.85rem; margin-bottom: var(--space-xs); display: flex; align-items: center; gap: var(--space-xs); }
         .bm__recent-list { list-style: none; padding: 0; margin: 0; }
         .bm__recent-list li { font-size: 0.8rem; color: var(--color-text-muted); padding: 0.2em 0; font-family: monospace; }
+        .bm__recent-list li.has-pr { color: var(--color-live, #4caf50); }
+        select option.has-pr { color: #4caf50; }
 
         /* Rescue link */
         .bm__rescue { text-align: center; margin-top: var(--space-lg); padding-top: var(--space-md); border-top: 1px solid var(--color-border); }
@@ -550,6 +552,8 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
     ];
     let _isOnMain = false;
     let _deployInfos = [];
+    let clientPRBranches = new Set();
+    let apiPRBranches = new Set();
 
     async function ghFetch(path) {
       const headers = { Accept: 'application/vnd.github.v3+json' };
@@ -673,6 +677,20 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
     window.tagDeploy = tagDeploy;
     window.confirmDeploy = confirmDeploy;
     window.closeDeployModal = closeDeployModal;
+
+    /* ── PR branch detection ─────────────────────────── */
+
+    async function fetchOpenPRs() {
+      if (!ghToken) return;
+      try {
+        const [clientPRs, apiPRs] = await Promise.all([
+          ghFetch('/repos/bh679/carkedit-online/pulls?state=open&per_page=100'),
+          ghFetch('/repos/bh679/carkedit-api/pulls?state=open&per_page=100'),
+        ]);
+        clientPRBranches = new Set(clientPRs.map(pr => pr.head.ref));
+        apiPRBranches = new Set(apiPRs.map(pr => pr.head.ref));
+      } catch { /* PR highlighting unavailable — degrade silently */ }
+    }
 
     /* ── Firebase ─────────────────────────────────────── */
 
@@ -889,19 +907,21 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
       }
     }
 
-    function populateSelect(el, branches, current, versions) {
+    function populateSelect(el, branches, current, versions, prBranches) {
       el.innerHTML = '';
       branches.forEach(b => {
         const opt = document.createElement('option');
         opt.value = b;
         const ver = versions && versions[b] ? ' (v' + versions[b] + ')' : '';
-        opt.textContent = b + ver + (b === current ? ' — current' : '');
+        const hasPR = prBranches && prBranches.has(b);
+        opt.textContent = b + ver + (b === current ? ' — current' : '') + (hasPR ? ' — PR' : '');
+        if (hasPR) opt.classList.add('has-pr');
         if (b === current) opt.selected = true;
         el.appendChild(opt);
       });
     }
 
-    function populateRecent(elId, branches, versions) {
+    function populateRecent(elId, branches, versions, prBranches) {
       const ul = document.getElementById(elId);
       if (!ul) return;
       ul.innerHTML = '';
@@ -912,15 +932,18 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
       branches.forEach(b => {
         const li = document.createElement('li');
         const ver = versions && versions[b] ? ' (v' + versions[b] + ')' : '';
-        li.textContent = b + ver;
+        const hasPR = prBranches && prBranches.has(b);
+        li.textContent = (hasPR ? '● ' : '') + b + ver;
+        if (hasPR) li.classList.add('has-pr');
         ul.appendChild(li);
       });
     }
 
     function loadStatus() {
-      fetch(apiUrl + '?action=status')
-        .then(r => r.json())
-        .then(data => {
+      Promise.all([
+        fetch(apiUrl + '?action=status').then(r => r.json()),
+        fetchOpenPRs(),
+      ]).then(([data]) => {
           clientBranches = data.client.openBranches || [];
           apiBranches = data.api.openBranches || [];
           clientVersions = data.client.versions || {};
@@ -936,13 +959,13 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
 
           document.getElementById('client-current').textContent = clientCur + ' (v' + clientVer + ')';
           document.getElementById('api-current').textContent = apiCur + ' (v' + apiVer + ')';
-          populateSelect(document.getElementById('client-select'), clientBranches, clientCur, clientVersions);
-          populateSelect(document.getElementById('api-select'), apiBranches, apiCur, apiVersions);
-          populateSelect(document.getElementById('linked-select'), clientBranches, clientCur, clientVersions);
+          populateSelect(document.getElementById('client-select'), clientBranches, clientCur, clientVersions, clientPRBranches);
+          populateSelect(document.getElementById('api-select'), apiBranches, apiCur, apiVersions, apiPRBranches);
+          populateSelect(document.getElementById('linked-select'), clientBranches, clientCur, clientVersions, clientPRBranches);
           updateLinkedLabel();
           updateBmWarnings();
-          populateRecent('recent-client', clientBranches.slice(0, 10), clientVersions);
-          populateRecent('recent-api', apiBranches.slice(0, 10), apiVersions);
+          populateRecent('recent-client', clientBranches.slice(0, 10), clientVersions, clientPRBranches);
+          populateRecent('recent-api', apiBranches.slice(0, 10), apiVersions, apiPRBranches);
           populateRecent('recent-tags-client', data.client.tags || [], {});
           populateRecent('recent-tags-api', data.api.tags || [], {});
           document.getElementById('tags-client-version').textContent = 'v' + clientVer;
@@ -1062,11 +1085,12 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
     if (PHP_AUTHED) {
       // Session still valid — try to get a fresh Firebase token for GH access
       renderDashboard();
-      // Attempt to load GH token in background
+      // Attempt to load GH token in background, then refresh to show PR highlights
       authModule.onAuthStateChanged(firebaseAuth, async (user) => {
         if (user) {
           const idToken = await user.getIdToken();
           await loadGhToken(idToken);
+          if (ghToken) loadStatus(); // re-fetch with PR data now available
         }
       });
     } else {
