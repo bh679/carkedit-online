@@ -5,7 +5,7 @@ import { render as renderCardList, bindScrollArrows } from '../components/card-l
 import { renderPackCard } from '../components/pack-card.js';
 import { render as renderPackBg } from '../components/pack-card-background.js';
 import { setList as setPreviewList } from '../components/card-preview-overlay.js';
-import { mount as mountDesigner, unmount as unmountDesigner, syncAuth as syncDesignerAuth, getView as getDesignerView } from '../card-designer/app.js';
+import { mount as mountDesigner, unmount as unmountDesigner, syncAuth as syncDesignerAuth, getView as getDesignerView, editPack } from '../card-designer/app.js';
 
 const API_BASE = `${window.location.origin}/api/carkedit`;
 
@@ -442,6 +442,9 @@ function renderDetail() {
       </div>
       ${sectionsHtml}
       <div class="menu__actions marketplace__actions">
+        ${state.authUser?.id === p.creator_id ? `
+          <button class="btn btn--primary" data-action="edit-pack" data-pack-id="${esc(p.id)}">Edit Pack</button>
+        ` : ''}
         <button class="btn mode-select__back-btn menu__site-link" data-action="back">&larr; Back</button>
       </div>
     </div>
@@ -500,6 +503,14 @@ function onAction(e) {
       const id = target.getAttribute('data-pack-id');
       const fav = target.getAttribute('data-fav') === 'true';
       if (id) toggleFavorite(id, fav);
+      break;
+    }
+    case 'edit-pack': {
+      const id = target.getAttribute('data-pack-id');
+      if (id) {
+        setState({ tab: 'my-packs', view: 'list', selectedPack: null });
+        editPack(id);
+      }
       break;
     }
     case 'back':
