@@ -6,6 +6,7 @@ import { render as renderGameboard, renderActiveCard } from '../components/gameb
 import { render as renderCard } from '../components/card.js';
 import { render as renderCardBack } from '../components/cardBack.js';
 import { render as renderHand } from '../components/hand.js';
+import { escapeHtml } from '../utils/escape.js';
 
 /**
  * @param {object} state
@@ -74,7 +75,7 @@ export function render(state) {
     boardContent = `
       <div class="phase1__layout">
         <div class="phase1__dealing">
-          <p class="phase__prompt">Drawing for ${currentPlayer?.name ?? ''}...</p>
+          <p class="phase__prompt">Drawing for ${escapeHtml(currentPlayer?.name ?? '')}...</p>
         </div>
       </div>
     `;
