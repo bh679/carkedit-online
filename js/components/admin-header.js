@@ -2,11 +2,11 @@
 'use strict';
 
 const NAV_LINKS = [
-  { label: 'Home',    path: '/' },
-  { label: 'Stats',   path: '/stats' },
-  { label: 'Users',   path: '/admin-users' },
-  { label: 'ImageAI', path: '/admin-image-gen' },
-  { label: 'Dev',     path: '/dev-dashboard' },
+  { label: 'Home',    path: '.' },
+  { label: 'Stats',   path: 'stats' },
+  { label: 'Users',   path: 'admin-users' },
+  { label: 'ImageAI', path: 'admin-image-gen' },
+  { label: 'Dev',     path: 'dev-dashboard' },
 ];
 
 let _menuOpen = false;
@@ -19,9 +19,11 @@ function esc(str) {
 }
 
 function isActive(linkPath) {
-  const p = location.pathname.replace(/\.html$/, '').replace(/\/$/, '') || '/';
-  const l = linkPath.replace(/\/$/, '') || '/';
-  return p === l;
+  // Get the last segment of the current pathname (works regardless of base path)
+  const segments = location.pathname.replace(/\.html$/, '').replace(/\/$/, '').split('/');
+  const current = segments[segments.length - 1] || '';
+  const target = linkPath === '.' ? '' : linkPath;
+  return current === target;
 }
 
 function fetchVersion() {
