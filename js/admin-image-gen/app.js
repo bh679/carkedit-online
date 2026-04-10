@@ -1675,6 +1675,20 @@ function hydrateFromCard(cardId) {
   state.cardFormTextPosition = card.text_position || 'top';
   state.cardFormTextColor = card.text_color || 'black';
   state.promptOverride = null;
+
+  // If the card already has a saved image, show it in the preview
+  const existingImageUrl = card.image_url;
+  if (existingImageUrl) {
+    const entry = {
+      imageUrl: existingImageUrl,
+      provider: 'saved',
+      promptSent: card.prompt || state.cardFormPrompt || '(existing image)',
+    };
+    state.generatedBatch = [entry];
+    state.generated = entry;
+    state.selectedBatchIdx = 0;
+  }
+
   recomputePromptPreview();
   render();
 }
