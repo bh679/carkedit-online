@@ -786,7 +786,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
 
     function showResult(data) {
       if (data.status === 'ok') {
-        showStatus('Branch switch successful. Reloading status...', 'ok');
+        showStatus('Branch switch successful. Reloading page...', 'ok');
       } else {
         showStatus('Branch switch completed with errors.', 'error');
       }
@@ -799,7 +799,11 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         }
         document.getElementById('output-log').textContent = log;
       }
-      setTimeout(loadStatus, 1500);
+      if (data.status === 'ok') {
+        setTimeout(() => window.location.reload(), 2000);
+      } else {
+        setTimeout(loadStatus, 1500);
+      }
     }
 
     function populateSelect(el, branches, current, versions) {
