@@ -5,4 +5,6 @@ playwright-report/
 ports/*.json
 assets/illustrations
 deploy-status.json
+branch-state.json
+rescue.php
 config.json
