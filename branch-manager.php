@@ -232,8 +232,8 @@ if ($authenticated && isset($_GET['action'])) {
 
         // Update state
         $state = readState($STATE_FILE);
-        if ($clientBranch !== '') $state['client'] = $clientBranch;
-        if ($apiBranch !== '')    $state['api'] = $apiBranch;
+        if ($clientBranch !== '' && validateBranch($clientBranch)) $state['client'] = $clientBranch;
+        if ($apiBranch !== '' && validateBranch($apiBranch))       $state['api'] = $apiBranch;
         $state['updatedAt'] = gmdate('c');
         writeState($STATE_FILE, $state);
 
