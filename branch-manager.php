@@ -292,23 +292,19 @@ if ($authenticated && isset($_GET['action'])) {
 
     if ($action === 'status') {
         $state = readState($STATE_FILE);
-        $clientBranches = getBranches($CLIENT_DIR);
-        $apiBranches = getBranches($API_DIR);
         $clientOpen = getOpenBranches($CLIENT_DIR);
         $apiOpen = getOpenBranches($API_DIR);
         echo json_encode([
             'client' => [
                 'current' => getCurrentBranch($CLIENT_DIR),
-                'branches' => $clientBranches,
                 'openBranches' => $clientOpen,
-                'versions' => getVersionsForBranches($CLIENT_DIR, $clientBranches),
+                'versions' => getVersionsForBranches($CLIENT_DIR, $clientOpen),
                 'tags' => getTags($CLIENT_DIR),
             ],
             'api' => [
                 'current' => getCurrentBranch($API_DIR),
-                'branches' => $apiBranches,
                 'openBranches' => $apiOpen,
-                'versions' => getVersionsForBranches($API_DIR, $apiBranches),
+                'versions' => getVersionsForBranches($API_DIR, $apiOpen),
                 'tags' => getTags($API_DIR),
             ],
             'state' => $state,
@@ -823,7 +819,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
 
     function showResult(data) {
       if (data.status === 'ok') {
-        showStatus('Branch switch successful. Reloading status...', 'ok');
+        showStatus('Branch switch successful. Reloading page...', 'ok');
       } else {
         showStatus('Branch switch completed with errors.', 'error');
       }
@@ -836,7 +832,11 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         }
         document.getElementById('output-log').textContent = log;
       }
-      setTimeout(loadStatus, 1500);
+      if (data.status === 'ok') {
+        setTimeout(() => window.location.reload(), 2000);
+      } else {
+        setTimeout(loadStatus, 1500);
+      }
     }
 
     function populateSelect(el, branches, current, versions) {
@@ -871,8 +871,8 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
       fetch(apiUrl + '?action=status')
         .then(r => r.json())
         .then(data => {
-          clientBranches = data.client.branches || [];
-          apiBranches = data.api.branches || [];
+          clientBranches = data.client.openBranches || [];
+          apiBranches = data.api.openBranches || [];
           clientVersions = data.client.versions || {};
           apiVersions = data.api.versions || {};
 
@@ -887,7 +887,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
           document.getElementById('api-current').textContent = apiCur + ' (v' + apiVer + ')';
           populateSelect(document.getElementById('client-select'), clientBranches, clientCur, clientVersions);
           populateSelect(document.getElementById('api-select'), apiBranches, apiCur, apiVersions);
-          populateSelect(document.getElementById('linked-select'), data.client.openBranches || clientBranches, clientCur, clientVersions);
+          populateSelect(document.getElementById('linked-select'), clientBranches, clientCur, clientVersions);
           updateLinkedLabel();
           populateRecent('recent-client', clientBranches.slice(0, 10), clientVersions);
           populateRecent('recent-api', apiBranches.slice(0, 10), apiVersions);
