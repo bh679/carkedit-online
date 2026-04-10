@@ -156,12 +156,12 @@
   .designer__media-actions {
     flex-direction: row;
     flex: none;
-    width: 100%;
+    width: auto;
   }
   .designer__media-btn,
   .designer__media-btn--ghost {
     width: auto;
-    flex: 1;
+    flex: none;
   }
   .designer__media {
     padding: 0.75rem;
@@ -612,6 +612,7 @@ body.page--card-designer #app {
 .screen--card-designer--embedded {
   margin: 0 auto;
   max-width: none;
+  width: 100%;
   overflow-y: visible;
   height: auto;
   min-height: auto;
