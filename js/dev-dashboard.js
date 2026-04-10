@@ -66,7 +66,10 @@ async function ghFetch(path) {
   }
 
   const data = await res.json();
-  sessionStorage.setItem(cacheKey, JSON.stringify({ data, ts: Date.now() }));
+  // Don't cache 202 (GitHub "computing" responses — e.g. stats/commit_activity)
+  if (res.status !== 202) {
+    sessionStorage.setItem(cacheKey, JSON.stringify({ data, ts: Date.now() }));
+  }
   return data;
 }
 
