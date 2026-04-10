@@ -5,7 +5,8 @@
  * Self-contained: all HTML/CSS/JS is inline. No external dependencies from the repo.
  * On every page load, regenerates rescue.php (gitignored) as a zero-input failsafe.
  *
- * Auth: same deploy token as deploy.php.
+ * Auth: Firebase Google sign-in → verified as admin via carkedit-api.
+ * Deploy token is read server-side for git operations — never exposed to the user.
  */
 
 session_start();
@@ -13,6 +14,7 @@ session_start();
 $TOKEN_FILE   = '/home/bitnami/server/.deploy-token-carkedit-online';
 $CLIENT_DIR   = '/opt/bitnami/apache/htdocs/carkedit-online';
 $API_DIR      = '/home/bitnami/server/carkedit-api';
+$API_PORT     = 4500;
 $STATE_FILE   = __DIR__ . '/branch-state.json';
 $RESCUE_FILE  = __DIR__ . '/rescue.php';
 
@@ -65,16 +67,43 @@ function validateBranch($branch) {
     return preg_match('/^[a-zA-Z0-9_\-\.\/]+$/', $branch);
 }
 
+/**
+ * Verify a Firebase ID token against the carkedit-api admin endpoint.
+ * Returns true if the user is an admin, false otherwise.
+ */
+function verifyAdminToken($idToken, $apiPort) {
+    $url = "http://localhost:{$apiPort}/api/carkedit/users";
+    $opts = [
+        'http' => [
+            'method'  => 'GET',
+            'header'  => "Authorization: Bearer {$idToken}\r\n",
+            'timeout' => 10,
+            'ignore_errors' => true,
+        ],
+    ];
+    $ctx = stream_context_create($opts);
+    $response = @file_get_contents($url, false, $ctx);
+    if ($response === false) return false;
+
+    // Check HTTP status from response headers
+    foreach ($http_response_header as $header) {
+        if (preg_match('/^HTTP\/\S+\s+(\d+)/', $header, $m)) {
+            $status = (int) $m[1];
+            return $status >= 200 && $status < 300;
+        }
+    }
+    return false;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Regenerate rescue.php                                              */
 /* ------------------------------------------------------------------ */
 
 function generateRescue($rescueFile, $tokenFile, $clientDir, $apiDir) {
     $code = '<?php
-/* Auto-generated rescue file. Visit this URL to reset both repos to main. */
+/* Auto-generated rescue file. Visit this URL to reset both repos to main. No auth needed. */
 header("Content-Type: text/html; charset=utf-8");
 
-$tokenFile = ' . var_export($tokenFile, true) . ';
 $clientDir = ' . var_export($clientDir, true) . ';
 $apiDir    = ' . var_export($apiDir, true) . ';
 
@@ -156,23 +185,53 @@ pre{font-size:0.75rem;color:#888;white-space:pre-wrap;margin-top:0.5rem}
 }
 
 /* ------------------------------------------------------------------ */
-/*  Token auth                                                         */
+/*  Auth: session-based, verified via Firebase + carkedit-api          */
 /* ------------------------------------------------------------------ */
 
-$expectedToken = loadToken($TOKEN_FILE);
+$authenticated = isset($_SESSION['bm_auth']) && $_SESSION['bm_auth'] === true;
 
-// Check session or query param
-$authenticated = false;
-if (isset($_SESSION['bm_auth']) && $_SESSION['bm_auth'] === true) {
-    $authenticated = true;
+/* ------------------------------------------------------------------ */
+/*  API action: auth — verify Firebase ID token as admin               */
+/* ------------------------------------------------------------------ */
+
+if (isset($_GET['action']) && $_GET['action'] === 'auth') {
+    header('Content-Type: application/json');
+
+    // Accept token from Authorization header or POST body
+    $idToken = '';
+    $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+    if (strpos($authHeader, 'Bearer ') === 0) {
+        $idToken = substr($authHeader, 7);
+    }
+    if (empty($idToken) && isset($_POST['idToken'])) {
+        $idToken = $_POST['idToken'];
+    }
+
+    if (empty($idToken)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'No ID token provided']);
+        exit;
+    }
+
+    if (verifyAdminToken($idToken, $API_PORT)) {
+        $_SESSION['bm_auth'] = true;
+        echo json_encode(['status' => 'ok']);
+    } else {
+        http_response_code(403);
+        echo json_encode(['error' => 'Not an admin or API unreachable']);
+    }
+    exit;
 }
-if (isset($_GET['token']) && strlen($expectedToken) > 0 && hash_equals($expectedToken, $_GET['token'])) {
-    $_SESSION['bm_auth'] = true;
-    $authenticated = true;
-}
-if (isset($_POST['token']) && strlen($expectedToken) > 0 && hash_equals($expectedToken, $_POST['token'])) {
-    $_SESSION['bm_auth'] = true;
-    $authenticated = true;
+
+/* ------------------------------------------------------------------ */
+/*  API action: logout                                                 */
+/* ------------------------------------------------------------------ */
+
+if (isset($_GET['action']) && $_GET['action'] === 'logout') {
+    session_destroy();
+    header('Content-Type: application/json');
+    echo json_encode(['status' => 'ok']);
+    exit;
 }
 
 /* ------------------------------------------------------------------ */
@@ -184,7 +243,7 @@ if ($authenticated) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  API actions (JSON responses)                                       */
+/*  API actions (JSON responses) — require auth                        */
 /* ------------------------------------------------------------------ */
 
 if ($authenticated && isset($_GET['action'])) {
@@ -249,6 +308,14 @@ if ($authenticated && isset($_GET['action'])) {
     exit;
 }
 
+/* If an action was requested but user is not authenticated */
+if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['auth', 'logout'])) {
+    header('Content-Type: application/json');
+    http_response_code(401);
+    echo json_encode(['error' => 'Not authenticated']);
+    exit;
+}
+
 /* ------------------------------------------------------------------ */
 /*  HTML Dashboard (self-contained)                                    */
 /* ------------------------------------------------------------------ */
@@ -274,13 +341,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 h1{font-size:1.3rem;margin-bottom:0.5rem}
 .subtitle{color:#888;font-size:0.9rem;margin-bottom:1.5rem}
 
-/* Login */
-.login-box{max-width:350px;margin:4rem auto;text-align:center}
-.login-box h2{margin-bottom:1rem}
-.login-box input{width:100%;padding:0.75rem;border:1px solid #333;border-radius:6px;background:#16213e;color:#eee;font-size:1rem;margin-bottom:0.75rem}
-.login-box button{width:100%;padding:0.75rem;border:none;border-radius:6px;background:#e94560;color:#fff;font-size:1rem;cursor:pointer;font-weight:bold}
-.login-box button:hover{background:#c73e55}
-.login-error{color:#f44336;font-size:0.85rem;margin-bottom:0.5rem}
+/* Auth gate */
+.auth-gate{max-width:400px;margin:4rem auto;text-align:center}
+.auth-gate h2{margin-bottom:0.5rem}
+.auth-gate p{color:#888;font-size:0.9rem;margin-bottom:1.5rem}
+.btn-google{display:inline-flex;align-items:center;gap:0.5rem;padding:0.75rem 1.5rem;border:none;border-radius:6px;background:#fff;color:#333;font-size:1rem;cursor:pointer;font-weight:500}
+.btn-google:hover{background:#f0f0f0}
+.btn-google svg{width:18px;height:18px}
+.auth-error{color:#f44336;font-size:0.85rem;margin-top:1rem}
+.auth-loading{color:#0abde3;font-size:0.9rem}
+.btn-signout{background:none;border:1px solid #666;color:#aaa;padding:0.4rem 0.8rem;border-radius:4px;cursor:pointer;font-size:0.8rem}
+.btn-signout:hover{color:#fff;border-color:#aaa}
 
 /* Reset banner */
 .reset-banner{background:#e94560;border-radius:8px;padding:1rem;display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:0.5rem}
@@ -326,26 +397,26 @@ h1{font-size:1.3rem;margin-bottom:0.5rem}
 .rescue-link{text-align:center;margin-top:1.5rem;padding-top:1rem;border-top:1px solid rgba(255,255,255,0.1)}
 .rescue-link a{color:#888;font-size:0.8rem;text-decoration:none}
 .rescue-link a:hover{color:#e94560}
+
+.hidden{display:none!important}
 </style>
 </head>
 <body>
 
-<?php if (!$authenticated): ?>
-<!-- Login form -->
-<div class="login-box">
+<!-- Auth gate (shown when not signed in) -->
+<div id="auth-gate" class="auth-gate hidden">
   <h2>Branch Manager</h2>
-  <p style="color:#888;margin-bottom:1.5rem">Enter deploy token to continue</p>
-  <?php if (isset($_POST['token'])): ?>
-    <div class="login-error">Invalid token</div>
-  <?php endif; ?>
-  <form method="post">
-    <input type="password" name="token" placeholder="Deploy token" autofocus>
-    <button type="submit">Sign In</button>
-  </form>
+  <p>Sign in with your admin Google account to manage staging branches.</p>
+  <div id="auth-loading" class="auth-loading">Loading Firebase...</div>
+  <button id="btn-google-signin" class="btn-google hidden">
+    <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+    Sign in with Google
+  </button>
+  <div id="auth-error" class="auth-error hidden"></div>
 </div>
 
-<?php else: ?>
-<!-- Dashboard -->
+<!-- Dashboard (shown when authenticated) -->
+<div id="dashboard" class="<?= $authenticated ? '' : 'hidden' ?>">
 <div class="container">
   <nav class="nav">
     <a href="./">Home</a>
@@ -354,6 +425,8 @@ h1{font-size:1.3rem;margin-bottom:0.5rem}
     <a href="admin-image-gen">ImageAI</a>
     <a href="dev-dashboard">Dev</a>
     <a href="branch-manager.php" class="active">Branch</a>
+    <span style="margin-left:auto"></span>
+    <button class="btn-signout" id="btn-signout">Sign Out</button>
   </nav>
 
   <h1>Branch Manager</h1>
@@ -405,144 +478,277 @@ h1{font-size:1.3rem;margin-bottom:0.5rem}
     <a href="rescue.php">Emergency rescue (reset to main without auth)</a>
   </div>
 </div>
+</div>
 
-<script>
-(function() {
-  'use strict';
+<script type="module">
+'use strict';
 
-  var apiUrl = 'branch-manager.php';
-  var statusBox = document.getElementById('status-box');
-  var outputLog = document.getElementById('output-log');
-  var apiBranches = [];
-  var clientBranches = [];
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyC6QJz6jTzJkBWV7Shd9XpCfHWrovJ9vaI",
+  authDomain: "carkedit-5cc8e.firebaseapp.com",
+  projectId: "carkedit-5cc8e",
+  storageBucket: "carkedit-5cc8e.firebasestorage.app",
+  messagingSenderId: "144073275425",
+  appId: "1:144073275425:web:2301fbbccc2be69c654b60",
+};
 
-  function showStatus(msg, type) {
-    statusBox.className = 'status ' + type;
-    statusBox.textContent = msg;
-    outputLog.textContent = '';
+const PHP_AUTHED = <?= $authenticated ? 'true' : 'false' ?>;
+
+let firebaseAuth = null;
+let authModule = null;
+
+/* ---------------------------------------------------------------- */
+/*  Firebase auth                                                    */
+/* ---------------------------------------------------------------- */
+
+async function loadFirebase() {
+  const [appMod, authMod] = await Promise.all([
+    import('https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js'),
+    import('https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js'),
+  ]);
+  const app = appMod.initializeApp(FIREBASE_CONFIG);
+  firebaseAuth = authMod.getAuth(app);
+  authModule = authMod;
+  return authMod;
+}
+
+async function verifyWithServer(idToken) {
+  const res = await fetch('branch-manager.php?action=auth', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: 'idToken=' + encodeURIComponent(idToken),
+  });
+  return res.ok;
+}
+
+async function initAuth() {
+  const authLoading = document.getElementById('auth-loading');
+  const btnGoogle   = document.getElementById('btn-google-signin');
+  const authError   = document.getElementById('auth-error');
+  const authGate    = document.getElementById('auth-gate');
+  const dashboard   = document.getElementById('dashboard');
+
+  try {
+    await loadFirebase();
+  } catch (err) {
+    authLoading.textContent = 'Failed to load Firebase. Check your network.';
+    return;
   }
 
-  function showResult(data) {
-    if (data.status === 'ok') {
-      showStatus('Branch switch successful. Reloading status...', 'ok');
-    } else {
-      showStatus('Branch switch completed with errors.', 'error');
+  authLoading.classList.add('hidden');
+
+  // If already PHP-authed (session), just set up the sign-out handler
+  if (PHP_AUTHED) {
+    setupSignOut();
+    loadStatus();
+    return;
+  }
+
+  // Watch for Firebase auth state
+  authModule.onAuthStateChanged(firebaseAuth, async (fbUser) => {
+    if (!fbUser) {
+      // Show sign-in button
+      authGate.classList.remove('hidden');
+      btnGoogle.classList.remove('hidden');
+      authError.classList.add('hidden');
+      dashboard.classList.add('hidden');
+      return;
     }
-    if (data.results) {
-      var log = '';
-      for (var key in data.results) {
-        var r = data.results[key];
-        log += '--- ' + key + ' (rc=' + r.rc + ') ---\n';
-        if (r.output) log += r.output.join('\n') + '\n';
+
+    // User signed in — verify admin with server
+    authGate.classList.remove('hidden');
+    btnGoogle.classList.add('hidden');
+    authError.classList.add('hidden');
+    authLoading.textContent = 'Verifying admin access...';
+    authLoading.classList.remove('hidden');
+
+    try {
+      const idToken = await fbUser.getIdToken();
+      const isAdmin = await verifyWithServer(idToken);
+
+      if (isAdmin) {
+        authGate.classList.add('hidden');
+        dashboard.classList.remove('hidden');
+        setupSignOut();
+        loadStatus();
+      } else {
+        authLoading.classList.add('hidden');
+        authError.textContent = 'Your account is not an admin. Ask an admin to flag you via /admin-users.';
+        authError.classList.remove('hidden');
+        // Show a sign-out option
+        btnGoogle.textContent = 'Sign out & try another account';
+        btnGoogle.classList.remove('hidden');
+        btnGoogle.onclick = async () => {
+          await authModule.signOut(firebaseAuth);
+          btnGoogle.textContent = 'Sign in with Google';
+          btnGoogle.onclick = doGoogleSignIn;
+        };
       }
-      outputLog.textContent = log;
+    } catch (err) {
+      authLoading.classList.add('hidden');
+      authError.textContent = 'Failed to verify: ' + (err.message || err);
+      authError.classList.remove('hidden');
     }
-    setTimeout(loadStatus, 1500);
+  });
+
+  async function doGoogleSignIn() {
+    try {
+      const provider = new authModule.GoogleAuthProvider();
+      await authModule.signInWithPopup(firebaseAuth, provider);
+    } catch (err) {
+      authError.textContent = 'Sign-in failed: ' + (err.message || err);
+      authError.classList.remove('hidden');
+    }
   }
 
-  function populateSelect(el, branches, current) {
-    el.innerHTML = '';
-    branches.forEach(function(b) {
-      var opt = document.createElement('option');
-      opt.value = b;
-      opt.textContent = b + (b === current ? ' (current)' : '');
-      if (b === current) opt.selected = true;
-      el.appendChild(opt);
+  btnGoogle.addEventListener('click', doGoogleSignIn);
+}
+
+function setupSignOut() {
+  document.getElementById('btn-signout').addEventListener('click', async () => {
+    try {
+      if (firebaseAuth) await authModule.signOut(firebaseAuth);
+    } catch {}
+    await fetch('branch-manager.php?action=logout');
+    window.location.reload();
+  });
+}
+
+/* ---------------------------------------------------------------- */
+/*  Branch management (same as before)                               */
+/* ---------------------------------------------------------------- */
+
+const apiUrl = 'branch-manager.php';
+let apiBranches = [];
+let clientBranches = [];
+
+function showStatus(msg, type) {
+  const box = document.getElementById('status-box');
+  box.className = 'status ' + type;
+  box.textContent = msg;
+  document.getElementById('output-log').textContent = '';
+}
+
+function showResult(data) {
+  if (data.status === 'ok') {
+    showStatus('Branch switch successful. Reloading status...', 'ok');
+  } else {
+    showStatus('Branch switch completed with errors.', 'error');
+  }
+  if (data.results) {
+    let log = '';
+    for (const key in data.results) {
+      const r = data.results[key];
+      log += '--- ' + key + ' (rc=' + r.rc + ') ---\n';
+      if (r.output) log += r.output.join('\n') + '\n';
+    }
+    document.getElementById('output-log').textContent = log;
+  }
+  setTimeout(loadStatus, 1500);
+}
+
+function populateSelect(el, branches, current) {
+  el.innerHTML = '';
+  branches.forEach(b => {
+    const opt = document.createElement('option');
+    opt.value = b;
+    opt.textContent = b + (b === current ? ' (current)' : '');
+    if (b === current) opt.selected = true;
+    el.appendChild(opt);
+  });
+}
+
+function loadStatus() {
+  fetch(apiUrl + '?action=status')
+    .then(r => r.json())
+    .then(data => {
+      clientBranches = data.client.branches || [];
+      apiBranches = data.api.branches || [];
+
+      document.getElementById('client-current').textContent = data.client.current;
+      document.getElementById('api-current').textContent = data.api.current;
+
+      populateSelect(document.getElementById('client-select'), clientBranches, data.client.current);
+      populateSelect(document.getElementById('api-select'), apiBranches, data.api.current);
+      populateSelect(document.getElementById('linked-select'), clientBranches, data.client.current);
+
+      updateLinkedLabel();
+
+      document.getElementById('btn-client').disabled = false;
+      document.getElementById('btn-api').disabled = false;
+      document.getElementById('btn-linked').disabled = false;
+    })
+    .catch(err => {
+      showStatus('Failed to load status: ' + err.message, 'error');
     });
-  }
+}
 
-  function loadStatus() {
-    fetch(apiUrl + '?action=status')
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        clientBranches = data.client.branches || [];
-        apiBranches = data.api.branches || [];
+function updateLinkedLabel() {
+  const clientBranch = document.getElementById('linked-select').value;
+  const matchingApi = apiBranches.indexOf(clientBranch) >= 0 ? clientBranch : 'main';
+  document.getElementById('linked-api-label').textContent = 'API: ' + matchingApi;
+}
 
-        document.getElementById('client-current').textContent = data.client.current;
-        document.getElementById('api-current').textContent = data.api.current;
+document.getElementById('linked-select').addEventListener('change', updateLinkedLabel);
 
-        populateSelect(document.getElementById('client-select'), clientBranches, data.client.current);
-        populateSelect(document.getElementById('api-select'), apiBranches, data.api.current);
-        populateSelect(document.getElementById('linked-select'), clientBranches, data.client.current);
+function disableAll() {
+  ['btn-client', 'btn-api', 'btn-linked', 'btn-reset'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = true;
+  });
+}
 
-        updateLinkedLabel();
+function enableAll() {
+  ['btn-client', 'btn-api', 'btn-linked', 'btn-reset'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = false;
+  });
+}
 
-        document.getElementById('btn-client').disabled = false;
-        document.getElementById('btn-api').disabled = false;
-        document.getElementById('btn-linked').disabled = false;
-      })
-      .catch(function(err) {
-        showStatus('Failed to load status: ' + err.message, 'error');
-      });
-  }
+window.switchLinked = function() {
+  const clientBranch = document.getElementById('linked-select').value;
+  const apiBranch = apiBranches.indexOf(clientBranch) >= 0 ? clientBranch : 'main';
+  showStatus('Deploying client: ' + clientBranch + ', API: ' + apiBranch + '...', 'loading');
+  disableAll();
+  fetch(apiUrl + '?action=switch&client=' + encodeURIComponent(clientBranch) + '&api=' + encodeURIComponent(apiBranch))
+    .then(r => r.json())
+    .then(showResult)
+    .catch(err => { showStatus('Error: ' + err.message, 'error'); enableAll(); });
+};
 
-  function updateLinkedLabel() {
-    var clientBranch = document.getElementById('linked-select').value;
-    var matchingApi = apiBranches.indexOf(clientBranch) >= 0 ? clientBranch : 'main';
-    document.getElementById('linked-api-label').textContent = 'API: ' + matchingApi;
-  }
+window.switchClient = function() {
+  const branch = document.getElementById('client-select').value;
+  showStatus('Deploying client: ' + branch + '...', 'loading');
+  disableAll();
+  fetch(apiUrl + '?action=switch&client=' + encodeURIComponent(branch))
+    .then(r => r.json())
+    .then(showResult)
+    .catch(err => { showStatus('Error: ' + err.message, 'error'); enableAll(); });
+};
 
-  document.getElementById('linked-select').addEventListener('change', updateLinkedLabel);
+window.switchApi = function() {
+  const branch = document.getElementById('api-select').value;
+  showStatus('Deploying API: ' + branch + '...', 'loading');
+  disableAll();
+  fetch(apiUrl + '?action=switch&api=' + encodeURIComponent(branch))
+    .then(r => r.json())
+    .then(showResult)
+    .catch(err => { showStatus('Error: ' + err.message, 'error'); enableAll(); });
+};
 
-  window.switchLinked = function() {
-    var clientBranch = document.getElementById('linked-select').value;
-    var apiBranch = apiBranches.indexOf(clientBranch) >= 0 ? clientBranch : 'main';
-    showStatus('Deploying client: ' + clientBranch + ', API: ' + apiBranch + '...', 'loading');
-    disableAll();
-    fetch(apiUrl + '?action=switch&client=' + encodeURIComponent(clientBranch) + '&api=' + encodeURIComponent(apiBranch))
-      .then(function(r) { return r.json(); })
-      .then(showResult)
-      .catch(function(err) { showStatus('Error: ' + err.message, 'error'); enableAll(); });
-  };
+window.resetToMain = function() {
+  if (!confirm('Reset both repos to main? This will restart the API server.')) return;
+  showStatus('Resetting everything to main...', 'loading');
+  disableAll();
+  fetch(apiUrl + '?action=switch&client=main&api=main')
+    .then(r => r.json())
+    .then(showResult)
+    .catch(err => { showStatus('Error: ' + err.message, 'error'); enableAll(); });
+};
 
-  window.switchClient = function() {
-    var branch = document.getElementById('client-select').value;
-    showStatus('Deploying client: ' + branch + '...', 'loading');
-    disableAll();
-    fetch(apiUrl + '?action=switch&client=' + encodeURIComponent(branch))
-      .then(function(r) { return r.json(); })
-      .then(showResult)
-      .catch(function(err) { showStatus('Error: ' + err.message, 'error'); enableAll(); });
-  };
-
-  window.switchApi = function() {
-    var branch = document.getElementById('api-select').value;
-    showStatus('Deploying API: ' + branch + '...', 'loading');
-    disableAll();
-    fetch(apiUrl + '?action=switch&api=' + encodeURIComponent(branch))
-      .then(function(r) { return r.json(); })
-      .then(showResult)
-      .catch(function(err) { showStatus('Error: ' + err.message, 'error'); enableAll(); });
-  };
-
-  window.resetToMain = function() {
-    if (!confirm('Reset both repos to main? This will restart the API server.')) return;
-    showStatus('Resetting everything to main...', 'loading');
-    disableAll();
-    fetch(apiUrl + '?action=switch&client=main&api=main')
-      .then(function(r) { return r.json(); })
-      .then(showResult)
-      .catch(function(err) { showStatus('Error: ' + err.message, 'error'); enableAll(); });
-  };
-
-  function disableAll() {
-    ['btn-client', 'btn-api', 'btn-linked', 'btn-reset'].forEach(function(id) {
-      var el = document.getElementById(id);
-      if (el) el.disabled = true;
-    });
-  }
-
-  function enableAll() {
-    ['btn-client', 'btn-api', 'btn-linked', 'btn-reset'].forEach(function(id) {
-      var el = document.getElementById(id);
-      if (el) el.disabled = false;
-    });
-  }
-
-  loadStatus();
-})();
+/* Boot */
+initAuth();
 </script>
-<?php endif; ?>
 
 </body>
 </html>
