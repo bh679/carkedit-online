@@ -13,7 +13,7 @@ const REPOS = [
   { name: 'bh679/carkedit-client', color: 'var(--color-text-muted)', label: 'client', outdated: true },
   { name: 'bh679/fill-in-the-blank', color: 'var(--color-text-muted)', label: 'fitb', outdated: true },
 ];
-const API = 'https://api.github.com';
+const GH_PROXY = '/api/carkedit/github';
 const CACHE_TTL = 5 * 60 * 1000;
 const DECK_TYPES = ['die', 'live', 'bye'];
 
@@ -24,6 +24,7 @@ const DESIGN_DOCS = [
 ];
 
 // ── State ─────────────────────────────────────────────
+let _fbAuth = null;
 const miniState = { decks: {}, deckType: 'die', index: 0 };
 const commitCache = new Map();
 const fetchedData = { commits: null, events: null, issues: null };
@@ -33,13 +34,14 @@ let rateLimitRemaining = null;
 let rateLimitTotal = null;
 let rateLimitReset = null;
 
-// ── GitHub API Helper ─────────────────────────────────
+// ── GitHub API Helper (server-side proxy) ────────────
 
-function getToken() {
-  const params = new URLSearchParams(window.location.search);
-  const t = params.get('token');
-  if (t) sessionStorage.setItem('gh_token', t);
-  return sessionStorage.getItem('gh_token');
+async function getAuthHeaders() {
+  const h = {};
+  if (_fbAuth?.currentUser) {
+    h.Authorization = `Bearer ${await _fbAuth.currentUser.getIdToken()}`;
+  }
+  return h;
 }
 
 async function ghFetch(path) {
@@ -50,18 +52,14 @@ async function ghFetch(path) {
     if (Date.now() - ts < CACHE_TTL) return data;
   }
 
-  const headers = { Accept: 'application/vnd.github.v3+json' };
-  const token = getToken();
-  if (token) headers.Authorization = `token ${token}`;
-
-  const res = await fetch(`${API}${path}`, { headers });
+  const res = await fetch(`${GH_PROXY}${path}`, { headers: await getAuthHeaders() });
   rateLimitRemaining = res.headers.get('X-RateLimit-Remaining');
   rateLimitTotal = res.headers.get('X-RateLimit-Limit');
   const resetHeader = res.headers.get('X-RateLimit-Reset');
   if (resetHeader) rateLimitReset = parseInt(resetHeader, 10);
 
   if (!res.ok) {
-    if (res.status === 403) throw new Error('Rate limited — try again later or add ?token=ghp_...');
+    if (res.status === 403) throw new Error('Rate limited — try again later');
     throw new Error(`GitHub API ${res.status}`);
   }
 
@@ -74,15 +72,9 @@ async function ghFetch(path) {
 }
 
 async function ghPost(path, body) {
-  const token = getToken();
-  if (!token) throw new Error('GitHub token required — add ?token=ghp_...');
-  const res = await fetch(`${API}${path}`, {
+  const res = await fetch(`${GH_PROXY}${path}`, {
     method: 'POST',
-    headers: {
-      Accept: 'application/vnd.github.v3+json',
-      Authorization: `token ${token}`,
-      'Content-Type': 'application/json',
-    },
+    headers: { ...(await getAuthHeaders()), 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
   if (!res.ok) {
@@ -1115,7 +1107,6 @@ function closeDeployModal() {
 window.devDash = { switchDeck: miniSwitchDeck, nextCard: miniNextCard, showMore, toggleDoc, tagDeploy, confirmDeploy, closeDeployModal };
 
 // ── Admin Auth Gate ─────────────────────────────────
-let _fbAuth = null;
 let _fbUserInfo = null;
 
 let _showUserMenu = false;
@@ -1228,16 +1219,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       } catch { window.location.href = '/'; return; }
       _fbUserInfo = { displayName: user.displayName, photoURL: user.photoURL, email: user.email };
-      // Load GitHub token from server config (if not already set via URL param)
-      if (!getToken()) {
-        try {
-          const cfgRes = await fetch('/api/carkedit/dev/config', { headers: { Authorization: `Bearer ${token}` } });
-          if (cfgRes.ok) {
-            const cfg = await cfgRes.json();
-            if (cfg.githubToken) sessionStorage.setItem('gh_token', cfg.githubToken);
-          }
-        } catch { /* ignore — token just won't be available */ }
-      }
       await init();
       injectAuthBar();
     });
