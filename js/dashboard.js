@@ -1544,15 +1544,16 @@ window.dash = { cyclePlayTime, cycleGamesCount, toggleGame, cycleDeckFilter, set
 function renderAuthGate(message, showSignIn = true) {
   const app = document.getElementById('app');
   app.innerHTML = `
+    ${renderAdminHeader()}
     <div class="dashboard" style="display:flex;align-items:center;justify-content:center;min-height:80vh">
       <div style="text-align:center;max-width:400px">
-        <h1 style="margin-bottom:0.5em">CarkedIt Dashboard</h1>
+        <h1 style="margin-bottom:0.5em">CarkedIt Stats</h1>
         <p style="color:#888;margin-bottom:1.5em">${message}</p>
         ${showSignIn ? '<button class="btn btn--google" onclick="window.dash.signInWithGoogle()" style="font-size:1rem;padding:0.75em 1.5em">Sign in with Google</button>' : ''}
-        <div style="margin-top:1.5em"><a href="/" class="btn" style="background:transparent;color:var(--color-text-muted,#888);font-size:0.875rem;text-decoration:none">Back to Main Menu</a></div>
       </div>
     </div>
   `;
+  bindAdminHeader(app, {});
 }
 
 async function signInWithGoogle() {
