@@ -1,11 +1,11 @@
 'use strict';
 
-import { setStateSetter, initAuth, signInWithGoogle, getAuthToken, logOut } from '../managers/auth-manager.js';
+import { setStateSetter, initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, getAuthToken, logOut } from '../managers/auth-manager.js';
 import { render as renderCardList, bindScrollArrows } from '../components/card-list.js';
 import { renderPackCard } from '../components/pack-card.js';
 import { render as renderPackBg } from '../components/pack-card-background.js';
 import { setList as setPreviewList } from '../components/card-preview-overlay.js';
-import { mount as mountDesigner, unmount as unmountDesigner, syncAuth as syncDesignerAuth, getView as getDesignerView } from '../card-designer/app.js';
+import { mount as mountDesigner, unmount as unmountDesigner, syncAuth as syncDesignerAuth, getView as getDesignerView, editPack } from '../card-designer/app.js';
 
 const API_BASE = `${window.location.origin}/api/carkedit`;
 
@@ -39,6 +39,8 @@ const state = {
   authLoading: true,
   authToken: null,
   showUserMenu: false,
+  loginMode: 'signin',              // 'signin' | 'signup'
+  loginError: null,
   designerFullscreen: false,
   loading: false,
   error: null,
@@ -366,14 +368,62 @@ function renderBrowseRows() {
   }).join('');
 }
 
+function renderLoginGate(prompt) {
+  const isSignUp = state.loginMode === 'signup';
+  const title = isSignUp ? 'Create Account' : 'Sign In';
+  const submitLabel = isSignUp ? 'Create Account' : 'Sign In';
+  const toggleText = isSignUp
+    ? 'Already have an account? <a href="#" data-action="switch-to-signin">Sign In</a>'
+    : 'Don\'t have an account? <a href="#" data-action="switch-to-signup">Sign Up</a>';
+  const error = state.loginError ? `<div class="login-modal__error">${esc(state.loginError)}</div>` : '';
+  return `
+    <div class="designer__login-gate">
+      <p class="designer__login-prompt">${esc(prompt)}</p>
+      <div class="login-modal" style="position:static; margin:0 auto;">
+        <h2 class="login-modal__title">${title}</h2>
+        <button class="btn btn--google" data-action="sign-in-google">Sign in with Google</button>
+        <div class="login-modal__divider"><span>or</span></div>
+        <form class="login-modal__form" data-action="submit-email-auth">
+          <input type="email" name="email" class="login-modal__input" placeholder="Email" required />
+          <input type="password" name="password" class="login-modal__input" placeholder="Password" required minlength="6" />
+          ${error}
+          <button type="submit" class="btn btn--primary login-modal__submit">${submitLabel}</button>
+        </form>
+        <div class="login-modal__toggle">${toggleText}</div>
+      </div>
+    </div>
+  `;
+}
+
 function renderFavourites() {
   if (!state.authUser && !state.authLoading) {
-    return '<p class="marketplace__empty">Sign in to see your Favourites.<br><button class="btn btn--primary" data-action="signin">Sign in with Google</button></p>';
+    return renderLoginGate('Sign in to see your Favourites.');
   }
   const f = state.favourites;
   if (f.loading) return '<p class="marketplace__loading">Loading…</p>';
   if (f.error) return `<p class="marketplace__error">${esc(f.error)}</p>`;
   if (f.packs.length === 0) return '<p class="marketplace__empty">No favourites yet — browse expansions and tap ★ to save them.</p>';
+  if (f.packs.length < 10) {
+    const items = f.packs.map((p) => {
+      const cardCount = p.card_count ?? 0;
+      const fav = !!p.is_favorited;
+      return `
+        <div class="designer__pack-item" data-pack-id="${esc(p.id)}" data-action="open" style="cursor:pointer">
+          ${renderPackBg(p)}
+          <div class="designer__pack-info">
+            <span class="designer__pack-title">${esc(p.title)}</span>
+            <span class="designer__pack-meta">${cardCount} cards &middot; by ${esc(p.creator_name || 'Unknown')}</span>
+          </div>
+          <div class="designer__pack-actions">
+            <button class="pack-card__save ${fav ? 'pack-card__save--saved' : ''}" data-action="toggle-fav" data-pack-id="${esc(p.id)}" data-fav="${fav}">
+              ${fav ? '★' : '☆'}
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+    return `<div class="designer__pack-list">${items}</div>`;
+  }
   return `<div class="marketplace__grid">${f.packs.map(renderPackCard).join('')}</div>`;
 }
 
@@ -443,6 +493,9 @@ function renderDetail() {
       </div>
       ${sectionsHtml}
       <div class="menu__actions marketplace__actions">
+        ${state.authUser?.id === p.creator_id ? `
+          <button class="btn btn--primary" data-action="edit-pack" data-pack-id="${esc(p.id)}">Edit Pack</button>
+        ` : ''}
         <button class="btn mode-select__back-btn menu__site-link" data-action="back">&larr; Back</button>
       </div>
     </div>
@@ -489,7 +542,16 @@ function onAction(e) {
       setState({ showUserMenu: false });
       break;
     case 'signin':
+    case 'sign-in-google':
       signInWithGoogle();
+      break;
+    case 'switch-to-signup':
+      e.preventDefault();
+      setState({ loginMode: 'signup', loginError: null });
+      break;
+    case 'switch-to-signin':
+      e.preventDefault();
+      setState({ loginMode: 'signin', loginError: null });
       break;
     case 'open': {
       const id = target.getAttribute('data-pack-id');
@@ -501,6 +563,14 @@ function onAction(e) {
       const id = target.getAttribute('data-pack-id');
       const fav = target.getAttribute('data-fav') === 'true';
       if (id) toggleFavorite(id, fav);
+      break;
+    }
+    case 'edit-pack': {
+      const id = target.getAttribute('data-pack-id');
+      if (id) {
+        setState({ tab: 'my-packs', view: 'list', selectedPack: null });
+        editPack(id);
+      }
       break;
     }
     case 'back':
@@ -515,6 +585,23 @@ function onAction(e) {
 document.addEventListener('click', (e) => {
   if (state.showUserMenu && !e.target.closest('.auth-bar')) {
     setState({ showUserMenu: false });
+  }
+});
+
+document.addEventListener('submit', async (e) => {
+  const form = e.target.closest('[data-action="submit-email-auth"]');
+  if (!form || !document.getElementById('app')?.contains(form)) return;
+  e.preventDefault();
+  const email = form.querySelector('[name="email"]').value;
+  const password = form.querySelector('[name="password"]').value;
+  try {
+    if (state.loginMode === 'signup') {
+      await signUpWithEmail(email, password);
+    } else {
+      await signInWithEmail(email, password);
+    }
+  } catch (err) {
+    setState({ loginError: err.message || 'Authentication failed' });
   }
 });
 

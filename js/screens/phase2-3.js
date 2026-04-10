@@ -9,6 +9,7 @@ import { render as renderCardGrid } from '../components/card-grid.js';
 import { render as renderLivingDeadProfile } from '../components/living-dead-profile.js';
 import { render as renderPassPhone } from '../components/pass-phone.js';
 import { render as renderCardBack } from '../components/cardBack.js';
+import { escapeHtml } from '../utils/escape.js';
 
 const PHASE_CONFIG = {
   live: { number: '2', label: 'Phase 2 - LIVE', deckType: 'live', nextScreen: 'phase3' },
@@ -298,8 +299,8 @@ function renderJudgingScreen(config, state, playerListOptions, nonDeadPlayers) {
       if (!card) return null;
       return {
         card: { ...card, deckType: card.deckType || config.deckType },
-        label: `${p.name}'s card`,
-        onClick: `window.game.inspectJudgingCard('${p.name}')`,
+        label: `${escapeHtml(p.name)}'s card`,
+        onClick: `window.game.inspectJudgingCard(${escapeHtml(JSON.stringify(p.name))})`,
       };
     })
     .filter(Boolean);
@@ -525,8 +526,8 @@ function renderOnlineSelect(config, state, playerListOptions, livingDeadName) {
     const name = player?.name ?? 'Unknown';
     return {
       card: { ...card, deckType: card.deckType || config.deckType },
-      label: `${name}'s card`,
-      onClick: `window.game.inspectJudgingCard('${name}')`,
+      label: `${escapeHtml(name)}'s card`,
+      onClick: `window.game.inspectJudgingCard(${escapeHtml(JSON.stringify(name))})`,
       playerName: name,
     };
   });
@@ -612,7 +613,7 @@ function renderPhaseCompleteScreen(config, state) {
   const sortedPlayers = [...state.players].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
   const scoreRows = sortedPlayers.map(p => `
     <div class="scoreboard__row">
-      <span class="scoreboard__name">${p.name}</span>
+      <span class="scoreboard__name">${escapeHtml(p.name)}</span>
       <span class="scoreboard__score">${p.score ?? 0}</span>
     </div>
   `).join('');

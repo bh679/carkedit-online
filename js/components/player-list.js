@@ -1,6 +1,8 @@
 // CarkedIt Online — Player List Component
 'use strict';
 
+import { escapeHtml } from '../utils/escape.js';
+
 export const PERSON_ICON = `<svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
   <circle cx="5" cy="3.5" r="2" fill="#6b7280"/>
   <path d="M1 9.5C1 7.567 2.791 6 5 6s4 1.567 4 3.5" stroke="#6b7280" stroke-width="1.5" stroke-linecap="round"/>
@@ -68,17 +70,17 @@ export function render(players = [], {
       isPitching ? ' player-list__chip--pitching' : '',
       isActive ? ' player-list__chip--active' : '',
     ].join('');
-    const escapedName = p.name.replace(/'/g, "\\'");
+    const safeNameJs = JSON.stringify(p.name);
     const clickAttr = allowRemove
-      ? ` onclick="window.game.selectPlayerRemoval('${escapedName}')" style="cursor:pointer"`
+      ? ` onclick="window.game.selectPlayerRemoval(${escapeHtml(safeNameJs)})" style="cursor:pointer"`
       : '';
     const removeBtn = isSelected
-      ? `<button class="player-list__remove-btn" onclick="event.stopPropagation(); window.game.removePlayer('${escapedName}')" aria-label="Remove ${p.name}">✕</button>`
+      ? `<button class="player-list__remove-btn" onclick="event.stopPropagation(); window.game.removePlayer(${escapeHtml(safeNameJs)})" aria-label="Remove ${escapeHtml(p.name)}">✕</button>`
       : '';
     return `
       <div class="player-list__chip${modifiers}"${clickAttr}>
         <span class="player-list__icon">${icon}</span>
-        <span class="player-list__name">${p.name}</span>
+        <span class="player-list__name">${escapeHtml(p.name)}</span>
         ${(allowRemove || isActive || isLivingDead) && formatBirthday(p)
           ? `<span class="player-list__birthday">${formatBirthday(p)}</span>`
           : `<span class="player-list__score">${score}</span>`
