@@ -1225,6 +1225,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       } catch { window.location.href = '/'; return; }
       _fbUserInfo = { displayName: user.displayName, photoURL: user.photoURL, email: user.email };
+      // Load GitHub token from server config (if not already set via URL param)
+      if (!getToken()) {
+        try {
+          const cfgRes = await fetch('/api/carkedit/dev/config', { headers: { Authorization: `Bearer ${token}` } });
+          if (cfgRes.ok) {
+            const cfg = await cfgRes.json();
+            if (cfg.githubToken) sessionStorage.setItem('gh_token', cfg.githubToken);
+          }
+        } catch { /* ignore — token just won't be available */ }
+      }
       await init();
       injectAuthBar();
     });
