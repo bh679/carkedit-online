@@ -1,6 +1,7 @@
 'use strict';
 
 import { render as renderCard } from '../components/card.js';
+import { render as renderCardBack } from '../components/cardBack.js';
 import { buildCard } from '../data/card.js';
 import { render as renderPackBg } from '../components/pack-card-background.js';
 import { render as renderCardList, bindScrollArrows } from '../components/card-list.js';
@@ -405,8 +406,12 @@ function renderCardForm() {
 
   const picker = deckTypes.map(type => {
     const label = type.charAt(0).toUpperCase() + type.slice(1);
-    const active = state.cardFormDeckType === type ? 'designer__deck-btn--active' : '';
-    return `<button class="btn btn--small designer__deck-btn ${active}" data-action="set-deck-type" data-type="${type}">${label}</button>`;
+    const active = state.cardFormDeckType === type;
+    const cls = `designer__deck-card-btn ${active ? 'designer__deck-card-btn--active' : ''}`;
+    return `<button class="${cls}" data-action="set-deck-type" data-type="${type}">
+      ${renderCardBack({ deckType: type })}
+      <span class="designer__deck-card-label">${label}</span>
+    </button>`;
   }).join('');
 
   const isDie = state.cardFormDeckType === 'die';
@@ -423,13 +428,29 @@ function renderCardForm() {
     image_url: editing?.image_url || '',
   }, { source: 'designer' }));
 
+  const variantDefs = [
+    { label: 'Standard', special: '', title: 'Standard' },
+    { label: 'Mystery (?)', special: '?', title: 'Mystery' },
+    { label: 'Would You Rather', special: 'Split', title: 'Option A', options: ['Option A', 'Option B'] },
+  ];
   const variantPicker = isDie ? `
         <div class="designer__field">
           <span class="designer__label">Die Card Type</span>
           <div class="designer__deck-picker">
-            <button class="btn btn--small designer__deck-btn ${state.cardFormSpecial === '' ? 'designer__deck-btn--active' : ''}" data-action="set-special" data-special="">Standard</button>
-            <button class="btn btn--small designer__deck-btn ${isMystery ? 'designer__deck-btn--active' : ''}" data-action="set-special" data-special="?">Mystery (?)</button>
-            <button class="btn btn--small designer__deck-btn ${isSplit ? 'designer__deck-btn--active' : ''}" data-action="set-special" data-special="Split">Would You Rather</button>
+            ${variantDefs.map(v => {
+              const active = state.cardFormSpecial === v.special;
+              const cls = `designer__deck-card-btn ${active ? 'designer__deck-card-btn--active' : ''}`;
+              const card = buildCard({
+                title: v.title,
+                deckType: 'die',
+                special: v.special,
+                options: v.options || null,
+              }, { source: 'designer' });
+              return `<button class="${cls}" data-action="set-special" data-special="${v.special}">
+                ${renderCard(card)}
+                <span class="designer__deck-card-label">${v.label}</span>
+              </button>`;
+            }).join('')}
           </div>
         </div>` : '';
 
