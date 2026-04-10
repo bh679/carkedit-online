@@ -258,6 +258,15 @@ function cycleDateRange() {
   applyGameFilters();
 }
 
+async function autoSelectDateRange() {
+  const fallback = ['today', 'week', 'month', 'all'];
+  for (const range of fallback) {
+    filterDateRange = range;
+    await fetchGames(false);
+    if (gamesTotalCount > 0) return;
+  }
+}
+
 async function fetchStats() {
   try {
     const res = await authFetch(`${API_BASE}/api/carkedit/games/stats`);
@@ -1682,7 +1691,7 @@ async function bootDashboard() {
       .catch(() => updateVersionEl(el, 'Server', data.version, null, started || 'Could not check GitHub'));
   }).catch(() => {});
 
-  await Promise.all([fetchGames(), fetchStats(), fetchPeriodStats(), fetchCardStats(), fetchPackStats(), fetchSurveyStats(), fetchSurveyResponses(), loadCardData()]);
+  await Promise.all([autoSelectDateRange(), fetchStats(), fetchPeriodStats(), fetchCardStats(), fetchPackStats(), fetchSurveyStats(), fetchSurveyResponses(), loadCardData()]);
   renderStats();
   renderGameList();
   renderCardAnalytics();
