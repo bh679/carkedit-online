@@ -39,6 +39,8 @@ function renderItemFace(item) {
     deckType: deckTypeFor(item.deck),
     special: item.special || null,
     options: item.options || null,
+    text_position: item.text_position || '',
+    text_color: item.text_color || '',
   }));
 }
 

@@ -44,6 +44,8 @@ export function showAt(index) {
     deckType,
     special: item.special || null,
     options: item.options || null,
+    text_position: item.text_position || '',
+    text_color: item.text_color || '',
   }));
   const showNav = _list.length > 1;
   const prevBtn = showNav
