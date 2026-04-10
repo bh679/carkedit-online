@@ -139,6 +139,8 @@ function serverCardToLocal(serverCard) {
         // resilient during a mid-deploy window where the server hasn't
         // rolled out the new @type("string") image_url field yet.
         image_url: serverCard.image_url || match.image_url || '',
+        text_position: serverCard.text_position || match.text_position || '',
+        text_color: serverCard.text_color || match.text_color || '',
       }
     : {
         id: serverCard.id,
@@ -151,6 +153,8 @@ function serverCardToLocal(serverCard) {
         faceUp: serverCard.faceUp,
         submittedBy: serverCard.submittedBy,
         image_url: serverCard.image_url || '',
+        text_position: serverCard.text_position || '',
+        text_color: serverCard.text_color || '',
       };
   return buildCard(merged, { source: 'server' });
 }
