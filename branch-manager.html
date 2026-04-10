@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CarkedIt — Branch Manager</title>
+    <link rel="stylesheet" href="css/base.css?v=1.06.0104">
+    <link rel="stylesheet" href="css/components/auth.css?v=1.06.0104">
+    <link rel="stylesheet" href="css/components/admin-header.css?v=1.06.0104">
+    <link rel="stylesheet" href="css/dashboard.css?v=1.06.0104">
+    <style>
+        .bm { max-width: 700px; margin: 0 auto; padding: var(--space-md) var(--space-lg); }
+        .bm__gate { display: flex; align-items: center; justify-content: center; min-height: 60vh; text-align: center; }
+        .bm__gate h1 { font-size: 1.4rem; margin-bottom: var(--space-xs); }
+        .bm__gate p { color: var(--color-text-muted); margin-bottom: var(--space-md); font-size: 0.95rem; }
+        .bm__gate .btn { display: inline-block; padding: 0.8rem 1.5rem; background: var(--color-primary); color: #fff;
+            font-weight: 700; border-radius: var(--radius-sm); text-decoration: none; font-size: 1rem; border: none; cursor: pointer; }
+        .bm__gate .btn:hover { filter: brightness(1.15); }
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+    <script type="module">
+    import { renderAdminHeader, bindAdminHeader, resetAdminHeaderMenu } from './js/components/admin-header.js';
+
+    resetAdminHeaderMenu();
+    document.getElementById('app').innerHTML = `
+        ${renderAdminHeader()}
+        <div class="bm">
+            <div class="bm__gate">
+                <div>
+                    <h1>Branch Manager</h1>
+                    <p>Branch Manager requires PHP and is available on the staging server.</p>
+                    <a class="btn" href="https://brennan.games/carkedit-online/branch-manager.php">
+                        Open on brennan.games
+                    </a>
+                </div>
+            </div>
+        </div>`;
+    bindAdminHeader(document.getElementById('app'), {});
+    </script>
+</body>
+</html>
