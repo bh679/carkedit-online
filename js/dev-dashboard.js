@@ -871,54 +871,23 @@ async function init() {
     ).catch(() => [])
   );
 
-  const allRepos = REPOS;
-  const contribFetches = allRepos.map(repo =>
-    ghFetch(`/repos/${repo.name}/stats/commit_activity`).catch(() => null)
-  );
-
   const [commitsResults, contribResults, eventsResult, issuesResult] = await Promise.allSettled([
     Promise.all(commitFetches),
-    Promise.all(contribFetches),
+    ghFetch('/contrib-graph'),
     ghFetch(`/repos/${PRIMARY_REPO}/events?per_page=100`),
     ghFetch(`/repos/${PRIMARY_REPO}/issues?state=open&per_page=20&sort=updated`),
   ]);
 
   updateRateLimit();
 
-  // Update contrib graph (merged from all repos)
+  // Update contrib graph (pre-merged server-side)
   const contribEl = document.getElementById('section-contrib');
   if (contribEl && contribResults.status === 'fulfilled') {
     const contribData = contribResults.value;
-    const merged = mergeContribData(contribData);
-
-    // Persist for offline/rate-limited use
     persistData('contrib', contribData);
-
-    // Check if any repos returned non-array (202 = computing), clear their cache and retry
-    const incomplete = contribData.some(d => !Array.isArray(d) || d.length === 0);
-    if (incomplete) {
-      allRepos.forEach((repo, i) => {
-        if (!Array.isArray(contribData[i]) || contribData[i].length === 0) {
-          sessionStorage.removeItem(`gh:/repos/${repo.name}/stats/commit_activity`);
-        }
-      });
-      setTimeout(async () => {
-        const retryFetches = allRepos.map(repo =>
-          ghFetch(`/repos/${repo.name}/stats/commit_activity`).catch(() => null)
-        );
-        const retryData = await Promise.all(retryFetches);
-        const retryMerged = mergeContribData(retryData);
-        if (retryMerged && contribEl) {
-          contribEl.innerHTML = renderContribGraph(retryMerged);
-          persistData('contrib', retryData);
-        }
-        updateRateLimit();
-      }, 3000);
-    }
-
-    contribEl.innerHTML = merged
-      ? renderContribGraph(merged)
-      : '<p class="dash-empty">Loading contribution data... (retrying)</p>';
+    contribEl.innerHTML = Array.isArray(contribData) && contribData.length
+      ? renderContribGraph(contribData)
+      : '<p class="dash-empty">No contribution data available.</p>';
   } else if (contribEl && !cachedContrib) {
     contribEl.innerHTML = `<span class="dash-error">${escapeHtml(contribResults.reason?.message || 'Failed to load')}</span>`;
   }
