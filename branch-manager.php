@@ -827,7 +827,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         opt.value = b;
         const ver = versions && versions[b] ? ' (v' + versions[b] + ')' : '';
         const hasPR = prBranches && prBranches.has(b);
-        opt.textContent = (hasPR ? '● ' : '') + b + ver + (b === current ? ' — current' : '');
+        opt.textContent = b + ver + (b === current ? ' — current' : '') + (hasPR ? ' — PR' : '');
         if (hasPR) opt.classList.add('has-pr');
         if (b === current) opt.selected = true;
         el.appendChild(opt);
