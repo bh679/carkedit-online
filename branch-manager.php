@@ -400,6 +400,16 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         .bm__rescue a:hover { color: var(--color-danger, #e94560); }
 
         .hidden { display: none !important; }
+
+        /* Production overlay */
+        .bm__prod-banner { max-width: 700px; margin: var(--space-lg) auto var(--space-md); padding: var(--space-lg);
+            background: var(--color-surface); border: 2px solid var(--color-primary); border-radius: var(--radius-md);
+            text-align: center; position: relative; z-index: 10; }
+        .bm__prod-banner p { color: var(--color-text-muted); font-size: 1rem; margin-bottom: var(--space-md); }
+        .bm__prod-banner a { display: inline-block; padding: 0.8rem 1.5rem; background: var(--color-primary); color: #fff;
+            font-weight: 700; border-radius: var(--radius-sm); text-decoration: none; font-size: 1rem; }
+        .bm__prod-banner a:hover { filter: brightness(1.15); }
+        .bm--greyed { opacity: 0.35; pointer-events: none; user-select: none; }
     </style>
 </head>
 <body>
@@ -482,12 +492,21 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
       }
     }
 
+    const IS_PRODUCTION = ['carkedit.com', 'www.carkedit.com'].includes(window.location.hostname);
+    const STAGING_URL = 'https://brennan.games/carkedit-online/branch-manager.php';
+
     function renderDashboard() {
       resetAdminHeaderMenu();
       const app = document.getElementById('app');
+      const prodBanner = IS_PRODUCTION ? `
+        <div class="bm__prod-banner">
+          <p>If you want to play on different branches, go to our staging server</p>
+          <a href="${STAGING_URL}">Open Branch Manager on Staging</a>
+        </div>` : '';
       app.innerHTML = `
         ${renderAdminHeader({ user: fbUserInfo })}
-        <div class="bm">
+        ${prodBanner}
+        <div class="bm${IS_PRODUCTION ? ' bm--greyed' : ''}">`
           <h1 class="bm__title">Branch Manager</h1>
           <p class="bm__subtitle">Switch staging branches for carkedit-online and carkedit-api</p>
 
@@ -533,8 +552,10 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         </div>`;
 
       bindAdminHeader(app, { user: fbUserInfo, onSignOut: doSignOut });
-      bindDashboard();
-      loadStatus();
+      if (!IS_PRODUCTION) {
+        bindDashboard();
+        loadStatus();
+      }
     }
 
     /* ── Dashboard logic ──────────────────────────────── */
@@ -657,6 +678,11 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
 
     /* ── Boot ─────────────────────────────────────────── */
 
+    if (IS_PRODUCTION) {
+      // On production, show greyed-out dashboard with staging link — no auth needed
+      renderDashboard();
+    } else {
+
     renderGate('Loading...', false);
 
     try {
@@ -688,6 +714,8 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         }
       });
     }
+
+    } // end IS_PRODUCTION else
     </script>
 </body>
 </html>
