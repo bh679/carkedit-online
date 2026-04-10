@@ -506,7 +506,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
       app.innerHTML = `
         ${renderAdminHeader({ user: fbUserInfo })}
         ${prodBanner}
-        <div class="bm${IS_PRODUCTION ? ' bm--greyed' : ''}">`
+        <div class="bm${IS_PRODUCTION ? ' bm--greyed' : ''}">
           <h1 class="bm__title">Branch Manager</h1>
           <p class="bm__subtitle">Switch staging branches for carkedit-online and carkedit-api</p>
 
