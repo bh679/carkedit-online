@@ -136,10 +136,27 @@ if (!preg_match('/^[a-zA-Z0-9_\-\.\/]+$/', $branch)) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Deploy with step-by-step status                                    */
+/*  Branch-state check: only deploy if this is the active branch       */
 /* ------------------------------------------------------------------ */
 
 $branchStateFile = __DIR__ . '/branch-state.json';
+$branchState = is_readable($branchStateFile) ? json_decode(file_get_contents($branchStateFile), true) : [];
+if (!is_array($branchState)) $branchState = [];
+$deployedBranch = $branchState['client'] ?? 'main';
+
+if ($branch !== $deployedBranch) {
+    echo json_encode([
+        'status'  => 'skipped',
+        'message' => "Pushed branch '$branch' doesn't match deployed branch '$deployedBranch'",
+        'target'  => $target,
+        'branch'  => $branch,
+    ]);
+    exit;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Deploy with step-by-step status                                    */
+/* ------------------------------------------------------------------ */
 
 $status = startDeploy($statusFile, $target, $maxHistory);
 $allOutput = [];
