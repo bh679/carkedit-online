@@ -2,7 +2,7 @@
 'use strict';
 
 const NAV_LINKS = [
-  { label: 'Home',    path: '.' },
+  { label: '\u2190',  path: '.', className: 'admin-header__link--back' },
   { label: 'Stats',   path: 'stats' },
   { label: 'Users',   path: 'admin-users' },
   { label: 'ImageAI', path: 'admin-image-gen' },
@@ -53,7 +53,8 @@ export function renderAdminHeader(opts = {}) {
 
   const nav = NAV_LINKS.map(l => {
     const active = isActive(l.path) ? ' admin-header__link--active' : '';
-    return `<a class="admin-header__link${active}" href="${l.path}">${esc(l.label)}</a>`;
+    const extra = l.className ? ` ${l.className}` : '';
+    return `<a class="admin-header__link${active}${extra}" href="${l.path}">${esc(l.label)}</a>`;
   }).join('');
 
   const versionText = _version ? `v${_version}` : '';
