@@ -14,6 +14,7 @@ import { render as renderPhase4 } from './screens/phase4.js';
 import { render as renderAccount, renderGamesList, renderMyPacks } from './screens/account.js';
 import { saveGameToHistory, getGameHistory, syncWithServer } from './managers/game-history.js';
 import { shuffle } from './utils/shuffle.js';
+import { escapeHtml } from './utils/escape.js';
 import { initErrorLogger } from './utils/error-logger.js';
 import { render as renderIssueReport, submit as submitIssueReport } from './components/issue-report.js';
 import {
@@ -980,7 +981,7 @@ window.game = {
       const container = document.querySelector('.online-lobby__start-container');
       if (container) {
         container.innerHTML = `
-          <p class="online-lobby__confirm-msg">Not all players are ready (${notReady.join(', ')}). Start anyway?</p>
+          <p class="online-lobby__confirm-msg">Not all players are ready (${notReady.map(n => escapeHtml(n)).join(', ')}). Start anyway?</p>
           <div class="online-lobby__confirm-actions">
             <button class="btn btn--secondary" onclick="window.game.cancelStartOnlineGame()">Cancel</button>
             <button class="btn btn--primary" onclick="window.game.confirmStartOnlineGame()">Start</button>

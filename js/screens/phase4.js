@@ -9,6 +9,7 @@ import { render as renderLivingDeadProfile } from '../components/living-dead-pro
 import { render as renderPassPhone } from '../components/pass-phone.js';
 import { render as renderPhaseHeader } from '../components/phase-header.js';
 import { render as renderSurvey, hasSubmitted as surveySubmitted } from './survey.js';
+import { escapeHtml } from '../utils/escape.js';
 
 const PHASE_LABEL = 'Phase 4 - EULOGY';
 
@@ -161,12 +162,12 @@ function renderOnlinePickEulogists(state) {
 
   const selectionChips = otherPlayers.map(p => {
     const isSelected = selected.includes(p.name);
-    const escapedSid = (p.sessionId ?? '').replace(/'/g, "\\'");
+    const safeSessionId = escapeHtml(JSON.stringify(p.sessionId ?? ''));
     const selectedClass = isSelected ? ' phase4__eulogist-chip--selected' : '';
     return `
       <button class="phase4__eulogist-chip${selectedClass}"
-              onclick="window.game.selectEulogist('${escapedSid}')">
-        ${p.name}
+              onclick="window.game.selectEulogist(${safeSessionId})">
+        ${escapeHtml(p.name)}
       </button>
     `;
   }).join('');
@@ -393,12 +394,12 @@ function renderPickEulogists(state) {
   const requiredCount = Math.min(state.gameSettings?.eulogistCount ?? 2, otherPlayers.length);
   const selectionChips = otherPlayers.map(p => {
     const isSelected = selected.includes(p.name);
-    const escapedName = p.name.replace(/'/g, "\\'");
+    const safeNameJs = escapeHtml(JSON.stringify(p.name));
     const selectedClass = isSelected ? ' phase4__eulogist-chip--selected' : '';
     return `
       <button class="phase4__eulogist-chip${selectedClass}"
-              onclick="window.game.selectEulogist('${escapedName}')">
-        ${p.name}
+              onclick="window.game.selectEulogist(${safeNameJs})">
+        ${escapeHtml(p.name)}
       </button>
     `;
   }).join('');
@@ -568,7 +569,7 @@ function renderWinnerScreen(state) {
     const rowClass = isWinner ? 'scoreboard__row scoreboard__row--winner' : 'scoreboard__row';
     return `
       <div class="${rowClass}">
-        <span class="scoreboard__name">${isWinner ? '👑 ' : ''}${p.name}</span>
+        <span class="scoreboard__name">${isWinner ? '👑 ' : ''}${escapeHtml(p.name)}</span>
         <span class="scoreboard__score">${p.score ?? 0}</span>
       </div>
     `;
