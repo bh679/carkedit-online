@@ -148,6 +148,27 @@
   .designer__media-divider {
     display: none;
   }
+  .designer__media-body {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  .designer__media-actions {
+    flex-direction: row;
+    flex: none;
+    width: 100%;
+  }
+  .designer__media-btn,
+  .designer__media-btn--ghost {
+    width: auto;
+    flex: 1;
+  }
+  .designer__media {
+    padding: 0.75rem;
+  }
+  .designer__editor .lobby__stepper-label {
+    font-size: 0.85rem;
+  }
 }
 
 
@@ -170,7 +191,6 @@ body.page--card-designer #app {
   padding-top: calc(var(--space-md) + 2rem);
   padding-bottom: var(--space-xl);
   gap: var(--space-md);
-  max-width: 480px;
 }
 
 .screen--card-designer > .mode-select__back-btn {
@@ -591,8 +611,10 @@ body.page--card-designer #app {
 /* Embedded variant — designer rendered inside the My Packs tab */
 .screen--card-designer--embedded {
   margin: 0 auto;
-  max-width: 480px;
+  max-width: none;
   overflow-y: visible;
   height: auto;
   min-height: auto;
+  padding-left: 0;
+  padding-right: 0;
 }
