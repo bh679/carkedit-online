@@ -1069,7 +1069,9 @@ async function loadPacksForUser() {
   setState({ localUserId: userId, loading: true, error: null });
   try {
     const packs = await fetchMyPacks(userId);
-    setState({ localUserId: userId, myPacks: packs, loading: false, view: 'list' });
+    const updates = { localUserId: userId, myPacks: packs, loading: false };
+    if (state.view === 'list') updates.view = 'list';
+    setState(updates);
   } catch (err) {
     setState({ localUserId: userId, loading: false, error: `Failed to load packs: ${err.message}` });
   }
