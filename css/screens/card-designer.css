@@ -156,12 +156,12 @@
   .designer__media-actions {
     flex-direction: row;
     flex: none;
-    width: 100%;
+    width: auto;
   }
   .designer__media-btn,
   .designer__media-btn--ghost {
     width: auto;
-    flex: 1;
+    flex: none;
   }
   .designer__media {
     padding: 0.75rem;
