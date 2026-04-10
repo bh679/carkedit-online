@@ -452,6 +452,7 @@ body.page--card-designer #app {
 .designer__deck-picker {
   display: flex;
   gap: var(--space-xs);
+  justify-content: center;
 }
 
 .designer__deck-btn {
