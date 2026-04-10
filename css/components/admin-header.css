@@ -1,0 +1,155 @@
+/* Admin Header — shared across all admin pages */
+
+.admin-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-surface, #252540);
+  border-bottom: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+  gap: var(--space-md);
+  flex-wrap: wrap;
+  position: relative;
+  z-index: 10;
+}
+
+/* ── Nav links ────────────────────────────────────────── */
+
+.admin-header__nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex-wrap: wrap;
+}
+
+.admin-header__link {
+  padding: 0.35em 0.65em;
+  border-radius: var(--radius-sm, 6px);
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--color-text-muted, #9A9AB0);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color 0.15s, background 0.15s;
+}
+
+.admin-header__link:hover {
+  color: var(--color-text, #F0F0F0);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.admin-header__link--active {
+  color: var(--color-text, #F0F0F0);
+  background: rgba(255, 255, 255, 0.1);
+  font-weight: 600;
+}
+
+/* ── Right side (version + profile) ──────────────────── */
+
+.admin-header__right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.admin-header__version {
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #9A9AB0);
+  white-space: nowrap;
+}
+
+/* ── Profile / avatar ────────────────────────────────── */
+
+.admin-header__profile {
+  position: relative;
+}
+
+.admin-header__avatar-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: box-shadow 0.15s;
+  display: flex;
+  align-items: center;
+}
+
+.admin-header__avatar-btn:hover {
+  box-shadow: 0 0 0 2px var(--color-primary, #9842FF);
+}
+
+.admin-header__avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+
+.admin-header__avatar--initial {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-primary, #9842FF);
+  color: #fff;
+  font-size: 0.9em;
+  font-weight: 600;
+}
+
+/* ── Dropdown menu ───────────────────────────────────── */
+
+.admin-header__menu {
+  position: absolute;
+  top: calc(100% + 0.4em);
+  right: 0;
+  min-width: 180px;
+  background: var(--color-surface, #252540);
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+  border-radius: 8px;
+  padding: 0.4em 0;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  z-index: 100;
+}
+
+.admin-header__menu-name {
+  padding: 0.6em 1em;
+  font-weight: 600;
+  color: var(--color-text, #F0F0F0);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}
+
+.admin-header__menu-divider {
+  height: 1px;
+  background: var(--color-border, rgba(255, 255, 255, 0.1));
+  margin: 0.2em 0;
+}
+
+.admin-header__menu-item {
+  display: block;
+  width: 100%;
+  padding: 0.5em 1em;
+  background: none;
+  border: none;
+  color: var(--color-text, #F0F0F0);
+  font-size: 0.9em;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.admin-header__menu-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.admin-header__menu-item--logout {
+  color: #ff6b6b;
+}
+
+.admin-header__menu-item--logout:hover {
+  background: rgba(255, 107, 107, 0.1);
+}

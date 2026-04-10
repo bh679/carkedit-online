@@ -6,6 +6,7 @@
     <title>CarkedIt — User Management</title>
     <link rel="stylesheet" href="css/base.css?v=1.06.0051">
     <link rel="stylesheet" href="css/components/auth.css?v=1.06.0051">
+    <link rel="stylesheet" href="css/components/admin-header.css?v=1.06.0051">
     <link rel="stylesheet" href="css/dashboard.css?v=1.06.0051">
     <style>
         .admin-users { max-width: 900px; margin: 0 auto; padding: 1.5rem; }
@@ -33,6 +34,8 @@
     <div id="app"></div>
     <script type="module">
     'use strict';
+
+    import { renderAdminHeader, bindAdminHeader, resetAdminHeaderMenu } from './js/components/admin-header.js';
 
     const FIREBASE_CONFIG = {
       apiKey: "AIzaSyC6QJz6jTzJkBWV7Shd9XpCfHWrovJ9vaI",
@@ -84,9 +87,16 @@
     }
 
     let users = [];
-    let showUserMenu = false;
+
+    async function doSignOut() {
+      const { signOut } = await import('https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js');
+      await signOut(firebaseAuth);
+      authToken = null;
+      renderGate('Sign in to access user management.', true);
+    }
 
     function renderUsers() {
+      resetAdminHeaderMenu();
       const app = document.getElementById('app');
       const rows = users.map(u => {
         const avatar = u.avatar_url
@@ -107,32 +117,8 @@
         </tr>`;
       }).join('');
 
-      const userName = fbUserInfo?.displayName || 'Admin';
-      const hasPhoto = !!fbUserInfo?.photoURL;
-      const initial = (userName || 'A').charAt(0).toUpperCase();
-      const avatarImg = hasPhoto
-        ? `<img class="auth-bar__avatar" src="${fbUserInfo.photoURL}" alt="" />`
-        : `<span class="auth-bar__avatar auth-bar__avatar--initial">${initial}</span>`;
-      const menuHtml = showUserMenu ? `
-        <div class="auth-menu" onclick="event.stopPropagation()">
-          <div class="auth-menu__name">${userName}</div>
-          <div class="auth-menu__divider"></div>
-          <a class="auth-menu__item" href="/dashboard">Dashboard</a>
-          <a class="auth-menu__item" href="/dev-dashboard">Dev Dashboard</a>
-          <a class="auth-menu__item" href="/admin-image-gen">Image Generator</a>
-          <button class="auth-menu__item auth-menu__item--logout" id="sign-out-btn">Sign Out</button>
-        </div>
-      ` : '';
-
       app.innerHTML = `
-        <div class="page-auth">
-          <div class="auth-bar">
-            <button class="auth-bar__avatar-btn" id="admin-toggle-menu" aria-label="User menu">
-              ${avatarImg}
-            </button>
-            ${menuHtml}
-          </div>
-        </div>
+        ${renderAdminHeader({ user: fbUserInfo })}
         <div class="admin-users">
           <div class="admin-users__header">
             <h1 class="admin-users__title">User Management <span class="admin-users__count">(${users.length} users)</span></h1>
@@ -152,17 +138,7 @@
           </table>
         </div>`;
 
-      document.getElementById('admin-toggle-menu')?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        showUserMenu = !showUserMenu;
-        renderUsers();
-      });
-      document.getElementById('sign-out-btn')?.addEventListener('click', async () => {
-        const { signOut } = await import('https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js');
-        await signOut(firebaseAuth);
-        authToken = null;
-        renderGate('Sign in to access user management.', true);
-      });
+      bindAdminHeader(app, { user: fbUserInfo, onSignOut: doSignOut });
 
       document.querySelectorAll('[data-user-id]').forEach(btn => {
         btn.addEventListener('click', async () => {
@@ -193,14 +169,6 @@
         });
       });
     }
-
-    // Close user menu on outside click
-    document.addEventListener('click', (e) => {
-      if (showUserMenu && !e.target.closest('.auth-bar')) {
-        showUserMenu = false;
-        renderUsers();
-      }
-    });
 
     async function boot() {
       try {

@@ -190,9 +190,10 @@ function renderAuthBar() {
     : `<span class="auth-bar__avatar auth-bar__avatar--initial">${initial}</span>`;
 
   const adminItems = isAdmin ? `
-    <a class="auth-menu__item" href="/dashboard">Dashboard</a>
-    <a class="auth-menu__item" href="/admin-users">User Management</a>
-    <a class="auth-menu__item" href="/dev-dashboard">Dev Dashboard</a>
+    <a class="auth-menu__item" href="/stats">Stats</a>
+    <a class="auth-menu__item" href="/admin-users">Users</a>
+    <a class="auth-menu__item" href="/admin-image-gen">ImageAI</a>
+    <a class="auth-menu__item" href="/dev-dashboard">Dev</a>
   ` : '';
 
   const menu = state.showUserMenu ? `
