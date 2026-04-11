@@ -899,13 +899,13 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
             </div>
           </div>
 
+          <div class="bm__deploy-row">
+            <button class="btn btn--accent" id="btn-tag-deploy" disabled title="Loading...">Tag &amp; Deploy</button>
+            <button id="btn-reset" class="btn btn--secondary" style="padding:0.5rem var(--space-md);font-size:0.85rem">Reset to Main</button>
+          </div>
+
           <div class="bm__top">
             <div class="bm__top-left">
-              <div class="bm__deploy-row">
-                <button class="btn btn--accent" id="btn-tag-deploy" disabled title="Loading...">Tag &amp; Deploy</button>
-                <button id="btn-reset" class="btn btn--secondary" style="padding:0.5rem var(--space-md);font-size:0.85rem">Reset to Main</button>
-              </div>
-
               <div class="bm__linked">
                 <h2>Linked Branch Switch</h2>
                 <p>Select a client branch. If a matching API branch exists, it will be selected automatically.</p>
