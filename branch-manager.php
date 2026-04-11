@@ -1155,8 +1155,8 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
       const items = Array.from(container.children);
       if (items.length <= limit) return;
       items.slice(limit).forEach(el => el.style.display = 'none');
-      const btn = document.createElement('button');
-      btn.className = 'bm__show-more';
+      const btn = document.createElement('li');
+      btn.style.cssText = 'font-size:0.8rem;color:var(--color-primary);padding:0.2em 0;font-family:monospace;cursor:pointer;';
       btn.textContent = 'See more (' + (items.length - limit) + ')';
       btn.addEventListener('click', () => {
         items.forEach(el => el.style.display = '');
