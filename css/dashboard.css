@@ -876,6 +876,28 @@ body {
   font-family: monospace;
 }
 
+.detail__copy-debug-btn {
+  display: inline-block;
+  margin-top: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  font-size: 0.7rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.detail__copy-debug-btn:hover {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-color: var(--color-text-muted);
+}
+.detail__copy-debug-btn--success { color: #4caf50; border-color: #4caf50; }
+.detail__copy-debug-btn--error { color: #f44336; border-color: #f44336; }
+
 /* ── Card Analytics ─────────────────────────────── */
 
 /* ── Sections ───────────────────────────────────── */
