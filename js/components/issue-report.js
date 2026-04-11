@@ -68,6 +68,13 @@ export async function submit() {
   const categories = Array.from(checkboxes).map(cb => cb.value);
 
   const description = document.getElementById('issue-description')?.value?.trim() || '';
+  const errorLog = getErrorLog();
+
+  if (categories.length === 0 && !description && errorLog.length === 0) {
+    _showStatus('Please select an issue type, describe the problem, or have errors to attach.', true);
+    return;
+  }
+
   const state = getState();
   const players = state.gameMode === 'online' ? state.onlinePlayers : state.players;
 
@@ -99,7 +106,7 @@ export async function submit() {
       touchSupport: 'ontouchstart' in window,
       language: navigator.language,
     }),
-    error_log: JSON.stringify(getErrorLog()),
+    error_log: JSON.stringify(errorLog),
     client_version: _clientVersion || 'unknown',
   };
 
