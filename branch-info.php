@@ -6,10 +6,15 @@
 header('Content-Type: application/json');
 header('Cache-Control: no-cache');
 
-$dir = __DIR__;
-$result = [];
-$rc = 0;
-exec('cd ' . escapeshellarg($dir) . ' && git branch --show-current 2>/dev/null', $result, $rc);
-$branch = ($rc === 0 && !empty($result)) ? trim($result[0]) : 'main';
+// Read .git/HEAD directly — avoids permission issues with exec + git
+$headFile = __DIR__ . '/.git/HEAD';
+$branch = 'main';
+if (is_readable($headFile)) {
+    $head = trim(file_get_contents($headFile));
+    // Format: "ref: refs/heads/branch-name" or a raw SHA (detached HEAD)
+    if (strpos($head, 'ref: refs/heads/') === 0) {
+        $branch = substr($head, 16);
+    }
+}
 
 echo json_encode(['client' => $branch]);
