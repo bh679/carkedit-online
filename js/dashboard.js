@@ -1031,7 +1031,9 @@ function filterCards(cards) {
   if (cardDeckFilter !== 'all') {
     result = result.filter(c => c.card_deck === cardDeckFilter);
   }
-  if (cardPackFilter !== 'all') {
+  if (cardPackFilter === 'base') {
+    result = result.filter(c => !(c.card_id in cardPackMap));
+  } else if (cardPackFilter !== 'all') {
     result = result.filter(c => cardPackMap[c.card_id] === cardPackFilter);
   }
   return result;
@@ -1156,6 +1158,7 @@ function renderCardAnalytics() {
       <div class="dashboard__filter-bar">
         <select class="dashboard__sort-select" onchange="window.dash.setPackFilter(this.value)">
           ${packOption('all', 'All Packs')}
+          ${packOption('base', 'Base Game')}
           ${packList.map(p => packOption(p.id, p.title)).join('')}
         </select>
         <button class="dashboard__filter-btn ${deckActive}" onclick="window.dash.cycleDeckFilter()">${deckLabels[cardDeckFilter]}</button>
