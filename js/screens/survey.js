@@ -45,8 +45,9 @@ export function render(state) {
     }
     return `
       <div class="survey survey--collapsed">
-        <button class="survey__prompt-btn" onclick="window.survey.expand()">
-          💬 Help us improve — share your feedback
+        <p class="survey__prompt-label">Help us improve</p>
+        <button class="btn btn--primary survey__prompt-btn" onclick="window.survey.expand()">
+          Share Feedback
         </button>
       </div>
     `;
