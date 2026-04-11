@@ -1071,7 +1071,7 @@ function renderCardRow(title, cards) {
         <p class="dashboard__card-row-empty">No data yet</p>
       </div>`;
   }
-  const items = filtered.map((c) => fromStatRow(c, getCardImage));
+  const items = filtered.map((c) => fromStatRow(c));
   return `
     <div class="dashboard__card-row-section">
       <h3 class="dashboard__card-row-title">${title}</h3>
@@ -1107,7 +1107,7 @@ function renderCardAnalytics() {
 
   const filtered = filterCards(getActiveCards());
   const cardsHtml = filtered.length > 0
-    ? renderCardList(filtered.map((c) => fromStatRow(c, getCardImage)), {
+    ? renderCardList(filtered.map((c) => fromStatRow(c)), {
         size: 'md',
         showStats: true,
         scrollArrows: true,

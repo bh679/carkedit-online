@@ -448,12 +448,7 @@ function renderDetail() {
     const list = byDeck[deck];
     const label = deck.charAt(0).toUpperCase() + deck.slice(1);
     const items = list.map((c) => ({
-      id: c.id,
-      deck: c.deck_type,
-      text: c.text,
-      special: c.card_special || '',
-      options: parseCardOptions(c),
-      image_url: c.image_url || '',
+      compositeId: `${c.deck_type === 'living' ? 'live' : c.deck_type}:${c.id}`,
     }));
     // Capture each item's flat index for the preview overlay.
     const startIdx = previewItems.length;

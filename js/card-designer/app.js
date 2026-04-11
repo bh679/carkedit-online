@@ -276,19 +276,12 @@ function renderPackEditor() {
     ? state.currentPackCards.find(c => String(c.id) === String(pack.featured_card_id))
     : null;
   const featureHtml = featureCard
-    ? renderCard(buildCard({
-        title: featureCard.text,
-        deckType: featureCard.deck_type,
-        brandImageUrl: pack.brand_image_url || '',
-        special: featureCard.card_special || null,
-        options: parseCardOptions(featureCard),
-        image_url: featureCard.image_url || '',
-      }, { source: 'designer' }))
+    ? renderCard(`${featureCard.deck_type === 'living' ? 'live' : featureCard.deck_type}:${featureCard.id}`)
     : '<span class="designer__feature-empty">None</span>';
   const sections = deckTypes.map(type => {
     const cards = state.currentPackCards.filter(c => c.deck_type === type);
     const label = type.charAt(0).toUpperCase() + type.slice(1);
-    const items = cards.map(c => ({ id: c.id, deck: c.deck_type, text: c.text, special: c.card_special || '', options: parseCardOptions(c), image_url: c.image_url || '' }));
+    const items = cards.map(c => ({ compositeId: `${c.deck_type === 'living' ? 'live' : c.deck_type}:${c.id}` }));
     const listHtml = renderCardList(items, {
       size: 'sm',
       showStats: false,
