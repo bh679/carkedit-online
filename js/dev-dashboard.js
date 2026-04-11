@@ -182,7 +182,7 @@ function mergeContribData(datasets) {
 const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
-function renderContribGraph(data) {
+function renderContribGraph(data, opts) {
   if (!data || !data.length) return '<p class="dash-empty">No contribution data available.</p>';
 
   // Group weeks by the month of their Sunday date, keep only last 3 months
@@ -219,8 +219,9 @@ function renderContribGraph(data) {
     return `<div class="contrib-month-group"><div class="contrib-month-label">${label}</div>${weekRowsHtml}</div>`;
   }).join('');
 
+  const fullClass = opts?.full ? ' contrib-wrapper--full' : '';
   return `
-    <div class="contrib-wrapper">
+    <div class="contrib-wrapper${fullClass}">
       ${monthGroupsHtml}
     </div>
     <div class="contrib-legend">
@@ -686,6 +687,11 @@ function renderDashboard(sections) {
           <div id="section-design-docs">${sections.designDocs}</div>
         </div>
 
+        <div class="dash-card dash-card--full">
+          <div class="dash-card__title">Contribution Graph</div>
+          <div id="section-contrib-full">${sections.contrib}</div>
+        </div>
+
         <div class="dash-card--full dash-commits-row">
           <div class="dash-card dash-card--grow">
             <div class="dash-card__title">Recent Commits</div>
@@ -835,9 +841,12 @@ async function init() {
   }
   if (cachedContrib) {
     const contribEl = document.getElementById('section-contrib');
+    const contribFullEl = document.getElementById('section-contrib-full');
     // Validate data is in the new {week, days} format (not old per-repo array-of-arrays)
-    if (contribEl && Array.isArray(cachedContrib.data) && cachedContrib.data.length && cachedContrib.data[0]?.week != null) {
-      contribEl.innerHTML = renderContribGraph(cachedContrib.data) + renderCachedLabel(cachedContrib.ts);
+    if (Array.isArray(cachedContrib.data) && cachedContrib.data.length && cachedContrib.data[0]?.week != null) {
+      const cachedLabel = renderCachedLabel(cachedContrib.ts);
+      if (contribEl) contribEl.innerHTML = renderContribGraph(cachedContrib.data) + cachedLabel;
+      if (contribFullEl) contribFullEl.innerHTML = renderContribGraph(cachedContrib.data, { full: true }) + cachedLabel;
     } else {
       // Clear stale cache in old format
       localStorage.removeItem('gh-persist:contrib');
@@ -892,16 +901,20 @@ async function init() {
 
   updateRateLimit();
 
-  // Update contrib graph (pre-aggregated by the API)
+  // Update contrib graphs (pre-aggregated by the API)
   const contribEl = document.getElementById('section-contrib');
-  if (contribEl && contribResults.status === 'fulfilled') {
+  const contribFullEl = document.getElementById('section-contrib-full');
+  if (contribResults.status === 'fulfilled') {
     const contribData = contribResults.value;
     persistData('contrib', contribData);
-    contribEl.innerHTML = (contribData && contribData.length)
-      ? renderContribGraph(contribData)
-      : '<p class="dash-empty">No contribution data available.</p>';
-  } else if (contribEl) {
-    contribEl.innerHTML = `<span class="dash-error">${escapeHtml(contribResults.reason?.message || 'Failed to load')}</span>`;
+    const hasData = contribData && contribData.length;
+    const emptyMsg = '<p class="dash-empty">No contribution data available.</p>';
+    if (contribEl) contribEl.innerHTML = hasData ? renderContribGraph(contribData) : emptyMsg;
+    if (contribFullEl) contribFullEl.innerHTML = hasData ? renderContribGraph(contribData, { full: true }) : emptyMsg;
+  } else {
+    const errMsg = `<span class="dash-error">${escapeHtml(contribResults.reason?.message || 'Failed to load')}</span>`;
+    if (contribEl) contribEl.innerHTML = errMsg;
+    if (contribFullEl) contribFullEl.innerHTML = errMsg;
   }
 
   // Merge and sort all commits by date

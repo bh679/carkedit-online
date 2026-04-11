@@ -118,6 +118,11 @@
   padding-bottom: var(--space-xs);
 }
 
+.contrib-wrapper--full {
+  flex-direction: row;
+  overflow-x: auto;
+}
+
 .contrib-month-group {
   flex-shrink: 0;
 }
