@@ -21,6 +21,10 @@ let authToken = null;
 let authUser = null; // local user from /users/me
 let firebaseUserInfo = null; // { displayName, photoURL, email }
 
+function isMobile() {
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
+
 async function loadFirebaseAuth() {
   const [appMod, authMod] = await Promise.all([
     import('https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js'),
@@ -1853,8 +1857,11 @@ async function signInWithGoogle() {
   try {
     const authMod = await loadFirebaseAuth();
     const provider = new authMod.GoogleAuthProvider();
-    await authMod.signInWithPopup(firebaseAuth, provider);
-    // Auth state change will reload the page via the listener below
+    if (isMobile()) {
+      await authMod.signInWithRedirect(firebaseAuth, provider);
+    } else {
+      await authMod.signInWithPopup(firebaseAuth, provider);
+    }
   } catch (err) {
     console.error('[dashboard] Google sign-in error:', err);
     renderAuthGate('Sign-in failed. Please try again.');
@@ -2006,6 +2013,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   try {
     const authMod = await loadFirebaseAuth();
+
+    // Handle return from signInWithRedirect() (mobile Google sign-in)
+    try {
+      await authMod.getRedirectResult(firebaseAuth);
+    } catch (redirectErr) {
+      console.error('[dashboard] Redirect result error:', redirectErr);
+    }
+
     authMod.onAuthStateChanged(firebaseAuth, async (user) => {
       if (user) {
         authToken = await user.getIdToken();
