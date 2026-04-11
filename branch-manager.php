@@ -425,7 +425,14 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
     <link rel="stylesheet" href="css/components/admin-header.css?v=1.06.0104">
     <link rel="stylesheet" href="css/dashboard.css?v=1.06.0104">
     <style>
-        .bm { max-width: 700px; margin: 0 auto; padding: var(--space-md) var(--space-lg); }
+        .bm { max-width: 1024px; margin: 0 auto; padding: var(--space-md) var(--space-lg); }
+        .bm__top { display: flex; gap: var(--space-md); align-items: flex-start; }
+        .bm__top-left { flex: 1; min-width: 0; }
+        .bm__top-right { flex: 0 0 320px; }
+        @media (max-width: 768px) {
+            .bm__top { flex-direction: column; }
+            .bm__top-right { flex: none; width: 100%; }
+        }
         .bm__title { font-size: 1.4rem; margin: 0 0 var(--space-xs); }
         .bm__subtitle { color: var(--color-text-muted); font-size: 0.9rem; margin-bottom: var(--space-lg); }
         .bm__gate { display: flex; align-items: center; justify-content: center; min-height: 60vh; text-align: center; }
@@ -567,7 +574,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         .hidden { display: none !important; }
 
         /* Production overlay */
-        .bm__prod-banner { max-width: 700px; margin: var(--space-lg) auto var(--space-md); padding: var(--space-lg);
+        .bm__prod-banner { max-width: 1024px; margin: var(--space-lg) auto var(--space-md); padding: var(--space-lg);
             background: var(--color-surface); border: 2px solid var(--color-primary); border-radius: var(--radius-md);
             text-align: center; position: relative; z-index: 10; }
         .bm__prod-banner p { color: var(--color-text-muted); font-size: 1rem; margin-bottom: var(--space-md); }
@@ -926,68 +933,71 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
             <button id="btn-reset" class="btn btn--secondary" style="padding:0.5rem var(--space-md);font-size:0.85rem">Reset to Main</button>
           </div>
 
-          <div class="bm__linked">
-            <h2>Linked Branch Switch</h2>
-            <p>Select a client branch. If a matching API branch exists, it will be selected automatically.</p>
-            <div class="bm__row">
-              <select id="linked-select"><option>Loading...</option></select>
-              <span class="bm__linked-api" id="linked-api-label">API: main</span>
-              <button id="btn-linked" disabled>Deploy Linked</button>
+          <div class="bm__top">
+            <div class="bm__top-left">
+              <div class="bm__linked">
+                <h2>Linked Branch Switch</h2>
+                <p>Select a client branch. If a matching API branch exists, it will be selected automatically.</p>
+                <div class="bm__row">
+                  <select id="linked-select"><option>Loading...</option></select>
+                  <span class="bm__linked-api" id="linked-api-label">API: main</span>
+                  <button id="btn-linked" disabled>Deploy Linked</button>
+                </div>
+                <div class="bm__warning" id="linked-warning"></div>
+              </div>
+
+              <div class="bm__repo">
+                <h2>carkedit-online <span class="bm__badge bm__badge--client">client</span></h2>
+                <div class="bm__current">Current branch: <strong id="client-current">loading...</strong></div>
+                <div class="bm__row">
+                  <select id="client-select"><option>Loading...</option></select>
+                  <button id="btn-client" disabled>Deploy Client</button>
+                </div>
+                <div class="bm__warning" id="client-warning"></div>
+              </div>
+
+              <div class="bm__repo">
+                <h2>carkedit-api <span class="bm__badge bm__badge--api">api</span></h2>
+                <div class="bm__current">Current branch: <strong id="api-current">loading...</strong></div>
+                <div class="bm__row">
+                  <select id="api-select"><option>Loading...</option></select>
+                  <button id="btn-api" disabled>Deploy API</button>
+                </div>
+              </div>
+
+              <div class="bm__status" id="status-box"></div>
+              <div class="bm__log" id="output-log"></div>
+              <div id="deploy-modal-root"></div>
             </div>
-            <div class="bm__warning" id="linked-warning"></div>
-          </div>
 
-          <div class="bm__repo">
-            <h2>carkedit-online <span class="bm__badge bm__badge--client">client</span></h2>
-            <div class="bm__current">Current branch: <strong id="client-current">loading...</strong></div>
-            <div class="bm__row">
-              <select id="client-select"><option>Loading...</option></select>
-              <button id="btn-client" disabled>Deploy Client</button>
+            <div class="bm__top-right">
+              <div class="bm__recent">
+                <h2>Recent Tags</h2>
+                <div class="bm__recent-col">
+                  <div class="bm__current" style="margin-bottom:var(--space-xs)">Current version: <strong id="tags-client-version">loading...</strong></div>
+                  <div class="bm__current" style="margin-bottom:var(--space-xs)">Live version: <strong id="live-client-version" style="color:#4caf50">loading...</strong></div>
+                  <h3><span class="bm__badge bm__badge--client">client</span> carkedit-online</h3>
+                  <ul class="bm__recent-list" id="recent-tags-client">
+                    <li>Loading...</li>
+                  </ul>
+                </div>
+                <div class="bm__recent-col" style="margin-top:var(--space-md)">
+                  <div class="bm__current" style="margin-bottom:var(--space-xs)">Current version: <strong id="tags-api-version">loading...</strong></div>
+                  <div class="bm__current" style="margin-bottom:var(--space-xs)">Live version: <strong id="live-api-version" style="color:#4caf50">loading...</strong></div>
+                  <h3><span class="bm__badge bm__badge--api">api</span> carkedit-api</h3>
+                  <ul class="bm__recent-list" id="recent-tags-api">
+                    <li>Loading...</li>
+                  </ul>
+                </div>
+              </div>
             </div>
-            <div class="bm__warning" id="client-warning"></div>
           </div>
-
-          <div class="bm__repo">
-            <h2>carkedit-api <span class="bm__badge bm__badge--api">api</span></h2>
-            <div class="bm__current">Current branch: <strong id="api-current">loading...</strong></div>
-            <div class="bm__row">
-              <select id="api-select"><option>Loading...</option></select>
-              <button id="btn-api" disabled>Deploy API</button>
-            </div>
-          </div>
-
-          <div class="bm__status" id="status-box"></div>
-          <div class="bm__log" id="output-log"></div>
-
-          <div id="deploy-modal-root"></div>
 
           <hr class="bm__divider">
           <div class="bm__recent">
             <h2>Recent Branches</h2>
             <div class="bm__recent-list" id="recent-branches">
               <div>Loading...</div>
-            </div>
-          </div>
-
-          <div class="bm__recent">
-            <h2>Recent Tags</h2>
-            <div class="bm__recent-cols">
-              <div class="bm__recent-col">
-                <div class="bm__current" style="margin-bottom:var(--space-xs)">Current version: <strong id="tags-client-version">loading...</strong></div>
-                <div class="bm__current" style="margin-bottom:var(--space-xs)">Live version: <strong id="live-client-version" style="color:#4caf50">loading...</strong></div>
-                <h3><span class="bm__badge bm__badge--client">client</span> carkedit-online</h3>
-                <ul class="bm__recent-list" id="recent-tags-client">
-                  <li>Loading...</li>
-                </ul>
-              </div>
-              <div class="bm__recent-col">
-                <div class="bm__current" style="margin-bottom:var(--space-xs)">Current version: <strong id="tags-api-version">loading...</strong></div>
-                <div class="bm__current" style="margin-bottom:var(--space-xs)">Live version: <strong id="live-api-version" style="color:#4caf50">loading...</strong></div>
-                <h3><span class="bm__badge bm__badge--api">api</span> carkedit-api</h3>
-                <ul class="bm__recent-list" id="recent-tags-api">
-                  <li>Loading...</li>
-                </ul>
-              </div>
             </div>
           </div>
 
@@ -1168,6 +1178,22 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
       });
     }
 
+    function truncateList(elId, limit) {
+      const container = document.getElementById(elId);
+      if (!container) return;
+      const items = Array.from(container.children);
+      if (items.length <= limit) return;
+      items.slice(limit).forEach(el => el.style.display = 'none');
+      const btn = document.createElement('li');
+      btn.style.cssText = 'font-size:0.8rem;color:var(--color-primary);padding:0.2em 0;font-family:monospace;cursor:pointer;';
+      btn.textContent = 'See more (' + (items.length - limit) + ')';
+      btn.addEventListener('click', () => {
+        items.forEach(el => el.style.display = '');
+        btn.remove();
+      });
+      container.appendChild(btn);
+    }
+
     function populateMergedBranches(elId) {
       const container = document.getElementById(elId);
       if (!container) return;
@@ -1339,6 +1365,8 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
           populateMergedBranches('recent-branches');
           populateRecent('recent-tags-client', data.client.tags || [], {}, null, liveClientVersion);
           populateRecent('recent-tags-api', data.api.tags || [], {}, null, liveApiVersion);
+          truncateList('recent-tags-client', 4);
+          truncateList('recent-tags-api', 4);
           document.getElementById('tags-client-version').textContent = 'v' + clientVer;
           document.getElementById('tags-api-version').textContent = 'v' + apiVer;
           document.getElementById('btn-client').disabled = false;
