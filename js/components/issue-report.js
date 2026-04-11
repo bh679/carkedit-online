@@ -50,6 +50,8 @@ export function render() {
           maxlength="2000"
         ></textarea>
 
+        ${_renderErrorCount()}
+
         <div id="issue-report-status" class="issue-report__status"></div>
 
         <div class="issue-report__actions">
@@ -127,6 +129,15 @@ export async function submit() {
     _showStatus('Failed to send report. Please try again.', true);
     if (btn) btn.disabled = false;
   }
+}
+
+function _renderErrorCount() {
+  const errors = getErrorLog();
+  const count = errors.length;
+  if (count === 0) {
+    return '<p class="issue-report__error-count">No errors detected</p>';
+  }
+  return `<p class="issue-report__error-count issue-report__error-count--has-errors">${count} error${count !== 1 ? 's' : ''} detected &mdash; will be attached to report</p>`;
 }
 
 function _showStatus(message, isError) {

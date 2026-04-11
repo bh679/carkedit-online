@@ -881,6 +881,28 @@ function renderDebugCard(gd) {
     </div>`;
 }
 
+function _renderErrorLog(errorLogJson) {
+  if (!errorLogJson) return '';
+  let errors;
+  try { errors = JSON.parse(errorLogJson); } catch { return ''; }
+  if (!Array.isArray(errors) || errors.length === 0) return '';
+
+  const rows = errors.map(e => {
+    const ts = e.timestamp ? new Date(e.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '';
+    const type = e.type ? `<span class="detail__error-type">${e.type}</span>` : '';
+    const src = e.source ? ` <span class="detail__error-src">${e.source}${e.line ? ':' + e.line : ''}</span>` : '';
+    return `<div class="detail__error-entry">${ts} ${type} ${e.message || ''}${src}</div>`;
+  }).join('');
+
+  return `
+    <div class="detail__error-log">
+      <h5 class="detail__error-log-title" onclick="this.parentElement.classList.toggle('is-collapsed')">
+        Errors (${errors.length}) <span class="detail__toggle-arrow">&#9660;</span>
+      </h5>
+      <div class="detail__error-log-list">${rows}</div>
+    </div>`;
+}
+
 function renderIssuesCard(gd) {
   if (!gd.issues || gd.issues.length === 0) return '';
   const issueRows = gd.issues.map(issue => {
@@ -889,6 +911,7 @@ function renderIssuesCard(gd) {
     const cats = issue.category.split(',').map(c => `<span class="detail__issue-cat">${c.trim()}</span>`).join(' ');
     const desc = issue.description ? `<p class="detail__issue-desc">${issue.description.length > 200 ? issue.description.slice(0, 200) + '...' : issue.description}</p>` : '';
     const meta = [issue.screen, issue.phase].filter(Boolean).join(' / ');
+    const errorLogHtml = _renderErrorLog(issue.error_log);
     return `
       <div class="detail__issue-item">
         <div class="detail__issue-header">
@@ -897,6 +920,7 @@ function renderIssuesCard(gd) {
           ${meta ? `<span class="detail__issue-meta">${meta}</span>` : ''}
         </div>
         ${desc}
+        ${errorLogHtml}
       </div>`;
   }).join('');
 
