@@ -209,16 +209,19 @@ function renderContribGraph(data, opts) {
         return Array.from({ length: 7 }, (_, i) => {
           const d = 6 - i; // reverse day order: Sat→Sun
           const count = week.days[d];
+          const activeCount = week.activeDays ? week.activeDays[d] : count;
           let level = 0;
           if (count >= 1) level = 1;
           if (count >= 3) level = 2;
           if (count >= 5) level = 3;
           if (count >= 8) level = 4;
+          const color = (count > 0 && activeCount === 0) ? 'yellow-' : '';
           const weekTs = week.week * 1000;
           const cellDate = new Date(weekTs + d * 86400000);
           const dateStr = cellDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-          const tooltip = `${count} commit${count !== 1 ? 's' : ''} · ${dayNames[d]} ${dateStr}`;
-          return `<div class="contrib-cell contrib-cell--full contrib-cell--${level}" data-tooltip="${tooltip}"></div>`;
+          const suffix = (count > 0 && activeCount === 0) ? ' (support repos)' : '';
+          const tooltip = `${count} commit${count !== 1 ? 's' : ''}${suffix} · ${dayNames[d]} ${dateStr}`;
+          return `<div class="contrib-cell contrib-cell--full contrib-cell--${color}${level}" data-tooltip="${tooltip}"></div>`;
         }).join('');
       }).join('');
       return `<div class="contrib-month-group"><div class="contrib-month-label">${label}</div><div class="contrib-week-row">${cellsHtml}</div></div>`;
@@ -234,16 +237,19 @@ function renderContribGraph(data, opts) {
     const weekRowsHtml = weeks.map(week => {
       const cellsHtml = Array.from({ length: 7 }, (_, d) => {
         const count = week.days[d];
+        const activeCount = week.activeDays ? week.activeDays[d] : count;
         let level = 0;
         if (count >= 1) level = 1;
         if (count >= 3) level = 2;
         if (count >= 5) level = 3;
         if (count >= 8) level = 4;
+        const color = (count > 0 && activeCount === 0) ? 'yellow-' : '';
         const weekTs = week.week * 1000;
         const cellDate = new Date(weekTs + d * 86400000);
         const dateStr = cellDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-        const tooltip = `${count} commit${count !== 1 ? 's' : ''} · ${dayNames[d]} ${dateStr}`;
-        return `<div class="contrib-cell contrib-cell--${level}" data-tooltip="${tooltip}"></div>`;
+        const suffix = (count > 0 && activeCount === 0) ? ' (support repos)' : '';
+        const tooltip = `${count} commit${count !== 1 ? 's' : ''}${suffix} · ${dayNames[d]} ${dateStr}`;
+        return `<div class="contrib-cell contrib-cell--${color}${level}" data-tooltip="${tooltip}"></div>`;
       }).join('');
       return `<div class="contrib-week-row">${cellsHtml}</div>`;
     }).join('');
@@ -262,6 +268,10 @@ function renderContribGraph(data, opts) {
       <div class="contrib-legend__cell contrib-cell--3"></div>
       <div class="contrib-legend__cell contrib-cell--4"></div>
       More
+      <span class="contrib-legend__sep">|</span>
+      <div class="contrib-legend__cell contrib-cell--yellow-1"></div>
+      <div class="contrib-legend__cell contrib-cell--yellow-2"></div>
+      Support
     </div>
   `;
 }
