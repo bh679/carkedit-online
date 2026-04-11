@@ -200,10 +200,13 @@ function renderContribGraph(data, opts) {
   const recentGroups = [...groups.values()].slice(-3);
 
   if (opts?.full) {
-    // Full-width: one cell per day, all in a single horizontal row
-    const monthGroupsHtml = recentGroups.map(({ label, weeks }) => {
+    // Full-width: one cell per day, newest month first
+    const reversedGroups = [...recentGroups].reverse();
+    reversedGroups.forEach(g => g.weeks = [...g.weeks].reverse());
+    const monthGroupsHtml = reversedGroups.map(({ label, weeks }) => {
       const cellsHtml = weeks.map(week => {
-        return Array.from({ length: 7 }, (_, d) => {
+        return Array.from({ length: 7 }, (_, i) => {
+          const d = 6 - i; // reverse day order: Sat→Sun
           const count = week.days[d];
           let level = 0;
           if (count >= 1) level = 1;
@@ -260,6 +263,29 @@ function renderContribGraph(data, opts) {
       More
     </div>
   `;
+}
+
+// ── Section: Recent Commits (Multi-repo) ──────────────
+
+// ── Section: Dev Stats ───────────────────────────────
+
+function renderDevStats(stats) {
+  if (!stats) return '<span class="dash-loading">Loading...</span>';
+
+  const cards = [
+    { label: 'Total Commits', value: stats.totalCommits.toLocaleString() },
+    { label: 'Live Repo Commits', value: stats.liveCommits.toLocaleString() },
+    { label: 'Branches Merged', value: stats.branchesMerged.toLocaleString() },
+    { label: 'Lines of Code', value: stats.linesOfCode.toLocaleString() },
+    { label: 'Days Worked', value: stats.daysWorked.toLocaleString() },
+  ];
+
+  return `<div class="stat-cards-row">${cards.map(c => `
+    <div class="stat-card">
+      <div class="stat-card__value">${c.value}</div>
+      <div class="stat-card__label">${c.label}</div>
+    </div>
+  `).join('')}</div>`;
 }
 
 // ── Section: Recent Commits (Multi-repo) ──────────────
@@ -709,13 +735,14 @@ function renderDashboard(sections) {
       <div class="dash-grid">
 
         <div class="dash-card dash-card--full">
-          <div class="dash-card__title">Design Docs</div>
-          <div id="section-design-docs">${sections.designDocs}</div>
+          <div class="dash-card__title">Dev Stats</div>
+          <div id="section-dev-stats">${sections.devStats}</div>
+          <div id="section-contrib-full">${sections.contrib}</div>
         </div>
 
         <div class="dash-card dash-card--full">
-          <div class="dash-card__title">Contribution Graph</div>
-          <div id="section-contrib-full">${sections.contrib}</div>
+          <div class="dash-card__title">Design Docs</div>
+          <div id="section-design-docs">${sections.designDocs}</div>
         </div>
 
         <div class="dash-card--full dash-commits-row">
@@ -829,8 +856,10 @@ async function init() {
   const cachedContrib = loadPersistedData('contrib');
   const cachedEvents = loadPersistedData('events');
   const cachedIssues = loadPersistedData('issues');
+  const cachedDevStats = loadPersistedData('dev-stats');
 
   const loadingSections = {
+    devStats: '<span class="dash-loading">Loading...</span>',
     contrib: '<span class="dash-loading">Loading...</span>',
     designDocs: '',
     commits: '<span class="dash-loading">Loading...</span>',
@@ -857,6 +886,10 @@ async function init() {
   rerenderSection('design-docs');
 
   // Show cached data instantly while fresh data loads
+  if (cachedDevStats) {
+    const devStatsEl = document.getElementById('section-dev-stats');
+    if (devStatsEl) devStatsEl.innerHTML = renderDevStats(cachedDevStats.data) + renderCachedLabel(cachedDevStats.ts);
+  }
   if (cachedCommits) {
     fetchedData.commits = cachedCommits.data;
     const commitsEl = document.getElementById('section-commits');
@@ -918,11 +951,12 @@ async function init() {
     ).catch(() => [])
   );
 
-  const [commitsResults, contribResults, eventsResult, issuesResult] = await Promise.allSettled([
+  const [commitsResults, contribResults, eventsResult, issuesResult, devStatsResult] = await Promise.allSettled([
     Promise.all(commitFetches),
     ghFetch('/contrib-graph'),
     ghFetch(`/repos/${PRIMARY_REPO}/events?per_page=100`),
     ghFetch(`/repos/${PRIMARY_REPO}/issues?state=open&per_page=20&sort=updated`),
+    ghFetch('/dev-stats'),
   ]);
 
   updateRateLimit();
@@ -981,6 +1015,15 @@ async function init() {
     todoEl.innerHTML = issuesResult.status === 'fulfilled'
       ? renderTodoBoard(issuesResult.value)
       : (cachedIssues ? renderTodoBoard(cachedIssues.data) + renderCachedLabel(cachedIssues.ts) : `<span class="dash-error">${escapeHtml(issuesResult.reason?.message || 'Failed to load')}</span>`);
+  }
+
+  // Update dev stats
+  const devStatsEl = document.getElementById('section-dev-stats');
+  if (devStatsResult.status === 'fulfilled') {
+    persistData('dev-stats', devStatsResult.value);
+    if (devStatsEl) devStatsEl.innerHTML = renderDevStats(devStatsResult.value);
+  } else if (devStatsEl && !cachedDevStats) {
+    devStatsEl.innerHTML = `<span class="dash-error">${escapeHtml(devStatsResult.reason?.message || 'Failed to load')}</span>`;
   }
 }
 
