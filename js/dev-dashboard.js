@@ -835,7 +835,8 @@ async function init() {
   }
   if (cachedContrib) {
     const contribEl = document.getElementById('section-contrib');
-    if (contribEl && cachedContrib.data && cachedContrib.data.length) {
+    // Validate data is in the new {week, days} format (not old per-repo array-of-arrays)
+    if (contribEl && Array.isArray(cachedContrib.data) && cachedContrib.data.length && cachedContrib.data[0]?.week != null) {
       contribEl.innerHTML = renderContribGraph(cachedContrib.data) + renderCachedLabel(cachedContrib.ts);
     }
   }
