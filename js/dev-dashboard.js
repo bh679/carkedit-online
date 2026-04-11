@@ -200,10 +200,13 @@ function renderContribGraph(data, opts) {
   const recentGroups = [...groups.values()].slice(-3);
 
   if (opts?.full) {
-    // Full-width: one cell per day, all in a single horizontal row
-    const monthGroupsHtml = recentGroups.map(({ label, weeks }) => {
+    // Full-width: one cell per day, newest month first
+    const reversedGroups = [...recentGroups].reverse();
+    reversedGroups.forEach(g => g.weeks = [...g.weeks].reverse());
+    const monthGroupsHtml = reversedGroups.map(({ label, weeks }) => {
       const cellsHtml = weeks.map(week => {
-        return Array.from({ length: 7 }, (_, d) => {
+        return Array.from({ length: 7 }, (_, i) => {
+          const d = 6 - i; // reverse day order: Sat→Sun
           const count = week.days[d];
           let level = 0;
           if (count >= 1) level = 1;
