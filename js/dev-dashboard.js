@@ -734,16 +734,12 @@ function renderDashboard(sections) {
         <div class="dash-card dash-card--full">
           <div class="dash-card__title">Dev Stats</div>
           <div id="section-dev-stats">${sections.devStats}</div>
+          <div id="section-contrib-full">${sections.contrib}</div>
         </div>
 
         <div class="dash-card dash-card--full">
           <div class="dash-card__title">Design Docs</div>
           <div id="section-design-docs">${sections.designDocs}</div>
-        </div>
-
-        <div class="dash-card dash-card--full">
-          <div class="dash-card__title">Contribution Graph</div>
-          <div id="section-contrib-full">${sections.contrib}</div>
         </div>
 
         <div class="dash-card--full dash-commits-row">
