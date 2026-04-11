@@ -2,6 +2,7 @@
 'use strict';
 
 import { render as renderCardList, fromStatRow, bindScrollArrows } from './components/card-list.js';
+import { render as renderCard } from './components/card.js';
 import { renderAdminHeader, bindAdminHeader, resetAdminHeaderMenu } from './components/admin-header.js';
 import { getOrCreate as registryGetOrCreate } from './data/CardRegistry.js';
 
@@ -631,14 +632,9 @@ function renderPreview() {
 
   const card = cards[previewIndex];
   const deckType = deckTypeForCard(card.card_deck);
-  const imgSrc = getCardImage(card.card_id, card.card_deck);
-
-  const cardHtml = imgSrc
-    ? `<div class="card card--${deckType}"><img src="${imgSrc}" alt="${card.card_text}" class="card__img" draggable="false"></div>`
-    : `<div class="card card--${deckType}">
-        <div class="card__image"><div class="card__image-placeholder"></div></div>
-        <div class="card__body"><h3 class="card__title">${card.card_text}</h3></div>
-      </div>`;
+  const compositeId = `${deckType}:${card.card_id}`;
+  const cardHtml = renderCard(compositeId)
+    || `<div class="card card--${deckType} card--text-only"><div class="card__body card__body--text-only"><h3 class="card__title card__title--${deckType}">${card.card_text}</h3></div></div>`;
 
   const showNav = cards.length > 1;
   const prevBtn = showNav
@@ -669,13 +665,9 @@ function previewCard(text, deck, cardId) {
     const overlay = document.getElementById('card-preview-overlay');
     if (!overlay) return;
     const deckType = deckTypeForCard(deck);
-    const imgSrc = cardId ? getCardImage(cardId, deck) : null;
-    const cardHtml = imgSrc
-      ? `<div class="card card--${deckType}"><img src="${imgSrc}" alt="${text}" class="card__img" draggable="false"></div>`
-      : `<div class="card card--${deckType}">
-          <div class="card__image"><div class="card__image-placeholder"></div></div>
-          <div class="card__body"><h3 class="card__title">${text}</h3></div>
-        </div>`;
+    const compositeId = `${deckType}:${cardId}`;
+    const cardHtml = renderCard(compositeId)
+      || `<div class="card card--${deckType} card--text-only"><div class="card__body card__body--text-only"><h3 class="card__title card__title--${deckType}">${text}</h3></div></div>`;
     overlay.innerHTML = `
       <div class="hand__inspect-overlay hand__inspect-overlay--${deckType}" onclick="window.dash.closePreview()">
         <div class="hand__inspect-card-wrapper" onclick="event.stopPropagation()">
@@ -713,13 +705,13 @@ function closePreview() {
 
 function renderMiniCard(text, deck, cardId) {
   const deckType = deck === 'living' ? 'live' : deck === 'bye' ? 'bye' : 'die';
-  const imgSrc = cardId ? getCardImage(cardId, deck) : null;
+  const compositeId = `${deckType}:${cardId}`;
   const idAttr = cardId ? `, '${escAttr(cardId)}'` : '';
+  const innerHtml = renderCard(compositeId)
+    || `<div class="card card--${deckType} card--text-only"><div class="card__body card__body--text-only"><h3 class="card__title card__title--${deckType}">${text}</h3></div></div>`;
   return `
-    <div class="card card--${deckType} detail__mini-card" onclick="event.stopPropagation(); window.dash.previewCard('${escAttr(text)}', '${escAttr(deck)}'${idAttr})">
-      ${imgSrc
-        ? `<img src="${imgSrc}" alt="${text}" class="card__img" draggable="false">`
-        : `<div class="card__body"><h3 class="card__title">${text}</h3></div>`}
+    <div class="detail__mini-card" onclick="event.stopPropagation(); window.dash.previewCard('${escAttr(text)}', '${escAttr(deck)}'${idAttr})">
+      ${innerHtml}
     </div>`;
 }
 
