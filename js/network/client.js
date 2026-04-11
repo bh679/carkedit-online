@@ -3,6 +3,7 @@
 
 import { getState, setState } from '../state.js';
 import { buildCard } from '../data/card.js';
+import { getOrCreate as registryGetOrCreate } from '../data/CardRegistry.js';
 import { startPlayCardTimer, clearPlayCardTimer, startPitchTimer, clearPitchTimer, clearAllTimers } from '../managers/online-timer.js';
 import { startRevealSequence, clearRevealTimer } from '../managers/reveal-timer.js';
 import { saveGameToHistory } from '../managers/game-history.js';
@@ -156,7 +157,14 @@ function serverCardToLocal(serverCard) {
         text_position: serverCard.text_position || '',
         text_color: serverCard.text_color || '',
       };
-  return buildCard(merged, { source: 'server' });
+  const card = registryGetOrCreate(merged, { source: 'server' });
+  // Runtime fields (faceUp, submittedBy) vary per submission and aren't baked
+  // into the cached HTML.  The registry may return a pre-existing Card that
+  // lacks these, so stamp them here so game logic (e.g. building the
+  // submittedMap keyed by player name) can read them.
+  if (serverCard.faceUp !== undefined) card.faceUp = serverCard.faceUp;
+  if (serverCard.submittedBy !== undefined) card.submittedBy = serverCard.submittedBy;
+  return card;
 }
 
 /** Build state for the living/bye phase from server room state */

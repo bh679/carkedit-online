@@ -23,6 +23,10 @@
     <script type="module">
     import { renderAdminHeader, bindAdminHeader, resetAdminHeaderMenu } from './js/components/admin-header.js';
 
+    if (window.location.hostname === 'brennan.games') {
+        window.location.replace('branch-manager.php');
+    }
+
     resetAdminHeaderMenu();
     document.getElementById('app').innerHTML = `
         ${renderAdminHeader()}
