@@ -1109,6 +1109,15 @@ function setPackFilter(packId) {
 
 function setAuthorFilter(author) {
   cardAuthorFilter = author;
+  // Reset pack filter if current pack doesn't belong to selected author
+  if (author !== 'all' && cardPackFilter !== 'all' && cardPackFilter !== 'base') {
+    if (packCreatorMap[cardPackFilter] !== author) {
+      cardPackFilter = 'all';
+    }
+  }
+  if (author !== 'all' && cardPackFilter === 'base') {
+    cardPackFilter = 'all';
+  }
   renderCardAnalytics();
 }
 
@@ -1202,8 +1211,8 @@ function renderCardAnalytics() {
       <div class="dashboard__filter-bar">
         <select class="dashboard__sort-select" onchange="window.dash.setPackFilter(this.value)">
           ${packOption('all', 'All Packs')}
-          ${packOption('base', 'Base Game')}
-          ${packList.map(p => packOption(p.id, p.title)).join('')}
+          ${cardAuthorFilter === 'all' ? packOption('base', 'Base Game') : ''}
+          ${packList.filter(p => cardAuthorFilter === 'all' || packCreatorMap[p.id] === cardAuthorFilter).map(p => packOption(p.id, p.title)).join('')}
         </select>
         <select class="dashboard__sort-select" onchange="window.dash.setAuthorFilter(this.value)">
           ${authorOption('all', 'All Authors')}
