@@ -1135,8 +1135,9 @@ function deckTypeForCard(deck) {
 }
 
 function buildStatCardOnClick(item) {
-  const idPart = item.id != null ? `, '${escAttr(String(item.id))}'` : '';
-  return `window.dash.previewCard('${escAttr(item.text)}', '${escAttr(item.deck)}'${idPart})`;
+  const [deckType, id] = item.compositeId.split(':');
+  const deck = deckType === 'live' ? 'living' : deckType;
+  return `window.dash.previewCard('', '${escAttr(deck)}', '${escAttr(id)}')`;
 }
 
 function renderCardRow(title, cards) {
