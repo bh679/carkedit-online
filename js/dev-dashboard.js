@@ -237,6 +237,29 @@ function renderContribGraph(data) {
 
 // ── Section: Recent Commits (Multi-repo) ──────────────
 
+// ── Section: Dev Stats ───────────────────────────────
+
+function renderDevStats(stats) {
+  if (!stats) return '<span class="dash-loading">Loading...</span>';
+
+  const cards = [
+    { label: 'Total Commits', value: stats.totalCommits.toLocaleString() },
+    { label: 'Live Repo Commits', value: stats.liveCommits.toLocaleString() },
+    { label: 'Branches Merged', value: stats.branchesMerged.toLocaleString() },
+    { label: 'Lines Written', value: stats.linesOfCode.toLocaleString() },
+    { label: 'Days Worked', value: stats.daysWorked.toLocaleString() },
+  ];
+
+  return `<div class="stat-cards-row">${cards.map(c => `
+    <div class="stat-card">
+      <div class="stat-card__value">${c.value}</div>
+      <div class="stat-card__label">${c.label}</div>
+    </div>
+  `).join('')}</div>`;
+}
+
+// ── Section: Recent Commits (Multi-repo) ──────────────
+
 const DEFAULT_VISIBLE = 5;
 const LOAD_MORE_STEP = 10;
 const visibleCounts = { commits: DEFAULT_VISIBLE, wiki: DEFAULT_VISIBLE, todo: DEFAULT_VISIBLE };
@@ -682,6 +705,11 @@ function renderDashboard(sections) {
       <div class="dash-grid">
 
         <div class="dash-card dash-card--full">
+          <div class="dash-card__title">Dev Stats</div>
+          <div id="section-dev-stats">${sections.devStats}</div>
+        </div>
+
+        <div class="dash-card dash-card--full">
           <div class="dash-card__title">Design Docs</div>
           <div id="section-design-docs">${sections.designDocs}</div>
         </div>
@@ -797,8 +825,10 @@ async function init() {
   const cachedContrib = loadPersistedData('contrib');
   const cachedEvents = loadPersistedData('events');
   const cachedIssues = loadPersistedData('issues');
+  const cachedDevStats = loadPersistedData('dev-stats');
 
   const loadingSections = {
+    devStats: '<span class="dash-loading">Loading...</span>',
     contrib: '<span class="dash-loading">Loading...</span>',
     designDocs: '',
     commits: '<span class="dash-loading">Loading...</span>',
@@ -825,6 +855,10 @@ async function init() {
   rerenderSection('design-docs');
 
   // Show cached data instantly while fresh data loads
+  if (cachedDevStats) {
+    const devStatsEl = document.getElementById('section-dev-stats');
+    if (devStatsEl) devStatsEl.innerHTML = renderDevStats(cachedDevStats.data) + renderCachedLabel(cachedDevStats.ts);
+  }
   if (cachedCommits) {
     fetchedData.commits = cachedCommits.data;
     const commitsEl = document.getElementById('section-commits');
@@ -883,11 +917,12 @@ async function init() {
     ).catch(() => [])
   );
 
-  const [commitsResults, contribResults, eventsResult, issuesResult] = await Promise.allSettled([
+  const [commitsResults, contribResults, eventsResult, issuesResult, devStatsResult] = await Promise.allSettled([
     Promise.all(commitFetches),
     ghFetch('/contrib-graph'),
     ghFetch(`/repos/${PRIMARY_REPO}/events?per_page=100`),
     ghFetch(`/repos/${PRIMARY_REPO}/issues?state=open&per_page=20&sort=updated`),
+    ghFetch('/dev-stats'),
   ]);
 
   updateRateLimit();
@@ -942,6 +977,15 @@ async function init() {
     todoEl.innerHTML = issuesResult.status === 'fulfilled'
       ? renderTodoBoard(issuesResult.value)
       : (cachedIssues ? renderTodoBoard(cachedIssues.data) + renderCachedLabel(cachedIssues.ts) : `<span class="dash-error">${escapeHtml(issuesResult.reason?.message || 'Failed to load')}</span>`);
+  }
+
+  // Update dev stats
+  const devStatsEl = document.getElementById('section-dev-stats');
+  if (devStatsResult.status === 'fulfilled') {
+    persistData('dev-stats', devStatsResult.value);
+    if (devStatsEl) devStatsEl.innerHTML = renderDevStats(devStatsResult.value);
+  } else if (devStatsEl && !cachedDevStats) {
+    devStatsEl.innerHTML = `<span class="dash-error">${escapeHtml(devStatsResult.reason?.message || 'Failed to load')}</span>`;
   }
 }
 
