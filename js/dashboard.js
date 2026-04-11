@@ -72,8 +72,11 @@ let filterStatus = 'all'; // 'all' | 'finished' | 'abandoned' | 'live'
 
 // Card data lookup (loaded from JSON files for images)
 const cardDataMap = {}; // key: `${deck}-${id}` → card object with illustrationKey
-const cardPackMap = {}; // key: card_id → pack_id
-const packList = [];    // [{id, title}] for pack filter dropdown
+const cardPackMap = {};  // key: card_id → pack_id
+const packCardsMap = {};  // key: pack_id → [{card_id, card_deck, card_text}]
+const packCreatorMap = {}; // key: pack_id → creator_name
+const packList = [];       // [{id, title}] for pack filter dropdown
+const authorList = [];     // unique sorted author names
 
 async function loadCardData() {
   // Load base-game cards from static JSON
@@ -106,14 +109,20 @@ async function loadCardData() {
           if (!pr.ok) return;
           const pack = await pr.json();
           packList.push({ id: p.id, title: pack.title || p.title || p.id });
+          packCreatorMap[p.id] = p.creator_name || pack.creator_name || '';
+          packCardsMap[p.id] = [];
           for (const c of (pack.cards ?? [])) {
             const deck = c.deck_type === 'live' ? 'living' : c.deck_type;
             cardDataMap[`${deck}-${c.id}`] = { ...c, deck, deckType: c.deck_type === 'live' ? 'live' : c.deck_type, image_url: c.image_url || '' };
             cardPackMap[c.id] = p.id;
+            packCardsMap[p.id].push({ card_id: c.id, card_deck: deck, card_text: c.text });
           }
         } catch {}
       }));
       packList.sort((a, b) => a.title.localeCompare(b.title));
+      authorList.length = 0;
+      const authors = new Set(Object.values(packCreatorMap).filter(Boolean));
+      authorList.push(...[...authors].sort());
     }
   } catch {}
 }
@@ -1013,7 +1022,8 @@ let cardDeckFilter = 'all'; // 'all' | 'die' | 'living' | 'bye'
 let cardSortMode = 'play_rate'; // 'play_rate' | 'play_count' | 'win_rate' | 'draw_count'
 let cardSortAsc = false; // false = descending (default), true = ascending
 let cardDevFilter = 'nodev'; // 'all' | 'dev' | 'nodev'
-let cardPackFilter = 'all'; // 'all' | pack_id string
+let cardPackFilter = 'all'; // 'all' | 'base' | pack_id string
+let cardAuthorFilter = 'all'; // 'all' | creator_name string
 
 async function fetchCardStats() {
   try {
@@ -1034,7 +1044,36 @@ function filterCards(cards) {
   if (cardPackFilter === 'base') {
     result = result.filter(c => !(c.card_id in cardPackMap));
   } else if (cardPackFilter !== 'all') {
+    // Filter to cards in this pack
     result = result.filter(c => cardPackMap[c.card_id] === cardPackFilter);
+    // Add zero-stat entries for pack cards not already in stats
+    const existing = new Set(result.map(c => c.card_id));
+    const packCards = packCardsMap[cardPackFilter] || [];
+    for (const pc of packCards) {
+      if (!existing.has(pc.card_id)) {
+        result.push({ card_id: pc.card_id, card_text: pc.card_text, card_deck: pc.card_deck, play_count: 0, win_count: 0, win_rate: 0, draw_count: 0, play_rate: 0 });
+      }
+    }
+  }
+  if (cardAuthorFilter !== 'all') {
+    result = result.filter(c => {
+      const packId = cardPackMap[c.card_id];
+      return packId && packCreatorMap[packId] === cardAuthorFilter;
+    });
+    // Add zero-stat entries for unplayed cards from this author's packs
+    // Skip if a specific pack is selected (pack filter already handles it)
+    if (cardPackFilter === 'all') {
+      const existing = new Set(result.map(c => c.card_id));
+      for (const [packId, creator] of Object.entries(packCreatorMap)) {
+        if (creator !== cardAuthorFilter) continue;
+        for (const pc of (packCardsMap[packId] || [])) {
+          if (!existing.has(pc.card_id)) {
+            result.push({ card_id: pc.card_id, card_text: pc.card_text, card_deck: pc.card_deck, play_count: 0, win_count: 0, win_rate: 0, draw_count: 0, play_rate: 0 });
+            existing.add(pc.card_id);
+          }
+        }
+      }
+    }
   }
   return result;
 }
@@ -1068,6 +1107,20 @@ async function cycleCardDev() {
 
 function setPackFilter(packId) {
   cardPackFilter = packId;
+  renderCardAnalytics();
+}
+
+function setAuthorFilter(author) {
+  cardAuthorFilter = author;
+  // Reset pack filter if current pack doesn't belong to selected author
+  if (author !== 'all' && cardPackFilter !== 'all' && cardPackFilter !== 'base') {
+    if (packCreatorMap[cardPackFilter] !== author) {
+      cardPackFilter = 'all';
+    }
+  }
+  if (author !== 'all' && cardPackFilter === 'base') {
+    cardPackFilter = 'all';
+  }
   renderCardAnalytics();
 }
 
@@ -1144,6 +1197,9 @@ function renderCardAnalytics() {
   const packOption = (value, label) =>
     `<option value="${value}" ${cardPackFilter === value ? 'selected' : ''}>${label}</option>`;
 
+  const authorOption = (value, label) =>
+    `<option value="${value}" ${cardAuthorFilter === value ? 'selected' : ''}>${label}</option>`;
+
   el.innerHTML = `
     <div class="dashboard__card-analytics-header">
       <div class="dashboard__sort-bar">
@@ -1158,8 +1214,12 @@ function renderCardAnalytics() {
       <div class="dashboard__filter-bar">
         <select class="dashboard__sort-select" onchange="window.dash.setPackFilter(this.value)">
           ${packOption('all', 'All Packs')}
-          ${packOption('base', 'Base Game')}
-          ${packList.map(p => packOption(p.id, p.title)).join('')}
+          ${cardAuthorFilter === 'all' ? packOption('base', 'Base Game') : ''}
+          ${packList.filter(p => cardAuthorFilter === 'all' || packCreatorMap[p.id] === cardAuthorFilter).map(p => packOption(p.id, p.title)).join('')}
+        </select>
+        <select class="dashboard__sort-select" onchange="window.dash.setAuthorFilter(this.value)">
+          ${authorOption('all', 'All Authors')}
+          ${authorList.map(a => authorOption(a, a)).join('')}
         </select>
         <button class="dashboard__filter-btn ${deckActive}" onclick="window.dash.cycleDeckFilter()">${deckLabels[cardDeckFilter]}</button>
         <button class="dashboard__filter-btn ${cardDevActive}" onclick="window.dash.cycleCardDev()">${cardDevLabels[cardDevFilter]}</button>
@@ -1578,7 +1638,7 @@ async function togglePackDev(id, next) {
   } catch (e) { console.error(e); alert('Failed to toggle dev: ' + e.message); }
 }
 
-window.dash = { cyclePlayTime, cycleGamesCount, toggleGame, cycleDeckFilter, setCardSort, toggleCardSortDir, cycleCardDev, setPackFilter, setPackSort, togglePackExpanded, cycleSurveyDev, previewCard, closePreview, prevPreviewCard, nextPreviewCard, scrollCards, loadMoreGames, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange, signInWithGoogle, signOut, toggleGameDev, toggleSurveyDev, togglePackDev };
+window.dash = { cyclePlayTime, cycleGamesCount, toggleGame, cycleDeckFilter, setCardSort, toggleCardSortDir, cycleCardDev, setPackFilter, setAuthorFilter, setPackSort, togglePackExpanded, cycleSurveyDev, previewCard, closePreview, prevPreviewCard, nextPreviewCard, scrollCards, loadMoreGames, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange, signInWithGoogle, signOut, toggleGameDev, toggleSurveyDev, togglePackDev };
 
 // ── Auth Gate UI ─────────────────────────────────────
 function renderAuthGate(message, showSignIn = true) {
