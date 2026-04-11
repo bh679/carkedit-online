@@ -837,6 +837,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
             <div class="bm__recent-cols">
               <div class="bm__recent-col">
                 <div class="bm__current" style="margin-bottom:var(--space-xs)">Current version: <strong id="tags-client-version">loading...</strong></div>
+                <div class="bm__current" style="margin-bottom:var(--space-xs)">Live version: <strong id="live-client-version" style="color:#4caf50">loading...</strong></div>
                 <h3><span class="bm__badge bm__badge--client">client</span> carkedit-online</h3>
                 <ul class="bm__recent-list" id="recent-tags-client">
                   <li>Loading...</li>
@@ -844,6 +845,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
               </div>
               <div class="bm__recent-col">
                 <div class="bm__current" style="margin-bottom:var(--space-xs)">Current version: <strong id="tags-api-version">loading...</strong></div>
+                <div class="bm__current" style="margin-bottom:var(--space-xs)">Live version: <strong id="live-api-version" style="color:#4caf50">loading...</strong></div>
                 <h3><span class="bm__badge bm__badge--api">api</span> carkedit-api</h3>
                 <ul class="bm__recent-list" id="recent-tags-api">
                   <li>Loading...</li>
@@ -921,7 +923,23 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
       });
     }
 
-    function populateRecent(elId, branches, versions, prBranches) {
+    let liveClientVersion = null;
+    let liveApiVersion = null;
+
+    function fetchLiveVersions() {
+      const PROD = 'https://play.carkedit.com';
+      return Promise.all([
+        fetch(PROD + '/package.json').then(r => r.json()).then(d => { liveClientVersion = d.version || null; }).catch(() => {}),
+        fetch(PROD + '/api/carkedit/health').then(r => r.json()).then(d => { liveApiVersion = d.version || null; }).catch(() => {}),
+      ]).then(() => {
+        const elC = document.getElementById('live-client-version');
+        const elA = document.getElementById('live-api-version');
+        if (elC) elC.textContent = liveClientVersion ? 'v' + liveClientVersion : '?';
+        if (elA) elA.textContent = liveApiVersion ? 'v' + liveApiVersion : '?';
+      });
+    }
+
+    function populateRecent(elId, branches, versions, prBranches, liveVersion) {
       const ul = document.getElementById(elId);
       if (!ul) return;
       ul.innerHTML = '';
@@ -929,11 +947,21 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         ul.innerHTML = '<li>No branches</li>';
         return;
       }
+      const liveNorm = liveVersion ? liveVersion.replace(/^v/, '') : null;
       branches.forEach(b => {
         const li = document.createElement('li');
         const ver = versions && versions[b] ? ' (v' + versions[b] + ')' : '';
         const hasPR = prBranches && prBranches.has(b);
+        const tagNorm = b.replace(/^v/, '');
+        const isLive = liveNorm && tagNorm === liveNorm;
         li.textContent = (hasPR ? '● ' : '') + b + ver;
+        if (isLive) {
+          li.classList.add('is-live');
+          const badge = document.createElement('span');
+          badge.className = 'bm__badge bm__badge--live';
+          badge.textContent = 'LIVE';
+          li.appendChild(badge);
+        }
         if (hasPR) li.classList.add('has-pr');
         ul.appendChild(li);
       });
@@ -943,6 +971,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
       Promise.all([
         fetch(apiUrl + '?action=status').then(r => r.json()),
         fetchOpenPRs(),
+        fetchLiveVersions(),
       ]).then(([data]) => {
           clientBranches = data.client.openBranches || [];
           apiBranches = data.api.openBranches || [];
@@ -966,8 +995,8 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
           updateBmWarnings();
           populateRecent('recent-client', clientBranches.slice(0, 10), clientVersions, clientPRBranches);
           populateRecent('recent-api', apiBranches.slice(0, 10), apiVersions, apiPRBranches);
-          populateRecent('recent-tags-client', data.client.tags || [], {});
-          populateRecent('recent-tags-api', data.api.tags || [], {});
+          populateRecent('recent-tags-client', data.client.tags || [], {}, null, liveClientVersion);
+          populateRecent('recent-tags-api', data.api.tags || [], {}, null, liveApiVersion);
           document.getElementById('tags-client-version').textContent = 'v' + clientVer;
           document.getElementById('tags-api-version').textContent = 'v' + apiVer;
           document.getElementById('btn-client').disabled = false;
