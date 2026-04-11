@@ -88,6 +88,18 @@
   min-width: 90px;
 }
 
+.issue-report__error-count {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  margin: 0;
+  text-align: center;
+}
+
+.issue-report__error-count--has-errors {
+  color: var(--color-danger, #ef4444);
+  font-weight: 600;
+}
+
 /* Flag button in phase header */
 .phase-header__flag-btn {
   width: 34px;
