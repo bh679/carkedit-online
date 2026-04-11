@@ -64,6 +64,7 @@ let dayStats = {};
 let liveStats = { activeGames: 0, activePlayers: 0 };
 let playTimeMode = 'total'; // 'total' | 'average' | 'median' | 'longest'
 let gamesCountMode = 'finished'; // 'finished' | 'total' | 'abandoned' | 'day'
+let playersMode = 'all'; // 'all' | 'finished'
 let expandedGameId = null;
 
 // Game filters
@@ -406,6 +407,34 @@ function cycleGamesCount() {
   renderStats();
 }
 
+function getPlayersCountValue() {
+  switch (playersMode) {
+    case 'finished': return stats.totalPlayers ?? 0;
+    case 'all': default: return stats.allPlayers ?? 0;
+  }
+}
+
+function getPlayersCountLabel() {
+  switch (playersMode) {
+    case 'finished': return 'Finished Players';
+    case 'all': default: return 'Total Players';
+  }
+}
+
+function getPlayersFromStats(s) {
+  switch (playersMode) {
+    case 'finished': return s.totalPlayers ?? 0;
+    case 'all': default: return s.allPlayers ?? 0;
+  }
+}
+
+function cyclePlayersCount() {
+  const modes = ['all', 'finished'];
+  const idx = modes.indexOf(playersMode);
+  playersMode = modes[(idx + 1) % modes.length];
+  renderStats();
+}
+
 // ── Expand/Collapse Game Detail ──────────────────────
 const gameDetailCache = {};
 
@@ -489,11 +518,11 @@ function renderStats() {
       ${renderSubCards(getLiveGamesCount(), getGamesCountFromStats(weekStats), getGamesCountFromStats(monthStats), false)}
     </div>
     <div class="dashboard__stat-group">
-      <div class="dashboard__stat">
-        <span class="dashboard__stat-value">${stats.totalPlayers ?? 0}</span>
-        <span class="dashboard__stat-label">Total Players</span>
+      <div class="dashboard__stat dashboard__stat--clickable" onclick="window.dash.cyclePlayersCount()">
+        <span class="dashboard__stat-value">${getPlayersCountValue()}</span>
+        <span class="dashboard__stat-label">${getPlayersCountLabel()}</span>
       </div>
-      ${renderSubCards(getLivePlayers(), weekStats.totalPlayers ?? 0, monthStats.totalPlayers ?? 0, false)}
+      ${renderSubCards(getLivePlayers(), getPlayersFromStats(weekStats), getPlayersFromStats(monthStats), false)}
     </div>
     <div class="dashboard__stat-group">
       <div class="dashboard__stat dashboard__stat--clickable" onclick="window.dash.cyclePlayTime()">
@@ -878,7 +907,116 @@ function renderDebugCard(gd) {
         <span>Dev: ${gd.is_dev ? 'Yes' : 'No'}</span>
         ${gd.room_code ? `<span>Room code: ${gd.room_code}</span>` : ''}
       </div>
+      <button id="copy-debug-btn-${gd.id}" class="detail__copy-debug-btn" onclick="event.stopPropagation(); window.dash.copyDebugData('${gd.id}')">Copy for Claude</button>
     </div>`;
+}
+
+function _safeParse(jsonStr, fallback) {
+  if (!jsonStr) return fallback;
+  try { return JSON.parse(jsonStr); } catch { return jsonStr; }
+}
+
+function _groupCardPlaysByRound(cardPlays) {
+  const roundMap = {};
+  for (const cp of (cardPlays || [])) {
+    if (!roundMap[cp.round]) roundMap[cp.round] = {};
+    if (!roundMap[cp.round][cp.phase]) roundMap[cp.round][cp.phase] = [];
+    roundMap[cp.round][cp.phase].push({
+      card_id: cp.card_id,
+      card_text: cp.card_text,
+      card_deck: cp.card_deck,
+      player_name: cp.player_name,
+      is_winner: !!cp.is_winner,
+    });
+  }
+  return Object.keys(roundMap)
+    .sort((a, b) => Number(a) - Number(b))
+    .map(round => ({ round: Number(round), phases: roundMap[round] }));
+}
+
+async function _copyToClipboard(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand('copy');
+  document.body.removeChild(ta);
+}
+
+async function copyDebugData(gameId) {
+  const btn = document.getElementById('copy-debug-btn-' + gameId);
+  const gd = gameDetailCache[gameId];
+  if (!gd) return;
+
+  if (btn) { btn.textContent = 'Loading...'; btn.disabled = true; }
+
+  try {
+    // Fetch game events (supplementary — don't fail if unavailable)
+    let events = [];
+    try {
+      const res = await authFetch(`${API_BASE}/api/carkedit/games/${gameId}/events`);
+      if (res.ok) { const data = await res.json(); events = data.events || []; }
+    } catch { /* events are optional */ }
+
+    // Build context string
+    const statusDesc = gd.live_status === 'completed' ? 'completed successfully'
+      : gd.live_status === 'abandoned' ? 'was abandoned' : 'is currently live';
+    const errorNote = gd.has_error ? ' The game has errors flagged.' : '';
+    const issueNote = (gd.issues && gd.issues.length > 0) ? ` There are ${gd.issues.length} issue report(s).` : '';
+    const durationNote = gd.duration_seconds ? ` Duration: ${Math.round(gd.duration_seconds / 60)} minutes.` : '';
+
+    const payload = {
+      _context: `CarkedIt game debug data for game ${gd.id}. This is a ${gd.mode} game with ${gd.player_count} players that ${statusDesc}.${durationNote}${errorNote}${issueNote} Use this data to diagnose issues or understand game flow.`,
+      host_url: window.location.origin,
+      game: {
+        id: gd.id, mode: gd.mode, room_code: gd.room_code, status: gd.status,
+        live_status: gd.live_status, has_error: gd.has_error, is_dev: gd.is_dev,
+        started_at: gd.started_at, finished_at: gd.finished_at,
+        duration_seconds: gd.duration_seconds, rounds: gd.rounds,
+        player_count: gd.player_count, winner_name: gd.winner_name,
+        winner_score: gd.winner_score, host_name: gd.host_name,
+        api_version: gd.api_version, client_version: gd.client_version,
+      },
+      settings: _safeParse(gd.settings_json, null),
+      players: gd.players || [],
+      rounds: _groupCardPlaysByRound(gd.card_plays),
+      issues: (gd.issues || []).map(issue => ({
+        id: issue.id, created_at: issue.created_at, category: issue.category,
+        description: issue.description, screen: issue.screen, phase: issue.phase,
+        player_count: issue.player_count, game_mode: issue.game_mode,
+        device_info: issue.device_info, client_version: issue.client_version,
+        players: _safeParse(issue.players_json, null),
+        game_state: _safeParse(issue.game_state_json, null),
+        errors: _safeParse(issue.error_log, null),
+      })),
+      events_timeline: events.map(ev => ({
+        event_type: ev.event_type, actor_name: ev.actor_name,
+        phase: ev.phase, round: ev.round,
+        data: _safeParse(ev.data_json, null),
+        created_at: ev.created_at,
+      })),
+    };
+
+    await _copyToClipboard(JSON.stringify(payload, null, 2));
+    if (btn) { btn.textContent = 'Copied!'; btn.classList.add('detail__copy-debug-btn--success'); }
+  } catch (err) {
+    console.error('[dashboard] copyDebugData failed:', err);
+    if (btn) { btn.textContent = 'Copy failed'; btn.classList.add('detail__copy-debug-btn--error'); }
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      setTimeout(() => {
+        btn.textContent = 'Copy for Claude';
+        btn.classList.remove('detail__copy-debug-btn--success', 'detail__copy-debug-btn--error');
+      }, 2000);
+    }
+  }
 }
 
 function _renderErrorLog(errorLogJson) {
@@ -1693,7 +1831,7 @@ async function togglePackDev(id, next) {
   } catch (e) { console.error(e); alert('Failed to toggle dev: ' + e.message); }
 }
 
-window.dash = { cyclePlayTime, cycleGamesCount, toggleGame, cycleDeckFilter, setCardSort, toggleCardSortDir, cycleCardDev, setPackFilter, setAuthorFilter, setPackSort, togglePackExpanded, cycleSurveyDev, previewCard, closePreview, prevPreviewCard, nextPreviewCard, scrollCards, loadMoreGames, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange, signInWithGoogle, signOut, toggleGameDev, toggleSurveyDev, togglePackDev };
+window.dash = { cyclePlayTime, cycleGamesCount, cyclePlayersCount, toggleGame, cycleDeckFilter, setCardSort, toggleCardSortDir, cycleCardDev, setPackFilter, setAuthorFilter, setPackSort, togglePackExpanded, cycleSurveyDev, previewCard, closePreview, prevPreviewCard, nextPreviewCard, scrollCards, loadMoreGames, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange, signInWithGoogle, signOut, toggleGameDev, toggleSurveyDev, togglePackDev, copyDebugData };
 
 // ── Auth Gate UI ─────────────────────────────────────
 function renderAuthGate(message, showSignIn = true) {
