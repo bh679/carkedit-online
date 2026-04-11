@@ -525,6 +525,12 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
             font-size: 0.8rem; font-weight: 600; margin-bottom: var(--space-xs);
             display: flex; align-items: center; gap: var(--space-xs);
         }
+        .bm__show-more {
+            display: block; width: 100%; padding: var(--space-sm); margin-top: var(--space-xs);
+            background: transparent; border: 1px dashed var(--color-border); border-radius: var(--radius-sm);
+            color: var(--color-text-muted); font-size: 0.8rem; cursor: pointer; text-align: center;
+        }
+        .bm__show-more:hover { color: var(--color-text); border-color: var(--color-text-muted); }
         select option.has-pr { color: #4caf50; }
 
         /* Rescue link */
@@ -1141,7 +1147,26 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         return;
       }
 
-      orderedNames.slice(0, 15).forEach(b => {
+      const INITIAL_SHOW = 5;
+      let showCount = INITIAL_SHOW;
+
+      function renderCards() {
+        // Clear cards but keep the button if it exists
+        const existingBtn = container.querySelector('.bm__show-more');
+        container.innerHTML = '';
+
+        orderedNames.slice(0, showCount).forEach(renderBranchCard);
+
+        if (showCount < orderedNames.length) {
+          const btn = document.createElement('button');
+          btn.className = 'bm__show-more';
+          btn.textContent = 'Show more (' + (orderedNames.length - showCount) + ' remaining)';
+          btn.addEventListener('click', () => { showCount = orderedNames.length; renderCards(); });
+          container.appendChild(btn);
+        }
+      }
+
+      function renderBranchCard(b) {
         const inClient = clientBranches.includes(b);
         const inApi = apiBranches.includes(b);
         const cDetails = inClient && clientBranchDetails[b];
@@ -1228,7 +1253,9 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         card.appendChild(panel);
         row.addEventListener('click', () => card.classList.toggle('is-expanded'));
         container.appendChild(card);
-      });
+      }
+
+      renderCards();
     }
 
     function loadStatus() {
