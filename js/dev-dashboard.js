@@ -20,7 +20,7 @@ const REPOS = [
   { name: 'bh679/carkedit-client', color: 'var(--color-text-muted)', label: 'client', outdated: true },
   { name: 'bh679/fill-in-the-blank', color: 'var(--color-text-muted)', label: 'fitb', outdated: true },
 ];
-const API = 'https://api.github.com';
+const GH_PROXY = '/api/carkedit/github';
 const CACHE_TTL = 5 * 60 * 1000;
 const DECK_TYPES = ['die', 'live', 'bye'];
 
@@ -40,13 +40,15 @@ let rateLimitRemaining = null;
 let rateLimitTotal = null;
 let rateLimitReset = null;
 
-// ── GitHub API Helper ─────────────────────────────────
+// ── GitHub API Helper (proxied through carkedit-api) ──
 
-function getToken() {
-  const params = new URLSearchParams(window.location.search);
-  const t = params.get('token');
-  if (t) sessionStorage.setItem('gh_token', t);
-  return sessionStorage.getItem('gh_token');
+async function getAuthHeaders() {
+  const headers = {};
+  if (_fbAuth && _fbAuth.currentUser) {
+    const token = await _fbAuth.currentUser.getIdToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+  }
+  return headers;
 }
 
 async function ghFetch(path) {
@@ -57,18 +59,15 @@ async function ghFetch(path) {
     if (Date.now() - ts < CACHE_TTL) return data;
   }
 
-  const headers = { Accept: 'application/vnd.github.v3+json' };
-  const token = getToken();
-  if (token) headers.Authorization = `token ${token}`;
-
-  const res = await fetch(`${API}${path}`, { headers });
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${GH_PROXY}${path}`, { headers });
   rateLimitRemaining = res.headers.get('X-RateLimit-Remaining');
   rateLimitTotal = res.headers.get('X-RateLimit-Limit');
   const resetHeader = res.headers.get('X-RateLimit-Reset');
   if (resetHeader) rateLimitReset = parseInt(resetHeader, 10);
 
   if (!res.ok) {
-    if (res.status === 403) throw new Error('Rate limited — try again later or add ?token=ghp_...');
+    if (res.status === 403) throw new Error('Rate limited — try again later');
     throw new Error(`GitHub API ${res.status}`);
   }
 
@@ -81,15 +80,11 @@ async function ghFetch(path) {
 }
 
 async function ghPost(path, body) {
-  const token = getToken();
-  if (!token) throw new Error('GitHub token required — add ?token=ghp_...');
-  const res = await fetch(`${API}${path}`, {
+  const headers = await getAuthHeaders();
+  headers['Content-Type'] = 'application/json';
+  const res = await fetch(`${GH_PROXY}${path}`, {
     method: 'POST',
-    headers: {
-      Accept: 'application/vnd.github.v3+json',
-      Authorization: `token ${token}`,
-      'Content-Type': 'application/json',
-    },
+    headers,
     body: JSON.stringify(body),
   });
   if (!res.ok) {
@@ -539,9 +534,10 @@ async function toggleWikiItem(idx, pageName, url) {
   el.innerHTML = '<span class="dash-loading">Loading...</span>';
 
   try {
-    // Fetch wiki page raw markdown via GitHub raw content
-    const rawUrl = `https://raw.githubusercontent.com/wiki/${PRIMARY_REPO}/${encodeURIComponent(pageName)}.md`;
-    const res = await fetch(rawUrl);
+    // Fetch wiki page raw markdown via API proxy
+    const [owner, repo] = PRIMARY_REPO.split('/');
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${GH_PROXY}/wiki/${owner}/${repo}/${encodeURIComponent(pageName)}`, { headers });
     const content = res.ok ? await res.text() : '';
     wikiContentCache.set(pageName, content);
     el.innerHTML = renderWikiPreview(content, url);
@@ -1040,16 +1036,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       } catch { window.location.href = '/'; return; }
       _fbUserInfo = { displayName: user.displayName, photoURL: user.photoURL, email: user.email };
-      // Load GitHub token from server config (if not already set via URL param)
-      if (!getToken()) {
-        try {
-          const cfgRes = await fetch('/api/carkedit/dev/config', { headers: { Authorization: `Bearer ${token}` } });
-          if (cfgRes.ok) {
-            const cfg = await cfgRes.json();
-            if (cfg.githubToken) sessionStorage.setItem('gh_token', cfg.githubToken);
-          }
-        } catch { /* ignore — token just won't be available */ }
-      }
       await init();
     });
   } catch (err) {
