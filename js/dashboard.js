@@ -64,6 +64,7 @@ let dayStats = {};
 let liveStats = { activeGames: 0, activePlayers: 0 };
 let playTimeMode = 'total'; // 'total' | 'average' | 'median' | 'longest'
 let gamesCountMode = 'finished'; // 'finished' | 'total' | 'abandoned' | 'day'
+let playersMode = 'all'; // 'all' | 'finished'
 let expandedGameId = null;
 
 // Game filters
@@ -406,6 +407,34 @@ function cycleGamesCount() {
   renderStats();
 }
 
+function getPlayersCountValue() {
+  switch (playersMode) {
+    case 'finished': return stats.totalPlayers ?? 0;
+    case 'all': default: return stats.allPlayers ?? 0;
+  }
+}
+
+function getPlayersCountLabel() {
+  switch (playersMode) {
+    case 'finished': return 'Finished Players';
+    case 'all': default: return 'Total Players';
+  }
+}
+
+function getPlayersFromStats(s) {
+  switch (playersMode) {
+    case 'finished': return s.totalPlayers ?? 0;
+    case 'all': default: return s.allPlayers ?? 0;
+  }
+}
+
+function cyclePlayersCount() {
+  const modes = ['all', 'finished'];
+  const idx = modes.indexOf(playersMode);
+  playersMode = modes[(idx + 1) % modes.length];
+  renderStats();
+}
+
 // ── Expand/Collapse Game Detail ──────────────────────
 const gameDetailCache = {};
 
@@ -489,11 +518,11 @@ function renderStats() {
       ${renderSubCards(getLiveGamesCount(), getGamesCountFromStats(weekStats), getGamesCountFromStats(monthStats), false)}
     </div>
     <div class="dashboard__stat-group">
-      <div class="dashboard__stat">
-        <span class="dashboard__stat-value">${stats.totalPlayers ?? 0}</span>
-        <span class="dashboard__stat-label">Total Players</span>
+      <div class="dashboard__stat dashboard__stat--clickable" onclick="window.dash.cyclePlayersCount()">
+        <span class="dashboard__stat-value">${getPlayersCountValue()}</span>
+        <span class="dashboard__stat-label">${getPlayersCountLabel()}</span>
       </div>
-      ${renderSubCards(getLivePlayers(), weekStats.totalPlayers ?? 0, monthStats.totalPlayers ?? 0, false)}
+      ${renderSubCards(getLivePlayers(), getPlayersFromStats(weekStats), getPlayersFromStats(monthStats), false)}
     </div>
     <div class="dashboard__stat-group">
       <div class="dashboard__stat dashboard__stat--clickable" onclick="window.dash.cyclePlayTime()">
@@ -1802,7 +1831,7 @@ async function togglePackDev(id, next) {
   } catch (e) { console.error(e); alert('Failed to toggle dev: ' + e.message); }
 }
 
-window.dash = { cyclePlayTime, cycleGamesCount, toggleGame, cycleDeckFilter, setCardSort, toggleCardSortDir, cycleCardDev, setPackFilter, setAuthorFilter, setPackSort, togglePackExpanded, cycleSurveyDev, previewCard, closePreview, prevPreviewCard, nextPreviewCard, scrollCards, loadMoreGames, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange, signInWithGoogle, signOut, toggleGameDev, toggleSurveyDev, togglePackDev, copyDebugData };
+window.dash = { cyclePlayTime, cycleGamesCount, cyclePlayersCount, toggleGame, cycleDeckFilter, setCardSort, toggleCardSortDir, cycleCardDev, setPackFilter, setAuthorFilter, setPackSort, togglePackExpanded, cycleSurveyDev, previewCard, closePreview, prevPreviewCard, nextPreviewCard, scrollCards, loadMoreGames, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange, signInWithGoogle, signOut, toggleGameDev, toggleSurveyDev, togglePackDev, copyDebugData };
 
 // ── Auth Gate UI ─────────────────────────────────────
 function renderAuthGate(message, showSignIn = true) {
