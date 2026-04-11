@@ -1,0 +1,26 @@
+name: Deploy to play.carkedit.com (production)
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to production (play.carkedit.com)
+        run: |
+          echo "Deploying tag: ${{ github.ref_name }}"
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            "https://api.carkedit.com/.deploy/carkedit-online.php?token=${{ secrets.DEPLOY_TOKEN_PROD }}")
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | head -n -1)
+          echo "Response: $BODY"
+          echo "HTTP Status: $HTTP_CODE"
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::Production deploy failed with HTTP $HTTP_CODE"
+            exit 1
+          fi
+          echo "$BODY" | jq -r '.status' | grep -q "ok" || { echo "::error::Production deploy status not ok"; exit 1; }
+          echo "Production deploy successful!"
