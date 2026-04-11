@@ -3,13 +3,13 @@
  * is deployed on a non-main branch (brennan.games staging only).
  *
  * Self-contained: all styles are inline, no external CSS dependencies.
- * Reads branch-state.json (written by branch-manager.php / deploy.php).
- * Fails silently if the file is missing or we're not on the staging host.
+ * Fetches branch-info.php which returns the current git branch as JSON.
+ * Fails silently if the endpoint is missing or we're not on the staging host.
  */
 (function () {
   if (window.location.hostname !== 'brennan.games') return;
 
-  fetch('branch-state.json')
+  fetch('branch-info.php')
     .then(function (r) { return r.ok ? r.json() : null; })
     .then(function (state) {
       if (!state || !state.client || state.client === 'main') return;
