@@ -35,7 +35,7 @@ function renderStats(stats, highlightStat) {
   const hl = (key) => key === highlightStat ? ' dashboard__stat-card-rate' : '';
   return `
     <div class="card-list__stats dashboard__stat-card-data">
-      <span class="${hl('play_count')}">${stats.play_count}/${stats.draw_count || '?'} plays</span>
+      <span class="${hl('play_count')}${hl('draw_count')}">${stats.play_count}/${stats.draw_count || '?'} plays</span>
       <span class="${hl('play_rate')}">${playRate}</span>
       <span class="${hl('win_count')}">${stats.win_count} wins</span>
       <span class="${hl('win_rate')}">${stats.win_rate}% win</span>
