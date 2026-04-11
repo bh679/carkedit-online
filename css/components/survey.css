@@ -12,22 +12,19 @@
 
 .survey--collapsed {
   padding: 0.5em;
+  margin-bottom: 0.5em;
   background: transparent;
   border: none;
 }
 
-.survey__prompt-btn {
-  background: rgba(152, 66, 255, 0.15);
-  color: var(--color-text, #fff);
-  border: 1px dashed rgba(152, 66, 255, 0.5);
-  border-radius: 0.5em;
-  padding: 0.75em 1.2em;
+.survey__prompt-label {
+  margin: 0 0 0.4em;
   font-size: 0.95rem;
-  cursor: pointer;
-  transition: background 0.15s;
+  color: rgba(255, 255, 255, 0.7);
 }
-.survey__prompt-btn:hover {
-  background: rgba(152, 66, 255, 0.25);
+
+.survey__prompt-btn {
+  /* Inherits btn btn--primary styles */
 }
 
 .survey__title {
