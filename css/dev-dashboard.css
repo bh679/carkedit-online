@@ -121,6 +121,24 @@
 .contrib-wrapper--full {
   flex-direction: row;
   overflow-x: auto;
+  align-items: flex-end;
+  gap: var(--space-sm);
+}
+
+.contrib-wrapper--full .contrib-month-group {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.contrib-wrapper--full .contrib-week-row {
+  gap: 3px;
+}
+
+.contrib-cell--full {
+  width: 100%;
+  height: 14px;
+  flex: 1 1 0;
+  min-width: 10px;
 }
 
 .contrib-month-group {

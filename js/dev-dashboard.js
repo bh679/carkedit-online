@@ -199,6 +199,33 @@ function renderContribGraph(data, opts) {
 
   const recentGroups = [...groups.values()].slice(-3);
 
+  if (opts?.full) {
+    // Full-width: one cell per day, all in a single horizontal row
+    const monthGroupsHtml = recentGroups.map(({ label, weeks }) => {
+      const cellsHtml = weeks.map(week => {
+        return Array.from({ length: 7 }, (_, d) => {
+          const count = week.days[d];
+          let level = 0;
+          if (count >= 1) level = 1;
+          if (count >= 3) level = 2;
+          if (count >= 5) level = 3;
+          if (count >= 8) level = 4;
+          const weekTs = week.week * 1000;
+          const cellDate = new Date(weekTs + d * 86400000);
+          const dateStr = cellDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+          const tooltip = `${count} commit${count !== 1 ? 's' : ''} · ${dayNames[d]} ${dateStr}`;
+          return `<div class="contrib-cell contrib-cell--full contrib-cell--${level}" data-tooltip="${tooltip}"></div>`;
+        }).join('');
+      }).join('');
+      return `<div class="contrib-month-group"><div class="contrib-month-label">${label}</div><div class="contrib-week-row">${cellsHtml}</div></div>`;
+    }).join('');
+
+    return `
+      <div class="contrib-wrapper contrib-wrapper--full">
+        ${monthGroupsHtml}
+      </div>`;
+  }
+
   const monthGroupsHtml = recentGroups.map(({ label, weeks }) => {
     const weekRowsHtml = weeks.map(week => {
       const cellsHtml = Array.from({ length: 7 }, (_, d) => {
@@ -219,9 +246,8 @@ function renderContribGraph(data, opts) {
     return `<div class="contrib-month-group"><div class="contrib-month-label">${label}</div>${weekRowsHtml}</div>`;
   }).join('');
 
-  const fullClass = opts?.full ? ' contrib-wrapper--full' : '';
   return `
-    <div class="contrib-wrapper${fullClass}">
+    <div class="contrib-wrapper">
       ${monthGroupsHtml}
     </div>
     <div class="contrib-legend">
