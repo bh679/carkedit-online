@@ -987,12 +987,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     const fbAuth = authMod.getAuth(fbApp);
     _fbAuth = fbAuth;
 
+    // Handle return from signInWithRedirect() (mobile Google sign-in)
+    try {
+      await authMod.getRedirectResult(fbAuth);
+    } catch (redirectErr) {
+      console.error('[dev-dashboard] Redirect result error:', redirectErr);
+    }
+
     authMod.onAuthStateChanged(fbAuth, async (user) => {
       if (!user) {
         renderAuthGate('Sign in to access the dev dashboard.', true);
         document.getElementById('gate-sign-in')?.addEventListener('click', async () => {
           const provider = new authMod.GoogleAuthProvider();
-          await authMod.signInWithPopup(fbAuth, provider);
+          if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+            await authMod.signInWithRedirect(fbAuth, provider);
+          } else {
+            await authMod.signInWithPopup(fbAuth, provider);
+          }
         });
         return;
       }
