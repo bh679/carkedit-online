@@ -281,7 +281,7 @@ function renderPackEditor() {
   const sections = deckTypes.map(type => {
     const cards = state.currentPackCards.filter(c => c.deck_type === type);
     const label = type.charAt(0).toUpperCase() + type.slice(1);
-    const items = cards.map(c => ({ compositeId: `${c.deck_type === 'living' ? 'live' : c.deck_type}:${c.id}` }));
+    const items = cards.map(c => ({ compositeId: `${c.deck_type === 'living' ? 'live' : c.deck_type}:${c.id}`, id: c.id }));
     const listHtml = renderCardList(items, {
       size: 'sm',
       showStats: false,

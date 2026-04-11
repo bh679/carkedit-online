@@ -3,6 +3,7 @@
 
 import { render as renderCardList, fromStatRow, bindScrollArrows } from './components/card-list.js';
 import { renderAdminHeader, bindAdminHeader, resetAdminHeaderMenu } from './components/admin-header.js';
+import { getOrCreate as registryGetOrCreate } from './data/CardRegistry.js';
 
 // ── Firebase Auth for Admin Gate ────────────────────
 const FIREBASE_CONFIG = {
@@ -87,6 +88,7 @@ async function loadCardData() {
       const cards = await res.json();
       for (const c of cards) {
         cardDataMap[`${deck}-${c.id}`] = { ...c, deck, deckType };
+        registryGetOrCreate({ ...c, deckType });
       }
     } catch {}
   }));
@@ -104,7 +106,9 @@ async function loadCardData() {
           const pack = await pr.json();
           for (const c of (pack.cards ?? [])) {
             const deck = c.deck_type === 'live' ? 'living' : c.deck_type;
-            cardDataMap[`${deck}-${c.id}`] = { ...c, deck, deckType: c.deck_type === 'live' ? 'live' : c.deck_type, image_url: c.image_url || '' };
+            const deckType = c.deck_type === 'live' ? 'live' : c.deck_type;
+            cardDataMap[`${deck}-${c.id}`] = { ...c, deck, deckType, image_url: c.image_url || '' };
+            registryGetOrCreate({ ...c, deckType });
           }
         } catch {}
       }));
