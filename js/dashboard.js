@@ -885,6 +885,36 @@ function renderDebugCard(gd) {
     </div>`;
 }
 
+function renderIssuesCard(gd) {
+  if (!gd.issues || gd.issues.length === 0) return '';
+  const issueRows = gd.issues.map(issue => {
+    const date = new Date(issue.created_at);
+    const time = date.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const cats = issue.category.split(',').map(c => `<span class="detail__issue-cat">${c.trim()}</span>`).join(' ');
+    const desc = issue.description ? `<p class="detail__issue-desc">${issue.description.length > 200 ? issue.description.slice(0, 200) + '...' : issue.description}</p>` : '';
+    const meta = [issue.screen, issue.phase].filter(Boolean).join(' / ');
+    return `
+      <div class="detail__issue-item">
+        <div class="detail__issue-header">
+          <span class="detail__issue-time">${time}</span>
+          ${cats}
+          ${meta ? `<span class="detail__issue-meta">${meta}</span>` : ''}
+        </div>
+        ${desc}
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="detail__row detail__row--issues">
+      <h4 class="detail__row-title detail__row-title--issues" onclick="this.parentElement.classList.toggle('is-collapsed')">
+        Issue Reports (${gd.issues.length}) <span class="detail__toggle-arrow">&#9660;</span>
+      </h4>
+      <div class="detail__issues-list">
+        ${issueRows}
+      </div>
+    </div>`;
+}
+
 function renderGameDetail(gd) {
   return `
     <div class="dashboard__detail" onclick="event.stopPropagation()">
@@ -893,6 +923,7 @@ function renderGameDetail(gd) {
         ${renderPlayersCard(gd)}
       </div>
       ${renderPhaseCards(gd)}
+      ${renderIssuesCard(gd)}
       ${renderDebugCard(gd)}
     </div>`;
 }
@@ -920,6 +951,7 @@ function renderGameCard(game) {
   const cls = rowClass(game);
   const expanded = expandedGameId === game.id;
   const errorFlag = game.has_error ? '<span class="dashboard__flag dashboard__flag--error" title="Error">!</span>' : '';
+  const issueFlag = game.issue_count > 0 ? `<span class="dashboard__flag dashboard__flag--issue" title="${game.issue_count} issue report(s)">&#9873;</span>` : '';
   const devFlag = `<button class="dashboard__dev-toggle ${game.is_dev ? 'is-on' : ''}" title="Toggle dev" onclick="event.stopPropagation(); window.dash.toggleGameDev('${game.id}', ${!game.is_dev})">DEV</button>`;
   const liveLabel = liveStatusLabel(game.live_status);
   const liveBadge = liveLabel ? `<span class="dashboard__badge dashboard__badge--${game.live_status}">${liveLabel}</span>` : '';
@@ -964,6 +996,7 @@ function renderGameCard(game) {
         <span class="dashboard__cell dashboard__cell--status-live">${statusLiveDisplay}</span>
         <span class="dashboard__cell dashboard__cell--dev">${devFlag}</span>
         <span class="dashboard__cell dashboard__cell--error">${errorFlag}</span>
+        <span class="dashboard__cell dashboard__cell--issue">${issueFlag}</span>
       </div>
       ${detail}
     </div>
@@ -1009,6 +1042,7 @@ function renderGameList() {
         <span class="dashboard__cell dashboard__cell--live"></span>
         <span class="dashboard__cell dashboard__cell--dev"></span>
         <span class="dashboard__cell dashboard__cell--error"></span>
+        <span class="dashboard__cell dashboard__cell--issue"></span>
       </div>
       ${games.map(renderGameCard).join('')}
       ${loadMoreBtn}
