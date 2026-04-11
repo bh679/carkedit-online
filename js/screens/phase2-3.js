@@ -521,13 +521,13 @@ function renderOnlineConvince(config, state, playerListOptions, livingDeadName) 
 
 function renderOnlineSelect(config, state, playerListOptions, livingDeadName) {
   // Build judging entries from submitted cards — shared by all players
-  const entries = state.onlineSubmittedCards.map(card => {
+  const entries = state.onlineSubmittedCards.map((card, index) => {
     const player = state.players.find(p => p.sessionId === card.submittedBy);
     const name = player?.name ?? 'Unknown';
     return {
       card: { ...card, deckType: card.deckType || config.deckType },
       label: `${escapeHtml(name)}'s card`,
-      onClick: `window.game.inspectJudgingCard(${escapeHtml(JSON.stringify(name))})`,
+      onClick: `window.game.inspectJudgingCard(${index})`,
       playerName: name,
     };
   });
@@ -543,8 +543,8 @@ function renderOnlineSelect(config, state, playerListOptions, livingDeadName) {
           deckType: config.deckType,
           submitLabel: 'Pick This Card',
           onSubmit: `window.game.confirmWinner()`,
-          onPrev: `window.game.prevJudgingCard('${state.selectedCard.id}')`,
-          onNext: `window.game.nextJudgingCard('${state.selectedCard.id}')`,
+          onPrev: `window.game.prevJudgingCard(${state.selectedCard._cardIndex ?? 0})`,
+          onNext: `window.game.nextJudgingCard(${state.selectedCard._cardIndex ?? 0})`,
         })
       : '';
 
@@ -564,8 +564,8 @@ function renderOnlineSelect(config, state, playerListOptions, livingDeadName) {
         deckType: config.deckType,
         submitLabel: 'Close',
         onSubmit: `window.game.dismissInspect()`,
-        onPrev: `window.game.prevJudgingCard('${state.selectedCard.id}')`,
-        onNext: `window.game.nextJudgingCard('${state.selectedCard.id}')`,
+        onPrev: `window.game.prevJudgingCard(${state.selectedCard._cardIndex ?? 0})`,
+        onNext: `window.game.nextJudgingCard(${state.selectedCard._cardIndex ?? 0})`,
         btnStyle: 'secondary',
       })
     : '';
