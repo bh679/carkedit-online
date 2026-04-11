@@ -12,6 +12,13 @@ import {
   uploadPackBrand, removePackBrand,
 } from './pack-manager.js';
 import { registerPackBrand } from '../state.js';
+import { getOrCreate as registryGetOrCreate } from '../data/CardRegistry.js';
+
+/** Register an array of raw pack card objects in the CardRegistry. */
+function registerPackCards(cards) {
+  if (!Array.isArray(cards)) return;
+  for (const c of cards) registryGetOrCreate(c);
+}
 import {
   signInWithGoogle, signInWithEmail, signUpWithEmail, logOut,
 } from '../managers/auth-manager.js';
@@ -134,6 +141,7 @@ if (typeof window !== 'undefined') {
     try {
       await updatePack(state.currentPack.id, { featured_card_id: id });
       const full = await getPack(state.currentPack.id);
+      registerPackCards(full.cards);
       setState({
         loading: false,
         currentPack: full,
@@ -722,6 +730,7 @@ async function handleNewPack() {
   try {
     const pack = await createPack(state.localUserId, 'Untitled Pack', '');
     const full = await getPack(pack.id);
+    registerPackCards(full.cards);
     setState({
       loading: false,
       currentPack: full,
@@ -737,6 +746,7 @@ async function handleEditPack(packId) {
   setState({ loading: true, error: null });
   try {
     const full = await getPack(packId);
+    registerPackCards(full.cards);
     setState({
       loading: false,
       currentPack: full,
@@ -883,6 +893,7 @@ async function handleSaveCard() {
     }
     // Refresh pack data
     const full = await getPack(state.currentPack.id);
+    registerPackCards(full.cards);
     setState({
       loading: false,
       currentPack: full,
@@ -907,6 +918,7 @@ async function handleDeleteCard(cardId) {
   try {
     await deleteCard(state.currentPack.id, cardId);
     const full = await getPack(state.currentPack.id);
+    registerPackCards(full.cards);
     setState({
       loading: false,
       currentPack: full,
@@ -925,6 +937,7 @@ async function handleClearFeature() {
   try {
     await updatePack(state.currentPack.id, { featured_card_id: null });
     const full = await getPack(state.currentPack.id);
+    registerPackCards(full.cards);
     setState({
       loading: false,
       currentPack: full,
@@ -974,6 +987,7 @@ async function handlePublishPack(packId) {
     // Refresh — could be from list or editor view
     if (state.currentPack?.id === packId) {
       const full = await getPack(packId);
+      registerPackCards(full.cards);
       setState({ loading: false, currentPack: full, currentPackCards: full.cards || [] });
     }
     const packs = await fetchMyPacks(state.localUserId);
@@ -991,6 +1005,7 @@ async function handleUnpublishPack(packId) {
     await updatePack(packId, { status: 'draft' });
     if (state.currentPack?.id === packId) {
       const full = await getPack(packId);
+      registerPackCards(full.cards);
       setState({ loading: false, currentPack: full, currentPackCards: full.cards || [] });
     }
     const packs = await fetchMyPacks(state.localUserId);

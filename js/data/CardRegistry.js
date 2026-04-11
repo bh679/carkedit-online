@@ -51,6 +51,17 @@ export function getOrCreate(raw, opts) {
   return card;
 }
 
+/**
+ * Force-write a Card, overwriting any existing entry with the same compositeId.
+ * Used when card data updates (e.g. after image generation saves a new image_url).
+ * @param {Card} card
+ * @returns {Card}
+ */
+export function set(card) {
+  _cards.set(card.compositeId, card);
+  return card;
+}
+
 /** Remove all registered cards (game reset). */
 export function clear() { _cards.clear(); }
 

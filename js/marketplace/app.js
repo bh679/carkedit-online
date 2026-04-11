@@ -6,6 +6,7 @@ import { renderPackCard } from '../components/pack-card.js';
 import { render as renderPackBg } from '../components/pack-card-background.js';
 import { setList as setPreviewList } from '../components/card-preview-overlay.js';
 import { mount as mountDesigner, unmount as unmountDesigner, syncAuth as syncDesignerAuth, getView as getDesignerView, editPack } from '../card-designer/app.js';
+import { getOrCreate as registryGetOrCreate } from '../data/CardRegistry.js';
 
 const API_BASE = `${window.location.origin}/api/carkedit`;
 
@@ -137,6 +138,10 @@ async function loadDetail(packId) {
     if (!packRes.ok) throw new Error(`HTTP ${packRes.status}`);
     const pack = await packRes.json();
     const stats = statsRes.ok ? await statsRes.json() : null;
+    // Register pack cards in the CardRegistry
+    if (Array.isArray(pack?.cards)) {
+      for (const c of pack.cards) registryGetOrCreate(c);
+    }
     const existing = findPackInState(packId);
     setState({
       selectedPack: {

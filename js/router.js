@@ -32,6 +32,7 @@ import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, logOut, u
 import { fetchMyPacks, fetchPublicPacks, fetchFavoritePacks, setPackFavorite, getPack } from './card-designer/pack-manager.js';
 import { render as renderCardFace } from './components/card.js';
 import { buildCard } from './data/card.js';
+import { getOrCreate as registryGetOrCreate } from './data/CardRegistry.js';
 import { renderLoginModal } from './components/auth-button.js';
 import {
   startPhase1, doneDying, revealCard,
@@ -682,9 +683,12 @@ window.game = {
           const results = await Promise.all(
             decks.map((d) => fetch(`js/data/cards/${d === 'live' ? 'live' : d}.json`).then((r) => (r.ok ? r.json() : [])))
           );
-          setState({
-            basePackCards: { die: results[0] || [], live: results[1] || [], bye: results[2] || [] },
-          });
+          const baseCards = { die: results[0] || [], live: results[1] || [], bye: results[2] || [] };
+          // Register base pack cards in the CardRegistry
+          for (const [deck, cards] of Object.entries(baseCards)) {
+            for (const c of cards) registryGetOrCreate({ ...c, deckType: deck });
+          }
+          setState({ basePackCards: baseCards });
           refreshOnlineLobbyAfterPackChange();
         } catch (e) {
           console.warn('[packs] base card fetch failed', e);
@@ -694,6 +698,8 @@ window.game = {
       try {
         const pack = await getPack(packId);
         const cards = pack?.cards || [];
+        // Register expansion pack cards in the CardRegistry
+        for (const c of cards) registryGetOrCreate(c);
         setState({ packCards: { ...(getState().packCards || {}), [packId]: cards } });
         refreshOnlineLobbyAfterPackChange();
       } catch (e) {

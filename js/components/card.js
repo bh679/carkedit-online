@@ -19,6 +19,7 @@
 'use strict';
 
 import { Card } from '../data/card.js';
+import { get as registryGet } from '../data/CardRegistry.js';
 
 /** HTML-attribute escape helper. Exported for test / designer reuse. */
 export function escAttr(s) {
@@ -175,10 +176,17 @@ function renderBrand(brandImageUrl) {
  * @param {object} card
  * @returns {string} HTML
  */
-export function render(card) {
-  if (!card) return '';
+export function render(cardOrId) {
+  if (!cardOrId) return '';
+  // CompositeId string — look up from registry.
+  if (typeof cardOrId === 'string') {
+    const found = registryGet(cardOrId);
+    return found ? found.frontHtml : '';
+  }
   // Card class instances have pre-rendered HTML — return it directly.
-  if (card instanceof Card) return card.frontHtml;
+  if (cardOrId instanceof Card) return cardOrId.frontHtml;
+  // Legacy fallback for plain objects (remove in Phase 3).
+  const card = cardOrId;
   const deckType = card.deckType || '';
   const spec = applySpecial(card);
   const brandHtml = renderBrand(card.brandImageUrl);

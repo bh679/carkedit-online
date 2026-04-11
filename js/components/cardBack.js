@@ -2,6 +2,7 @@
 'use strict';
 
 import { Card } from '../data/card.js';
+import { get as registryGet } from '../data/CardRegistry.js';
 
 const DECK_WORDS = ['LIVE', 'DIE', 'BYE!'];
 
@@ -15,10 +16,16 @@ const HIGHLIGHT_MAP = {
  * @param {{ deckType: string }} options
  * @returns {string} HTML string
  */
-export function render(cardOrOpts = {}) {
+export function render(cardOrIdOrOpts = {}) {
+  // CompositeId string — look up from registry.
+  if (typeof cardOrIdOrOpts === 'string') {
+    const found = registryGet(cardOrIdOrOpts);
+    return found ? found.backHtml : '';
+  }
   // Card class instances have pre-rendered back HTML — return it directly.
-  if (cardOrOpts instanceof Card) return cardOrOpts.backHtml;
-  const { deckType = 'die' } = cardOrOpts;
+  if (cardOrIdOrOpts instanceof Card) return cardOrIdOrOpts.backHtml;
+  // Legacy fallback: { deckType } options object.
+  const { deckType = 'die' } = cardOrIdOrOpts;
   const highlighted = HIGHLIGHT_MAP[deckType] ?? 'DIE';
 
   const words = DECK_WORDS.map(word => {
