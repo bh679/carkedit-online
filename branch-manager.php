@@ -1335,8 +1335,8 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
           populateMergedBranches('recent-branches');
           populateRecent('recent-tags-client', data.client.tags || [], {}, null, liveClientVersion);
           populateRecent('recent-tags-api', data.api.tags || [], {}, null, liveApiVersion);
-          truncateList('recent-tags-client', 5);
-          truncateList('recent-tags-api', 5);
+          truncateList('recent-tags-client', 4);
+          truncateList('recent-tags-api', 4);
           document.getElementById('tags-client-version').textContent = 'v' + clientVer;
           document.getElementById('tags-api-version').textContent = 'v' + apiVer;
           document.getElementById('btn-client').disabled = false;
