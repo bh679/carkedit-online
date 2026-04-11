@@ -514,6 +514,18 @@ body {
   color: var(--color-white);
 }
 
+.dashboard__cell--issue {
+  width: 30px;
+  text-align: center;
+}
+
+.dashboard__flag--issue {
+  background: transparent;
+  color: var(--color-danger);
+  font-size: 1rem;
+  line-height: 20px;
+}
+
 /* ── Expanded Detail ────────────────────────────── */
 
 .dashboard__detail {
@@ -728,6 +740,126 @@ body {
   display: flex;
   gap: var(--space-xs);
   overflow-x: auto;
+}
+
+/* Issue Reports */
+.detail__row--issues {
+  background: color-mix(in srgb, var(--color-danger) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-danger) 20%, transparent);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+}
+
+.detail__row--issues.is-collapsed .detail__issues-list {
+  display: none;
+}
+
+.detail__row--issues.is-collapsed .detail__toggle-arrow {
+  transform: rotate(-90deg);
+}
+
+.detail__row-title--issues {
+  cursor: pointer;
+  user-select: none;
+  color: var(--color-danger);
+}
+
+.detail__toggle-arrow {
+  font-size: 0.6rem;
+  display: inline-block;
+  transition: transform 0.15s;
+  margin-left: var(--space-xs);
+}
+
+.detail__issues-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.detail__issue-item {
+  background: var(--color-bg);
+  border-radius: var(--radius-sm);
+  padding: var(--space-xs) var(--space-sm);
+  font-size: 0.75rem;
+}
+
+.detail__issue-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.detail__issue-time {
+  color: var(--color-text-muted);
+  font-size: 0.7rem;
+}
+
+.detail__issue-cat {
+  background: color-mix(in srgb, var(--color-danger) 15%, transparent);
+  color: var(--color-danger);
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.detail__issue-meta {
+  color: var(--color-text-muted);
+  font-size: 0.65rem;
+  font-style: italic;
+}
+
+.detail__issue-desc {
+  margin: var(--space-xs) 0 0;
+  color: var(--color-text);
+  font-size: 0.7rem;
+  line-height: 1.4;
+}
+
+/* Error log within issue detail */
+.detail__error-log {
+  margin-top: var(--space-xs);
+  border-left: 2px solid var(--color-danger, #ef4444);
+  padding-left: var(--space-sm);
+}
+
+.detail__error-log.is-collapsed .detail__error-log-list {
+  display: none;
+}
+
+.detail__error-log-title {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--color-danger, #ef4444);
+  cursor: pointer;
+  margin: 0;
+  user-select: none;
+}
+
+.detail__error-log-list {
+  margin-top: var(--space-xs);
+}
+
+.detail__error-entry {
+  font-size: 0.65rem;
+  font-family: monospace;
+  color: var(--color-text-muted);
+  padding: 2px 0;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.detail__error-type {
+  color: var(--color-danger, #ef4444);
+  font-weight: 600;
+}
+
+.detail__error-src {
+  color: var(--color-text-muted);
+  opacity: 0.7;
 }
 
 /* Debug (row 3) */
@@ -1028,6 +1160,7 @@ body {
   .dashboard__cell--players { width: 40px; }
   .dashboard__cell--time { width: 40px; }
   .dashboard__cell--error { width: 24px; }
+  .dashboard__cell--issue { width: 24px; }
 
   /* Hide separate status, live, and dev columns */
   .dashboard__cell--status { display: none; }

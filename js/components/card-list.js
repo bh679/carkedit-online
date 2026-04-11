@@ -5,7 +5,6 @@
 'use strict';
 
 import { render as renderCardFace } from './card.js';
-import { buildCard } from '../data/card.js';
 // Side-effect import: installs the document-level swipe handler for any
 // `.hand__inspect-overlay` modal opened from a card in these lists. Safe
 // to double-import (the module uses an idempotent window flag).
@@ -20,49 +19,32 @@ function escAttr(s) {
     .replace(/>/g, '&gt;');
 }
 
-function deckTypeFor(deck) {
-  if (deck === 'living' || deck === 'live') return 'live';
-  if (deck === 'bye') return 'bye';
-  return 'die';
-}
-
 /**
- * Render a single card face. Delegates to the shared `card.js` component
- * which handles image-with-fallback (when an image fails to load, the
- * card swaps to the same text-only styling used for custom packs).
+ * Render a single card face by compositeId lookup.
  */
 function renderItemFace(item) {
-  return renderCardFace(buildCard({
-    title: item.text || '',
-    image: item.imgSrc || '',
-    image_url: item.image_url || '',
-    deckType: deckTypeFor(item.deck),
-    special: item.special || null,
-    options: item.options || null,
-  }));
+  return renderCardFace(item.compositeId);
 }
 
 /**
  * Build the inner stats row markup for a single card (dashboard variant).
  */
-function renderStats(stats) {
+function renderStats(stats, highlightStat) {
   if (!stats) return '';
   const playRate = stats.draw_count > 0 ? `${stats.play_rate}% rate` : '';
+  const hl = (key) => key === highlightStat ? ' dashboard__stat-card-rate' : '';
   return `
     <div class="card-list__stats dashboard__stat-card-data">
-      <span>${stats.play_count}/${stats.draw_count || '?'} plays</span>
-      <span>${playRate}</span>
-      <span>${stats.win_count} wins</span>
-      <span class="dashboard__stat-card-rate">${stats.win_rate}% win</span>
+      <span class="${hl('play_count')}${hl('draw_count')}">${stats.play_count}/${stats.draw_count || '?'} plays</span>
+      <span class="${hl('play_rate')}">${playRate}</span>
+      <span class="${hl('win_count')}">${stats.win_count} wins</span>
+      <span class="${hl('win_rate')}">${stats.win_rate}% win</span>
     </div>`;
 }
 
 /**
  * @typedef {Object} CardListItem
- * @property {string|number} [id]
- * @property {'die'|'live'|'living'|'bye'} deck
- * @property {string} text
- * @property {string} [imgSrc]                     - Pre-resolved image src, if any
+ * @property {string} compositeId                  - Registry key e.g. "die:42", "live:uuid"
  * @property {Object} [stats]                      - { play_count, draw_count, play_rate, win_count, win_rate }
  *
  * @param {CardListItem[]} items
@@ -87,6 +69,7 @@ export function render(items, opts = {}) {
     emptyText = 'No cards',
     buildOnClick,
     legacy = false,
+    highlightStat,
   } = opts;
 
   if (!Array.isArray(items) || items.length === 0) {
@@ -116,7 +99,7 @@ export function render(items, opts = {}) {
     return `
       <div class="${itemClasses}"${onClickAttr}>
         ${renderItemFace(it)}
-        ${showStats ? renderStats(it.stats) : ''}
+        ${showStats ? renderStats(it.stats, highlightStat) : ''}
       </div>`;
   }).join('');
 
@@ -155,13 +138,10 @@ export function render(items, opts = {}) {
  * @param {(id, deck)=>string|null} [resolveImage]
  * @returns {CardListItem}
  */
-export function fromStatRow(card, resolveImage) {
+export function fromStatRow(card) {
+  const deck = card.card_deck === 'living' ? 'live' : card.card_deck;
   return {
-    id: card.card_id,
-    deck: card.card_deck,
-    text: card.card_text,
-    imgSrc: resolveImage ? resolveImage(card.card_id, card.card_deck) : undefined,
-    image_url: card.image_url || '',
+    compositeId: `${deck}:${card.card_id}`,
     stats: {
       play_count: card.play_count,
       draw_count: card.draw_count,

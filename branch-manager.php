@@ -18,6 +18,9 @@ $API_PORT     = 4500;
 $STATE_FILE   = __DIR__ . '/branch-state.json';
 $RESCUE_FILE  = __DIR__ . '/rescue.php';
 
+/* SHA of the commit that first introduced branch-manager.php */
+$BM_ORIGIN_SHA = '2965731';
+
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
@@ -105,6 +108,21 @@ function getVersionsForBranches($dir, $branches) {
         $versions[$branch] = getVersionForBranch($dir, $branch);
     }
     return $versions;
+}
+
+function branchContainsCommit($dir, $branch, $sha) {
+    $escBranch = escapeshellarg('origin/' . $branch);
+    $escSha = escapeshellarg($sha);
+    $result = runCmd('sudo -u bitnami bash -c "cd ' . escapeshellarg($dir) . ' && git merge-base --is-ancestor ' . $escSha . ' ' . $escBranch . ' 2>/dev/null"');
+    return $result['rc'] === 0;
+}
+
+function getBranchManagerMap($dir, $branches, $sha) {
+    $map = [];
+    foreach ($branches as $branch) {
+        $map[$branch] = branchContainsCommit($dir, $branch, $sha);
+    }
+    return $map;
 }
 
 /**
@@ -300,6 +318,7 @@ if ($authenticated && isset($_GET['action'])) {
                 'openBranches' => $clientOpen,
                 'versions' => getVersionsForBranches($CLIENT_DIR, $clientOpen),
                 'tags' => getTags($CLIENT_DIR),
+                'hasBranchManager' => getBranchManagerMap($CLIENT_DIR, $clientOpen, $BM_ORIGIN_SHA),
             ],
             'api' => [
                 'current' => getCurrentBranch($API_DIR),
@@ -440,6 +459,23 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         .bm__rescue a { color: var(--color-text-muted); font-size: 0.8rem; text-decoration: none; }
         .bm__rescue a:hover { color: var(--color-danger, #e94560); }
 
+        /* Pre-branch-manager warning */
+        .bm__warning { margin-top: var(--space-xs); padding: var(--space-sm) var(--space-md); border-radius: var(--radius-sm);
+            background: rgba(255,193,7,0.15); border: 1px solid rgba(255,193,7,0.4); color: #ffc107; font-size: 0.8rem; }
+        .bm__warning:empty { display: none; }
+
+        /* Inline reset confirmation */
+        .bm__confirm { background: var(--color-surface); border: 2px solid var(--color-danger, #e94560); border-radius: var(--radius-md);
+            padding: var(--space-md); margin-bottom: var(--space-md); }
+        .bm__confirm p { font-size: 0.9rem; margin-bottom: var(--space-sm); }
+        .bm__confirm-actions { display: flex; gap: var(--space-sm); }
+        .bm__confirm .btn--cancel { padding: 0.5rem var(--space-md); border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+            background: transparent; color: var(--color-text); cursor: pointer; font-size: 0.85rem; }
+        .bm__confirm .btn--cancel:hover { background: rgba(255,255,255,0.05); }
+        .bm__confirm .btn--danger { padding: 0.5rem var(--space-md); border: none; border-radius: var(--radius-sm);
+            background: var(--color-danger, #e94560); color: #fff; font-weight: 700; cursor: pointer; font-size: 0.85rem; }
+        .bm__confirm .btn--danger:hover { filter: brightness(1.15); }
+
         .hidden { display: none !important; }
 
         /* Production overlay */
@@ -502,6 +538,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
     let clientBranches = [];
     let clientVersions = {};
     let apiVersions = {};
+    let clientHasBM = {};
     let currentClientBranch = '';
     let currentApiBranch = '';
     let ghToken = null;
@@ -728,6 +765,14 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
           <h1 class="bm__title">Branch Manager</h1>
           <p class="bm__subtitle">Switch staging branches for carkedit-online and carkedit-api</p>
 
+          <div id="reset-confirm" class="bm__confirm hidden">
+            <p>Reset both repos to main? This will restart the API server.</p>
+            <div class="bm__confirm-actions">
+              <button class="btn--cancel" id="reset-cancel">Cancel</button>
+              <button class="btn--danger" id="reset-go">Confirm Reset</button>
+            </div>
+          </div>
+
           <div class="bm__deploy-row">
             <button class="btn btn--accent" id="btn-tag-deploy" disabled title="Loading...">Tag &amp; Deploy</button>
             <button id="btn-reset" class="btn btn--secondary" style="padding:0.5rem var(--space-md);font-size:0.85rem">Reset to Main</button>
@@ -741,6 +786,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
               <span class="bm__linked-api" id="linked-api-label">API: main</span>
               <button id="btn-linked" disabled>Deploy Linked</button>
             </div>
+            <div class="bm__warning" id="linked-warning"></div>
           </div>
 
           <div class="bm__repo">
@@ -750,6 +796,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
               <select id="client-select"><option>Loading...</option></select>
               <button id="btn-client" disabled>Deploy Client</button>
             </div>
+            <div class="bm__warning" id="client-warning"></div>
           </div>
 
           <div class="bm__repo">
@@ -790,6 +837,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
             <div class="bm__recent-cols">
               <div class="bm__recent-col">
                 <div class="bm__current" style="margin-bottom:var(--space-xs)">Current version: <strong id="tags-client-version">loading...</strong></div>
+                <div class="bm__current" style="margin-bottom:var(--space-xs)">Live version: <strong id="live-client-version" style="color:#4caf50">loading...</strong></div>
                 <h3><span class="bm__badge bm__badge--client">client</span> carkedit-online</h3>
                 <ul class="bm__recent-list" id="recent-tags-client">
                   <li>Loading...</li>
@@ -797,6 +845,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
               </div>
               <div class="bm__recent-col">
                 <div class="bm__current" style="margin-bottom:var(--space-xs)">Current version: <strong id="tags-api-version">loading...</strong></div>
+                <div class="bm__current" style="margin-bottom:var(--space-xs)">Live version: <strong id="live-api-version" style="color:#4caf50">loading...</strong></div>
                 <h3><span class="bm__badge bm__badge--api">api</span> carkedit-api</h3>
                 <ul class="bm__recent-list" id="recent-tags-api">
                   <li>Loading...</li>
@@ -820,11 +869,14 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
     /* ── Dashboard logic ──────────────────────────────── */
 
     function bindDashboard() {
-      document.getElementById('linked-select').addEventListener('change', updateLinkedLabel);
+      document.getElementById('linked-select').addEventListener('change', () => { updateLinkedLabel(); updateBmWarnings(); });
+      document.getElementById('client-select').addEventListener('change', updateBmWarnings);
       document.getElementById('btn-linked').addEventListener('click', switchLinked);
       document.getElementById('btn-client').addEventListener('click', switchClient);
       document.getElementById('btn-api').addEventListener('click', switchApi);
       document.getElementById('btn-reset').addEventListener('click', resetToMain);
+      document.getElementById('reset-cancel').addEventListener('click', () => document.getElementById('reset-confirm').classList.add('hidden'));
+      document.getElementById('reset-go').addEventListener('click', confirmResetToMain);
       document.getElementById('btn-tag-deploy').addEventListener('click', tagDeploy);
     }
 
@@ -871,7 +923,23 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
       });
     }
 
-    function populateRecent(elId, branches, versions, prBranches) {
+    let liveClientVersion = null;
+    let liveApiVersion = null;
+
+    function fetchLiveVersions() {
+      const PROD = 'https://play.carkedit.com';
+      return Promise.all([
+        fetch(PROD + '/package.json').then(r => r.json()).then(d => { liveClientVersion = d.version || null; }).catch(() => {}),
+        fetch(PROD + '/api/carkedit/health').then(r => r.json()).then(d => { liveApiVersion = d.version || null; }).catch(() => {}),
+      ]).then(() => {
+        const elC = document.getElementById('live-client-version');
+        const elA = document.getElementById('live-api-version');
+        if (elC) elC.textContent = liveClientVersion ? 'v' + liveClientVersion : '?';
+        if (elA) elA.textContent = liveApiVersion ? 'v' + liveApiVersion : '?';
+      });
+    }
+
+    function populateRecent(elId, branches, versions, prBranches, liveVersion) {
       const ul = document.getElementById(elId);
       if (!ul) return;
       ul.innerHTML = '';
@@ -879,11 +947,21 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         ul.innerHTML = '<li>No branches</li>';
         return;
       }
+      const liveNorm = liveVersion ? liveVersion.replace(/^v/, '') : null;
       branches.forEach(b => {
         const li = document.createElement('li');
         const ver = versions && versions[b] ? ' (v' + versions[b] + ')' : '';
         const hasPR = prBranches && prBranches.has(b);
+        const tagNorm = b.replace(/^v/, '');
+        const isLive = liveNorm && tagNorm === liveNorm;
         li.textContent = (hasPR ? '● ' : '') + b + ver;
+        if (isLive) {
+          li.classList.add('is-live');
+          const badge = document.createElement('span');
+          badge.className = 'bm__badge bm__badge--live';
+          badge.textContent = 'LIVE';
+          li.appendChild(badge);
+        }
         if (hasPR) li.classList.add('has-pr');
         ul.appendChild(li);
       });
@@ -893,11 +971,13 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
       Promise.all([
         fetch(apiUrl + '?action=status').then(r => r.json()),
         fetchOpenPRs(),
+        fetchLiveVersions(),
       ]).then(([data]) => {
           clientBranches = data.client.openBranches || [];
           apiBranches = data.api.openBranches || [];
           clientVersions = data.client.versions || {};
           apiVersions = data.api.versions || {};
+          clientHasBM = data.client.hasBranchManager || {};
 
           const clientCur = data.client.current;
           const apiCur = data.api.current;
@@ -912,10 +992,11 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
           populateSelect(document.getElementById('api-select'), apiBranches, apiCur, apiVersions, apiPRBranches);
           populateSelect(document.getElementById('linked-select'), clientBranches, clientCur, clientVersions, clientPRBranches);
           updateLinkedLabel();
+          updateBmWarnings();
           populateRecent('recent-client', clientBranches.slice(0, 10), clientVersions, clientPRBranches);
           populateRecent('recent-api', apiBranches.slice(0, 10), apiVersions, apiPRBranches);
-          populateRecent('recent-tags-client', data.client.tags || [], {});
-          populateRecent('recent-tags-api', data.api.tags || [], {});
+          populateRecent('recent-tags-client', data.client.tags || [], {}, null, liveClientVersion);
+          populateRecent('recent-tags-api', data.api.tags || [], {}, null, liveApiVersion);
           document.getElementById('tags-client-version').textContent = 'v' + clientVer;
           document.getElementById('tags-api-version').textContent = 'v' + apiVer;
           document.getElementById('btn-client').disabled = false;
@@ -940,6 +1021,16 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
       const matchingApi = apiBranches.indexOf(clientBranch) >= 0 ? clientBranch : 'main';
       const apiVer = apiVersions[matchingApi] ? ' (v' + apiVersions[matchingApi] + ')' : '';
       document.getElementById('linked-api-label').textContent = 'API: ' + matchingApi + apiVer;
+    }
+
+    function updateBmWarnings() {
+      const BM_MSG = 'This branch predates the branch manager. Switching to it may remove this page.';
+      const linkedVal = document.getElementById('linked-select')?.value;
+      const clientVal = document.getElementById('client-select')?.value;
+      const lw = document.getElementById('linked-warning');
+      const cw = document.getElementById('client-warning');
+      if (lw) lw.textContent = (linkedVal && clientHasBM[linkedVal] === false) ? BM_MSG : '';
+      if (cw) cw.textContent = (clientVal && clientHasBM[clientVal] === false) ? BM_MSG : '';
     }
 
     function disableAll() {
@@ -982,7 +1073,10 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         .catch(err => { showStatus('Error: ' + err.message, 'error'); enableAll(); });
     }
     function resetToMain() {
-      if (!confirm('Reset both repos to main? This will restart the API server.')) return;
+      document.getElementById('reset-confirm').classList.remove('hidden');
+    }
+    function confirmResetToMain() {
+      document.getElementById('reset-confirm').classList.add('hidden');
       showStatus('Resetting everything to main...', 'loading');
       disableAll();
       fetch(apiUrl + '?action=switch&client=main&api=main')

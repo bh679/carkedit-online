@@ -591,7 +591,7 @@ function renderWinnerScreen(state) {
         </div>
         ${renderSurvey(state)}
         ${surveySubmitted(state) ? '' : `
-          <button class="btn btn--primary" onclick="window.game.showScreen('menu')">
+          <button class="btn btn--secondary" onclick="window.game.showScreen('menu')">
             Play Again
           </button>
         `}

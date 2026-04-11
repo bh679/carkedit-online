@@ -1,6 +1,7 @@
 'use strict';
 
 import { buildCard } from './card.js';
+import { register } from './CardRegistry.js';
 
 // Static CardType registry — one entry per deck type.
 // Each type knows its backgroundImageKey and the path to its JSON data file.
@@ -35,7 +36,7 @@ async function loadAllCards() {
     Object.values(CARD_TYPES).map(async (cardType) => {
       const res = await fetch(cardType.dataFile);
       const cards = await res.json();
-      return cards.map(card => buildCard({ ...card, deckType: cardType.id }, { source: 'static' }));
+      return cards.map(card => register(buildCard({ ...card, deckType: cardType.id }, { source: 'static' })));
     })
   );
   return decks.flat();
@@ -47,7 +48,7 @@ async function loadDeck(typeId) {
   if (!cardType) throw new Error(`Unknown card type: ${typeId}`);
   const res = await fetch(cardType.dataFile);
   const cards = await res.json();
-  return cards.map(card => buildCard({ ...card, deckType: cardType.id }, { source: 'static' }));
+  return cards.map(card => register(buildCard({ ...card, deckType: cardType.id }, { source: 'static' })));
 }
 
 export { CARD_TYPES, getCardType, loadAllCards, loadDeck };
