@@ -241,6 +241,7 @@ h1{font-size:1.5rem;margin-bottom:1rem}
 .ok{color:#4caf50}.err{color:#f44336}
 pre{font-size:0.75rem;color:#888;white-space:pre-wrap;margin-top:0.5rem}
 </style>
+<script src="js/branch-banner.js"></script>
 </head>
 <body>
 <div class="container">
@@ -598,6 +599,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         .deploy-status--warn { color: var(--color-die, #e94560); }
         .deploy-status--error { color: var(--color-primary); }
     </style>
+    <script src="js/branch-banner.js"></script>
 </head>
 <body>
     <div id="app"></div>
