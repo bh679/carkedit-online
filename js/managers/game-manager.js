@@ -33,7 +33,11 @@ function findSubmittedCardIndex() {
     console.warn('[confirmWinner] No room or selectedCard', { hasRoom: !!room, selectedCard: state.selectedCard });
     return -1;
   }
-  // Match by the playerName stored on selectedCard -> find that player's sessionId -> match submittedBy
+  // Use stored index if available (from index-based selection)
+  if (typeof state.selectedCard._cardIndex === 'number') {
+    return state.selectedCard._cardIndex;
+  }
+  // Fallback: match by sessionId via playerName
   const playerName = state.selectedCard.playerName;
   const player = state.players.find(p => p.name === playerName);
   if (!player) {
@@ -271,53 +275,59 @@ export function pickWinner(playerName) {
   currentPhaseManager?.pickWinner(playerName);
 }
 
-export function inspectJudgingCard(playerName) {
+export function inspectJudgingCard(indexOrName) {
   if (getState().gameMode === 'online') {
     const state = getState();
-    const card = (state.submittedCards ?? {})[playerName];
+    const cards = state.onlineSubmittedCards ?? [];
+    // Index-based lookup (new) with name-based fallback (legacy)
+    const card = typeof indexOrName === 'number'
+      ? cards[indexOrName]
+      : (state.submittedCards ?? {})[indexOrName];
     if (card) {
-      setState({ selectedCard: { ...card, playerName } });
+      const player = state.players.find(p => p.sessionId === card.submittedBy);
+      const cardIndex = typeof indexOrName === 'number' ? indexOrName : cards.indexOf(card);
+      setState({ selectedCard: { ...card, playerName: player?.name ?? 'Unknown', _cardIndex: cardIndex } });
       showScreen(state.screen);
     }
     return;
   }
-  currentPhaseManager?.inspectJudgingCard(playerName);
+  currentPhaseManager?.inspectJudgingCard(indexOrName);
 }
 
-export function prevJudgingCard(cardId) {
+export function prevJudgingCard(currentIndex) {
   if (getState().gameMode === 'online') {
     const list = getOnlineJudgingCardList();
-    const index = list.findIndex(c => String(c.id) === String(cardId));
-    const prevIndex = index <= 0 ? list.length - 1 : index - 1;
+    const idx = typeof currentIndex === 'number' ? currentIndex : list.findIndex(c => String(c.id) === String(currentIndex));
+    const prevIndex = idx <= 0 ? list.length - 1 : idx - 1;
     if (list[prevIndex]) {
       setState({ selectedCard: list[prevIndex] });
       showScreen(getState().screen);
     }
     return;
   }
-  currentPhaseManager?.prevJudgingCard(cardId);
+  currentPhaseManager?.prevJudgingCard(currentIndex);
 }
 
-export function nextJudgingCard(cardId) {
+export function nextJudgingCard(currentIndex) {
   if (getState().gameMode === 'online') {
     const list = getOnlineJudgingCardList();
-    const index = list.findIndex(c => String(c.id) === String(cardId));
-    const nextIndex = index >= list.length - 1 ? 0 : index + 1;
+    const idx = typeof currentIndex === 'number' ? currentIndex : list.findIndex(c => String(c.id) === String(currentIndex));
+    const nextIndex = idx >= list.length - 1 ? 0 : idx + 1;
     if (list[nextIndex]) {
       setState({ selectedCard: list[nextIndex] });
       showScreen(getState().screen);
     }
     return;
   }
-  currentPhaseManager?.nextJudgingCard(cardId);
+  currentPhaseManager?.nextJudgingCard(currentIndex);
 }
 
 function getOnlineJudgingCardList() {
   const state = getState();
-  return Object.entries(state.submittedCards ?? {}).map(([name, card]) => ({
-    ...card,
-    playerName: name,
-  }));
+  return (state.onlineSubmittedCards ?? []).map((card, index) => {
+    const player = state.players.find(p => p.sessionId === card.submittedBy);
+    return { ...card, playerName: player?.name ?? 'Unknown', _cardIndex: index };
+  });
 }
 
 export function confirmWinner() {
