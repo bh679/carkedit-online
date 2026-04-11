@@ -479,32 +479,43 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         .bm__recent-list li { font-size: 0.8rem; color: var(--color-text-muted); padding: 0.2em 0; font-family: monospace; }
         .bm__recent-list li.has-pr { color: var(--color-live, #4caf50); }
 
-        /* Recent branches — accordion items */
-        .bm__recent-item { border-bottom: 1px solid var(--color-border); }
-        .bm__recent-item:last-child { border-bottom: none; }
-        .bm__recent-item summary {
-            display: flex; align-items: center; gap: var(--space-sm);
-            padding: var(--space-sm) var(--space-xs); font-size: 0.8rem;
-            font-family: monospace; color: var(--color-text-muted);
-            cursor: pointer; list-style: none;
+        /* Recent branches — dashboard card style */
+        .bm__branch-card {
+            background: var(--color-surface); border-radius: var(--radius-md);
+            margin-bottom: var(--space-xs); cursor: pointer;
+            transition: background 0.1s ease; overflow: hidden;
         }
-        .bm__recent-item summary::-webkit-details-marker { display: none; }
-        .bm__recent-item summary::before {
-            content: '\25B6'; font-size: 0.6rem; transition: transform 0.2s ease;
-            flex-shrink: 0; width: 1em;
+        .bm__branch-card:hover { background: var(--color-secondary); }
+        .bm__branch-card.has-pr { border-left: 3px solid var(--color-live, #4caf50); }
+        .bm__branch-card-row {
+            display: flex; align-items: center; padding: var(--space-sm) var(--space-md);
+            font-size: 0.85rem; gap: var(--space-sm);
         }
-        .bm__recent-item[open] summary::before { transform: rotate(90deg); }
-        .bm__recent-item summary:hover { color: var(--color-text); }
-        .bm__recent-item.has-pr summary { color: var(--color-live, #4caf50); }
-        .bm__recent-detail {
-            padding: var(--space-xs) var(--space-sm) var(--space-sm) calc(var(--space-sm) + 1em);
-            font-size: 0.75rem; color: var(--color-text-muted); line-height: 1.5;
+        .bm__branch-card-row .bm__chevron {
+            font-size: 0.6rem; transition: transform 0.15s; flex-shrink: 0; width: 1em;
         }
+        .bm__branch-card.is-expanded .bm__chevron { transform: rotate(90deg); }
+        .bm__branch-card-row .bm__branch-name {
+            flex: 1; font-family: monospace; overflow: hidden;
+            text-overflow: ellipsis; white-space: nowrap;
+        }
+        .bm__branch-card-row .bm__count-badge {
+            font-size: 0.7rem; padding: 0.1em 0.5em; border-radius: 9999px;
+            font-weight: 600; white-space: nowrap; flex-shrink: 0;
+        }
+        .bm__count-badge--pr { background: rgba(76,175,80,0.2); color: var(--color-live, #4caf50); }
+        .bm__count-badge--merged { background: rgba(152,66,255,0.2); color: var(--color-primary); }
+        .bm__count-badge--ahead { background: rgba(255,255,255,0.08); color: var(--color-text-muted); }
+        .bm__branch-detail {
+            padding: var(--space-md); border-top: 1px solid var(--color-border);
+            cursor: default; display: none; font-size: 0.8rem; line-height: 1.6;
+        }
+        .bm__branch-card.is-expanded .bm__branch-detail { display: block; }
         .bm__detail-row { display: flex; gap: var(--space-sm); margin-bottom: 0.2em; }
-        .bm__detail-label { color: var(--color-text-muted); white-space: nowrap; min-width: 5.5em; }
+        .bm__detail-label { color: var(--color-text-muted); white-space: nowrap; min-width: 6em; }
         .bm__detail-value { color: var(--color-text); word-break: break-word; }
-        .bm__recent-detail a { color: var(--color-primary); text-decoration: none; }
-        .bm__recent-detail a:hover { text-decoration: underline; }
+        .bm__branch-detail a { color: var(--color-primary); text-decoration: none; }
+        .bm__branch-detail a:hover { text-decoration: underline; }
         select option.has-pr { color: #4caf50; }
 
         /* Rescue link */
@@ -615,6 +626,8 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
     let _deployInfos = [];
     let clientPRBranches = new Set();
     let apiPRBranches = new Set();
+    let clientPRData = new Map(); // branch -> { openCount, mergedCount }
+    let apiPRData = new Map();
 
     async function ghFetch(path) {
       const headers = { Accept: 'application/vnd.github.v3+json' };
@@ -741,16 +754,38 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
 
     /* ── PR branch detection ─────────────────────────── */
 
+    function buildPRData(openPRs, closedPRs) {
+      const map = new Map();
+      for (const pr of openPRs) {
+        const b = pr.head.ref;
+        const d = map.get(b) || { openCount: 0, mergedCount: 0 };
+        d.openCount++;
+        map.set(b, d);
+      }
+      for (const pr of closedPRs) {
+        if (!pr.merged_at) continue;
+        const b = pr.head.ref;
+        const d = map.get(b) || { openCount: 0, mergedCount: 0 };
+        d.mergedCount++;
+        map.set(b, d);
+      }
+      return map;
+    }
+
     async function fetchOpenPRs() {
       if (!ghToken) return;
       try {
-        const [clientPRs, apiPRs] = await Promise.all([
+        const [clientOpen, apiOpen, clientClosed, apiClosed] = await Promise.all([
           ghFetch('/repos/bh679/carkedit-online/pulls?state=open&per_page=100'),
           ghFetch('/repos/bh679/carkedit-api/pulls?state=open&per_page=100'),
+          ghFetch('/repos/bh679/carkedit-online/pulls?state=closed&per_page=100&sort=updated&direction=desc'),
+          ghFetch('/repos/bh679/carkedit-api/pulls?state=closed&per_page=100&sort=updated&direction=desc'),
         ]);
-        clientPRBranches = new Set(clientPRs.map(pr => pr.head.ref));
-        apiPRBranches = new Set(apiPRs.map(pr => pr.head.ref));
-      } catch { /* PR highlighting unavailable — degrade silently */ }
+        clientPRBranches = new Set(clientOpen.map(pr => pr.head.ref));
+        apiPRBranches = new Set(apiOpen.map(pr => pr.head.ref));
+        clientPRData = buildPRData(clientOpen, clientClosed);
+        apiPRData = buildPRData(apiOpen, apiClosed);
+      } catch { /* PR data unavailable — degrade silently */ }
     }
 
     /* ── Firebase ─────────────────────────────────────── */
@@ -1000,7 +1035,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
       });
     }
 
-    function populateRecent(elId, branches, versions, prBranches, liveVersion, branchDetails, repoSlug) {
+    function populateRecent(elId, branches, versions, prBranches, liveVersion, branchDetails, repoSlug, prData) {
       const container = document.getElementById(elId);
       if (!container) return;
       container.innerHTML = '';
@@ -1016,18 +1051,34 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         const tagNorm = b.replace(/^v/, '');
         const isLive = liveNorm && tagNorm === liveNorm;
         const details = branchDetails && branchDetails[b];
+        const pr = prData && prData.get(b);
 
         if (details && b !== 'main') {
-          // Accordion item
-          const el = document.createElement('details');
-          el.className = 'bm__recent-item' + (hasPR ? ' has-pr' : '');
+          // Dashboard card item
+          const card = document.createElement('div');
+          card.className = 'bm__branch-card' + (hasPR ? ' has-pr' : '');
 
-          const summary = document.createElement('summary');
-          summary.textContent = (hasPR ? '\u25CF ' : '') + b + ver;
-          el.appendChild(summary);
+          // Clickable row
+          const row = document.createElement('div');
+          row.className = 'bm__branch-card-row';
+          row.innerHTML = '<span class="bm__chevron">\u25B6</span>'
+            + '<span class="bm__branch-name">' + escapeHtml(b) + '<span style="color:var(--color-text-muted);font-weight:400">' + escapeHtml(ver) + '</span></span>';
 
+          // Badges on the row
+          if (details.commitsAhead > 0) {
+            row.innerHTML += '<span class="bm__count-badge bm__count-badge--ahead">' + details.commitsAhead + ' ahead</span>';
+          }
+          if (pr && pr.openCount > 0) {
+            row.innerHTML += '<span class="bm__count-badge bm__count-badge--pr">' + pr.openCount + ' PR' + (pr.openCount !== 1 ? 's' : '') + '</span>';
+          }
+          if (pr && pr.mergedCount > 0) {
+            row.innerHTML += '<span class="bm__count-badge bm__count-badge--merged">' + pr.mergedCount + ' merged</span>';
+          }
+          card.appendChild(row);
+
+          // Detail panel (hidden until click)
           const panel = document.createElement('div');
-          panel.className = 'bm__recent-detail';
+          panel.className = 'bm__branch-detail';
 
           if (details.commitMessage) {
             panel.innerHTML += '<div class="bm__detail-row">'
@@ -1036,8 +1087,14 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
           }
 
           panel.innerHTML += '<div class="bm__detail-row">'
-            + '<span class="bm__detail-label">Ahead:</span>'
-            + '<span class="bm__detail-value">' + details.commitsAhead + ' commit' + (details.commitsAhead !== 1 ? 's' : '') + '</span></div>';
+            + '<span class="bm__detail-label">Commits:</span>'
+            + '<span class="bm__detail-value">' + details.commitsAhead + ' ahead of main</span></div>';
+
+          if (pr) {
+            panel.innerHTML += '<div class="bm__detail-row">'
+              + '<span class="bm__detail-label">PRs:</span>'
+              + '<span class="bm__detail-value">' + pr.openCount + ' open, ' + pr.mergedCount + ' merged</span></div>';
+          }
 
           if (repoSlug) {
             const ghUrl = 'https://github.com/' + repoSlug + '/tree/' + encodeURIComponent(b);
@@ -1046,8 +1103,12 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
               + '<span class="bm__detail-value"><a href="' + ghUrl + '" target="_blank" rel="noopener">' + escapeHtml(b) + '</a></span></div>';
           }
 
-          el.appendChild(panel);
-          container.appendChild(el);
+          card.appendChild(panel);
+
+          // Toggle expand on click
+          row.addEventListener('click', () => card.classList.toggle('is-expanded'));
+
+          container.appendChild(card);
         } else {
           // Simple text item (main branch or tags list)
           const li = document.createElement('li');
@@ -1094,8 +1155,8 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
           populateSelect(document.getElementById('linked-select'), clientBranches, clientCur, clientVersions, clientPRBranches);
           updateLinkedLabel();
           updateBmWarnings();
-          populateRecent('recent-client', clientBranches.slice(0, 10), clientVersions, clientPRBranches, null, clientBranchDetails, 'bh679/carkedit-online');
-          populateRecent('recent-api', apiBranches.slice(0, 10), apiVersions, apiPRBranches, null, apiBranchDetails, 'bh679/carkedit-api');
+          populateRecent('recent-client', clientBranches.slice(0, 10), clientVersions, clientPRBranches, null, clientBranchDetails, 'bh679/carkedit-online', clientPRData);
+          populateRecent('recent-api', apiBranches.slice(0, 10), apiVersions, apiPRBranches, null, apiBranchDetails, 'bh679/carkedit-api', apiPRData);
           populateRecent('recent-tags-client', data.client.tags || [], {}, null, liveClientVersion);
           populateRecent('recent-tags-api', data.api.tags || [], {}, null, liveApiVersion);
           document.getElementById('tags-client-version').textContent = 'v' + clientVer;
