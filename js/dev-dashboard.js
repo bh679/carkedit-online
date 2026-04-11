@@ -246,7 +246,7 @@ function renderDevStats(stats) {
     { label: 'Total Commits', value: stats.totalCommits.toLocaleString() },
     { label: 'Live Repo Commits', value: stats.liveCommits.toLocaleString() },
     { label: 'Branches Merged', value: stats.branchesMerged.toLocaleString() },
-    { label: 'Lines Written', value: stats.linesOfCode.toLocaleString() },
+    { label: 'Lines of Code', value: stats.linesOfCode.toLocaleString() },
     { label: 'Days Worked', value: stats.daysWorked.toLocaleString() },
   ];
 
