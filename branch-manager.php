@@ -62,7 +62,7 @@ function getBranches($dir) {
 
 function getOpenBranches($dir) {
     // Branches not yet merged into main — i.e. still "open", sorted by most recent commit
-    $result = runCmd('sudo -u bitnami bash -c "cd ' . escapeshellarg($dir) . ' && git branch -r --no-merged origin/main --sort=-committerdate --no-color 2>/dev/null"');
+    $result = runCmd('sudo -u bitnami bash -c "cd ' . escapeshellarg($dir) . ' && git fetch --all --prune 2>/dev/null && git branch -r --no-merged origin/main --sort=-committerdate --no-color 2>/dev/null"');
     $branches = ['main']; // always include main at the top
     foreach ($result['output'] as $line) {
         $line = trim($line);
@@ -241,6 +241,7 @@ h1{font-size:1.5rem;margin-bottom:1rem}
 .ok{color:#4caf50}.err{color:#f44336}
 pre{font-size:0.75rem;color:#888;white-space:pre-wrap;margin-top:0.5rem}
 </style>
+<script src="js/branch-banner.js"></script>
 </head>
 <body>
 <div class="container">
@@ -605,6 +606,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         .deploy-status--warn { color: var(--color-die, #e94560); }
         .deploy-status--error { color: var(--color-primary); }
     </style>
+    <script src="js/branch-banner.js"></script>
 </head>
 <body>
     <div id="app"></div>
@@ -816,6 +818,33 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         clientPRData = buildPRData(clientOpen, clientClosed);
         apiPRData = buildPRData(apiOpen, apiClosed);
       } catch { /* PR data unavailable — degrade silently */ }
+    }
+
+    /* ── GitHub API branch discovery ─────────────────── */
+
+    async function fetchGhBranches() {
+      if (!ghToken) return { client: [], api: [] };
+      try {
+        const [clientRes, apiRes] = await Promise.all([
+          ghFetch('/repos/bh679/carkedit-online/branches?per_page=100&sort=updated&direction=desc'),
+          ghFetch('/repos/bh679/carkedit-api/branches?per_page=100&sort=updated&direction=desc'),
+        ]);
+        return {
+          client: clientRes.map(b => b.name).filter(n => n !== 'HEAD'),
+          api: apiRes.map(b => b.name).filter(n => n !== 'HEAD'),
+        };
+      } catch { return { client: [], api: [] }; }
+    }
+
+    function mergeBranchLists(phpBranches, ghBranches) {
+      const set = new Set(phpBranches);
+      const merged = [...phpBranches];
+      for (const b of ghBranches) {
+        if (!set.has(b)) {
+          merged.push(b);
+        }
+      }
+      return merged;
     }
 
     /* ── Firebase ─────────────────────────────────────── */
@@ -1309,9 +1338,10 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         fetch(apiUrl + '?action=status').then(r => r.json()),
         fetchOpenPRs(),
         fetchLiveVersions(),
-      ]).then(([data]) => {
-          clientBranches = data.client.openBranches || [];
-          apiBranches = data.api.openBranches || [];
+        fetchGhBranches(),
+      ]).then(([data, , , ghBranches]) => {
+          clientBranches = mergeBranchLists(data.client.openBranches || [], ghBranches.client);
+          apiBranches = mergeBranchLists(data.api.openBranches || [], ghBranches.api);
           clientVersions = data.client.versions || {};
           apiVersions = data.api.versions || {};
           clientHasBM = data.client.hasBranchManager || {};
