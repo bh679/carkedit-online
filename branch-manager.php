@@ -1149,6 +1149,22 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
       });
     }
 
+    function truncateList(elId, limit) {
+      const container = document.getElementById(elId);
+      if (!container) return;
+      const items = Array.from(container.children);
+      if (items.length <= limit) return;
+      items.slice(limit).forEach(el => el.style.display = 'none');
+      const btn = document.createElement('button');
+      btn.className = 'bm__show-more';
+      btn.textContent = 'See more (' + (items.length - limit) + ')';
+      btn.addEventListener('click', () => {
+        items.forEach(el => el.style.display = '');
+        btn.remove();
+      });
+      container.appendChild(btn);
+    }
+
     function populateMergedBranches(elId) {
       const container = document.getElementById(elId);
       if (!container) return;
@@ -1319,6 +1335,8 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
           populateMergedBranches('recent-branches');
           populateRecent('recent-tags-client', data.client.tags || [], {}, null, liveClientVersion);
           populateRecent('recent-tags-api', data.api.tags || [], {}, null, liveApiVersion);
+          truncateList('recent-tags-client', 5);
+          truncateList('recent-tags-api', 5);
           document.getElementById('tags-client-version').textContent = 'v' + clientVer;
           document.getElementById('tags-api-version').textContent = 'v' + apiVer;
           document.getElementById('btn-client').disabled = false;
