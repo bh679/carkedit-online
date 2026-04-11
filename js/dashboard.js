@@ -72,8 +72,9 @@ let filterStatus = 'all'; // 'all' | 'finished' | 'abandoned' | 'live'
 
 // Card data lookup (loaded from JSON files for images)
 const cardDataMap = {}; // key: `${deck}-${id}` → card object with illustrationKey
-const cardPackMap = {}; // key: card_id → pack_id
-const packList = [];    // [{id, title}] for pack filter dropdown
+const cardPackMap = {};  // key: card_id → pack_id
+const packCardsMap = {}; // key: pack_id → [{card_id, card_deck, card_text}]
+const packList = [];     // [{id, title}] for pack filter dropdown
 
 async function loadCardData() {
   // Load base-game cards from static JSON
@@ -106,10 +107,12 @@ async function loadCardData() {
           if (!pr.ok) return;
           const pack = await pr.json();
           packList.push({ id: p.id, title: pack.title || p.title || p.id });
+          packCardsMap[p.id] = [];
           for (const c of (pack.cards ?? [])) {
             const deck = c.deck_type === 'live' ? 'living' : c.deck_type;
             cardDataMap[`${deck}-${c.id}`] = { ...c, deck, deckType: c.deck_type === 'live' ? 'live' : c.deck_type, image_url: c.image_url || '' };
             cardPackMap[c.id] = p.id;
+            packCardsMap[p.id].push({ card_id: c.id, card_deck: deck, card_text: c.text });
           }
         } catch {}
       }));
@@ -1034,7 +1037,16 @@ function filterCards(cards) {
   if (cardPackFilter === 'base') {
     result = result.filter(c => !(c.card_id in cardPackMap));
   } else if (cardPackFilter !== 'all') {
+    // Filter to cards in this pack
     result = result.filter(c => cardPackMap[c.card_id] === cardPackFilter);
+    // Add zero-stat entries for pack cards not already in stats
+    const existing = new Set(result.map(c => c.card_id));
+    const packCards = packCardsMap[cardPackFilter] || [];
+    for (const pc of packCards) {
+      if (!existing.has(pc.card_id)) {
+        result.push({ card_id: pc.card_id, card_text: pc.card_text, card_deck: pc.card_deck, play_count: 0, win_count: 0, win_rate: 0, draw_count: 0, play_rate: 0 });
+      }
+    }
   }
   return result;
 }
