@@ -1239,6 +1239,7 @@ function renderPackStats() {
         <td class="dashboard__pack-cell dashboard__pack-cell--num">${p.total_wins || 0}</td>
         <td class="dashboard__pack-cell dashboard__pack-cell--num">${winRatePct}%</td>
         <td class="dashboard__pack-cell dashboard__pack-cell--num">${p.favorite_count || 0}</td>
+        <td class="dashboard__pack-cell dashboard__pack-cell--num">$${(p.total_cost_usd || 0).toFixed(2)}</td>
       </tr>`;
   }).join('');
 
@@ -1255,6 +1256,7 @@ function renderPackStats() {
             ${packSortHeader('Wins', 'total_wins')}
             ${packSortHeader('Win Rate', 'win_rate')}
             ${packSortHeader('Favorites', 'favorite_count')}
+            ${packSortHeader('Cost', 'total_cost_usd')}
           </tr>
         </thead>
         <tbody>${rows}</tbody>

@@ -1809,6 +1809,8 @@ async function generate() {
           style: itemStyle,
           options: { width: dims.width, height: dims.height },
           cardSpecial: state.cardFormSpecial || undefined,
+          pack_id: state.selectedPackId || undefined,
+          card_id: state.selectedCardId || undefined,
           onProgress,
         };
         return Promise.all([
@@ -1858,6 +1860,8 @@ async function generate() {
           options: { width: dims.width, height: dims.height },
           inputImage,
           cardSpecial: state.cardFormSpecial || undefined,
+          pack_id: state.selectedPackId || undefined,
+          card_id: state.selectedCardId || undefined,
           onProgress,
         });
       });
