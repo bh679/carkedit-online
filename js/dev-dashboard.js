@@ -19,6 +19,7 @@ const REPOS = [
   { name: 'bh679/CarkedIt', color: 'var(--color-text-muted)', label: 'orc', outdated: false },
   { name: 'bh679/carkedit-client', color: 'var(--color-text-muted)', label: 'client', outdated: true },
   { name: 'bh679/fill-in-the-blank', color: 'var(--color-text-muted)', label: 'fitb', outdated: true },
+  { name: 'bh679/claude-templates', color: 'var(--color-text-muted)', label: 'tmpl', outdated: false, since: '2026-03-19T00:00:00Z', until: '2026-04-12T00:00:00Z' },
 ];
 const GH_PROXY = '/api/carkedit/github';
 const CACHE_TTL = 5 * 60 * 1000;
@@ -877,11 +878,14 @@ async function init() {
   });
 
   // Fetch GitHub data in parallel — commits and contrib from all repos + other data
-  const commitFetches = REPOS.map(repo =>
-    ghFetch(`/repos/${repo.name}/commits?per_page=10`).then(commits =>
+  const commitFetches = REPOS.map(repo => {
+    let url = `/repos/${repo.name}/commits?per_page=10`;
+    if (repo.since) url += `&since=${repo.since}`;
+    if (repo.until) url += `&until=${repo.until}`;
+    return ghFetch(url).then(commits =>
       commits.map(c => ({ ...c, _repo: repo.name }))
-    ).catch(() => [])
-  );
+    ).catch(() => []);
+  });
 
   const [commitsResults, contribResults, eventsResult, issuesResult] = await Promise.allSettled([
     Promise.all(commitFetches),
