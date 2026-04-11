@@ -182,7 +182,7 @@ function mergeContribData(datasets) {
 const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
-function renderContribGraph(data) {
+function renderContribGraph(data, opts) {
   if (!data || !data.length) return '<p class="dash-empty">No contribution data available.</p>';
 
   // Group weeks by the month of their Sunday date, keep only last 3 months
@@ -198,6 +198,33 @@ function renderContribGraph(data) {
   }
 
   const recentGroups = [...groups.values()].slice(-3);
+
+  if (opts?.full) {
+    // Full-width: one cell per day, all in a single horizontal row
+    const monthGroupsHtml = recentGroups.map(({ label, weeks }) => {
+      const cellsHtml = weeks.map(week => {
+        return Array.from({ length: 7 }, (_, d) => {
+          const count = week.days[d];
+          let level = 0;
+          if (count >= 1) level = 1;
+          if (count >= 3) level = 2;
+          if (count >= 5) level = 3;
+          if (count >= 8) level = 4;
+          const weekTs = week.week * 1000;
+          const cellDate = new Date(weekTs + d * 86400000);
+          const dateStr = cellDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+          const tooltip = `${count} commit${count !== 1 ? 's' : ''} · ${dayNames[d]} ${dateStr}`;
+          return `<div class="contrib-cell contrib-cell--full contrib-cell--${level}" data-tooltip="${tooltip}"></div>`;
+        }).join('');
+      }).join('');
+      return `<div class="contrib-month-group"><div class="contrib-month-label">${label}</div><div class="contrib-week-row">${cellsHtml}</div></div>`;
+    }).join('');
+
+    return `
+      <div class="contrib-wrapper contrib-wrapper--full">
+        ${monthGroupsHtml}
+      </div>`;
+  }
 
   const monthGroupsHtml = recentGroups.map(({ label, weeks }) => {
     const weekRowsHtml = weeks.map(week => {
@@ -686,6 +713,11 @@ function renderDashboard(sections) {
           <div id="section-design-docs">${sections.designDocs}</div>
         </div>
 
+        <div class="dash-card dash-card--full">
+          <div class="dash-card__title">Contribution Graph</div>
+          <div id="section-contrib-full">${sections.contrib}</div>
+        </div>
+
         <div class="dash-card--full dash-commits-row">
           <div class="dash-card dash-card--grow">
             <div class="dash-card__title">Recent Commits</div>
@@ -835,9 +867,12 @@ async function init() {
   }
   if (cachedContrib) {
     const contribEl = document.getElementById('section-contrib');
+    const contribFullEl = document.getElementById('section-contrib-full');
     // Validate data is in the new {week, days} format (not old per-repo array-of-arrays)
-    if (contribEl && Array.isArray(cachedContrib.data) && cachedContrib.data.length && cachedContrib.data[0]?.week != null) {
-      contribEl.innerHTML = renderContribGraph(cachedContrib.data) + renderCachedLabel(cachedContrib.ts);
+    if (Array.isArray(cachedContrib.data) && cachedContrib.data.length && cachedContrib.data[0]?.week != null) {
+      const cachedLabel = renderCachedLabel(cachedContrib.ts);
+      if (contribEl) contribEl.innerHTML = renderContribGraph(cachedContrib.data) + cachedLabel;
+      if (contribFullEl) contribFullEl.innerHTML = renderContribGraph(cachedContrib.data, { full: true }) + cachedLabel;
     } else {
       // Clear stale cache in old format
       localStorage.removeItem('gh-persist:contrib');
@@ -892,16 +927,20 @@ async function init() {
 
   updateRateLimit();
 
-  // Update contrib graph (pre-aggregated by the API)
+  // Update contrib graphs (pre-aggregated by the API)
   const contribEl = document.getElementById('section-contrib');
-  if (contribEl && contribResults.status === 'fulfilled') {
+  const contribFullEl = document.getElementById('section-contrib-full');
+  if (contribResults.status === 'fulfilled') {
     const contribData = contribResults.value;
     persistData('contrib', contribData);
-    contribEl.innerHTML = (contribData && contribData.length)
-      ? renderContribGraph(contribData)
-      : '<p class="dash-empty">No contribution data available.</p>';
-  } else if (contribEl) {
-    contribEl.innerHTML = `<span class="dash-error">${escapeHtml(contribResults.reason?.message || 'Failed to load')}</span>`;
+    const hasData = contribData && contribData.length;
+    const emptyMsg = '<p class="dash-empty">No contribution data available.</p>';
+    if (contribEl) contribEl.innerHTML = hasData ? renderContribGraph(contribData) : emptyMsg;
+    if (contribFullEl) contribFullEl.innerHTML = hasData ? renderContribGraph(contribData, { full: true }) : emptyMsg;
+  } else {
+    const errMsg = `<span class="dash-error">${escapeHtml(contribResults.reason?.message || 'Failed to load')}</span>`;
+    if (contribEl) contribEl.innerHTML = errMsg;
+    if (contribFullEl) contribFullEl.innerHTML = errMsg;
   }
 
   // Merge and sort all commits by date

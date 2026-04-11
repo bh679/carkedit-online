@@ -118,6 +118,28 @@
   padding-bottom: var(--space-xs);
 }
 
+.contrib-wrapper--full {
+  flex-direction: row;
+  align-items: flex-end;
+  gap: var(--space-sm);
+  overflow: visible;
+  padding-right: var(--space-lg);
+}
+
+.contrib-wrapper--full .contrib-month-group {
+  flex: 0 1 auto;
+}
+
+.contrib-wrapper--full .contrib-week-row {
+  gap: 2px;
+}
+
+.contrib-cell--full {
+  width: 10px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
 .contrib-month-group {
   flex-shrink: 0;
 }
