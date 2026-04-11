@@ -20,7 +20,7 @@
         'position:fixed;top:0;left:0;right:0;height:28px;' +
         'background:#42a5f5;color:#fff;font:600 12px/28px system-ui,sans-serif;' +
         'text-align:center;z-index:99999;box-shadow:0 1px 3px rgba(0,0,0,.25);' +
-        'display:flex;align-items:center;justify-content:center;gap:8px;padding:0 12px;';
+        'display:flex;align-items:center;justify-content:center;gap:8px;padding:0 100px;';
 
       // Branch name (links to branch manager)
       var branchLink = document.createElement('a');
@@ -49,14 +49,14 @@
       sep.style.cssText = 'opacity:0.4;margin:0 2px;';
       sep.textContent = '|';
 
-      // Switch to main button
+      // Switch to main button (absolute right so text stays centered)
       var btn = document.createElement('a');
       btn.textContent = 'Switch to main';
       btn.href = 'branch-manager.php';
       btn.style.cssText =
         'color:#fff;background:rgba(255,255,255,.25);padding:2px 10px;' +
         'border-radius:3px;text-decoration:none;font-size:11px;font-weight:600;' +
-        'margin-left:auto;flex-shrink:0;';
+        'position:absolute;right:12px;top:50%;transform:translateY(-50%);';
 
       bar.appendChild(branchLink);
       bar.appendChild(meta);
