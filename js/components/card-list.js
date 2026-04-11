@@ -47,15 +47,16 @@ function renderItemFace(item) {
 /**
  * Build the inner stats row markup for a single card (dashboard variant).
  */
-function renderStats(stats) {
+function renderStats(stats, highlightStat) {
   if (!stats) return '';
   const playRate = stats.draw_count > 0 ? `${stats.play_rate}% rate` : '';
+  const hl = (key) => key === highlightStat ? ' dashboard__stat-card-rate' : '';
   return `
     <div class="card-list__stats dashboard__stat-card-data">
-      <span>${stats.play_count}/${stats.draw_count || '?'} plays</span>
-      <span>${playRate}</span>
-      <span>${stats.win_count} wins</span>
-      <span class="dashboard__stat-card-rate">${stats.win_rate}% win</span>
+      <span class="${hl('play_count')}">${stats.play_count}/${stats.draw_count || '?'} plays</span>
+      <span class="${hl('play_rate')}">${playRate}</span>
+      <span class="${hl('win_count')}">${stats.win_count} wins</span>
+      <span class="${hl('win_rate')}">${stats.win_rate}% win</span>
     </div>`;
 }
 
@@ -89,6 +90,7 @@ export function render(items, opts = {}) {
     emptyText = 'No cards',
     buildOnClick,
     legacy = false,
+    highlightStat,
   } = opts;
 
   if (!Array.isArray(items) || items.length === 0) {
@@ -118,7 +120,7 @@ export function render(items, opts = {}) {
     return `
       <div class="${itemClasses}"${onClickAttr}>
         ${renderItemFace(it)}
-        ${showStats ? renderStats(it.stats) : ''}
+        ${showStats ? renderStats(it.stats, highlightStat) : ''}
       </div>`;
   }).join('');
 

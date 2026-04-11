@@ -72,6 +72,8 @@ let filterStatus = 'all'; // 'all' | 'finished' | 'abandoned' | 'live'
 
 // Card data lookup (loaded from JSON files for images)
 const cardDataMap = {}; // key: `${deck}-${id}` → card object with illustrationKey
+const cardPackMap = {}; // key: card_id → pack_id
+const packList = [];    // [{id, title}] for pack filter dropdown
 
 async function loadCardData() {
   // Load base-game cards from static JSON
@@ -97,17 +99,21 @@ async function loadCardData() {
     if (res.ok) {
       const data = await res.json();
       const packs = data.packs ?? data ?? [];
+      packList.length = 0;
       await Promise.all(packs.map(async (p) => {
         try {
           const pr = await authFetch(`${API_BASE}/api/carkedit/packs/${p.id}`);
           if (!pr.ok) return;
           const pack = await pr.json();
+          packList.push({ id: p.id, title: pack.title || p.title || p.id });
           for (const c of (pack.cards ?? [])) {
             const deck = c.deck_type === 'live' ? 'living' : c.deck_type;
             cardDataMap[`${deck}-${c.id}`] = { ...c, deck, deckType: c.deck_type === 'live' ? 'live' : c.deck_type, image_url: c.image_url || '' };
+            cardPackMap[c.id] = p.id;
           }
         } catch {}
       }));
+      packList.sort((a, b) => a.title.localeCompare(b.title));
     }
   } catch {}
 }
@@ -1007,6 +1013,7 @@ let cardDeckFilter = 'all'; // 'all' | 'die' | 'living' | 'bye'
 let cardSortMode = 'play_rate'; // 'play_rate' | 'play_count' | 'win_rate' | 'draw_count'
 let cardSortAsc = false; // false = descending (default), true = ascending
 let cardDevFilter = 'nodev'; // 'all' | 'dev' | 'nodev'
+let cardPackFilter = 'all'; // 'all' | pack_id string
 
 async function fetchCardStats() {
   try {
@@ -1020,8 +1027,14 @@ async function fetchCardStats() {
 }
 
 function filterCards(cards) {
-  if (cardDeckFilter === 'all') return cards;
-  return cards.filter(c => c.card_deck === cardDeckFilter);
+  let result = cards;
+  if (cardDeckFilter !== 'all') {
+    result = result.filter(c => c.card_deck === cardDeckFilter);
+  }
+  if (cardPackFilter !== 'all') {
+    result = result.filter(c => cardPackMap[c.card_id] === cardPackFilter);
+  }
+  return result;
 }
 
 function cycleDeckFilter() {
@@ -1048,6 +1061,11 @@ async function cycleCardDev() {
   const idx = opts.indexOf(cardDevFilter);
   cardDevFilter = opts[(idx + 1) % opts.length];
   await fetchCardStats();
+  renderCardAnalytics();
+}
+
+function setPackFilter(packId) {
+  cardPackFilter = packId;
   renderCardAnalytics();
 }
 
@@ -1114,11 +1132,15 @@ function renderCardAnalytics() {
         legacy: true,
         id: 'card-scroll-row',
         buildOnClick: buildStatCardOnClick,
+        highlightStat: cardSortMode,
       })
     : '<p class="dashboard__card-row-empty">No data yet</p>';
 
   const cardDevLabels = { all: 'With Dev', nodev: 'No Dev', dev: 'Only Dev' };
   const cardDevActive = cardDevFilter !== 'all' ? 'dashboard__filter-btn--active' : '';
+
+  const packOption = (value, label) =>
+    `<option value="${value}" ${cardPackFilter === value ? 'selected' : ''}>${label}</option>`;
 
   el.innerHTML = `
     <div class="dashboard__card-analytics-header">
@@ -1132,6 +1154,10 @@ function renderCardAnalytics() {
         <button class="dashboard__filter-btn" onclick="window.dash.toggleCardSortDir()" title="${dirLabel}">${dirArrow}</button>
       </div>
       <div class="dashboard__filter-bar">
+        <select class="dashboard__sort-select" onchange="window.dash.setPackFilter(this.value)">
+          ${packOption('all', 'All Packs')}
+          ${packList.map(p => packOption(p.id, p.title)).join('')}
+        </select>
         <button class="dashboard__filter-btn ${deckActive}" onclick="window.dash.cycleDeckFilter()">${deckLabels[cardDeckFilter]}</button>
         <button class="dashboard__filter-btn ${cardDevActive}" onclick="window.dash.cycleCardDev()">${cardDevLabels[cardDevFilter]}</button>
       </div>
@@ -1549,7 +1575,7 @@ async function togglePackDev(id, next) {
   } catch (e) { console.error(e); alert('Failed to toggle dev: ' + e.message); }
 }
 
-window.dash = { cyclePlayTime, cycleGamesCount, toggleGame, cycleDeckFilter, setCardSort, toggleCardSortDir, cycleCardDev, setPackSort, togglePackExpanded, cycleSurveyDev, previewCard, closePreview, prevPreviewCard, nextPreviewCard, scrollCards, loadMoreGames, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange, signInWithGoogle, signOut, toggleGameDev, toggleSurveyDev, togglePackDev };
+window.dash = { cyclePlayTime, cycleGamesCount, toggleGame, cycleDeckFilter, setCardSort, toggleCardSortDir, cycleCardDev, setPackFilter, setPackSort, togglePackExpanded, cycleSurveyDev, previewCard, closePreview, prevPreviewCard, nextPreviewCard, scrollCards, loadMoreGames, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange, signInWithGoogle, signOut, toggleGameDev, toggleSurveyDev, togglePackDev };
 
 // ── Auth Gate UI ─────────────────────────────────────
 function renderAuthGate(message, showSignIn = true) {
