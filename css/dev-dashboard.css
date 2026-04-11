@@ -120,25 +120,24 @@
 
 .contrib-wrapper--full {
   flex-direction: row;
-  overflow-x: auto;
   align-items: flex-end;
   gap: var(--space-sm);
+  overflow: visible;
+  padding-right: var(--space-lg);
 }
 
 .contrib-wrapper--full .contrib-month-group {
-  flex: 1 1 0;
-  min-width: 0;
+  flex: 0 1 auto;
 }
 
 .contrib-wrapper--full .contrib-week-row {
-  gap: 3px;
+  gap: 2px;
 }
 
 .contrib-cell--full {
-  width: 100%;
+  width: 10px;
   height: 14px;
-  flex: 1 1 0;
-  min-width: 10px;
+  flex-shrink: 0;
 }
 
 .contrib-month-group {
