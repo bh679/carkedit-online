@@ -516,6 +516,15 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         .bm__detail-value { color: var(--color-text); word-break: break-word; }
         .bm__branch-detail a { color: var(--color-primary); text-decoration: none; }
         .bm__branch-detail a:hover { text-decoration: underline; }
+        .bm__repo-detail {
+            background: rgba(255,255,255,0.03); border-radius: var(--radius-sm);
+            padding: var(--space-sm) var(--space-md); margin-bottom: var(--space-sm);
+        }
+        .bm__repo-detail:last-child { margin-bottom: 0; }
+        .bm__repo-detail-header {
+            font-size: 0.8rem; font-weight: 600; margin-bottom: var(--space-xs);
+            display: flex; align-items: center; gap: var(--space-xs);
+        }
         select option.has-pr { color: #4caf50; }
 
         /* Rescue link */
@@ -912,19 +921,8 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
           <hr class="bm__divider">
           <div class="bm__recent">
             <h2>Recent Branches</h2>
-            <div class="bm__recent-cols">
-              <div class="bm__recent-col">
-                <h3><span class="bm__badge bm__badge--client">client</span> carkedit-online</h3>
-                <div class="bm__recent-list" id="recent-client">
-                  <div>Loading...</div>
-                </div>
-              </div>
-              <div class="bm__recent-col">
-                <h3><span class="bm__badge bm__badge--api">api</span> carkedit-api</h3>
-                <div class="bm__recent-list" id="recent-api">
-                  <div>Loading...</div>
-                </div>
-              </div>
+            <div class="bm__recent-list" id="recent-branches">
+              <div>Loading...</div>
             </div>
           </div>
 
@@ -1127,6 +1125,112 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
       });
     }
 
+    function populateMergedBranches(elId) {
+      const container = document.getElementById(elId);
+      if (!container) return;
+      container.innerHTML = '';
+
+      // Merge client and API branches, deduplicate, keep sorted by most recent
+      const allNames = new Set();
+      const orderedNames = [];
+      for (const b of clientBranches) { if (b !== 'main' && !allNames.has(b)) { allNames.add(b); orderedNames.push(b); } }
+      for (const b of apiBranches) { if (b !== 'main' && !allNames.has(b)) { allNames.add(b); orderedNames.push(b); } }
+
+      if (orderedNames.length === 0) {
+        container.innerHTML = '<div style="font-size:0.8rem;color:var(--color-text-muted)">No branches</div>';
+        return;
+      }
+
+      orderedNames.slice(0, 15).forEach(b => {
+        const inClient = clientBranches.includes(b);
+        const inApi = apiBranches.includes(b);
+        const cDetails = inClient && clientBranchDetails[b];
+        const aDetails = inApi && apiBranchDetails[b];
+        const cPR = clientPRData.get(b);
+        const aPR = apiPRData.get(b);
+        const cVer = inClient && clientVersions[b] ? 'v' + clientVersions[b] : '';
+        const aVer = inApi && apiVersions[b] ? 'v' + apiVersions[b] : '';
+
+        // Combine PR stats
+        const totalOpen = (cPR ? cPR.openCount : 0) + (aPR ? aPR.openCount : 0);
+        const totalMerged = (cPR ? cPR.mergedCount : 0) + (aPR ? aPR.mergedCount : 0);
+        const totalAhead = (cDetails ? cDetails.commitsAhead : 0) + (aDetails ? aDetails.commitsAhead : 0);
+
+        const card = document.createElement('div');
+        card.className = 'bm__branch-card' + (totalOpen > 0 ? ' has-pr' : '');
+
+        // Card row
+        const row = document.createElement('div');
+        row.className = 'bm__branch-card-row';
+        let rowHtml = '<span class="bm__chevron">\u25B6</span>'
+          + '<span class="bm__branch-name">' + escapeHtml(b) + '</span>';
+
+        // Repo badges
+        if (inClient) rowHtml += '<span class="bm__badge bm__badge--client">client</span>';
+        if (inApi) rowHtml += '<span class="bm__badge bm__badge--api">api</span>';
+
+        // Count badges
+        if (totalAhead > 0) rowHtml += '<span class="bm__count-badge bm__count-badge--ahead">' + totalAhead + ' ahead</span>';
+        if (totalOpen > 0) rowHtml += '<span class="bm__count-badge bm__count-badge--pr">' + totalOpen + ' PR' + (totalOpen !== 1 ? 's' : '') + '</span>';
+        if (totalMerged > 0) rowHtml += '<span class="bm__count-badge bm__count-badge--merged">' + totalMerged + ' merged</span>';
+
+        row.innerHTML = rowHtml;
+        card.appendChild(row);
+
+        // Detail panel — stacked cards per repo
+        const panel = document.createElement('div');
+        panel.className = 'bm__branch-detail';
+
+        if (inClient) {
+          let html = '<div class="bm__repo-detail">'
+            + '<div class="bm__repo-detail-header"><span class="bm__badge bm__badge--client">client</span> carkedit-online'
+            + (cVer ? ' <span style="color:var(--color-text-muted)">(' + cVer + ')</span>' : '') + '</div>';
+          if (cDetails && cDetails.commitMessage) {
+            html += '<div class="bm__detail-row"><span class="bm__detail-label">Last commit:</span>'
+              + '<span class="bm__detail-value">' + escapeHtml(cDetails.commitMessage) + '</span></div>';
+          }
+          if (cDetails) {
+            html += '<div class="bm__detail-row"><span class="bm__detail-label">Commits:</span>'
+              + '<span class="bm__detail-value">' + cDetails.commitsAhead + ' ahead of main</span></div>';
+          }
+          if (cPR) {
+            html += '<div class="bm__detail-row"><span class="bm__detail-label">PRs:</span>'
+              + '<span class="bm__detail-value">' + cPR.openCount + ' open, ' + cPR.mergedCount + ' merged</span></div>';
+          }
+          html += '<div class="bm__detail-row"><span class="bm__detail-label">GitHub:</span>'
+            + '<span class="bm__detail-value"><a href="https://github.com/bh679/carkedit-online/tree/' + encodeURIComponent(b) + '" target="_blank" rel="noopener">' + escapeHtml(b) + '</a></span></div>';
+          html += '</div>';
+          panel.innerHTML += html;
+        }
+
+        if (inApi) {
+          let html = '<div class="bm__repo-detail">'
+            + '<div class="bm__repo-detail-header"><span class="bm__badge bm__badge--api">api</span> carkedit-api'
+            + (aVer ? ' <span style="color:var(--color-text-muted)">(' + aVer + ')</span>' : '') + '</div>';
+          if (aDetails && aDetails.commitMessage) {
+            html += '<div class="bm__detail-row"><span class="bm__detail-label">Last commit:</span>'
+              + '<span class="bm__detail-value">' + escapeHtml(aDetails.commitMessage) + '</span></div>';
+          }
+          if (aDetails) {
+            html += '<div class="bm__detail-row"><span class="bm__detail-label">Commits:</span>'
+              + '<span class="bm__detail-value">' + aDetails.commitsAhead + ' ahead of main</span></div>';
+          }
+          if (aPR) {
+            html += '<div class="bm__detail-row"><span class="bm__detail-label">PRs:</span>'
+              + '<span class="bm__detail-value">' + aPR.openCount + ' open, ' + aPR.mergedCount + ' merged</span></div>';
+          }
+          html += '<div class="bm__detail-row"><span class="bm__detail-label">GitHub:</span>'
+            + '<span class="bm__detail-value"><a href="https://github.com/bh679/carkedit-api/tree/' + encodeURIComponent(b) + '" target="_blank" rel="noopener">' + escapeHtml(b) + '</a></span></div>';
+          html += '</div>';
+          panel.innerHTML += html;
+        }
+
+        card.appendChild(panel);
+        row.addEventListener('click', () => card.classList.toggle('is-expanded'));
+        container.appendChild(card);
+      });
+    }
+
     function loadStatus() {
       Promise.all([
         fetch(apiUrl + '?action=status').then(r => r.json()),
@@ -1155,8 +1259,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
           populateSelect(document.getElementById('linked-select'), clientBranches, clientCur, clientVersions, clientPRBranches);
           updateLinkedLabel();
           updateBmWarnings();
-          populateRecent('recent-client', clientBranches.slice(0, 10), clientVersions, clientPRBranches, null, clientBranchDetails, 'bh679/carkedit-online', clientPRData);
-          populateRecent('recent-api', apiBranches.slice(0, 10), apiVersions, apiPRBranches, null, apiBranchDetails, 'bh679/carkedit-api', apiPRData);
+          populateMergedBranches('recent-branches');
           populateRecent('recent-tags-client', data.client.tags || [], {}, null, liveClientVersion);
           populateRecent('recent-tags-api', data.api.tags || [], {}, null, liveApiVersion);
           document.getElementById('tags-client-version').textContent = 'v' + clientVer;
