@@ -129,14 +129,16 @@ function getBranchDetails($dir, $branches) {
     $details = [];
     foreach ($branches as $branch) {
         if ($branch === 'main') {
-            $details[$branch] = ['commitMessage' => '', 'commitsAhead' => 0];
+            $details[$branch] = ['commitMessage' => '', 'commitsAhead' => 0, 'commitDate' => ''];
             continue;
         }
         $escBranch = escapeshellarg('origin/' . $branch);
         $escDir = escapeshellarg($dir);
 
-        $msgResult = runCmd('sudo -u bitnami bash -c "cd ' . $escDir . ' && git log -1 --format=%s ' . $escBranch . ' 2>/dev/null"');
-        $commitMessage = trim(implode('', $msgResult['output']));
+        // Get subject and ISO date in one call (separated by newline)
+        $logResult = runCmd('sudo -u bitnami bash -c "cd ' . $escDir . ' && git log -1 --format=\'%s%n%aI\' ' . $escBranch . ' 2>/dev/null"');
+        $commitMessage = isset($logResult['output'][0]) ? trim($logResult['output'][0]) : '';
+        $commitDate = isset($logResult['output'][1]) ? trim($logResult['output'][1]) : '';
 
         $countResult = runCmd('sudo -u bitnami bash -c "cd ' . $escDir . ' && git rev-list --count origin/main..' . $escBranch . ' 2>/dev/null"');
         $commitsAhead = (int) trim(implode('', $countResult['output']));
@@ -144,6 +146,7 @@ function getBranchDetails($dir, $branches) {
         $details[$branch] = [
             'commitMessage' => $commitMessage,
             'commitsAhead'  => $commitsAhead,
+            'commitDate'    => $commitDate,
         ];
     }
     return $details;
@@ -498,6 +501,11 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         .bm__branch-card-row .bm__branch-name {
             flex: 1; font-family: monospace; overflow: hidden;
             text-overflow: ellipsis; white-space: nowrap;
+        }
+        .bm__branch-date {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-size: 0.7rem; color: var(--color-text-muted); opacity: 0.6;
+            margin-left: var(--space-xs); font-weight: 400;
         }
         .bm__branch-card-row .bm__count-badge {
             font-size: 0.7rem; padding: 0.1em 0.5em; border-radius: 9999px;
@@ -1184,11 +1192,23 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         const card = document.createElement('div');
         card.className = 'bm__branch-card' + (totalOpen > 0 ? ' has-pr' : '');
 
+        // Pick most recent commit date between repos
+        const cDate = cDetails && cDetails.commitDate ? new Date(cDetails.commitDate) : null;
+        const aDate = aDetails && aDetails.commitDate ? new Date(aDetails.commitDate) : null;
+        let dateStr = '';
+        const latest = (cDate && aDate) ? (cDate > aDate ? cDate : aDate) : (cDate || aDate);
+        if (latest && !isNaN(latest)) {
+          dateStr = latest.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+            + ' ' + latest.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+        }
+
         // Card row
         const row = document.createElement('div');
         row.className = 'bm__branch-card-row';
         let rowHtml = '<span class="bm__chevron">\u25B6</span>'
-          + '<span class="bm__branch-name">' + escapeHtml(b) + '</span>';
+          + '<span class="bm__branch-name">' + escapeHtml(b)
+          + (dateStr ? ' <span class="bm__branch-date">' + dateStr + '</span>' : '')
+          + '</span>';
 
         // Repo badges
         if (inClient) rowHtml += '<span class="bm__badge bm__badge--client">client</span>';
