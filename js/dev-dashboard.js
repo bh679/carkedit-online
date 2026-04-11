@@ -838,6 +838,9 @@ async function init() {
     // Validate data is in the new {week, days} format (not old per-repo array-of-arrays)
     if (contribEl && Array.isArray(cachedContrib.data) && cachedContrib.data.length && cachedContrib.data[0]?.week != null) {
       contribEl.innerHTML = renderContribGraph(cachedContrib.data) + renderCachedLabel(cachedContrib.ts);
+    } else {
+      // Clear stale cache in old format
+      localStorage.removeItem('gh-persist:contrib');
     }
   }
   if (cachedEvents) {
@@ -897,7 +900,7 @@ async function init() {
     contribEl.innerHTML = (contribData && contribData.length)
       ? renderContribGraph(contribData)
       : '<p class="dash-empty">No contribution data available.</p>';
-  } else if (contribEl && !cachedContrib) {
+  } else if (contribEl) {
     contribEl.innerHTML = `<span class="dash-error">${escapeHtml(contribResults.reason?.message || 'Failed to load')}</span>`;
   }
 
