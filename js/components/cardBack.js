@@ -1,6 +1,8 @@
 // CarkedIt Online — Card Back Component
 'use strict';
 
+import { Card } from '../data/card.js';
+
 const DECK_WORDS = ['LIVE', 'DIE', 'BYE!'];
 
 const HIGHLIGHT_MAP = {
@@ -13,7 +15,10 @@ const HIGHLIGHT_MAP = {
  * @param {{ deckType: string }} options
  * @returns {string} HTML string
  */
-export function render({ deckType = 'die' } = {}) {
+export function render(cardOrOpts = {}) {
+  // Card class instances have pre-rendered back HTML — return it directly.
+  if (cardOrOpts instanceof Card) return cardOrOpts.backHtml;
+  const { deckType = 'die' } = cardOrOpts;
   const highlighted = HIGHLIGHT_MAP[deckType] ?? 'DIE';
 
   const words = DECK_WORDS.map(word => {
