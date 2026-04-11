@@ -6,6 +6,7 @@ import { renderPackCard } from '../components/pack-card.js';
 import { render as renderPackBg } from '../components/pack-card-background.js';
 import { setList as setPreviewList } from '../components/card-preview-overlay.js';
 import { mount as mountDesigner, unmount as unmountDesigner, syncAuth as syncDesignerAuth, getView as getDesignerView, editPack } from '../card-designer/app.js';
+import { getOrCreate as registryGetOrCreate } from '../data/CardRegistry.js';
 
 const API_BASE = `${window.location.origin}/api/carkedit`;
 
@@ -137,6 +138,10 @@ async function loadDetail(packId) {
     if (!packRes.ok) throw new Error(`HTTP ${packRes.status}`);
     const pack = await packRes.json();
     const stats = statsRes.ok ? await statsRes.json() : null;
+    // Register pack cards in the CardRegistry
+    if (Array.isArray(pack?.cards)) {
+      for (const c of pack.cards) registryGetOrCreate(c);
+    }
     const existing = findPackInState(packId);
     setState({
       selectedPack: {
@@ -443,12 +448,7 @@ function renderDetail() {
     const list = byDeck[deck];
     const label = deck.charAt(0).toUpperCase() + deck.slice(1);
     const items = list.map((c) => ({
-      id: c.id,
-      deck: c.deck_type,
-      text: c.text,
-      special: c.card_special || '',
-      options: parseCardOptions(c),
-      image_url: c.image_url || '',
+      compositeId: `${c.deck_type === 'living' ? 'live' : c.deck_type}:${c.id}`,
     }));
     // Capture each item's flat index for the preview overlay.
     const startIdx = previewItems.length;

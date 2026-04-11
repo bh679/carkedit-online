@@ -103,28 +103,23 @@ function renderDeckChips(pack, disabledSet, isHost) {
 }
 
 function buildPackPreviewItems(pack, state, disabledSet) {
-  // Returns array of { deck, text, imgSrc? } for currently-enabled decks
+  // Returns array of { compositeId } for currently-enabled decks
   const items = [];
   const want = (d) => isDeckEnabled(disabledSet, pack.id, d);
   if (pack.id === 'base') {
     const base = state.basePackCards;
     if (!base) return null; // signal "loading"
-    if (want('die')) for (const c of base.die || []) items.push({ deck: 'die', text: c.title || c.text || '', imgSrc: c.illustrationKey ? `assets/illustrations/die/${c.illustrationKey}.jpg` : undefined, special: c.special || '', options: c.options || null });
-    if (want('live')) for (const c of base.live || []) items.push({ deck: 'live', text: c.title || c.text || '', imgSrc: c.illustrationKey ? `assets/illustrations/live/${c.illustrationKey}.jpg` : undefined });
-    if (want('bye')) for (const c of base.bye || []) items.push({ deck: 'bye', text: c.title || c.text || '', imgSrc: c.illustrationKey ? `assets/illustrations/bye/${c.illustrationKey}.jpg` : undefined });
+    if (want('die')) for (const c of base.die || []) items.push({ compositeId: `die:${c.id}` });
+    if (want('live')) for (const c of base.live || []) items.push({ compositeId: `live:${c.id}` });
+    if (want('bye')) for (const c of base.bye || []) items.push({ compositeId: `bye:${c.id}` });
     return items;
   }
   const cards = (state.packCards || {})[pack.id];
   if (!cards) return null; // loading
   for (const c of cards) {
-    const deck = c.deck_type;
+    const deck = c.deck_type === 'living' ? 'live' : c.deck_type;
     if (!want(deck)) continue;
-    let options = null;
-    if (Array.isArray(c.options)) options = c.options;
-    else if (typeof c.options_json === 'string' && c.options_json) {
-      try { const p = JSON.parse(c.options_json); if (Array.isArray(p)) options = p; } catch {}
-    }
-    items.push({ deck, text: c.text || '', special: c.card_special || '', options, image_url: c.image_url || '' });
+    items.push({ compositeId: `${deck}:${c.id}` });
   }
   return items;
 }

@@ -1,43 +1,33 @@
-// CarkedIt Online — Canonical Card factory
+// CarkedIt Online — Card Data Module
 //
-// Single source of truth for what a "Card" looks like in memory.
+// Single source of truth for what a "Card" looks like in memory. Contains:
+//   1. Normalisation helpers (exported for CardRegistry.js)
+//   2. The Card class — OOP representation with cached rendered HTML
+//   3. `buildCard()` / `withCard()` — factory functions (backwards-compatible API)
+//
 // Takes raw input from any of three sources (static JSON, server payload,
-// card-designer) and produces a frozen, normalised Card object. Every
-// downstream consumer (renderer, phase screens, dashboard) reads this shape
-// and nothing else — no renaming, no fallback chains, no magic strings.
+// card-designer) and produces a Card instance. Every downstream consumer
+// reads `.title`, `.deckType`, `.frontHtml`, etc. — no renaming, no fallback
+// chains, no magic strings.
 //
 // Disk formats are UNCHANGED. JSON files stay as-is; server keeps emitting
 // `deck`/`card_special`; the designer still writes snake_case to the DB.
-// This factory is the single translation layer that makes them agree.
+// This module is the single translation layer that makes them agree.
 'use strict';
 
 import { getPackBrand } from '../state.js';
+import { renderFrontHtml, renderBackHtml } from './cardRender.js';
 
-/**
- * @typedef {Object} BaseCard
- * @property {number|string} id
- * @property {'die'|'live'|'bye'} deckType
- * @property {string} typeId                         - alias of deckType for legacy readers
- * @property {string} title
- * @property {string} description
- * @property {string} prompt
- * @property {string} illustrationKey
- * @property {string} image                          - full-bleed illustration (replaces the whole card)
- * @property {string} graphicImage                   - AI-generated graphic-area background (from image_url)
- * @property {string} packId
- * @property {string} brandImageUrl
- * @property {null|'mystery'|'split'} special
- * @property {null|[string,string]} options
- *
- * @typedef {BaseCard} Card
- */
+// ─── Normalisation helpers ──────────────────────────────────────────────────
+// Exported so CardRegistry.js can compute compositeIds from raw data without
+// creating a full Card instance.
 
 /**
  * Normalise any deck identifier into the canonical `deckType` string.
  *  - `'living'` (server schema)  → `'live'`
  *  - any of `deckType` / `typeId` / `deck_type` / `deck` supported
  */
-function normaliseDeckType(raw) {
+export function normaliseDeckType(raw) {
   const v = raw?.deckType ?? raw?.typeId ?? raw?.deck_type ?? raw?.deck ?? '';
   if (v === 'living') return 'live';
   return String(v);
@@ -49,7 +39,7 @@ function normaliseDeckType(raw) {
  *  - `'Split'` → `'split'`
  *  - falsy     → `null`
  */
-function normaliseSpecial(raw) {
+export function normaliseSpecial(raw) {
   const v = raw?.special ?? raw?.card_special ?? null;
   if (!v) return null;
   if (v === '?' || v === 'mystery') return 'mystery';
@@ -59,12 +49,8 @@ function normaliseSpecial(raw) {
 
 /**
  * Normalise options into `[a, b] | null` regardless of source shape.
- *  - `options` array              → used directly
- *  - `options_json` string        → parsed
- *  - anything else                → null
- * Only returns a 2-tuple (split cards always have exactly 2 options today).
  */
-function normaliseOptions(raw) {
+export function normaliseOptions(raw) {
   let arr = null;
   if (Array.isArray(raw?.options)) arr = raw.options;
   else if (typeof raw?.options_json === 'string') {
@@ -78,11 +64,9 @@ function normaliseOptions(raw) {
 }
 
 /**
- * Resolve the image URL for this card, using the same rule `card.js`
- * previously applied at render time: prefer an explicit `image`, else build
- * from `illustrationKey` + `deckType`.
+ * Resolve the full-bleed image URL for this card.
  */
-function resolveImage(raw, deckType) {
+export function resolveImage(raw, deckType) {
   if (raw?.image) return String(raw.image);
   const key = raw?.illustrationKey ?? raw?.illustration_key ?? '';
   if (key && deckType) return `assets/illustrations/${deckType}/${key}.jpg`;
@@ -90,77 +74,107 @@ function resolveImage(raw, deckType) {
 }
 
 /**
- * Resolve the graphic-area background image for this card. This is the
- * AI-generated custom-card art that replaces the deck-splatter pattern in
- * `.card__graphic-area` (see js/components/card.js) — it intentionally does
- * NOT cover the full card like `image` above, so the title/body text remain
- * legible on top.
- *
- * Precedence:
- *  1. an explicit `graphicImage` on the raw object — used by the admin
- *     image-gen preview for live iteration before save
- *  2. `image_url` from the DB — persisted by Save to Card and streamed via
- *     the Colyseus Card schema in online games
+ * Resolve the graphic-area background image (AI-generated custom-card art).
  */
-function resolveGraphicImage(raw) {
+export function resolveGraphicImage(raw) {
   if (raw?.graphicImage) return String(raw.graphicImage);
   if (raw?.image_url) return String(raw.image_url);
   return '';
 }
 
+// ─── Card Class ─────────────────────────────────────────────────────────────
+
 /**
- * Build a canonical, frozen Card from any raw input.
+ * OOP representation of a game card. Normalises raw input and caches the
+ * rendered front/back HTML on construction. Property names match the old
+ * canonical shape so existing consumers work unchanged.
+ */
+export class Card {
+  /**
+   * @param {object} raw  - raw card-ish object from any source
+   * @param {object} [opts]
+   * @param {'static'|'server'|'designer'} [opts.source] - diagnostic only
+   */
+  constructor(raw, _opts = {}) {
+    if (!raw || typeof raw !== 'object') {
+      throw new TypeError('Card: raw card must be an object');
+    }
+
+    // ── Normalised content fields ──────────────────────────────────────────
+    this.deckType     = normaliseDeckType(raw);
+    this.id           = raw.id;
+    this.typeId       = this.deckType;  // legacy alias
+    this.title        = String(raw.title ?? raw.text ?? '');
+    this.description  = String(raw.description ?? '');
+    this.prompt       = raw.prompt == null ? '' : String(raw.prompt);
+    this.special      = normaliseSpecial(raw);
+    this.options      = this.special === 'split' ? normaliseOptions(raw) : null;
+
+    this.illustrationKey = String(raw.illustrationKey ?? raw.illustration_key ?? '');
+    this.image           = resolveImage(raw, this.deckType);
+    this.graphicImage    = resolveGraphicImage(raw);
+    this.graphicImages   = raw.graphicImages ?? null;
+
+    this.packId       = String(raw.packId ?? raw.pack_id ?? '');
+    this.brandImageUrl = String(
+      raw.brandImageUrl ?? raw.brand_image_url ?? (this.packId ? getPackBrand(this.packId) : '')
+    );
+
+    this.textPosition = String(raw.textPosition ?? raw.text_position ?? 'top');
+    this.textColor    = String(raw.textColor ?? raw.text_color ?? 'black');
+
+    // ── Runtime fields (not used in rendering, but consumers may read) ─────
+    // Preserved from raw input for backwards compatibility during Phase 1.
+    // In future phases these move to separate state fields.
+    if (raw.faceUp !== undefined)      this.faceUp = raw.faceUp;
+    if (raw.submittedBy !== undefined) this.submittedBy = raw.submittedBy;
+
+    // ── Cached rendered HTML ───────────────────────────────────────────────
+    this.frontHtml = renderFrontHtml(this);
+    this.backHtml  = renderBackHtml(this.deckType);
+  }
+
+  /** Unique key across all deck types: `"die:1"`, `"live:42"`, etc. */
+  get compositeId() {
+    return `${this.deckType}:${this.id}`;
+  }
+
+  /**
+   * Create a new Card with a subset of fields overridden.
+   * Use this instead of mutating properties directly.
+   */
+  withOverrides(patch) {
+    return new Card({ ...this, ...patch });
+  }
+
+  /** Convenience factory. */
+  static from(raw, opts) {
+    return new Card(raw, opts);
+  }
+}
+
+// ─── Factory functions (backwards-compatible API) ───────────────────────────
+
+/**
+ * Build a canonical Card from any raw input.
+ * Returns a Card class instance (replaces the old frozen plain object).
  *
  * @param {object} raw               - raw card-ish object from any source
  * @param {object} [opts]
  * @param {'static'|'server'|'designer'} [opts.source] - diagnostic only
- * @returns {Readonly<Card> & Record<string, any>}
+ * @returns {Card}
  */
-export function buildCard(raw, _opts = {}) {
-  if (!raw || typeof raw !== 'object') {
-    throw new TypeError('buildCard: raw card must be an object');
-  }
-
-  const deckType = normaliseDeckType(raw);
-  const special = normaliseSpecial(raw);
-  const options = special === 'split' ? normaliseOptions(raw) : null;
-  const image = resolveImage(raw, deckType);
-  const graphicImage = resolveGraphicImage(raw);
-  const packId = String(raw.packId ?? raw.pack_id ?? '');
-  const brandImageUrl = String(
-    raw.brandImageUrl ?? raw.brand_image_url ?? (packId ? getPackBrand(packId) : '')
-  );
-
-  const canonical = {
-    // Preserve identity + runtime fields from raw via spread first, so the
-    // normalised fields below win on key collision.
-    ...raw,
-    id: raw.id,
-    deckType,
-    typeId: deckType,                // legacy alias for preloader / dev-dashboard
-    title: String(raw.title ?? raw.text ?? ''),
-    description: String(raw.description ?? ''),
-    prompt: raw.prompt == null ? '' : String(raw.prompt),
-    illustrationKey: String(raw.illustrationKey ?? raw.illustration_key ?? ''),
-    image,
-    graphicImage,
-    special,
-    options,
-    packId,
-    brandImageUrl,
-    textPosition: String(raw.textPosition ?? raw.text_position ?? 'top'),
-    textColor: String(raw.textColor ?? raw.text_color ?? 'black'),
-  };
-
-  return Object.freeze(canonical);
+export function buildCard(raw, opts = {}) {
+  return new Card(raw, opts);
 }
 
 /**
- * Re-build a canonical card, overriding a subset of fields. Frozen cards
- * cannot be mutated, so use this anywhere code previously did
- * `{ ...card, foo: bar }` and then handed the result to the renderer.
- * Runtime fields (faceUp, submittedBy) are preserved via the spread.
+ * Re-build a card with overridden fields.
+ * @param {Card|object} card
+ * @param {object} patch
+ * @returns {Card}
  */
 export function withCard(card, patch) {
-  return buildCard({ ...card, ...patch });
+  if (card instanceof Card) return card.withOverrides(patch);
+  return new Card({ ...card, ...patch });
 }
