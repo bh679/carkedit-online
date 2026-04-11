@@ -977,10 +977,11 @@ window.game = {
   },
   startOnlineGame() {
     const state = getState();
-    const allReady = state.onlinePlayers.length > 0 && state.onlinePlayers.every(p => p.ready);
-    if (!allReady && state.onlinePlayers.length >= 2) {
-      const notReady = state.onlinePlayers.filter(p => !p.ready).map(p => p.name);
-      const container = document.querySelector('.online-lobby__start-container');
+    const others = state.onlinePlayers.filter(p => p.sessionId !== state.mySessionId);
+    const othersReady = others.length > 0 && others.every(p => p.ready);
+    if (!othersReady && state.onlinePlayers.length >= 2) {
+      const notReady = others.filter(p => !p.ready).map(p => p.name);
+      const container = document.querySelector('.online-lobby__host-row');
       if (container) {
         container.innerHTML = `
           <p class="online-lobby__confirm-msg">Not all players are ready (${notReady.map(n => escapeHtml(n)).join(', ')}). Start anyway?</p>
