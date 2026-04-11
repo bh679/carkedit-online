@@ -50,14 +50,14 @@ export function render() {
           maxlength="2000"
         ></textarea>
 
+        ${_renderErrorCount()}
+
         <div id="issue-report-status" class="issue-report__status"></div>
 
         <div class="issue-report__actions">
           <button class="btn btn--secondary" onclick="window.game.closeIssueReport()">Cancel</button>
           <button class="btn btn--primary" id="issue-submit-btn" onclick="window.game.submitIssueReport()">Submit</button>
         </div>
-
-        ${_renderErrorCount()}
       </div>
     </div>
   `;
