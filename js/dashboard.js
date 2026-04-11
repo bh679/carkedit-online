@@ -1061,13 +1061,16 @@ function filterCards(cards) {
       return packId && packCreatorMap[packId] === cardAuthorFilter;
     });
     // Add zero-stat entries for unplayed cards from this author's packs
-    const existing = new Set(result.map(c => c.card_id));
-    for (const [packId, creator] of Object.entries(packCreatorMap)) {
-      if (creator !== cardAuthorFilter) continue;
-      for (const pc of (packCardsMap[packId] || [])) {
-        if (!existing.has(pc.card_id)) {
-          result.push({ card_id: pc.card_id, card_text: pc.card_text, card_deck: pc.card_deck, play_count: 0, win_count: 0, win_rate: 0, draw_count: 0, play_rate: 0 });
-          existing.add(pc.card_id);
+    // Skip if a specific pack is selected (pack filter already handles it)
+    if (cardPackFilter === 'all') {
+      const existing = new Set(result.map(c => c.card_id));
+      for (const [packId, creator] of Object.entries(packCreatorMap)) {
+        if (creator !== cardAuthorFilter) continue;
+        for (const pc of (packCardsMap[packId] || [])) {
+          if (!existing.has(pc.card_id)) {
+            result.push({ card_id: pc.card_id, card_text: pc.card_text, card_deck: pc.card_deck, play_count: 0, win_count: 0, win_rate: 0, draw_count: 0, play_rate: 0 });
+            existing.add(pc.card_id);
+          }
         }
       }
     }
