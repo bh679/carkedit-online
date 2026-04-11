@@ -125,6 +125,30 @@ function getBranchManagerMap($dir, $branches, $sha) {
     return $map;
 }
 
+function getBranchDetails($dir, $branches) {
+    $details = [];
+    foreach ($branches as $branch) {
+        if ($branch === 'main') {
+            $details[$branch] = ['commitMessage' => '', 'commitsAhead' => 0];
+            continue;
+        }
+        $escBranch = escapeshellarg('origin/' . $branch);
+        $escDir = escapeshellarg($dir);
+
+        $msgResult = runCmd('sudo -u bitnami bash -c "cd ' . $escDir . ' && git log -1 --format=%s ' . $escBranch . ' 2>/dev/null"');
+        $commitMessage = trim(implode('', $msgResult['output']));
+
+        $countResult = runCmd('sudo -u bitnami bash -c "cd ' . $escDir . ' && git rev-list --count origin/main..' . $escBranch . ' 2>/dev/null"');
+        $commitsAhead = (int) trim(implode('', $countResult['output']));
+
+        $details[$branch] = [
+            'commitMessage' => $commitMessage,
+            'commitsAhead'  => $commitsAhead,
+        ];
+    }
+    return $details;
+}
+
 /**
  * Verify a Firebase ID token against the carkedit-api admin endpoint.
  * Returns true if the user is an admin, false otherwise.
@@ -319,12 +343,14 @@ if ($authenticated && isset($_GET['action'])) {
                 'versions' => getVersionsForBranches($CLIENT_DIR, $clientOpen),
                 'tags' => getTags($CLIENT_DIR),
                 'hasBranchManager' => getBranchManagerMap($CLIENT_DIR, $clientOpen, $BM_ORIGIN_SHA),
+                'branchDetails' => getBranchDetails($CLIENT_DIR, $clientOpen),
             ],
             'api' => [
                 'current' => getCurrentBranch($API_DIR),
                 'openBranches' => $apiOpen,
                 'versions' => getVersionsForBranches($API_DIR, $apiOpen),
                 'tags' => getTags($API_DIR),
+                'branchDetails' => getBranchDetails($API_DIR, $apiOpen),
             ],
             'state' => $state,
         ]);
@@ -452,6 +478,33 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         .bm__recent-list { list-style: none; padding: 0; margin: 0; }
         .bm__recent-list li { font-size: 0.8rem; color: var(--color-text-muted); padding: 0.2em 0; font-family: monospace; }
         .bm__recent-list li.has-pr { color: var(--color-live, #4caf50); }
+
+        /* Recent branches — accordion items */
+        .bm__recent-item { border-bottom: 1px solid var(--color-border); }
+        .bm__recent-item:last-child { border-bottom: none; }
+        .bm__recent-item summary {
+            display: flex; align-items: center; gap: var(--space-sm);
+            padding: var(--space-sm) var(--space-xs); font-size: 0.8rem;
+            font-family: monospace; color: var(--color-text-muted);
+            cursor: pointer; list-style: none;
+        }
+        .bm__recent-item summary::-webkit-details-marker { display: none; }
+        .bm__recent-item summary::before {
+            content: '\25B6'; font-size: 0.6rem; transition: transform 0.2s ease;
+            flex-shrink: 0; width: 1em;
+        }
+        .bm__recent-item[open] summary::before { transform: rotate(90deg); }
+        .bm__recent-item summary:hover { color: var(--color-text); }
+        .bm__recent-item.has-pr summary { color: var(--color-live, #4caf50); }
+        .bm__recent-detail {
+            padding: var(--space-xs) var(--space-sm) var(--space-sm) calc(var(--space-sm) + 1em);
+            font-size: 0.75rem; color: var(--color-text-muted); line-height: 1.5;
+        }
+        .bm__detail-row { display: flex; gap: var(--space-sm); margin-bottom: 0.2em; }
+        .bm__detail-label { color: var(--color-text-muted); white-space: nowrap; min-width: 5.5em; }
+        .bm__detail-value { color: var(--color-text); word-break: break-word; }
+        .bm__recent-detail a { color: var(--color-primary); text-decoration: none; }
+        .bm__recent-detail a:hover { text-decoration: underline; }
         select option.has-pr { color: #4caf50; }
 
         /* Rescue link */
@@ -517,6 +570,12 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
     <script type="module">
     'use strict';
 
+    function escapeHtml(str) {
+      const d = document.createElement('div');
+      d.textContent = str;
+      return d.innerHTML;
+    }
+
     import { renderAdminHeader, bindAdminHeader, resetAdminHeaderMenu } from './js/components/admin-header.js';
 
     const FIREBASE_CONFIG = {
@@ -539,6 +598,8 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
     let clientVersions = {};
     let apiVersions = {};
     let clientHasBM = {};
+    let clientBranchDetails = {};
+    let apiBranchDetails = {};
     let currentClientBranch = '';
     let currentApiBranch = '';
     let ghToken = null;
@@ -819,15 +880,15 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
             <div class="bm__recent-cols">
               <div class="bm__recent-col">
                 <h3><span class="bm__badge bm__badge--client">client</span> carkedit-online</h3>
-                <ul class="bm__recent-list" id="recent-client">
-                  <li>Loading...</li>
-                </ul>
+                <div class="bm__recent-list" id="recent-client">
+                  <div>Loading...</div>
+                </div>
               </div>
               <div class="bm__recent-col">
                 <h3><span class="bm__badge bm__badge--api">api</span> carkedit-api</h3>
-                <ul class="bm__recent-list" id="recent-api">
-                  <li>Loading...</li>
-                </ul>
+                <div class="bm__recent-list" id="recent-api">
+                  <div>Loading...</div>
+                </div>
               </div>
             </div>
           </div>
@@ -939,31 +1000,69 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
       });
     }
 
-    function populateRecent(elId, branches, versions, prBranches, liveVersion) {
-      const ul = document.getElementById(elId);
-      if (!ul) return;
-      ul.innerHTML = '';
+    function populateRecent(elId, branches, versions, prBranches, liveVersion, branchDetails, repoSlug) {
+      const container = document.getElementById(elId);
+      if (!container) return;
+      container.innerHTML = '';
       if (branches.length === 0) {
-        ul.innerHTML = '<li>No branches</li>';
+        container.innerHTML = '<div style="font-size:0.8rem;color:var(--color-text-muted)">No branches</div>';
         return;
       }
       const liveNorm = liveVersion ? liveVersion.replace(/^v/, '') : null;
+
       branches.forEach(b => {
-        const li = document.createElement('li');
         const ver = versions && versions[b] ? ' (v' + versions[b] + ')' : '';
         const hasPR = prBranches && prBranches.has(b);
         const tagNorm = b.replace(/^v/, '');
         const isLive = liveNorm && tagNorm === liveNorm;
-        li.textContent = (hasPR ? '● ' : '') + b + ver;
-        if (isLive) {
-          li.classList.add('is-live');
-          const badge = document.createElement('span');
-          badge.className = 'bm__badge bm__badge--live';
-          badge.textContent = 'LIVE';
-          li.appendChild(badge);
+        const details = branchDetails && branchDetails[b];
+
+        if (details && b !== 'main') {
+          // Accordion item
+          const el = document.createElement('details');
+          el.className = 'bm__recent-item' + (hasPR ? ' has-pr' : '');
+
+          const summary = document.createElement('summary');
+          summary.textContent = (hasPR ? '\u25CF ' : '') + b + ver;
+          el.appendChild(summary);
+
+          const panel = document.createElement('div');
+          panel.className = 'bm__recent-detail';
+
+          if (details.commitMessage) {
+            panel.innerHTML += '<div class="bm__detail-row">'
+              + '<span class="bm__detail-label">Last commit:</span>'
+              + '<span class="bm__detail-value">' + escapeHtml(details.commitMessage) + '</span></div>';
+          }
+
+          panel.innerHTML += '<div class="bm__detail-row">'
+            + '<span class="bm__detail-label">Ahead:</span>'
+            + '<span class="bm__detail-value">' + details.commitsAhead + ' commit' + (details.commitsAhead !== 1 ? 's' : '') + '</span></div>';
+
+          if (repoSlug) {
+            const ghUrl = 'https://github.com/' + repoSlug + '/tree/' + encodeURIComponent(b);
+            panel.innerHTML += '<div class="bm__detail-row">'
+              + '<span class="bm__detail-label">GitHub:</span>'
+              + '<span class="bm__detail-value"><a href="' + ghUrl + '" target="_blank" rel="noopener">' + escapeHtml(b) + '</a></span></div>';
+          }
+
+          el.appendChild(panel);
+          container.appendChild(el);
+        } else {
+          // Simple text item (main branch or tags list)
+          const li = document.createElement('li');
+          li.style.cssText = 'font-size:0.8rem;color:var(--color-text-muted);padding:0.2em 0;font-family:monospace;';
+          li.textContent = (hasPR ? '\u25CF ' : '') + b + ver;
+          if (isLive) {
+            li.classList.add('is-live');
+            const badge = document.createElement('span');
+            badge.className = 'bm__badge bm__badge--live';
+            badge.textContent = 'LIVE';
+            li.appendChild(badge);
+          }
+          if (hasPR) li.classList.add('has-pr');
+          container.appendChild(li);
         }
-        if (hasPR) li.classList.add('has-pr');
-        ul.appendChild(li);
       });
     }
 
@@ -978,6 +1077,8 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
           clientVersions = data.client.versions || {};
           apiVersions = data.api.versions || {};
           clientHasBM = data.client.hasBranchManager || {};
+          clientBranchDetails = data.client.branchDetails || {};
+          apiBranchDetails = data.api.branchDetails || {};
 
           const clientCur = data.client.current;
           const apiCur = data.api.current;
@@ -993,8 +1094,8 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
           populateSelect(document.getElementById('linked-select'), clientBranches, clientCur, clientVersions, clientPRBranches);
           updateLinkedLabel();
           updateBmWarnings();
-          populateRecent('recent-client', clientBranches.slice(0, 10), clientVersions, clientPRBranches);
-          populateRecent('recent-api', apiBranches.slice(0, 10), apiVersions, apiPRBranches);
+          populateRecent('recent-client', clientBranches.slice(0, 10), clientVersions, clientPRBranches, null, clientBranchDetails, 'bh679/carkedit-online');
+          populateRecent('recent-api', apiBranches.slice(0, 10), apiVersions, apiPRBranches, null, apiBranchDetails, 'bh679/carkedit-api');
           populateRecent('recent-tags-client', data.client.tags || [], {}, null, liveClientVersion);
           populateRecent('recent-tags-api', data.api.tags || [], {}, null, liveApiVersion);
           document.getElementById('tags-client-version').textContent = 'v' + clientVer;
