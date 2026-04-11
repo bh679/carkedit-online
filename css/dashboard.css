@@ -1203,6 +1203,29 @@ body {
   .dashboard__stat-card-wrap .card {
     width: 70px;
   }
+
+  .dashboard__card-analytics-header {
+    flex-wrap: wrap;
+  }
+
+  .dashboard__sort-bar,
+  .dashboard__filter-bar {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .dashboard__sort-select,
+  .dashboard__filter-btn {
+    font-size: 0.72rem;
+    height: 28px;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .dashboard__sort-select {
+    max-width: 120px;
+    padding-right: 22px;
+  }
 }
 
 /* ── Expansion Pack Stats Table ───────────────────────── */

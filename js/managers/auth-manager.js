@@ -26,6 +26,10 @@ let firebaseApp = null;
 let firebaseAuth = null;
 let firebaseModules = null;
 
+function isMobile() {
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
+
 async function loadFirebase() {
   if (firebaseModules) return firebaseModules;
   const [appMod, authMod] = await Promise.all([
@@ -41,6 +45,16 @@ async function loadFirebase() {
 export async function initAuth(onUserChanged) {
   try {
     const { auth: authMod } = await loadFirebase();
+
+    // Handle return from signInWithRedirect() (mobile Google sign-in).
+    // Must run before onAuthStateChanged to capture redirect errors.
+    try {
+      await authMod.getRedirectResult(firebaseAuth);
+    } catch (redirectErr) {
+      console.error('[CarkedIt Auth] Redirect result error:', redirectErr);
+      _setState({ loginError: redirectErr.message || 'Google sign-in failed' });
+    }
+
     authMod.onAuthStateChanged(firebaseAuth, async (firebaseUser) => {
       if (firebaseUser) {
         const token = await firebaseUser.getIdToken();
@@ -76,7 +90,11 @@ export async function signInWithGoogle() {
     _setState({ loginError: null });
     const { auth: authMod } = await loadFirebase();
     const provider = new authMod.GoogleAuthProvider();
-    await authMod.signInWithPopup(firebaseAuth, provider);
+    if (isMobile()) {
+      await authMod.signInWithRedirect(firebaseAuth, provider);
+    } else {
+      await authMod.signInWithPopup(firebaseAuth, provider);
+    }
   } catch (err) {
     console.error('[CarkedIt Auth] Google sign-in error:', err);
     _setState({ loginError: err.message || 'Google sign-in failed' });

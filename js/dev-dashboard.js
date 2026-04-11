@@ -183,7 +183,7 @@ function mergeContribData(datasets) {
 const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
-function renderContribGraph(data) {
+function renderContribGraph(data, opts) {
   if (!data || !data.length) return '<p class="dash-empty">No contribution data available.</p>';
 
   // Group weeks by the month of their Sunday date, keep only last 3 months
@@ -199,6 +199,36 @@ function renderContribGraph(data) {
   }
 
   const recentGroups = [...groups.values()].slice(-3);
+
+  if (opts?.full) {
+    // Full-width: one cell per day, newest month first
+    const reversedGroups = [...recentGroups].reverse();
+    reversedGroups.forEach(g => g.weeks = [...g.weeks].reverse());
+    const monthGroupsHtml = reversedGroups.map(({ label, weeks }) => {
+      const cellsHtml = weeks.map(week => {
+        return Array.from({ length: 7 }, (_, i) => {
+          const d = 6 - i; // reverse day order: Sat→Sun
+          const count = week.days[d];
+          let level = 0;
+          if (count >= 1) level = 1;
+          if (count >= 3) level = 2;
+          if (count >= 5) level = 3;
+          if (count >= 8) level = 4;
+          const weekTs = week.week * 1000;
+          const cellDate = new Date(weekTs + d * 86400000);
+          const dateStr = cellDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+          const tooltip = `${count} commit${count !== 1 ? 's' : ''} · ${dayNames[d]} ${dateStr}`;
+          return `<div class="contrib-cell contrib-cell--full contrib-cell--${level}" data-tooltip="${tooltip}"></div>`;
+        }).join('');
+      }).join('');
+      return `<div class="contrib-month-group"><div class="contrib-month-label">${label}</div><div class="contrib-week-row">${cellsHtml}</div></div>`;
+    }).join('');
+
+    return `
+      <div class="contrib-wrapper contrib-wrapper--full">
+        ${monthGroupsHtml}
+      </div>`;
+  }
 
   const monthGroupsHtml = recentGroups.map(({ label, weeks }) => {
     const weekRowsHtml = weeks.map(week => {
@@ -234,6 +264,29 @@ function renderContribGraph(data) {
       More
     </div>
   `;
+}
+
+// ── Section: Recent Commits (Multi-repo) ──────────────
+
+// ── Section: Dev Stats ───────────────────────────────
+
+function renderDevStats(stats) {
+  if (!stats) return '<span class="dash-loading">Loading...</span>';
+
+  const cards = [
+    { label: 'Total Commits', value: stats.totalCommits.toLocaleString() },
+    { label: 'Live Repo Commits', value: stats.liveCommits.toLocaleString() },
+    { label: 'Branches Merged', value: stats.branchesMerged.toLocaleString() },
+    { label: 'Lines of Code', value: stats.linesOfCode.toLocaleString() },
+    { label: 'Days Worked', value: stats.daysWorked.toLocaleString() },
+  ];
+
+  return `<div class="stat-cards-row">${cards.map(c => `
+    <div class="stat-card">
+      <div class="stat-card__value">${c.value}</div>
+      <div class="stat-card__label">${c.label}</div>
+    </div>
+  `).join('')}</div>`;
 }
 
 // ── Section: Recent Commits (Multi-repo) ──────────────
@@ -683,6 +736,12 @@ function renderDashboard(sections) {
       <div class="dash-grid">
 
         <div class="dash-card dash-card--full">
+          <div class="dash-card__title">Dev Stats</div>
+          <div id="section-dev-stats">${sections.devStats}</div>
+          <div id="section-contrib-full">${sections.contrib}</div>
+        </div>
+
+        <div class="dash-card dash-card--full">
           <div class="dash-card__title">Design Docs</div>
           <div id="section-design-docs">${sections.designDocs}</div>
         </div>
@@ -798,8 +857,10 @@ async function init() {
   const cachedContrib = loadPersistedData('contrib');
   const cachedEvents = loadPersistedData('events');
   const cachedIssues = loadPersistedData('issues');
+  const cachedDevStats = loadPersistedData('dev-stats');
 
   const loadingSections = {
+    devStats: '<span class="dash-loading">Loading...</span>',
     contrib: '<span class="dash-loading">Loading...</span>',
     designDocs: '',
     commits: '<span class="dash-loading">Loading...</span>',
@@ -826,6 +887,10 @@ async function init() {
   rerenderSection('design-docs');
 
   // Show cached data instantly while fresh data loads
+  if (cachedDevStats) {
+    const devStatsEl = document.getElementById('section-dev-stats');
+    if (devStatsEl) devStatsEl.innerHTML = renderDevStats(cachedDevStats.data) + renderCachedLabel(cachedDevStats.ts);
+  }
   if (cachedCommits) {
     fetchedData.commits = cachedCommits.data;
     const commitsEl = document.getElementById('section-commits');
@@ -836,9 +901,12 @@ async function init() {
   }
   if (cachedContrib) {
     const contribEl = document.getElementById('section-contrib');
+    const contribFullEl = document.getElementById('section-contrib-full');
     // Validate data is in the new {week, days} format (not old per-repo array-of-arrays)
-    if (contribEl && Array.isArray(cachedContrib.data) && cachedContrib.data.length && cachedContrib.data[0]?.week != null) {
-      contribEl.innerHTML = renderContribGraph(cachedContrib.data) + renderCachedLabel(cachedContrib.ts);
+    if (Array.isArray(cachedContrib.data) && cachedContrib.data.length && cachedContrib.data[0]?.week != null) {
+      const cachedLabel = renderCachedLabel(cachedContrib.ts);
+      if (contribEl) contribEl.innerHTML = renderContribGraph(cachedContrib.data) + cachedLabel;
+      if (contribFullEl) contribFullEl.innerHTML = renderContribGraph(cachedContrib.data, { full: true }) + cachedLabel;
     } else {
       // Clear stale cache in old format
       localStorage.removeItem('gh-persist:contrib');
@@ -887,25 +955,30 @@ async function init() {
     ).catch(() => []);
   });
 
-  const [commitsResults, contribResults, eventsResult, issuesResult] = await Promise.allSettled([
+  const [commitsResults, contribResults, eventsResult, issuesResult, devStatsResult] = await Promise.allSettled([
     Promise.all(commitFetches),
     ghFetch('/contrib-graph'),
     ghFetch(`/repos/${PRIMARY_REPO}/events?per_page=100`),
     ghFetch(`/repos/${PRIMARY_REPO}/issues?state=open&per_page=20&sort=updated`),
+    ghFetch('/dev-stats'),
   ]);
 
   updateRateLimit();
 
-  // Update contrib graph (pre-aggregated by the API)
+  // Update contrib graphs (pre-aggregated by the API)
   const contribEl = document.getElementById('section-contrib');
-  if (contribEl && contribResults.status === 'fulfilled') {
+  const contribFullEl = document.getElementById('section-contrib-full');
+  if (contribResults.status === 'fulfilled') {
     const contribData = contribResults.value;
     persistData('contrib', contribData);
-    contribEl.innerHTML = (contribData && contribData.length)
-      ? renderContribGraph(contribData)
-      : '<p class="dash-empty">No contribution data available.</p>';
-  } else if (contribEl) {
-    contribEl.innerHTML = `<span class="dash-error">${escapeHtml(contribResults.reason?.message || 'Failed to load')}</span>`;
+    const hasData = contribData && contribData.length;
+    const emptyMsg = '<p class="dash-empty">No contribution data available.</p>';
+    if (contribEl) contribEl.innerHTML = hasData ? renderContribGraph(contribData) : emptyMsg;
+    if (contribFullEl) contribFullEl.innerHTML = hasData ? renderContribGraph(contribData, { full: true }) : emptyMsg;
+  } else {
+    const errMsg = `<span class="dash-error">${escapeHtml(contribResults.reason?.message || 'Failed to load')}</span>`;
+    if (contribEl) contribEl.innerHTML = errMsg;
+    if (contribFullEl) contribFullEl.innerHTML = errMsg;
   }
 
   // Merge and sort all commits by date
@@ -946,6 +1019,15 @@ async function init() {
     todoEl.innerHTML = issuesResult.status === 'fulfilled'
       ? renderTodoBoard(issuesResult.value)
       : (cachedIssues ? renderTodoBoard(cachedIssues.data) + renderCachedLabel(cachedIssues.ts) : `<span class="dash-error">${escapeHtml(issuesResult.reason?.message || 'Failed to load')}</span>`);
+  }
+
+  // Update dev stats
+  const devStatsEl = document.getElementById('section-dev-stats');
+  if (devStatsResult.status === 'fulfilled') {
+    persistData('dev-stats', devStatsResult.value);
+    if (devStatsEl) devStatsEl.innerHTML = renderDevStats(devStatsResult.value);
+  } else if (devStatsEl && !cachedDevStats) {
+    devStatsEl.innerHTML = `<span class="dash-error">${escapeHtml(devStatsResult.reason?.message || 'Failed to load')}</span>`;
   }
 }
 
@@ -991,12 +1073,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     const fbAuth = authMod.getAuth(fbApp);
     _fbAuth = fbAuth;
 
+    // Handle return from signInWithRedirect() (mobile Google sign-in)
+    try {
+      await authMod.getRedirectResult(fbAuth);
+    } catch (redirectErr) {
+      console.error('[dev-dashboard] Redirect result error:', redirectErr);
+    }
+
     authMod.onAuthStateChanged(fbAuth, async (user) => {
       if (!user) {
         renderAuthGate('Sign in to access the dev dashboard.', true);
         document.getElementById('gate-sign-in')?.addEventListener('click', async () => {
           const provider = new authMod.GoogleAuthProvider();
-          await authMod.signInWithPopup(fbAuth, provider);
+          if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+            await authMod.signInWithRedirect(fbAuth, provider);
+          } else {
+            await authMod.signInWithPopup(fbAuth, provider);
+          }
         });
         return;
       }
