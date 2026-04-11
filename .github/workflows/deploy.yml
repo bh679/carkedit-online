@@ -1,4 +1,4 @@
-name: Deploy to Production
+name: Deploy to staging (brennan.games)
 
 on:
   push:
@@ -8,7 +8,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy to staging (brennan.games)
+      - name: Deploy to staging
         run: |
           RESPONSE=$(curl -s -w "\n%{http_code}" \
             "https://brennan.games/carkedit-online/deploy.php?token=${{ secrets.DEPLOY_TOKEN }}&target=client&branch=${{ github.ref_name }}")
@@ -29,4 +29,3 @@ jobs:
             echo "::error::Staging deploy status: $STATUS"
             exit 1
           fi
-
