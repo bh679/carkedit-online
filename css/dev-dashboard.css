@@ -516,23 +516,6 @@
   text-decoration: none;
 }
 
-/* ── Rate Limit Indicator ─────────────────────────── */
-
-.rate-limit-indicator {
-  font-size: 0.65rem;
-  color: var(--color-text-muted);
-  font-family: monospace;
-  padding: 0.2rem 0.5rem;
-  background: var(--color-dash-item-bg);
-  border-radius: var(--radius-sm);
-  white-space: nowrap;
-}
-
-.rate-limit--warn {
-  color: var(--color-primary);
-  background: var(--color-danger-subtle);
-}
-
 /* ── Loading / Error States ────────────────────────── */
 
 .dash-loading {

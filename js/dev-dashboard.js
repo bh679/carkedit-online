@@ -37,9 +37,6 @@ const commitCache = new Map();
 const fetchedData = { commits: null, events: null, issues: null };
 const docCache = new Map();
 let activeDoc = null;
-let rateLimitRemaining = null;
-let rateLimitTotal = null;
-let rateLimitReset = null;
 
 // ── GitHub API Helper (proxied through carkedit-api) ──
 
@@ -62,10 +59,6 @@ async function ghFetch(path) {
 
   const headers = await getAuthHeaders();
   const res = await fetch(`${GH_PROXY}${path}`, { headers });
-  rateLimitRemaining = res.headers.get('X-RateLimit-Remaining');
-  rateLimitTotal = res.headers.get('X-RateLimit-Limit');
-  const resetHeader = res.headers.get('X-RateLimit-Reset');
-  if (resetHeader) rateLimitReset = parseInt(resetHeader, 10);
 
   if (!res.ok) {
     if (res.status === 403) throw new Error('Rate limited — try again later');
@@ -380,8 +373,7 @@ async function toggleCommitFiles(index, sha, repoName) {
     const detail = await ghFetch(`/repos/${repoName}/commits/${sha}`);
     commitCache.set(cacheKey, detail.files || []);
     el.innerHTML = renderCommitFiles(detail.files || [], repoName, sha);
-    updateRateLimit();
-  } catch (err) {
+    } catch (err) {
     el.innerHTML = `<span class="dash-error">${escapeHtml(err.message)}</span>`;
   }
 }
@@ -751,7 +743,6 @@ function renderDashboard(sections) {
           <span style="font-size:0.65rem;color:var(--color-text-muted)">v<span id="version-number">...</span></span>
         </div>
         <div class="dash-header__meta">
-          <span id="rate-limit"></span>
           <a href="index.html" target="_blank" class="btn btn--primary" style="padding:0.3rem 0.75rem;font-size:0.75rem;text-decoration:none">Play Game</a>
           <button class="btn btn--secondary" style="padding:0.3rem 0.6rem;font-size:0.7rem" onclick="location.reload()">Refresh</button>
         </div>
@@ -843,23 +834,6 @@ function attachCommitListeners() {
   });
 }
 
-function updateRateLimit() {
-  const el = document.getElementById('rate-limit');
-  if (!el) return;
-  if (rateLimitRemaining === null) return;
-
-  const total = rateLimitTotal || '?';
-  let resetStr = '';
-  if (rateLimitReset) {
-    const resetDate = new Date(rateLimitReset * 1000);
-    resetStr = ` · resets ${resetDate.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`;
-  }
-
-  const remaining = parseInt(rateLimitRemaining, 10);
-  const warn = remaining <= 10 ? ' rate-limit--warn' : '';
-  el.className = `rate-limit-indicator${warn}`;
-  el.innerHTML = `API: ${rateLimitRemaining}/${total}${resetStr}`;
-}
 
 // ── Init ──────────────────────────────────────────────
 
@@ -979,7 +953,6 @@ async function init() {
     ghFetch('/dev-stats'),
   ]);
 
-  updateRateLimit();
 
   // Update contrib graphs (pre-aggregated by the API)
   const contribFullEl = document.getElementById('section-contrib-full');
