@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CarkedIt — Branch Manager</title>
-    <link rel="stylesheet" href="css/base.css?v=1.06.0104">
-    <link rel="stylesheet" href="css/components/auth.css?v=1.06.0104">
-    <link rel="stylesheet" href="css/components/admin-header.css?v=1.06.0104">
-    <link rel="stylesheet" href="css/dashboard.css?v=1.06.0104">
+    <link rel="stylesheet" href="css/base.css?v=1.06.0156">
+    <link rel="stylesheet" href="css/components/auth.css?v=1.06.0156">
+    <link rel="stylesheet" href="css/components/admin-header.css?v=1.06.0156">
+    <link rel="stylesheet" href="css/dashboard.css?v=1.06.0156">
     <style>
         .bm { max-width: 700px; margin: 0 auto; padding: var(--space-md) var(--space-lg); }
         .bm__gate { display: flex; align-items: center; justify-content: center; min-height: 60vh; text-align: center; }
@@ -16,6 +16,16 @@
         .bm__gate .btn { display: inline-block; padding: 0.8rem 1.5rem; background: var(--color-primary); color: #fff;
             font-weight: 700; border-radius: var(--radius-sm); text-decoration: none; font-size: 1rem; border: none; cursor: pointer; }
         .bm__gate .btn:hover { filter: brightness(1.15); }
+        .bm__status { margin-top: var(--space-md); padding: 0.6rem 1rem; border-radius: var(--radius-sm); font-size: 0.9rem; }
+        .bm__status.loading { background: var(--color-surface, #1a1a2e); color: var(--color-text-muted, #aaa); }
+        .bm__status.ok { background: #0a3d1a; color: #4ade80; }
+        .bm__status.error { background: #3d0a0a; color: #f87171; }
+        .bm__actions { display: flex; gap: var(--space-sm); justify-content: center; flex-wrap: wrap; }
+        .btn--secondary { display: inline-block; padding: 0.5rem var(--space-md); background: var(--color-surface, #1a1a2e);
+            color: var(--color-text, #eee); font-weight: 600; border-radius: var(--radius-sm); border: 1px solid var(--color-border, #333);
+            cursor: pointer; font-size: 0.85rem; }
+        .btn--secondary:hover { filter: brightness(1.15); }
+        .btn--secondary:disabled { opacity: 0.5; cursor: not-allowed; }
     </style>
     <script src="js/branch-banner.js"></script>
 </head>
@@ -28,21 +38,127 @@
         window.location.replace('branch-manager.php');
     }
 
-    resetAdminHeaderMenu();
-    document.getElementById('app').innerHTML = `
+    const FIREBASE_CONFIG = {
+      apiKey: "AIzaSyC6QJz6jTzJkBWV7Shd9XpCfHWrovJ9vaI",
+      authDomain: window.location.host,
+      projectId: "carkedit-5cc8e",
+      storageBucket: "carkedit-5cc8e.firebasestorage.app",
+      messagingSenderId: "144073275425",
+      appId: "1:144073275425:web:2301fbbccc2be69c654b60",
+    };
+
+    let firebaseAuth = null;
+    let authModule = null;
+    let _fbIdToken = null;
+
+    async function loadFirebase() {
+      const [appMod, authMod] = await Promise.all([
+        import('https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js'),
+        import('https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js'),
+      ]);
+      const app = appMod.initializeApp(FIREBASE_CONFIG);
+      firebaseAuth = authMod.getAuth(app);
+      authModule = authMod;
+    }
+
+    function renderGate(msg, showSignIn = false) {
+      resetAdminHeaderMenu();
+      document.getElementById('app').innerHTML = `
         ${renderAdminHeader()}
         <div class="bm">
             <div class="bm__gate">
                 <div>
                     <h1>Branch Manager</h1>
-                    <p>Branch Manager requires PHP and is available on the staging server.</p>
-                    <a class="btn" href="https://brennan.games/carkedit-online/branch-manager.php">
-                        Open on brennan.games
-                    </a>
+                    <p>${msg}</p>
+                    ${showSignIn ? '<button class="btn" id="gate-sign-in">Sign in with Google</button>' : ''}
+                    <p style="margin-top:var(--space-lg)"><a class="btn" href="https://brennan.games/carkedit-online/branch-manager.php">Open Full Branch Manager on brennan.games</a></p>
                 </div>
             </div>
         </div>`;
-    bindAdminHeader(document.getElementById('app'), {});
+      bindAdminHeader(document.getElementById('app'), {});
+      const si = document.getElementById('gate-sign-in');
+      if (si) {
+        si.addEventListener('click', async () => {
+          try {
+            const provider = new authModule.GoogleAuthProvider();
+            await authModule.signInWithPopup(firebaseAuth, provider);
+          } catch (err) {
+            renderGate('Sign-in failed: ' + (err.message || err), true);
+          }
+        });
+      }
+    }
+
+    function renderDashboard() {
+      resetAdminHeaderMenu();
+      document.getElementById('app').innerHTML = `
+        ${renderAdminHeader()}
+        <div class="bm">
+            <div class="bm__gate">
+                <div>
+                    <h1>Branch Manager</h1>
+                    <p>Full branch switching requires PHP and is available on the staging server.</p>
+                    <div class="bm__actions">
+                      <button id="btn-restart" class="btn--secondary">Restart Server</button>
+                    </div>
+                    <div id="status-box" class="bm__status" style="display:none"></div>
+                    <p style="margin-top:var(--space-lg)"><a class="btn" href="https://brennan.games/carkedit-online/branch-manager.php">Open Full Branch Manager on brennan.games</a></p>
+                </div>
+            </div>
+        </div>`;
+      bindAdminHeader(document.getElementById('app'), {});
+      document.getElementById('btn-restart').addEventListener('click', restartServer);
+    }
+
+    function restartServer() {
+      const btn = document.getElementById('btn-restart');
+      const box = document.getElementById('status-box');
+      btn.disabled = true;
+      box.style.display = 'block';
+      box.className = 'bm__status loading';
+      box.textContent = 'Restarting API server...';
+
+      fetch('/api/carkedit/server/restart', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + _fbIdToken },
+      })
+        .then(r => {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.json();
+        })
+        .then(() => {
+          box.className = 'bm__status ok';
+          box.textContent = 'Server restart triggered. Page may reload shortly.';
+          btn.disabled = false;
+        })
+        .catch(err => {
+          box.className = 'bm__status error';
+          box.textContent = 'Error: ' + err.message;
+          btn.disabled = false;
+        });
+    }
+
+    // Boot
+    renderGate('Loading...', false);
+
+    try {
+      await loadFirebase();
+    } catch (err) {
+      renderGate('Failed to load Firebase — check your network.', false);
+    }
+
+    authModule.onAuthStateChanged(firebaseAuth, async (user) => {
+      if (!user) {
+        renderGate('Sign in with an admin Google account to continue.', true);
+        return;
+      }
+      try {
+        _fbIdToken = await user.getIdToken();
+        renderDashboard();
+      } catch (err) {
+        renderGate('Failed to get auth token: ' + (err.message || err), false);
+      }
+    });
     </script>
 </body>
 </html>
