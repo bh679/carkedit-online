@@ -17,7 +17,7 @@
   bottom: 100%;
   left: 50%;
   transform: translateX(-50%);
-  width: 320px;
+  width: min(320px, 40vh);
   padding-bottom: var(--space-md);
 }
 
