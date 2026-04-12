@@ -183,6 +183,17 @@ function mergeContribData(datasets) {
 const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
+function contribTooltip(count, dayRepos, dayName, dateStr) {
+  let text = `${count} commit${count !== 1 ? 's' : ''} · ${dayName} ${dateStr}`;
+  if (dayRepos && typeof dayRepos === 'object') {
+    const parts = Object.entries(dayRepos)
+      .sort((a, b) => b[1] - a[1])
+      .map(([label, n]) => `${label}: ${n}`);
+    if (parts.length) text += ` (${parts.join(', ')})`;
+  }
+  return text;
+}
+
 function renderContribGraph(data, opts) {
   if (!data || !data.length) return '<p class="dash-empty">No contribution data available.</p>';
 
@@ -222,8 +233,8 @@ function renderContribGraph(data, opts) {
           if (count >= 8) level = 4;
           const color = (count > 0 && activeCount === 0) ? 'yellow-' : '';
           const dateStr = cellDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-          const suffix = (count > 0 && activeCount === 0) ? ' (support repos)' : '';
-          const tooltip = `${count} commit${count !== 1 ? 's' : ''}${suffix} · ${dayNames[d]} ${dateStr}`;
+          const dayRepos = week.repos ? week.repos[d] : null;
+          const tooltip = contribTooltip(count, dayRepos, dayNames[d], dateStr);
           return `<div class="contrib-cell contrib-cell--full contrib-cell--${color}${level}" data-tooltip="${tooltip}"></div>`;
         }).join('');
       }).join('');
@@ -250,8 +261,8 @@ function renderContribGraph(data, opts) {
         const weekTs = week.week * 1000;
         const cellDate = new Date(weekTs + d * 86400000);
         const dateStr = cellDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-        const suffix = (count > 0 && activeCount === 0) ? ' (support repos)' : '';
-        const tooltip = `${count} commit${count !== 1 ? 's' : ''}${suffix} · ${dayNames[d]} ${dateStr}`;
+        const dayRepos = week.repos ? week.repos[d] : null;
+        const tooltip = contribTooltip(count, dayRepos, dayNames[d], dateStr);
         return `<div class="contrib-cell contrib-cell--${color}${level}" data-tooltip="${tooltip}"></div>`;
       }).join('');
       return `<div class="contrib-week-row">${cellsHtml}</div>`;

@@ -213,6 +213,11 @@
   content: attr(data-tooltip);
   position: absolute;
   bottom: calc(100% + 4px);
+}
+
+.contrib-wrapper--full .contrib-cell[data-tooltip]:hover::after {
+  bottom: auto;
+  top: calc(100% + 4px);
   left: 50%;
   transform: translateX(-50%);
   background: var(--color-bg);
