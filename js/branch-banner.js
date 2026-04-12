@@ -49,6 +49,49 @@
       sep.style.cssText = 'opacity:0.4;margin:0 2px;';
       sep.textContent = '|';
 
+      // Pull latest button
+      var pullBtn = document.createElement('button');
+      pullBtn.textContent = 'Pull latest';
+      pullBtn.style.cssText =
+        'color:#fff;background:rgba(255,255,255,.25);padding:2px 10px;' +
+        'border:none;cursor:pointer;border-radius:3px;font-size:11px;font-weight:600;' +
+        'position:absolute;right:130px;top:50%;transform:translateY(-50%);';
+      pullBtn.onclick = function () {
+        pullBtn.textContent = 'Pulling\u2026';
+        pullBtn.disabled = true;
+        pullBtn.style.opacity = '0.6';
+        pullBtn.style.cursor = 'default';
+        fetch('branch-manager.php?action=switch&client=' + encodeURIComponent(info.client))
+          .then(function (r) { return r.json(); })
+          .then(function (res) {
+            if (res.status === 'ok') {
+              pullBtn.textContent = 'Done!';
+              setTimeout(function () { window.location.reload(); }, 600);
+            } else {
+              pullBtn.textContent = 'Error';
+              pullBtn.style.background = 'rgba(255,0,0,.4)';
+              setTimeout(function () {
+                pullBtn.textContent = 'Pull latest';
+                pullBtn.disabled = false;
+                pullBtn.style.opacity = '1';
+                pullBtn.style.cursor = 'pointer';
+                pullBtn.style.background = 'rgba(255,255,255,.25)';
+              }, 3000);
+            }
+          })
+          .catch(function () {
+            pullBtn.textContent = 'Error';
+            pullBtn.style.background = 'rgba(255,0,0,.4)';
+            setTimeout(function () {
+              pullBtn.textContent = 'Pull latest';
+              pullBtn.disabled = false;
+              pullBtn.style.opacity = '1';
+              pullBtn.style.cursor = 'pointer';
+              pullBtn.style.background = 'rgba(255,255,255,.25)';
+            }, 3000);
+          });
+      };
+
       // Switch to main button (absolute right so text stays centered)
       var btn = document.createElement('a');
       btn.textContent = 'Switch to main';
@@ -61,6 +104,7 @@
       bar.appendChild(branchLink);
       bar.appendChild(meta);
       if (info.commitMsg) bar.appendChild(msg);
+      bar.appendChild(pullBtn);
       bar.appendChild(btn);
       document.body.insertBefore(bar, document.body.firstChild);
       document.body.style.paddingTop = '28px';
