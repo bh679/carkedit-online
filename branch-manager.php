@@ -645,11 +645,12 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
     let apiBranchDetails = {};
     let currentClientBranch = '';
     let currentApiBranch = '';
-    let ghToken = null;
+    let _fbIdToken = null;
 
     /* ── GitHub API (for Tag & Deploy) ───────────────── */
 
     const GH_API = 'https://api.github.com';
+    const GH_PROXY = '/api/carkedit/github';
     const TAG_REPOS = [
       { name: 'bh679/carkedit-online', label: 'online' },
       { name: 'bh679/carkedit-api', label: 'api' },
@@ -663,19 +664,17 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
 
     async function ghFetch(path) {
       const headers = { Accept: 'application/vnd.github.v3+json' };
-      if (ghToken) headers.Authorization = 'token ' + ghToken;
       const res = await fetch(GH_API + path, { headers });
       if (!res.ok) throw new Error('GitHub API ' + res.status);
       return res.json();
     }
 
     async function ghPost(path, body) {
-      if (!ghToken) throw new Error('GitHub token required');
-      const res = await fetch(GH_API + path, {
+      if (!_fbIdToken) throw new Error('Not authenticated');
+      const res = await fetch(GH_PROXY + path, {
         method: 'POST',
         headers: {
-          Accept: 'application/vnd.github.v3+json',
-          Authorization: 'token ' + ghToken,
+          Authorization: 'Bearer ' + _fbIdToken,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(body),
@@ -805,7 +804,6 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
     }
 
     async function fetchOpenPRs() {
-      if (!ghToken) return;
       try {
         const [clientOpen, apiOpen, clientClosed, apiClosed] = await Promise.all([
           ghFetch('/repos/bh679/carkedit-online/pulls?state=open&per_page=100'),
@@ -823,7 +821,6 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
     /* ── GitHub API branch discovery ─────────────────── */
 
     async function fetchGhBranches() {
-      if (!ghToken) return { client: [], api: [] };
       try {
         const [clientRes, apiRes] = await Promise.all([
           ghFetch('/repos/bh679/carkedit-online/branches?per_page=100&sort=updated&direction=desc'),
@@ -1469,17 +1466,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
       renderGate('Failed to load Firebase — check your network.', false);
     }
 
-    async function loadGhToken(firebaseIdToken) {
-      try {
-        const res = await fetch('/api/carkedit/dev/config', {
-          headers: { Authorization: 'Bearer ' + firebaseIdToken },
-        });
-        if (res.ok) {
-          const cfg = await res.json();
-          if (cfg.githubToken) ghToken = cfg.githubToken;
-        }
-      } catch { /* GitHub features will be unavailable */ }
-    }
+    function storeFirebaseToken(token) { _fbIdToken = token; }
 
     if (PHP_AUTHED) {
       // Session still valid — try to get a fresh Firebase token for GH access
@@ -1488,8 +1475,8 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
       authModule.onAuthStateChanged(firebaseAuth, async (user) => {
         if (user) {
           const idToken = await user.getIdToken();
-          await loadGhToken(idToken);
-          if (ghToken) loadStatus(); // re-fetch with PR data now available
+          storeFirebaseToken(idToken);
+          loadStatus(); // re-fetch with PR data now available
         }
       });
     } else {
@@ -1503,7 +1490,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         try {
           const idToken = await user.getIdToken();
           if (await verifyWithServer(idToken)) {
-            await loadGhToken(idToken);
+            storeFirebaseToken(idToken);
             renderDashboard();
           } else {
             renderGate('Your account is not an admin. Ask an admin to flag you via /admin-users.', false);
