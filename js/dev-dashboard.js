@@ -1037,10 +1037,19 @@ async function init() {
   // Update dev stats
   const devStatsEl = document.getElementById('section-dev-stats');
   if (devStatsResult.status === 'fulfilled') {
-    persistData('dev-stats', devStatsResult.value);
-    if (devStatsEl) devStatsEl.innerHTML = renderDevStats(devStatsResult.value);
-  } else if (devStatsEl && !cachedDevStats) {
-    devStatsEl.innerHTML = `<span class="dash-error">${escapeHtml(devStatsResult.reason?.message || 'Failed to load')}</span>`;
+    const stats = devStatsResult.value;
+    // Don't cache partial/degraded data over valid cached data
+    if (!stats._meta?.partial) {
+      persistData('dev-stats', stats);
+    }
+    if (devStatsEl) devStatsEl.innerHTML = renderDevStats(stats);
+  } else if (devStatsEl) {
+    // Show cached data with timestamp if available, otherwise show error
+    if (cachedDevStats) {
+      devStatsEl.innerHTML = renderDevStats(cachedDevStats.data) + renderCachedLabel(cachedDevStats.ts);
+    } else {
+      devStatsEl.innerHTML = `<span class="dash-error">${escapeHtml(devStatsResult.reason?.message || 'Failed to load')}</span>`;
+    }
   }
 }
 
