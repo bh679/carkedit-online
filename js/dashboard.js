@@ -21,7 +21,7 @@ let authToken = null;
 let authUser = null; // local user from /users/me
 let firebaseUserInfo = null; // { displayName, photoURL, email }
 
-function isMobile() {
+function isMobileDevice() {
   return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 }
 
@@ -1857,7 +1857,7 @@ async function signInWithGoogle() {
   try {
     const authMod = await loadFirebaseAuth();
     const provider = new authMod.GoogleAuthProvider();
-    if (isMobile()) {
+    if (isMobileDevice()) {
       await authMod.signInWithRedirect(firebaseAuth, provider);
     } else {
       await authMod.signInWithPopup(firebaseAuth, provider);
