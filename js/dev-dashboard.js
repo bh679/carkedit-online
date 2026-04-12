@@ -770,15 +770,9 @@ function renderDashboard(sections) {
           <div id="section-design-docs">${sections.designDocs}</div>
         </div>
 
-        <div class="dash-card--full dash-commits-row">
-          <div class="dash-card dash-card--grow">
-            <div class="dash-card__title">Recent Commits</div>
-            <div id="section-commits">${sections.commits}</div>
-          </div>
-          <div class="dash-card dash-card--fit">
-            <div class="dash-card__title">Contribution Graph</div>
-            <div id="section-contrib">${sections.contrib}</div>
-          </div>
+        <div class="dash-card dash-card--full">
+          <div class="dash-card__title">Recent Commits</div>
+          <div id="section-commits">${sections.commits}</div>
         </div>
 
         <div class="dash-card">
@@ -924,12 +918,10 @@ async function init() {
     }
   }
   if (cachedContrib) {
-    const contribEl = document.getElementById('section-contrib');
     const contribFullEl = document.getElementById('section-contrib-full');
     // Validate data is in the new {week, days} format (not old per-repo array-of-arrays)
     if (Array.isArray(cachedContrib.data) && cachedContrib.data.length && cachedContrib.data[0]?.week != null) {
       const cachedLabel = renderCachedLabel(cachedContrib.ts);
-      if (contribEl) contribEl.innerHTML = renderContribGraph(cachedContrib.data) + cachedLabel;
       if (contribFullEl) contribFullEl.innerHTML = renderContribGraph(cachedContrib.data, { full: true }) + cachedLabel;
     } else {
       // Clear stale cache in old format
@@ -990,18 +982,15 @@ async function init() {
   updateRateLimit();
 
   // Update contrib graphs (pre-aggregated by the API)
-  const contribEl = document.getElementById('section-contrib');
   const contribFullEl = document.getElementById('section-contrib-full');
   if (contribResults.status === 'fulfilled') {
     const contribData = contribResults.value;
     persistData('contrib', contribData);
     const hasData = contribData && contribData.length;
     const emptyMsg = '<p class="dash-empty">No contribution data available.</p>';
-    if (contribEl) contribEl.innerHTML = hasData ? renderContribGraph(contribData) : emptyMsg;
     if (contribFullEl) contribFullEl.innerHTML = hasData ? renderContribGraph(contribData, { full: true }) : emptyMsg;
   } else {
     const errMsg = `<span class="dash-error">${escapeHtml(contribResults.reason?.message || 'Failed to load')}</span>`;
-    if (contribEl) contribEl.innerHTML = errMsg;
     if (contribFullEl) contribFullEl.innerHTML = errMsg;
   }
 
