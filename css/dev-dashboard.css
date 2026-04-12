@@ -155,8 +155,9 @@
   align-items: flex-end;
   justify-content: center;
   gap: var(--space-sm);
-  overflow: visible;
+  overflow: hidden;
   padding-right: var(--space-lg);
+  max-width: 100%;
 }
 
 .contrib-wrapper--full .contrib-month-group {

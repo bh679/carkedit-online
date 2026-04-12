@@ -202,12 +202,17 @@ function renderContribGraph(data, opts) {
 
   if (opts?.full) {
     // Full-width: one cell per day, newest month first
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
     const reversedGroups = [...recentGroups].reverse();
     reversedGroups.forEach(g => g.weeks = [...g.weeks].reverse());
     const monthGroupsHtml = reversedGroups.map(({ label, weeks }) => {
       const cellsHtml = weeks.map(week => {
         return Array.from({ length: 7 }, (_, i) => {
           const d = 6 - i; // reverse day order: Sat→Sun
+          const weekTs = week.week * 1000;
+          const cellDate = new Date(weekTs + d * 86400000);
+          if (cellDate > today) return ''; // skip future days
           const count = week.days[d];
           const activeCount = week.activeDays ? week.activeDays[d] : count;
           let level = 0;
@@ -216,8 +221,6 @@ function renderContribGraph(data, opts) {
           if (count >= 5) level = 3;
           if (count >= 8) level = 4;
           const color = (count > 0 && activeCount === 0) ? 'yellow-' : '';
-          const weekTs = week.week * 1000;
-          const cellDate = new Date(weekTs + d * 86400000);
           const dateStr = cellDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
           const suffix = (count > 0 && activeCount === 0) ? ' (support repos)' : '';
           const tooltip = `${count} commit${count !== 1 ? 's' : ''}${suffix} · ${dayNames[d]} ${dateStr}`;
