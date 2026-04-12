@@ -1360,3 +1360,85 @@ body {
   color: rgba(255, 255, 255, 0.8);
   margin-top: 0.2em;
 }
+
+/* ── Base Cost Modal ─────────────────────────────────── */
+.dashboard__pack-cell--cost {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.dashboard__pack-cell--cost:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.base-cost__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: var(--color-overlay-dim, rgba(0, 0, 0, 0.6));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.base-cost__panel {
+  background: var(--color-surface, #1e1e2e);
+  border-radius: var(--radius-md, 12px);
+  padding: 1.5rem;
+  width: 100%;
+  max-width: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.base-cost__title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--color-text, #fff);
+  margin: 0;
+}
+.base-cost__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.base-cost__row--total {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 0.5rem;
+  font-weight: 700;
+}
+.base-cost__label {
+  font-size: 0.875rem;
+  color: var(--color-text-muted, #888);
+}
+.base-cost__value {
+  font-size: 0.875rem;
+  color: var(--color-text, #fff);
+  font-variant-numeric: tabular-nums;
+}
+.base-cost__input {
+  width: 100px;
+  padding: 0.375rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--color-text, #fff);
+  font-size: 0.875rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.base-cost__input:focus {
+  outline: none;
+  border-color: var(--color-primary, #6366f1);
+}
+.base-cost__status {
+  font-size: 0.8125rem;
+  min-height: 1.25rem;
+}
+.base-cost__status--error {
+  color: var(--color-danger, #ef4444);
+}
+.base-cost__actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}

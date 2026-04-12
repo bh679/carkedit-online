@@ -1473,8 +1473,14 @@ function getSortedPacks() {
   const packs = [...(packStats.packs || [])];
   const dir = packSortAsc ? 1 : -1;
   packs.sort((a, b) => {
-    const av = a[packSortMode];
-    const bv = b[packSortMode];
+    let av, bv;
+    if (packSortMode === 'total_cost_usd') {
+      av = (a.base_cost_usd || 0) + (a.total_cost_usd || 0);
+      bv = (b.base_cost_usd || 0) + (b.total_cost_usd || 0);
+    } else {
+      av = a[packSortMode];
+      bv = b[packSortMode];
+    }
     if (typeof av === 'string' || typeof bv === 'string') {
       return dir * String(av || '').localeCompare(String(bv || ''));
     }
@@ -1525,7 +1531,7 @@ function renderPackStats() {
         <td class="dashboard__pack-cell dashboard__pack-cell--num">${p.total_wins || 0}</td>
         <td class="dashboard__pack-cell dashboard__pack-cell--num">${winRatePct}%</td>
         <td class="dashboard__pack-cell dashboard__pack-cell--num">${p.favorite_count || 0}</td>
-        <td class="dashboard__pack-cell dashboard__pack-cell--num">$${(p.total_cost_usd || 0).toFixed(2)}</td>
+        <td class="dashboard__pack-cell dashboard__pack-cell--num dashboard__pack-cell--cost" onclick="window.dash.openBaseCostModal('${escAttr(p.id)}', ${p.base_cost_usd || 0}, ${p.total_cost_usd || 0})" title="Click to set base cost">$${((p.base_cost_usd || 0) + (p.total_cost_usd || 0)).toFixed(2)}</td>
       </tr>`;
   }).join('');
 
@@ -1835,7 +1841,76 @@ async function togglePackDev(id, next) {
   } catch (e) { console.error(e); alert('Failed to toggle dev: ' + e.message); }
 }
 
-window.dash = { cyclePlayTime, cycleGamesCount, cyclePlayersCount, toggleGame, cycleDeckFilter, setCardSort, toggleCardSortDir, cycleCardDev, setPackFilter, setAuthorFilter, setPackSort, togglePackExpanded, cycleSurveyDev, previewCard, closePreview, prevPreviewCard, nextPreviewCard, scrollCards, loadMoreGames, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange, signInWithGoogle, signOut, toggleGameDev, toggleSurveyDev, togglePackDev, copyDebugData };
+// ── Base Cost Modal ──────────────────────────────────
+function openBaseCostModal(packId, currentBase, generatedCost) {
+  closeBaseCostModal();
+  const total = (currentBase + generatedCost).toFixed(2);
+  const overlay = document.createElement('div');
+  overlay.id = 'base-cost-overlay';
+  overlay.className = 'base-cost__overlay';
+  overlay.onclick = () => closeBaseCostModal();
+  overlay.innerHTML = `
+    <div class="base-cost__panel" onclick="event.stopPropagation()">
+      <h3 class="base-cost__title">Set Base Cost</h3>
+      <div class="base-cost__row">
+        <span class="base-cost__label">Generated cost</span>
+        <span class="base-cost__value">$${generatedCost.toFixed(2)}</span>
+      </div>
+      <div class="base-cost__row">
+        <label class="base-cost__label" for="base-cost-input">Base cost (USD)</label>
+        <input id="base-cost-input" class="base-cost__input" type="number" min="0" step="0.01" value="${currentBase.toFixed(2)}">
+      </div>
+      <div class="base-cost__row base-cost__row--total">
+        <span class="base-cost__label">Total</span>
+        <span id="base-cost-total" class="base-cost__value">$${total}</span>
+      </div>
+      <div id="base-cost-status" class="base-cost__status"></div>
+      <div class="base-cost__actions">
+        <button class="btn btn--secondary" onclick="window.dash.closeBaseCostModal()">Cancel</button>
+        <button class="btn btn--primary" onclick="window.dash.saveBaseCost('${packId}')">Save</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  const input = document.getElementById('base-cost-input');
+  input.focus();
+  input.select();
+  input.addEventListener('input', () => {
+    const v = parseFloat(input.value) || 0;
+    document.getElementById('base-cost-total').textContent = '$' + (v + generatedCost).toFixed(2);
+  });
+}
+
+function closeBaseCostModal() {
+  const el = document.getElementById('base-cost-overlay');
+  if (el) el.remove();
+}
+
+async function saveBaseCost(packId) {
+  const input = document.getElementById('base-cost-input');
+  const val = parseFloat(input.value);
+  if (isNaN(val) || val < 0) {
+    document.getElementById('base-cost-status').textContent = 'Please enter a valid amount (>= 0)';
+    document.getElementById('base-cost-status').className = 'base-cost__status base-cost__status--error';
+    return;
+  }
+  try {
+    await authFetch(`${API_BASE}/api/carkedit/packs/${encodeURIComponent(packId)}/base-cost`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ base_cost_usd: val }),
+    });
+    const i = packStats.packs.findIndex(x => x.id === packId);
+    if (i >= 0) packStats.packs[i].base_cost_usd = val;
+    closeBaseCostModal();
+    renderPackStats();
+  } catch (e) {
+    console.error(e);
+    document.getElementById('base-cost-status').textContent = 'Failed to save: ' + e.message;
+    document.getElementById('base-cost-status').className = 'base-cost__status base-cost__status--error';
+  }
+}
+
+window.dash = { cyclePlayTime, cycleGamesCount, cyclePlayersCount, toggleGame, cycleDeckFilter, setCardSort, toggleCardSortDir, cycleCardDev, setPackFilter, setAuthorFilter, setPackSort, togglePackExpanded, cycleSurveyDev, previewCard, closePreview, prevPreviewCard, nextPreviewCard, scrollCards, loadMoreGames, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange, signInWithGoogle, signOut, toggleGameDev, toggleSurveyDev, togglePackDev, copyDebugData, openBaseCostModal, closeBaseCostModal, saveBaseCost };
 
 // ── Auth Gate UI ─────────────────────────────────────
 function renderAuthGate(message, showSignIn = true) {
