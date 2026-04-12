@@ -8,7 +8,7 @@ const API_BASE = `${window.location.origin}/api/carkedit`;
 // Module-level state for the current survey instance
 let selectedScore = null;
 const submittedGames = new Set();
-let step = 0;           // 0=collapsed, 1=score, 2=feedback
+let step = 0;           // 0=collapsed, 1=score, 2=feedback, 3=mailing-list
 let submitting = false;
 let justSubmitted = false;
 let autoExpandTimer = null;
@@ -17,6 +17,8 @@ const AUTO_EXPAND_MS = 15000;
 // Persist textarea values across re-renders
 let commentText = '';
 let improvementText = '';
+let mailingEmail = '';
+let mailingSubmitted = false;
 
 function gameKey(state) {
   if (state.roomCode) return `online:${state.roomCode}`;
@@ -25,6 +27,12 @@ function gameKey(state) {
 
 export function hasSubmitted(state) {
   return submittedGames.has(gameKey(state)) || justSubmitted;
+}
+
+/** Whether the scoreboard should be visible (hidden during steps 2 & 3) */
+export function showScores(state) {
+  if (hasSubmitted(state) && step !== 3) return true;
+  return step <= 1;
 }
 
 function getClientVersion() {
@@ -39,6 +47,7 @@ function rerender() {
 // ── Render dispatcher ──────────────────────────────────────
 
 export function render(state) {
+  if (step === 3) return renderMailingList();
   if (hasSubmitted(state) || justSubmitted) {
     return renderThankYou();
   }
@@ -125,12 +134,38 @@ function renderFeedbackStep() {
   `;
 }
 
+// ── Step 3: Mailing List ───────────────────────────────────
+
+function renderMailingList() {
+  const safeEmail = escapeAttr(mailingEmail);
+
+  return `
+    <div class="survey survey--step-mailing">
+      <h3 class="survey__thanks-title">Thanks for the feedback! 🙏</h3>
+      <p class="survey__mailing-prompt">Stay in the loop — get updates on new cards, features and events.</p>
+      <input id="survey-email" class="survey__email-input" type="email"
+             placeholder="your@email.com" value="${safeEmail}"
+             oninput="window.survey.saveEmail()" />
+      <div class="survey__actions">
+        <button class="btn btn--primary"
+                onclick="window.survey.subscribeMailing()">
+          Subscribe
+        </button>
+        <button class="btn btn--ghost survey__skip-btn"
+                onclick="window.survey.skipMailing()">
+          Skip
+        </button>
+      </div>
+    </div>
+  `;
+}
+
 // ── Thank You ──────────────────────────────────────────────
 
 function renderThankYou() {
   return `
     <div class="survey survey--thanks">
-      <h3 class="survey__thanks-title">Thanks for the feedback! 🙏</h3>
+      <h3 class="survey__thanks-title">${mailingSubmitted ? 'You\'re subscribed! 🎉' : 'Thanks for playing! 🙏'}</h3>
       <div class="survey__cta-row">
         <button class="btn btn--primary" onclick="window.game.showScreen('menu')">
           Play Again
@@ -179,6 +214,43 @@ function saveTextFromDOM() {
   if (i) improvementText = i.value;
 }
 
+function saveEmail() {
+  const el = document.getElementById('survey-email');
+  if (el) mailingEmail = el.value;
+}
+
+function skipMailing() {
+  step = 0;
+  rerender();
+}
+
+async function subscribeMailing() {
+  saveEmail();
+  const email = mailingEmail.trim();
+  if (!email) return;
+
+  const state = getState();
+  const myPlayer = state.players.find(p => p.sessionId === state.mySessionId);
+
+  try {
+    await fetch(`${API_BASE}/mailing-list`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email,
+        player_name: myPlayer?.name || null,
+        source: 'post_game_survey',
+      }),
+    });
+  } catch (err) {
+    console.warn('[survey] Mailing list subscribe error:', err);
+  }
+
+  mailingSubmitted = true;
+  step = 0;
+  rerender();
+}
+
 async function submit() {
   if (selectedScore === null || submitting) return;
   const state = getState();
@@ -224,7 +296,7 @@ async function submit() {
   justSubmitted = true;
   submitting = false;
   selectedScore = null;
-  step = 0;
+  step = 3;
   commentText = '';
   improvementText = '';
 
@@ -239,6 +311,8 @@ export function reset() {
   justSubmitted = false;
   commentText = '';
   improvementText = '';
+  mailingEmail = '';
+  mailingSubmitted = false;
 }
 
 // ── Helpers ────────────────────────────────────────────────
@@ -248,4 +322,4 @@ function escapeAttr(str) {
 }
 
 // Attach to window for inline onclick handlers
-window.survey = { expand, setScore, submit, reset, nextStep, prevStep, saveText };
+window.survey = { expand, setScore, submit, reset, nextStep, prevStep, saveText, saveEmail, subscribeMailing, skipMailing };

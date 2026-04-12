@@ -12,7 +12,8 @@
 
 /* Step variants — keep each step compact */
 .survey--step-score,
-.survey--step-feedback {
+.survey--step-feedback,
+.survey--step-mailing {
   margin: 0.8em auto;
   padding: 0.8em 1em;
 }
@@ -144,4 +145,38 @@
   text-decoration: underline;
   margin-left: 0.4em;
   padding: 0;
+}
+
+/* ── Step 3: mailing list ──────────────────────────────── */
+
+.survey__mailing-prompt {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0 0 0.8em;
+}
+
+.survey__email-input {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 0.4em;
+  padding: 0.6em 0.7em;
+  color: inherit;
+  font-family: inherit;
+  font-size: 0.9rem;
+  box-sizing: border-box;
+}
+
+.survey__email-input::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.survey__skip-btn {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  padding: 0.4em 0.8em;
 }

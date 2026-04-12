@@ -8,7 +8,7 @@ import { buildCard } from '../data/card.js';
 import { render as renderLivingDeadProfile } from '../components/living-dead-profile.js';
 import { render as renderPassPhone } from '../components/pass-phone.js';
 import { render as renderPhaseHeader } from '../components/phase-header.js';
-import { render as renderSurvey, hasSubmitted as surveySubmitted } from './survey.js';
+import { render as renderSurvey, hasSubmitted as surveySubmitted, showScores as surveyShowScores } from './survey.js';
 import { escapeHtml } from '../utils/escape.js';
 
 const PHASE_LABEL = 'Phase 4 - EULOGY';
@@ -575,20 +575,24 @@ function renderWinnerScreen(state) {
     `;
   }).join('');
 
+  const scoresVisible = surveyShowScores(state);
+
   // Winner screen uses renderPhaseHeader directly (no player list)
   return `
     <div class="screen screen--phase" data-phase="4">
       ${renderPhaseHeader({ phase: '4', label: PHASE_LABEL })}
       <div class="phase4__winner">
-        <h2 class="phase4__winner-crown">👑</h2>
-        <h2 class="phase4__winner-title">Legendary Death Doula!</h2>
-        <p class="phase4__winner-name">${winnerName}</p>
-        <div class="winner-announcement__card">
-          <div class="scoreboard">
-            <h3 class="scoreboard__title">Final Scores</h3>
-            ${scoreRows}
+        ${scoresVisible ? `
+          <h2 class="phase4__winner-crown">👑</h2>
+          <h2 class="phase4__winner-title">Legendary Death Doula!</h2>
+          <p class="phase4__winner-name">${winnerName}</p>
+          <div class="winner-announcement__card">
+            <div class="scoreboard">
+              <h3 class="scoreboard__title">Final Scores</h3>
+              ${scoreRows}
+            </div>
           </div>
-        </div>
+        ` : ''}
         ${renderSurvey(state)}
         ${surveySubmitted(state) ? '' : `
           <button class="btn btn--secondary" onclick="window.game.showScreen('menu')">
