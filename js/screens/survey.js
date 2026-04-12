@@ -1,4 +1,4 @@
-// CarkedIt Online — Post-Game NPS Survey
+// CarkedIt Online — Post-Game NPS Survey (multi-step)
 'use strict';
 
 import { getState } from '../state.js';
@@ -7,15 +7,20 @@ const API_BASE = `${window.location.origin}/api/carkedit`;
 
 // Module-level state for the current survey instance
 let selectedScore = null;
-const submittedGames = new Set(); // game_id keys that have already been submitted this session
-let expanded = false;
+const submittedGames = new Set();
+let step = 0;           // 0=collapsed, 1=score, 2=feedback, 3=mailing-list
 let submitting = false;
 let justSubmitted = false;
 let autoExpandTimer = null;
 const AUTO_EXPAND_MS = 15000;
 
+// Persist textarea values across re-renders
+let commentText = '';
+let improvementText = '';
+let mailingEmail = '';
+let mailingSubmitted = false;
+
 function gameKey(state) {
-  // Prefer roomCode for online games; fall back to a synthetic local key
   if (state.roomCode) return `online:${state.roomCode}`;
   return `local:${state.phase23Round ?? 0}:${state.players.map(p => p.name).join('|')}`;
 }
@@ -24,58 +29,104 @@ export function hasSubmitted(state) {
   return submittedGames.has(gameKey(state)) || justSubmitted;
 }
 
+/** Whether the scoreboard should be visible (hidden during steps 2 & 3) */
+export function showScores(state) {
+  if (hasSubmitted(state) && step !== 3) return true;
+  return step <= 1;
+}
+
 function getClientVersion() {
-  // Best-effort: read from a meta tag or fallback
   const meta = document.querySelector('meta[name="app-version"]');
   return meta?.content || 'unknown';
 }
 
+function rerender() {
+  if (window.game?.showScreen) window.game.showScreen('phase4');
+}
+
+// ── Render dispatcher ──────────────────────────────────────
+
 export function render(state) {
+  if (step === 3) return renderMailingList();
   if (hasSubmitted(state) || justSubmitted) {
     return renderThankYou();
   }
-  if (!expanded) {
-    if (autoExpandTimer === null) {
-      autoExpandTimer = setTimeout(() => {
-        autoExpandTimer = null;
-        if (!expanded && !justSubmitted && !hasSubmitted(state)) {
-          expand();
-        }
-      }, AUTO_EXPAND_MS);
-    }
-    return `
-      <div class="survey survey--collapsed">
-        <p class="survey__prompt-label">Help us improve</p>
-        <button class="btn btn--primary survey__prompt-btn" onclick="window.survey.expand()">
-          Share Feedback
-        </button>
-      </div>
-    `;
-  }
+  if (step === 0) return renderCollapsed(state);
+  if (step === 1) return renderScoreStep();
+  if (step === 2) return renderFeedbackStep();
+  return renderCollapsed(state);
+}
 
+// ── Step 0: Collapsed ──────────────────────────────────────
+
+function renderCollapsed(state) {
+  if (autoExpandTimer === null) {
+    autoExpandTimer = setTimeout(() => {
+      autoExpandTimer = null;
+      if (step === 0 && !justSubmitted && !hasSubmitted(state)) {
+        expand();
+      }
+    }, AUTO_EXPAND_MS);
+  }
+  return `
+    <div class="survey survey--collapsed">
+      <p class="survey__prompt-label">Help us improve</p>
+      <button class="btn btn--primary survey__prompt-btn" onclick="window.survey.expand()">
+        Share Feedback
+      </button>
+    </div>
+  `;
+}
+
+// ── Step 1: NPS Score ──────────────────────────────────────
+
+function renderScoreStep() {
   const scoreButtons = Array.from({ length: 11 }, (_, i) => {
     const active = selectedScore === i ? ' survey__score-btn--active' : '';
     return `<button class="survey__score-btn${active}" onclick="window.survey.setScore(${i})">${i}</button>`;
   }).join('');
 
-  const canSubmit = selectedScore !== null && !submitting;
+  const canNext = selectedScore !== null;
 
   return `
-    <div class="survey survey--expanded">
+    <div class="survey survey--step-score">
       <h3 class="survey__title">How likely are you to recommend CarkedIt to a friend?</h3>
       <div class="survey__score-row">${scoreButtons}</div>
       <div class="survey__score-labels">
         <span>Not likely</span>
         <span>Very likely</span>
       </div>
-      <label class="survey__label">Why that score?</label>
-      <textarea id="survey-comment" class="survey__textarea" rows="2" placeholder="Tell us why..."></textarea>
-      <label class="survey__label">What could we improve?</label>
-      <textarea id="survey-improvement" class="survey__textarea" rows="2" placeholder="Your suggestions..."></textarea>
       <div class="survey__actions">
-        <button class="btn ${canSubmit ? 'btn--primary' : 'btn--disabled'}"
+        <button class="btn ${canNext ? 'btn--primary' : 'btn--disabled'}"
+                onclick="window.survey.nextStep()"
+                ${canNext ? '' : 'disabled'}>
+          Next
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+// ── Step 2: Text Feedback ──────────────────────────────────
+
+function renderFeedbackStep() {
+  const safeComment = escapeAttr(commentText);
+  const safeImprovement = escapeAttr(improvementText);
+
+  return `
+    <div class="survey survey--step-feedback">
+      <label class="survey__label">Why that score?</label>
+      <textarea id="survey-comment" class="survey__textarea" rows="2"
+                placeholder="Tell us why..."
+                oninput="window.survey.saveText()">${safeComment}</textarea>
+      <label class="survey__label">What could we improve?</label>
+      <textarea id="survey-improvement" class="survey__textarea" rows="2"
+                placeholder="Your suggestions..."
+                oninput="window.survey.saveText()">${safeImprovement}</textarea>
+      <div class="survey__actions">
+        <button class="btn ${submitting ? 'btn--disabled' : 'btn--primary'}"
                 onclick="window.survey.submit()"
-                ${canSubmit ? '' : 'disabled'}>
+                ${submitting ? 'disabled' : ''}>
           ${submitting ? 'Sending...' : 'Submit Feedback'}
         </button>
       </div>
@@ -83,10 +134,38 @@ export function render(state) {
   `;
 }
 
+// ── Step 3: Mailing List ───────────────────────────────────
+
+function renderMailingList() {
+  const safeEmail = escapeAttr(mailingEmail);
+
+  return `
+    <div class="survey survey--step-mailing">
+      <h3 class="survey__thanks-title">Thanks for the feedback! 🙏</h3>
+      <p class="survey__mailing-prompt">Stay in the loop — get updates on new cards, features and events.</p>
+      <input id="survey-email" class="survey__email-input" type="email"
+             placeholder="your@email.com" value="${safeEmail}"
+             oninput="window.survey.saveEmail()" />
+      <div class="survey__actions">
+        <button class="btn btn--primary"
+                onclick="window.survey.subscribeMailing()">
+          Subscribe
+        </button>
+        <button class="btn btn--ghost survey__skip-btn"
+                onclick="window.survey.skipMailing()">
+          Skip
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+// ── Thank You ──────────────────────────────────────────────
+
 function renderThankYou() {
   return `
     <div class="survey survey--thanks">
-      <h3 class="survey__thanks-title">Thanks for the feedback! 🙏</h3>
+      <h3 class="survey__thanks-title">${mailingSubmitted ? 'You\'re subscribed! 🎉' : 'Thanks for playing! 🙏'}</h3>
       <div class="survey__cta-row">
         <button class="btn btn--primary" onclick="window.game.showScreen('menu')">
           Play Again
@@ -99,37 +178,92 @@ function renderThankYou() {
   `;
 }
 
+// ── Actions ────────────────────────────────────────────────
+
 function expand() {
   if (autoExpandTimer !== null) { clearTimeout(autoExpandTimer); autoExpandTimer = null; }
-  expanded = true;
-  if (window.game && typeof window.game.showScreen === 'function') {
-    window.game.showScreen('phase4');
-  }
+  step = 1;
+  rerender();
 }
 
 function setScore(n) {
   selectedScore = n;
-  if (window.game && typeof window.game.showScreen === 'function') {
-    window.game.showScreen('phase4');
+  rerender();
+}
+
+function nextStep() {
+  if (selectedScore === null) return;
+  step = 2;
+  rerender();
+}
+
+function prevStep() {
+  saveTextFromDOM();
+  step = 1;
+  rerender();
+}
+
+function saveText() {
+  saveTextFromDOM();
+}
+
+function saveTextFromDOM() {
+  const c = document.getElementById('survey-comment');
+  const i = document.getElementById('survey-improvement');
+  if (c) commentText = c.value;
+  if (i) improvementText = i.value;
+}
+
+function saveEmail() {
+  const el = document.getElementById('survey-email');
+  if (el) mailingEmail = el.value;
+}
+
+function skipMailing() {
+  step = 0;
+  rerender();
+}
+
+async function subscribeMailing() {
+  saveEmail();
+  const email = mailingEmail.trim();
+  if (!email) return;
+
+  const state = getState();
+  const myPlayer = state.players.find(p => p.sessionId === state.mySessionId);
+
+  try {
+    await fetch(`${API_BASE}/mailing-list`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email,
+        player_name: myPlayer?.name || null,
+        source: 'post_game_survey',
+      }),
+    });
+  } catch (err) {
+    console.warn('[survey] Mailing list subscribe error:', err);
   }
+
+  mailingSubmitted = true;
+  step = 0;
+  rerender();
 }
 
 async function submit() {
   if (selectedScore === null || submitting) return;
   const state = getState();
 
-  // Read textareas BEFORE re-render
-  const commentEl = document.getElementById('survey-comment');
-  const improvementEl = document.getElementById('survey-improvement');
-  const comment = commentEl?.value?.trim() || '';
-  const improvement = improvementEl?.value?.trim() || '';
+  saveTextFromDOM();
+  const comment = commentText.trim();
+  const improvement = improvementText.trim();
 
   submitting = true;
-  if (window.game?.showScreen) window.game.showScreen('phase4');
+  rerender();
 
   const myPlayer = state.players.find(p => p.sessionId === state.mySessionId);
 
-  // Compute is_dev the same way phase-header.js does
   const localDev = state.players?.length > 0 && state.players.every(p => p._devName);
   const onlineDev = state.onlinePlayers?.length > 0 && state.onlinePlayers.every(p => p.isDevName);
   const isDev = localDev || onlineDev;
@@ -162,18 +296,30 @@ async function submit() {
   justSubmitted = true;
   submitting = false;
   selectedScore = null;
-  expanded = false;
+  step = 3;
+  commentText = '';
+  improvementText = '';
 
-  if (window.game?.showScreen) window.game.showScreen('phase4');
+  rerender();
 }
 
 export function reset() {
   if (autoExpandTimer !== null) { clearTimeout(autoExpandTimer); autoExpandTimer = null; }
-  expanded = false;
+  step = 0;
   selectedScore = null;
   submitting = false;
   justSubmitted = false;
+  commentText = '';
+  improvementText = '';
+  mailingEmail = '';
+  mailingSubmitted = false;
+}
+
+// ── Helpers ────────────────────────────────────────────────
+
+function escapeAttr(str) {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 // Attach to window for inline onclick handlers
-window.survey = { expand, setScore, submit, reset };
+window.survey = { expand, setScore, submit, reset, nextStep, prevStep, saveText, saveEmail, subscribeMailing, skipMailing };
