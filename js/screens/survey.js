@@ -106,10 +106,6 @@ function renderFeedbackStep() {
 
   return `
     <div class="survey survey--step-feedback">
-      <div class="survey__selected-score">
-        Score: <strong>${selectedScore}/10</strong>
-        <button class="survey__change-btn" onclick="window.survey.prevStep()">Change</button>
-      </div>
       <label class="survey__label">Why that score?</label>
       <textarea id="survey-comment" class="survey__textarea" rows="2"
                 placeholder="Tell us why..."
