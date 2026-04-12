@@ -183,6 +183,17 @@ function mergeContribData(datasets) {
 const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
+function contribTooltip(count, dayRepos, dayName, dateStr) {
+  let text = `${count} commit${count !== 1 ? 's' : ''} · ${dayName} ${dateStr}`;
+  if (dayRepos && typeof dayRepos === 'object') {
+    const parts = Object.entries(dayRepos)
+      .sort((a, b) => b[1] - a[1])
+      .map(([label, n]) => `${label}: ${n}`);
+    if (parts.length) text += ` (${parts.join(', ')})`;
+  }
+  return text;
+}
+
 function renderContribGraph(data, opts) {
   if (!data || !data.length) return '<p class="dash-empty">No contribution data available.</p>';
 
@@ -222,8 +233,8 @@ function renderContribGraph(data, opts) {
           if (count >= 8) level = 4;
           const color = (count > 0 && activeCount === 0) ? 'yellow-' : '';
           const dateStr = cellDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-          const suffix = (count > 0 && activeCount === 0) ? ' (support repos)' : '';
-          const tooltip = `${count} commit${count !== 1 ? 's' : ''}${suffix} · ${dayNames[d]} ${dateStr}`;
+          const dayRepos = week.repos ? week.repos[d] : null;
+          const tooltip = contribTooltip(count, dayRepos, dayNames[d], dateStr);
           return `<div class="contrib-cell contrib-cell--full contrib-cell--${color}${level}" data-tooltip="${tooltip}"></div>`;
         }).join('');
       }).join('');
@@ -250,8 +261,8 @@ function renderContribGraph(data, opts) {
         const weekTs = week.week * 1000;
         const cellDate = new Date(weekTs + d * 86400000);
         const dateStr = cellDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-        const suffix = (count > 0 && activeCount === 0) ? ' (support repos)' : '';
-        const tooltip = `${count} commit${count !== 1 ? 's' : ''}${suffix} · ${dayNames[d]} ${dateStr}`;
+        const dayRepos = week.repos ? week.repos[d] : null;
+        const tooltip = contribTooltip(count, dayRepos, dayNames[d], dateStr);
         return `<div class="contrib-cell contrib-cell--${color}${level}" data-tooltip="${tooltip}"></div>`;
       }).join('');
       return `<div class="contrib-week-row">${cellsHtml}</div>`;
@@ -759,15 +770,9 @@ function renderDashboard(sections) {
           <div id="section-design-docs">${sections.designDocs}</div>
         </div>
 
-        <div class="dash-card--full dash-commits-row">
-          <div class="dash-card dash-card--grow">
-            <div class="dash-card__title">Recent Commits</div>
-            <div id="section-commits">${sections.commits}</div>
-          </div>
-          <div class="dash-card dash-card--fit">
-            <div class="dash-card__title">Contribution Graph</div>
-            <div id="section-contrib">${sections.contrib}</div>
-          </div>
+        <div class="dash-card dash-card--full">
+          <div class="dash-card__title">Recent Commits</div>
+          <div id="section-commits">${sections.commits}</div>
         </div>
 
         <div class="dash-card">
@@ -913,12 +918,10 @@ async function init() {
     }
   }
   if (cachedContrib) {
-    const contribEl = document.getElementById('section-contrib');
     const contribFullEl = document.getElementById('section-contrib-full');
     // Validate data is in the new {week, days} format (not old per-repo array-of-arrays)
     if (Array.isArray(cachedContrib.data) && cachedContrib.data.length && cachedContrib.data[0]?.week != null) {
       const cachedLabel = renderCachedLabel(cachedContrib.ts);
-      if (contribEl) contribEl.innerHTML = renderContribGraph(cachedContrib.data) + cachedLabel;
       if (contribFullEl) contribFullEl.innerHTML = renderContribGraph(cachedContrib.data, { full: true }) + cachedLabel;
     } else {
       // Clear stale cache in old format
@@ -979,18 +982,15 @@ async function init() {
   updateRateLimit();
 
   // Update contrib graphs (pre-aggregated by the API)
-  const contribEl = document.getElementById('section-contrib');
   const contribFullEl = document.getElementById('section-contrib-full');
   if (contribResults.status === 'fulfilled') {
     const contribData = contribResults.value;
     persistData('contrib', contribData);
     const hasData = contribData && contribData.length;
     const emptyMsg = '<p class="dash-empty">No contribution data available.</p>';
-    if (contribEl) contribEl.innerHTML = hasData ? renderContribGraph(contribData) : emptyMsg;
     if (contribFullEl) contribFullEl.innerHTML = hasData ? renderContribGraph(contribData, { full: true }) : emptyMsg;
   } else {
     const errMsg = `<span class="dash-error">${escapeHtml(contribResults.reason?.message || 'Failed to load')}</span>`;
-    if (contribEl) contribEl.innerHTML = errMsg;
     if (contribFullEl) contribFullEl.innerHTML = errMsg;
   }
 

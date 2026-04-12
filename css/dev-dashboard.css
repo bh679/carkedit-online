@@ -226,6 +226,11 @@
   z-index: 10;
 }
 
+.contrib-wrapper--full .contrib-cell[data-tooltip]:hover::after {
+  bottom: auto;
+  top: calc(100% + 4px);
+}
+
 .contrib-legend {
   display: flex;
   align-items: center;
