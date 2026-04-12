@@ -1,6 +1,6 @@
 {
   "name": "carkedit-online",
-  "version": "1.06.0150",
+  "version": "1.06.0151",
   "description": "CarkedIt Online — turn-based card game web app (vanilla HTML/CSS/JS)",
   "main": "index.html",
   "scripts": {
@@ -11,7 +11,7 @@
   },
   "keywords": ["card-game", "multiplayer", "vanilla-js"],
   "author": "bh679",
-  "license": "ISC",
+  "license": "BUSL-1.1",
   "devDependencies": {
     "@playwright/test": "^1.58.2"
   }
