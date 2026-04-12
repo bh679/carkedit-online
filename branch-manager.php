@@ -928,6 +928,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
           <div class="bm__deploy-row">
             <button class="btn btn--accent" id="btn-tag-deploy" disabled title="Loading...">Tag &amp; Deploy</button>
             <button id="btn-reset" class="btn btn--secondary" style="padding:0.5rem var(--space-md);font-size:0.85rem">Reset to Main</button>
+            <button id="btn-restart" class="btn btn--secondary" style="padding:0.5rem var(--space-md);font-size:0.85rem">Restart Server</button>
           </div>
 
           <div class="bm__top">
@@ -1022,6 +1023,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
       document.getElementById('reset-cancel').addEventListener('click', () => document.getElementById('reset-confirm').classList.add('hidden'));
       document.getElementById('reset-go').addEventListener('click', confirmResetToMain);
       document.getElementById('btn-tag-deploy').addEventListener('click', tagDeploy);
+      document.getElementById('btn-restart').addEventListener('click', restartServer);
     }
 
     function showStatus(msg, type) {
@@ -1401,13 +1403,13 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
     }
 
     function disableAll() {
-      ['btn-client', 'btn-api', 'btn-linked', 'btn-reset', 'btn-tag-deploy'].forEach(id => {
+      ['btn-client', 'btn-api', 'btn-linked', 'btn-reset', 'btn-restart', 'btn-tag-deploy'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.disabled = true;
       });
     }
     function enableAll() {
-      ['btn-client', 'btn-api', 'btn-linked', 'btn-reset'].forEach(id => {
+      ['btn-client', 'btn-api', 'btn-linked', 'btn-reset', 'btn-restart'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.disabled = false;
       });
@@ -1448,6 +1450,18 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
       disableAll();
       fetch(apiUrl + '?action=switch&client=main&api=main')
         .then(r => r.json()).then(showResult)
+        .catch(err => { showStatus('Error: ' + err.message, 'error'); enableAll(); });
+    }
+
+    function restartServer() {
+      showStatus('Restarting API server...', 'loading');
+      disableAll();
+      fetch('/api/carkedit/server/restart', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + _fbIdToken },
+      })
+        .then(r => r.json())
+        .then(() => { showStatus('Server restart triggered. Page may reload shortly.', 'ok'); enableAll(); })
         .catch(err => { showStatus('Error: ' + err.message, 'error'); enableAll(); });
     }
 
