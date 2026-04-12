@@ -9,7 +9,7 @@ import { getOrCreate as registryGetOrCreate } from './data/CardRegistry.js';
 // ── Firebase Auth for Admin Gate ────────────────────
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyC6QJz6jTzJkBWV7Shd9XpCfHWrovJ9vaI",
-  authDomain: "carkedit-5cc8e.firebaseapp.com",
+  authDomain: window.location.host,
   projectId: "carkedit-5cc8e",
   storageBucket: "carkedit-5cc8e.firebasestorage.app",
   messagingSenderId: "144073275425",
