@@ -77,8 +77,9 @@ if ($commitSha !== '') {
     }
 }
 
-// --- API branch (from branch-state.json) ---
+// --- API branch and version (from branch-state.json + API package.json) ---
 $apiBranch = 'main';
+$apiVersion = '';
 $stateFile = $dir . '/branch-state.json';
 if (is_readable($stateFile)) {
     $state = json_decode(file_get_contents($stateFile), true);
@@ -86,11 +87,19 @@ if (is_readable($stateFile)) {
         $apiBranch = $state['api'];
     }
 }
+$apiPkg = '/home/bitnami/server/carkedit-api/package.json';
+if (is_readable($apiPkg)) {
+    $pkg = json_decode(file_get_contents($apiPkg), true);
+    if (is_array($pkg) && isset($pkg['version'])) {
+        $apiVersion = $pkg['version'];
+    }
+}
 
 echo json_encode([
     'client'     => $branch,
     'api'        => $apiBranch,
     'version'    => $version,
+    'apiVersion' => $apiVersion,
     'commitSha'  => substr($commitSha, 0, 7),
     'commitDate' => $commitDate,
     'commitMsg'  => $commitMsg,

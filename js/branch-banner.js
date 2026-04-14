@@ -30,7 +30,8 @@
 
       // Version
       var parts = [];
-      if (info.version) parts.push('v' + info.version);
+      if (info.version) parts.push('client v' + info.version);
+      if (info.apiVersion) parts.push('api v' + info.apiVersion);
       if (info.commitSha) parts.push(info.commitSha);
       if (info.commitDate) parts.push(info.commitDate);
 
