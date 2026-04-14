@@ -170,6 +170,25 @@
 .fin-badge--leonardo { background: rgba(236, 72, 153, 0.15); color: #ec4899; }
 .fin-badge--other { background: var(--color-input-bg); color: var(--color-text-muted); }
 
+/* ── Environment Breakdown ────────────────────────── */
+
+.fin-env-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-top: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--color-border, rgba(255,255,255,0.08));
+}
+
+.fin-env-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
 /* ── Monthly Chart Bars ────────────────────────────── */
 
 .fin-month-row {

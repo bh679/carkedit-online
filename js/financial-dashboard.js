@@ -110,6 +110,29 @@ function renderSummaryCards(data) {
     ${totals.estimated_count > 0 ? `<div class="fin-note">* ${totals.estimated_count} of ${totals.all_time_count} generations use estimated costs (pre-tracking)</div>` : ''}`;
 }
 
+const ENV_COLORS = {
+  production: { bg: 'rgba(34, 197, 94, 0.15)', fg: '#16a34a', label: 'Production' },
+  staging: { bg: 'rgba(245, 158, 11, 0.15)', fg: '#d97706', label: 'Staging' },
+  local: { bg: 'rgba(59, 130, 246, 0.15)', fg: '#2563eb', label: 'Local' },
+};
+
+function getEnvStyle(env) {
+  return ENV_COLORS[env] || { bg: 'var(--color-input-bg)', fg: 'var(--color-text-muted)', label: env };
+}
+
+function renderEnvironmentBreakdown(data) {
+  if (!data.by_environment || data.by_environment.length === 0) return '';
+  // Only show if there's more than one environment
+  if (data.by_environment.length <= 1) return '';
+
+  const badges = data.by_environment.map(e => {
+    const style = getEnvStyle(e.environment);
+    return `<span class="fin-env-badge" style="background:${style.bg};color:${style.fg}">${esc(style.label)}: ${usd(e.total_usd)}</span>`;
+  }).join('');
+
+  return `<div class="fin-env-row">${badges}</div>`;
+}
+
 function renderProviderBreakdown(data) {
   if (!data.by_provider || data.by_provider.length === 0) {
     return '<div class="fin-empty">No image generation costs recorded yet.</div>';
@@ -205,6 +228,7 @@ function renderDashboard(data) {
         <div class="fin-card fin-card--full">
           <div class="fin-card__title">Cost Summary</div>
           <div id="section-summary">${renderSummaryCards(data)}</div>
+          ${renderEnvironmentBreakdown(data)}
         </div>
 
         <div class="fin-card">
