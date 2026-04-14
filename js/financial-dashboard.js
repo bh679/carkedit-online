@@ -19,6 +19,7 @@ const PROVIDER_COLORS = {
   'flux-2-klein-9b': { bg: 'rgba(147, 51, 234, 0.10)', fg: '#a855f7', bar: '#a855f7', label: 'FLUX Klein 9B' },
   'flux-2-klein-4b': { bg: 'rgba(147, 51, 234, 0.08)', fg: '#c084fc', bar: '#c084fc', label: 'FLUX Klein 4B' },
   'leonardo-phoenix-1': { bg: 'rgba(236, 72, 153, 0.15)', fg: '#ec4899', bar: '#ec4899', label: 'Leonardo Phoenix' },
+  'aws': { bg: 'rgba(255, 153, 0, 0.15)', fg: '#ff9900', bar: '#ff9900', label: 'AWS' },
 };
 
 function getProviderStyle(provider) {
@@ -67,9 +68,12 @@ async function costsFetch(path) {
 
 // ── Section Renderers ─────────────────────────────────
 
-function renderSummaryCards(data) {
+function renderSummaryCards(data, aws) {
   const { totals } = data;
-  const cur = totals.current_month_usd;
+  const awsTotal = (aws && aws.configured) ? aws.totals.total_usd : 0;
+  const awsCurMonth = (aws && aws.configured) ? aws.totals.current_month_usd : 0;
+  const combinedAllTime = totals.all_time_usd + awsTotal;
+  const cur = totals.current_month_usd + awsCurMonth;
   const prev = totals.previous_month_usd;
   let trendClass = 'fin-trend--flat';
   let trendText = 'No change';
@@ -90,7 +94,7 @@ function renderSummaryCards(data) {
   return `
     <div class="fin-stats-row">
       <div class="fin-stat">
-        <div class="fin-stat__value">${usd(totals.all_time_usd)}</div>
+        <div class="fin-stat__value">${usd(combinedAllTime)}</div>
         <div class="fin-stat__label">All Time</div>
       </div>
       <div class="fin-stat">
@@ -188,9 +192,82 @@ function renderMonthlyChart(data) {
     ${bars}`;
 }
 
+// ── AWS Section Renderers ────────────────────────────
+
+function renderAwsSection(aws) {
+  if (!aws || !aws.configured) {
+    return `<div class="fin-card fin-card--unconfigured">
+      <div class="fin-card__title">AWS Costs</div>
+      <div class="fin-empty">AWS credentials not configured. Add <code>AWS_ACCESS_KEY_ID</code> and <code>AWS_SECRET_ACCESS_KEY</code> to <code>.env</code> to enable.</div>
+    </div>`;
+  }
+
+  const serviceRows = (aws.by_service || []).map(s => {
+    const pct = aws.totals.total_usd > 0 ? (s.total_usd / aws.totals.total_usd * 100).toFixed(1) : '0.0';
+    return `<tr>
+      <td><span class="fin-badge fin-badge--aws">${esc(s.service)}</span></td>
+      <td class="fin-table__num">${usd(s.total_usd)}</td>
+      <td class="fin-table__num">${pct}%</td>
+    </tr>`;
+  }).join('');
+
+  const serviceTable = `<table class="fin-table">
+    <thead><tr><th>Service</th><th>Cost</th><th>Share</th></tr></thead>
+    <tbody>
+      ${serviceRows}
+      <tr class="fin-table__total">
+        <td><strong>Total</strong></td>
+        <td class="fin-table__num"><strong>${usd(aws.totals.total_usd)}</strong></td>
+        <td class="fin-table__num"><strong>100%</strong></td>
+      </tr>
+    </tbody>
+  </table>`;
+
+  // Monthly bars for AWS
+  const months = aws.by_month || [];
+  const allServices = new Set();
+  months.forEach(m => Object.keys(m.services).forEach(s => allServices.add(s)));
+  const services = [...allServices];
+  const maxMonth = Math.max(...months.map(m => m.total_usd), 0);
+
+  // Pick distinct colors for AWS services
+  const AWS_SERVICE_COLORS = ['#ff9900', '#e47911', '#c7511f', '#a84415', '#8c3510', '#6b290d'];
+  function getServiceColor(idx) { return AWS_SERVICE_COLORS[idx % AWS_SERVICE_COLORS.length]; }
+
+  const bars = months.map(m => {
+    const segments = services.map((s, i) => {
+      const val = m.services[s] || 0;
+      if (val === 0) return '';
+      const widthPct = maxMonth > 0 ? (val / maxMonth * 100) : 0;
+      return `<div class="fin-month-row__bar" style="width:${widthPct}%;background:${getServiceColor(i)}" title="${esc(s)}: ${usd(val)}"></div>`;
+    }).join('');
+    return `<div class="fin-month-row">
+      <div class="fin-month-row__label">${monthLabel(m.month)}</div>
+      <div class="fin-month-row__bar-container">${segments}</div>
+      <div class="fin-month-row__amount">${usd(m.total_usd)}</div>
+    </div>`;
+  }).join('');
+
+  const legend = services.map((s, i) =>
+    `<div class="fin-legend__item"><div class="fin-legend__dot" style="background:${getServiceColor(i)}"></div>${esc(s)}</div>`
+  ).join('');
+
+  const monthlyChart = months.length > 0 ? `<div class="fin-legend">${legend}</div>${bars}` : '<div class="fin-empty">No monthly AWS data.</div>';
+
+  return `<div class="fin-card">
+    <div class="fin-card__title">AWS Service Breakdown</div>
+    ${serviceTable}
+    <div class="fin-note">Fetched ${new Date(aws.fetched_at).toLocaleString()}</div>
+  </div>
+  <div class="fin-card">
+    <div class="fin-card__title">AWS Monthly Costs</div>
+    ${monthlyChart}
+  </div>`;
+}
+
 // ── Dashboard Shell ───────────────────────────────────
 
-function renderDashboard(data) {
+function renderDashboard(data, aws) {
   return `
     <div style="padding:var(--space-md)">
       <div class="fin-header">
@@ -204,7 +281,7 @@ function renderDashboard(data) {
 
         <div class="fin-card fin-card--full">
           <div class="fin-card__title">Cost Summary</div>
-          <div id="section-summary">${renderSummaryCards(data)}</div>
+          <div id="section-summary">${renderSummaryCards(data, aws)}</div>
         </div>
 
         <div class="fin-card">
@@ -213,9 +290,11 @@ function renderDashboard(data) {
         </div>
 
         <div class="fin-card">
-          <div class="fin-card__title">Monthly Costs</div>
+          <div class="fin-card__title">Monthly Image Gen Costs</div>
           <div id="section-monthly">${renderMonthlyChart(data)}</div>
         </div>
+
+        ${renderAwsSection(aws)}
 
       </div>
     </div>`;
@@ -239,8 +318,11 @@ async function init() {
   });
 
   try {
-    const data = await costsFetch('/summary?months=12');
-    app.innerHTML = renderAdminHeader({ user: _fbUserInfo }) + renderDashboard(data);
+    const [data, aws] = await Promise.all([
+      costsFetch('/summary?months=12'),
+      costsFetch('/aws?months=6').catch(() => null),
+    ]);
+    app.innerHTML = renderAdminHeader({ user: _fbUserInfo }) + renderDashboard(data, aws);
     bindAdminHeader(app, {
       user: _fbUserInfo,
       onSignOut: () => _fbAuth && _fbAuth.signOut(),
