@@ -125,60 +125,118 @@ function getBranchManagerMap($dir, $branches, $sha) {
     return $map;
 }
 
+function parseCommitLine($line) {
+    $line = trim($line);
+    if ($line === '') return null;
+    $parts = explode("\t", $line, 5);
+    if (count($parts) < 5) return null;
+    $hash = $parts[0];
+    $parents = $parts[1] !== '' ? explode(' ', $parts[1]) : [];
+    $refsRaw = trim($parts[4]);
+    $rawRefs = $refsRaw !== '' ? array_map('trim', explode(',', $refsRaw)) : [];
+    $cleanRefs = [];
+    foreach ($rawRefs as $ref) {
+        if (strpos($ref, 'refs/stash') !== false) continue;
+        $ref = preg_replace('/^HEAD -> /', '', $ref);
+        $ref = preg_replace('/^origin\//', '', $ref);
+        if ($ref !== 'HEAD' && $ref !== '') $cleanRefs[] = $ref;
+    }
+    return [
+        'hash'    => $hash,
+        'parents' => $parents,
+        'date'    => $parts[2],
+        'subject' => $parts[3],
+        'refs'    => array_values(array_unique($cleanRefs)),
+    ];
+}
+
 function getCommitGraph($dir, $openBranches = [], $limit = 50) {
     $escDir = escapeshellarg($dir);
     $escLimit = (int) $limit;
+    $maxBranches = 12; // Limit branches to keep graph readable
 
-    // 1. Get main's first-parent hashes — used to mark commits as on-main
-    $mainResult = runCmd('sudo -u bitnami bash -c "cd ' . $escDir . ' && git rev-list --first-parent origin/main -n ' . $escLimit . ' 2>/dev/null"');
+    // 1. Main backbone — first-parent log gives clean linear chain
+    $mainLog = runCmd('sudo -u bitnami bash -c "cd ' . $escDir . ' && git log --first-parent origin/main --format=\'%H%x09%P%x09%aI%x09%s%x09%D\' -n ' . $escLimit . ' 2>/dev/null"');
+    if ($mainLog['rc'] !== 0) return [];
+
+    $mainCommits = [];
     $mainHashes = [];
-    if ($mainResult['rc'] === 0) {
-        foreach ($mainResult['output'] as $line) {
-            $h = trim($line);
-            if ($h !== '') $mainHashes[$h] = true;
-        }
+    foreach ($mainLog['output'] as $line) {
+        $c = parseCommitLine($line);
+        if ($c === null) continue;
+        $c['onMain'] = true;
+        $mainCommits[] = $c;
+        $mainHashes[$c['hash']] = true;
     }
+    if (empty($mainCommits)) return [];
 
-    // 2. Build explicit ref list: origin/main + open (unmerged) branches only.
-    $branchRefs = ['origin/main'];
+    // 2. For each open branch (most recent first, capped), get unique commits
+    //    and only include if the fork point is within the visible main window.
+    $branchGroups = []; // branch name => [commits in topo order]
+    $count = 0;
     foreach ($openBranches as $branch) {
         if ($branch === 'main') continue;
+        if ($count >= $maxBranches) break;
         $safeBranch = preg_replace('/[^a-zA-Z0-9_\-\/.]/', '', $branch);
-        if ($safeBranch !== '') $branchRefs[] = 'origin/' . $safeBranch;
-    }
-    $refStr = implode(' ', array_map('escapeshellarg', $branchRefs));
+        if ($safeBranch === '') continue;
+        $escBranch = escapeshellarg('origin/' . $safeBranch);
 
-    // Higher limit to ensure main has a continuous backbone even with many branches
-    $totalLimit = $escLimit + count($openBranches) * 10;
-    $result = runCmd('sudo -u bitnami bash -c "cd ' . $escDir . ' && git log ' . $refStr . ' --topo-order --format=\'%H%x09%P%x09%aI%x09%s%x09%D\' -n ' . $totalLimit . ' 2>/dev/null"');
-    if ($result['rc'] !== 0) return [];
-    $commits = [];
-    foreach ($result['output'] as $line) {
-        $line = trim($line);
-        if ($line === '') continue;
-        $parts = explode("\t", $line, 5);
-        if (count($parts) < 5) continue;
-        $hash = $parts[0];
-        $parents = $parts[1] !== '' ? explode(' ', $parts[1]) : [];
-        $refsRaw = trim($parts[4]);
-        $refs = $refsRaw !== '' ? array_map('trim', explode(',', $refsRaw)) : [];
-        $cleanRefs = [];
-        foreach ($refs as $ref) {
-            if (strpos($ref, 'refs/stash') !== false) continue;
-            $ref = preg_replace('/^HEAD -> /', '', $ref);
-            $ref = preg_replace('/^origin\//', '', $ref);
-            if ($ref !== 'HEAD' && $ref !== '') $cleanRefs[] = $ref;
+        // Get branch-unique commits (not reachable from main)
+        $branchLog = runCmd('sudo -u bitnami bash -c "cd ' . $escDir . ' && git log ' . $escBranch . ' --not origin/main --format=\'%H%x09%P%x09%aI%x09%s%x09%D\' -n 20 2>/dev/null"');
+        if ($branchLog['rc'] !== 0 || empty($branchLog['output'])) continue;
+
+        $branchCommits = [];
+        $forkPointFound = false;
+        foreach ($branchLog['output'] as $line) {
+            $c = parseCommitLine($line);
+            if ($c === null) continue;
+            $c['onMain'] = false;
+            $branchCommits[] = $c;
+            // Check if any parent is on main (= fork point)
+            foreach ($c['parents'] as $p) {
+                if (isset($mainHashes[$p])) { $forkPointFound = true; }
+            }
         }
-        $commits[] = [
-            'hash'    => $hash,
-            'parents' => $parents,
-            'date'    => $parts[2],
-            'subject' => $parts[3],
-            'refs'    => array_values(array_unique($cleanRefs)),
-            'onMain'  => isset($mainHashes[$hash]),
-        ];
+
+        // Only include branches whose fork point is within the visible main window
+        if ($forkPointFound && !empty($branchCommits)) {
+            $branchGroups[$branch] = $branchCommits;
+            $count++;
+        }
     }
-    return $commits;
+
+    // 3. Build combined list: main commits with branch commits inserted at fork points.
+    //    For each main commit, insert branch groups that fork from it BEFORE the commit
+    //    (children before parents = topo order).
+    $forkMap = []; // mainHash => [[branch commits], ...]
+    foreach ($branchGroups as $name => $bCommits) {
+        // Find the fork point: the last branch commit's parent that's on main
+        $forkHash = null;
+        foreach (array_reverse($bCommits) as $bc) {
+            foreach ($bc['parents'] as $p) {
+                if (isset($mainHashes[$p])) { $forkHash = $p; break 2; }
+            }
+        }
+        if ($forkHash !== null) {
+            if (!isset($forkMap[$forkHash])) $forkMap[$forkHash] = [];
+            $forkMap[$forkHash][] = $bCommits;
+        }
+    }
+
+    $result = [];
+    foreach ($mainCommits as $mc) {
+        // Insert branch commits that fork from this main commit (children first)
+        if (isset($forkMap[$mc['hash']])) {
+            foreach ($forkMap[$mc['hash']] as $group) {
+                foreach ($group as $bc) {
+                    $result[] = $bc;
+                }
+            }
+        }
+        $result[] = $mc;
+    }
+
+    return $result;
 }
 
 function getBranchDetails($dir, $branches) {
