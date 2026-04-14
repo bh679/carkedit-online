@@ -1591,7 +1591,19 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
       let labels = '';
       const CHAR_W = 7.2; // approximate monospace char width at font-size 10
 
-      // Draw connections (lines between commits)
+      // Draw main backbone — guaranteed continuous blue line in lane 0
+      const mainNodes = nodes.filter(n => n.onMain).sort((a, b) => a.row - b.row);
+      if (mainNodes.length > 1) {
+        const mx = laneX(0);
+        for (let i = 0; i < mainNodes.length - 1; i++) {
+          const y1 = rowY(mainNodes[i].row);
+          const y2 = rowY(mainNodes[i + 1].row);
+          lines += '<line x1="' + mx + '" y1="' + y1 + '" x2="' + mx + '" y2="' + y2
+            + '" stroke="' + LANE_COLORS[0] + '" stroke-width="2.5"/>';
+        }
+      }
+
+      // Draw branch connections (non-main lines)
       for (const node of nodes) {
         const x = laneX(node.lane);
         const y = rowY(node.row);
@@ -1599,6 +1611,9 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         for (let p = 0; p < node.parents.length; p++) {
           const parent = commitMap.get(node.parents[p]);
           if (!parent) continue;
+
+          // Skip main-to-main first-parent links — already drawn as backbone
+          if (node.onMain && parent.onMain && p === 0) continue;
 
           const px = laneX(parent.lane);
           const py = rowY(parent.row);
