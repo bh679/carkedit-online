@@ -138,7 +138,7 @@ if ($action === "reset") {
     $results[] = ["repo" => "client", "rc" => $r1["rc"], "output" => $r1["output"]];
 
     // Reset API to main, rebuild, restart
-    $r2 = runCmd("sudo -u bitnami bash -c \"cd " . escapeshellarg($apiDir) . " && git fetch origin && git checkout main && git reset --hard origin/main && npm run build\"");
+    $r2 = runCmd("sudo -u bitnami bash -c \"cd " . escapeshellarg($apiDir) . " && git fetch origin && git checkout main && git reset --hard origin/main && npm install --omit=dev && npm run build\"");
     $results[] = ["repo" => "api-pull", "rc" => $r2["rc"], "output" => $r2["output"]];
 
     $r3 = runCmd("sudo -u bitnami bash -c \"cd " . escapeshellarg($apiDir) . " && pm2 restart carkedit-api\"");
@@ -298,7 +298,7 @@ if ($authenticated && isset($_GET['action'])) {
         // Switch API branch
         if ($apiBranch !== '' && validateBranch($apiBranch)) {
             $esc = escapeshellarg($apiBranch);
-            $r = runCmd('sudo -u bitnami bash -c "cd ' . escapeshellarg($API_DIR) . ' && git fetch origin && git checkout ' . $esc . ' && git reset --hard origin/' . $esc . ' && npm run build"');
+            $r = runCmd('sudo -u bitnami bash -c "cd ' . escapeshellarg($API_DIR) . ' && git fetch origin && git checkout ' . $esc . ' && git reset --hard origin/' . $esc . ' && npm install --omit=dev && npm run build"');
             $results['api-pull'] = ['branch' => $apiBranch, 'rc' => $r['rc'], 'output' => $r['output']];
 
             // Restart PM2
@@ -393,6 +393,12 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         .bm__status.error { display: block; background: rgba(244,67,54,0.15); border: 1px solid rgba(244,67,54,0.3); color: #f44336; }
         .bm__status.loading { display: block; background: rgba(152,66,255,0.15); border: 1px solid rgba(152,66,255,0.3); color: var(--color-primary); }
         .bm__log { margin-top: var(--space-xs); font-size: 0.75rem; color: var(--color-text-muted); white-space: pre-wrap; max-height: 200px; overflow-y: auto; }
+        .bm__log-wrapper { position: relative; }
+        .bm__copy-btn { display: none; position: absolute; top: 4px; right: 4px; padding: 0.25rem 0.5rem; font-size: 0.7rem;
+            background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+            color: var(--color-text-muted); cursor: pointer; z-index: 1; }
+        .bm__copy-btn:hover { color: var(--color-text); border-color: var(--color-text-muted); }
+        .bm__copy-btn.copied { color: #4caf50; border-color: #4caf50; }
 
         /* Rescue link */
         .bm__rescue { text-align: center; margin-top: var(--space-lg); padding-top: var(--space-md); border-top: 1px solid var(--color-border); }
@@ -525,7 +531,10 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
           </div>
 
           <div class="bm__status" id="status-box"></div>
-          <div class="bm__log" id="output-log"></div>
+          <div class="bm__log-wrapper">
+            <button class="bm__copy-btn" id="copy-log-btn" title="Copy error report">Copy</button>
+            <div class="bm__log" id="output-log"></div>
+          </div>
 
           <div class="bm__rescue">
             <a href="rescue.php">Emergency rescue (reset to main without auth)</a>
@@ -545,6 +554,14 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
       document.getElementById('btn-client').addEventListener('click', switchClient);
       document.getElementById('btn-api').addEventListener('click', switchApi);
       document.getElementById('btn-reset').addEventListener('click', resetToMain);
+      document.getElementById('copy-log-btn').addEventListener('click', function() {
+        const log = document.getElementById('output-log').textContent;
+        navigator.clipboard.writeText(log).then(() => {
+          this.textContent = 'Copied!';
+          this.classList.add('copied');
+          setTimeout(() => { this.textContent = 'Copy'; this.classList.remove('copied'); }, 2000);
+        });
+      });
     }
 
     function showStatus(msg, type) {
@@ -552,6 +569,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
       box.className = 'bm__status ' + type;
       box.textContent = msg;
       document.getElementById('output-log').textContent = '';
+      document.getElementById('copy-log-btn').style.display = 'none';
     }
 
     function showResult(data) {
@@ -568,6 +586,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
           if (r.output) log += r.output.join('\n') + '\n';
         }
         document.getElementById('output-log').textContent = log;
+        document.getElementById('copy-log-btn').style.display = 'inline-block';
       }
       setTimeout(loadStatus, 1500);
     }
