@@ -1466,6 +1466,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         const el = document.getElementById(id);
         if (el) el.disabled = true;
       });
+      document.querySelectorAll('.bm__deploy-btn').forEach(el => el.disabled = true);
     }
     function enableAll() {
       ['btn-client', 'btn-api', 'btn-linked', 'btn-reset', 'btn-restart'].forEach(id => {
@@ -1473,6 +1474,10 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         if (el) el.disabled = false;
       });
       // Tag & Deploy re-enabled only if on main (loadStatus will handle)
+      // Re-enable branch deploy buttons (except the active one — page reloads on success anyway)
+      document.querySelectorAll('.bm__deploy-btn').forEach(el => {
+        if (el.title !== 'Already active') el.disabled = false;
+      });
     }
 
     function switchLinked() {
