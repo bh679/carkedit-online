@@ -563,7 +563,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
             transition: background 0.1s, border-color 0.1s;
         }
         .bm__deploy-btn:hover:not(:disabled) { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
-        .bm__deploy-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .bm__deploy-btn:disabled { opacity: 0.25; cursor: not-allowed; background: transparent; color: var(--color-text-muted); border-color: transparent; }
         select option.has-pr { color: #4caf50; }
 
         /* Rescue link */
