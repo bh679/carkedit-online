@@ -208,7 +208,7 @@ if ($action === "reset") {
     $results[] = ["repo" => "client", "rc" => $r1["rc"], "output" => $r1["output"]];
 
     // Reset API to main, rebuild, restart
-    $r2 = runCmd("sudo -u bitnami bash -c \"cd " . escapeshellarg($apiDir) . " && git fetch origin && git checkout main && git reset --hard origin/main && npm install --omit=dev && npm run build\"");
+    $r2 = runCmd("sudo -u bitnami bash -c \"cd " . escapeshellarg($apiDir) . " && git fetch origin && git checkout main && git reset --hard origin/main && npm install && npm run build && npm prune --omit=dev\"");
     $results[] = ["repo" => "api-pull", "rc" => $r2["rc"], "output" => $r2["output"]];
 
     $r3 = runCmd("sudo -u bitnami bash -c \"cd " . escapeshellarg($apiDir) . " && pm2 restart carkedit-api\"");
@@ -376,7 +376,7 @@ if ($authenticated && isset($_GET['action'])) {
         // Switch API branch
         if ($apiBranch !== '' && validateBranch($apiBranch)) {
             $esc = escapeshellarg($apiBranch);
-            $r = runCmd('sudo -u bitnami bash -c "cd ' . escapeshellarg($API_DIR) . ' && git fetch origin && git checkout ' . $esc . ' && git reset --hard origin/' . $esc . ' && npm install --omit=dev && npm run build"');
+            $r = runCmd('sudo -u bitnami bash -c "cd ' . escapeshellarg($API_DIR) . ' && git fetch origin && git checkout ' . $esc . ' && git reset --hard origin/' . $esc . ' && npm install && npm run build && npm prune --omit=dev"');
             $results['api-pull'] = ['branch' => $apiBranch, 'rc' => $r['rc'], 'output' => $r['output']];
 
             // Restart PM2
