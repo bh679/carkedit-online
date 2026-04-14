@@ -211,8 +211,12 @@ if ($action === "reset") {
     $r2 = runCmd("sudo -u bitnami bash -c \"cd " . escapeshellarg($apiDir) . " && git fetch origin && git checkout main && git reset --hard origin/main && npm install && npm run build && npm prune --omit=dev\"");
     $results[] = ["repo" => "api-pull", "rc" => $r2["rc"], "output" => $r2["output"]];
 
-    $r3 = runCmd("sudo -u bitnami bash -c \"cd " . escapeshellarg($apiDir) . " && pm2 restart carkedit-api\"");
-    $results[] = ["repo" => "api-restart", "rc" => $r3["rc"], "output" => $r3["output"]];
+    if ($r2["rc"] === 0) {
+        $r3 = runCmd("sudo -u bitnami bash -c \"cd " . escapeshellarg($apiDir) . " && pm2 restart carkedit-api\"");
+        $results[] = ["repo" => "api-restart", "rc" => $r3["rc"], "output" => $r3["output"]];
+    } else {
+        $results[] = ["repo" => "api-restart", "rc" => 1, "output" => ["Skipped: build failed (rc=" . $r2["rc"] . "). Server left running on previous version. Use Restart Server button to force."]];
+    }
 
     // Update branch state
     $stateFile = dirname(__FILE__) . "/branch-state.json";
@@ -379,9 +383,13 @@ if ($authenticated && isset($_GET['action'])) {
             $r = runCmd('sudo -u bitnami bash -c "cd ' . escapeshellarg($API_DIR) . ' && git fetch origin && git checkout ' . $esc . ' && git reset --hard origin/' . $esc . ' && npm install && npm run build && npm prune --omit=dev"');
             $results['api-pull'] = ['branch' => $apiBranch, 'rc' => $r['rc'], 'output' => $r['output']];
 
-            // Restart PM2
-            $r2 = runCmd('sudo -u bitnami bash -c "cd ' . escapeshellarg($API_DIR) . ' && pm2 restart carkedit-api"');
-            $results['api-restart'] = ['rc' => $r2['rc'], 'output' => $r2['output']];
+            // Restart PM2 only if build succeeded
+            if ($r['rc'] === 0) {
+                $r2 = runCmd('sudo -u bitnami bash -c "cd ' . escapeshellarg($API_DIR) . ' && pm2 restart carkedit-api"');
+                $results['api-restart'] = ['rc' => $r2['rc'], 'output' => $r2['output']];
+            } else {
+                $results['api-restart'] = ['rc' => 1, 'output' => ['Skipped: build failed (rc=' . $r['rc'] . '). Server left running on previous version. Use Restart Server button to force.']];
+            }
         }
 
         // Update state
