@@ -34,9 +34,19 @@
 
 .fin-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: var(--space-md);
   padding-bottom: var(--space-xl);
+}
+
+@media (max-width: 768px) {
+  .fin-grid {
+    grid-template-columns: 1fr;
+  }
+  .fin-card--wide,
+  .fin-card--full {
+    grid-column: 1 / -1;
+  }
 }
 
 /* ── Cards ─────────────────────────────────────────── */
@@ -49,10 +59,26 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
+  overflow-x: auto;
 }
 
 .fin-card--full {
   grid-column: 1 / -1;
+}
+
+.fin-card--wide {
+  grid-column: span 2;
+}
+
+.fin-card--section-heading {
+  padding: var(--space-sm) var(--space-md);
+  margin-top: var(--space-sm);
+  border-top: 2px solid var(--color-border);
+  background: none;
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
+  border-radius: 0;
 }
 
 .fin-card__title {
@@ -168,6 +194,7 @@
 
 .fin-badge--flux { background: rgba(147, 51, 234, 0.15); color: #9333ea; }
 .fin-badge--leonardo { background: rgba(236, 72, 153, 0.15); color: #ec4899; }
+.fin-badge--aws { background: rgba(255, 153, 0, 0.15); color: #ff9900; }
 .fin-badge--other { background: var(--color-input-bg); color: var(--color-text-muted); }
 
 /* ── Monthly Chart Bars ────────────────────────────── */
@@ -242,6 +269,18 @@
   color: var(--color-text-muted);
   font-size: 0.75rem;
   padding: var(--space-sm);
+}
+
+.fin-card--unconfigured {
+  opacity: 0.6;
+  border-style: dashed;
+}
+
+.fin-card--unconfigured code {
+  background: var(--color-input-bg);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 0.7rem;
 }
 
 /* ── Legend ─────────────────────────────────────────── */
