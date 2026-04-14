@@ -643,7 +643,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
             transition: background 0.1s, border-color 0.1s;
         }
         .bm__deploy-btn:hover:not(:disabled) { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
-        .bm__deploy-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .bm__deploy-btn:disabled { opacity: 0.25; cursor: not-allowed; background: transparent; color: var(--color-text-muted); border-color: transparent; }
         select option.has-pr { color: #4caf50; }
 
         /* Branch graph — commit tree */
@@ -1774,6 +1774,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         const el = document.getElementById(id);
         if (el) el.disabled = true;
       });
+      document.querySelectorAll('.bm__deploy-btn').forEach(el => el.disabled = true);
     }
     function enableAll() {
       ['btn-client', 'btn-api', 'btn-linked', 'btn-reset', 'btn-restart'].forEach(id => {
@@ -1781,6 +1782,10 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         if (el) el.disabled = false;
       });
       // Tag & Deploy re-enabled only if on main (loadStatus will handle)
+      // Re-enable branch deploy buttons (except the active one — page reloads on success anyway)
+      document.querySelectorAll('.bm__deploy-btn').forEach(el => {
+        if (el.title !== 'Already active') el.disabled = false;
+      });
     }
 
     function switchLinked() {
