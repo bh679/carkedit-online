@@ -128,18 +128,18 @@ function getBranchManagerMap($dir, $branches, $sha) {
 function getCommitGraph($dir, $limit = 80) {
     $escDir = escapeshellarg($dir);
     $escLimit = (int) $limit;
-    $sep = chr(0x1e); // record separator — safe delimiter, cannot appear in git fields
-    $result = runCmd('sudo -u bitnami bash -c "cd ' . $escDir . ' && git log --all --topo-order --format=\'%H' . $sep . '%P' . $sep . '%aI' . $sep . '%s' . $sep . '%D\' -n ' . $escLimit . ' 2>/dev/null"');
+    // Use TAB as delimiter — printable, safe in shell, won't appear in git fields
+    $result = runCmd('sudo -u bitnami bash -c "cd ' . $escDir . ' && git log --all --topo-order --format=\'%H%x09%P%x09%aI%x09%s%x09%D\' -n ' . $escLimit . ' 2>/dev/null"');
+    if ($result['rc'] !== 0) return [];
     $commits = [];
     foreach ($result['output'] as $line) {
         $line = trim($line);
         if ($line === '') continue;
-        $parts = explode($sep, $line, 5);
+        $parts = explode("\t", $line, 5);
         if (count($parts) < 5) continue;
         $parents = $parts[1] !== '' ? explode(' ', $parts[1]) : [];
         $refsRaw = trim($parts[4]);
         $refs = $refsRaw !== '' ? array_map('trim', explode(',', $refsRaw)) : [];
-        // Clean up ref names: strip "origin/", "HEAD -> ", etc.
         $cleanRefs = [];
         foreach ($refs as $ref) {
             $ref = preg_replace('/^HEAD -> /', '', $ref);
