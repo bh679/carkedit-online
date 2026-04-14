@@ -34,9 +34,19 @@
 
 .fin-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: var(--space-md);
   padding-bottom: var(--space-xl);
+}
+
+@media (max-width: 768px) {
+  .fin-grid {
+    grid-template-columns: 1fr;
+  }
+  .fin-card--wide,
+  .fin-card--full {
+    grid-column: 1 / -1;
+  }
 }
 
 /* ── Cards ─────────────────────────────────────────── */
@@ -54,6 +64,10 @@
 
 .fin-card--full {
   grid-column: 1 / -1;
+}
+
+.fin-card--wide {
+  grid-column: span 2;
 }
 
 .fin-card--section-heading {
