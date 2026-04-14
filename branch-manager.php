@@ -125,6 +125,22 @@ function getBranchManagerMap($dir, $branches, $sha) {
     return $map;
 }
 
+function getRecentMergedBranches($dir, $limit = 20) {
+    $escDir = escapeshellarg($dir);
+    $result = runCmd('sudo -u bitnami bash -c "cd ' . $escDir . ' && git branch -r --merged origin/main --sort=-committerdate --no-color 2>/dev/null"');
+    $branches = [];
+    foreach ($result['output'] as $line) {
+        $line = trim($line);
+        if (strpos($line, 'origin/HEAD') !== false) continue;
+        if (strpos($line, 'origin/main') !== false) continue;
+        if (strpos($line, 'origin/') === 0) {
+            $branches[] = substr($line, 7);
+        }
+        if (count($branches) >= $limit) break;
+    }
+    return $branches;
+}
+
 function getBranchDetails($dir, $branches) {
     $details = [];
     foreach ($branches as $branch) {
@@ -340,21 +356,27 @@ if ($authenticated && isset($_GET['action'])) {
         $state = readState($STATE_FILE);
         $clientOpen = getOpenBranches($CLIENT_DIR);
         $apiOpen = getOpenBranches($API_DIR);
+        $clientMerged = getRecentMergedBranches($CLIENT_DIR);
+        $apiMerged = getRecentMergedBranches($API_DIR);
         echo json_encode([
             'client' => [
                 'current' => getCurrentBranch($CLIENT_DIR),
                 'openBranches' => $clientOpen,
+                'mergedBranches' => $clientMerged,
                 'versions' => getVersionsForBranches($CLIENT_DIR, $clientOpen),
                 'tags' => getTags($CLIENT_DIR),
                 'hasBranchManager' => getBranchManagerMap($CLIENT_DIR, $clientOpen, $BM_ORIGIN_SHA),
                 'branchDetails' => getBranchDetails($CLIENT_DIR, $clientOpen),
+                'mergedBranchDetails' => getBranchDetails($CLIENT_DIR, $clientMerged),
             ],
             'api' => [
                 'current' => getCurrentBranch($API_DIR),
                 'openBranches' => $apiOpen,
+                'mergedBranches' => $apiMerged,
                 'versions' => getVersionsForBranches($API_DIR, $apiOpen),
                 'tags' => getTags($API_DIR),
                 'branchDetails' => getBranchDetails($API_DIR, $apiOpen),
+                'mergedBranchDetails' => getBranchDetails($API_DIR, $apiMerged),
             ],
             'state' => $state,
         ]);
@@ -557,6 +579,24 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         .bm__show-more:hover { color: var(--color-text); border-color: var(--color-text-muted); }
         select option.has-pr { color: #4caf50; }
 
+        /* Branch graph */
+        .bm__graph-svg {
+            width: 100%; display: block;
+            font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+        }
+        .bm__graph-label { font-size: 11px; fill: var(--color-text); cursor: pointer; }
+        .bm__graph-label:hover { fill: var(--color-primary); text-decoration: underline; }
+        .bm__graph-date { font-size: 10px; fill: var(--color-text-muted); }
+        .bm__graph-legend {
+            display: flex; gap: var(--space-md); margin-bottom: var(--space-sm);
+            font-size: 0.75rem; color: var(--color-text-muted); flex-wrap: wrap;
+        }
+        .bm__graph-legend-item { display: flex; align-items: center; gap: 4px; }
+        .bm__graph-legend-dot {
+            width: 10px; height: 10px; border-radius: 50%; display: inline-block;
+        }
+        @keyframes bm-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
         /* Rescue link */
         .bm__rescue { text-align: center; margin-top: var(--space-lg); padding-top: var(--space-md); border-top: 1px solid var(--color-border); }
         .bm__rescue a { color: var(--color-text-muted); font-size: 0.8rem; text-decoration: none; }
@@ -651,6 +691,10 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
     let clientHasBM = {};
     let clientBranchDetails = {};
     let apiBranchDetails = {};
+    let clientMergedBranches = [];
+    let apiMergedBranches = [];
+    let clientMergedBranchDetails = {};
+    let apiMergedBranchDetails = {};
     let currentClientBranch = '';
     let currentApiBranch = '';
     let _fbIdToken = null;
@@ -1018,6 +1062,14 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
             </div>
           </div>
 
+          <hr class="bm__divider">
+          <div class="bm__recent">
+            <h2>Branch Graph</h2>
+            <div id="branch-graph">
+              <div style="font-size:0.8rem;color:var(--color-text-muted)">Loading...</div>
+            </div>
+          </div>
+
           <div class="bm__rescue">
             <a href="rescue.php">Emergency rescue (reset to main without auth)</a>
           </div>
@@ -1366,6 +1418,162 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
       renderCards();
     }
 
+    /* ── Branch Graph ─────────────────────────────────── */
+
+    function buildGraphData() {
+      const branchMap = new Map();
+
+      // Add open branches (from both repos)
+      for (const b of clientBranches) {
+        if (b === 'main') continue;
+        const entry = branchMap.get(b) || { name: b, state: 'open', inClient: false, inApi: false, date: null };
+        entry.inClient = true;
+        const d = clientBranchDetails[b];
+        if (d && d.commitDate) {
+          const dt = new Date(d.commitDate);
+          if (!entry.date || dt > entry.date) entry.date = dt;
+        }
+        const pr = clientPRData.get(b);
+        if (pr && pr.mergedCount > 0) entry.state = 'merged';
+        if (b === currentClientBranch) entry.state = 'active';
+        branchMap.set(b, entry);
+      }
+      for (const b of apiBranches) {
+        if (b === 'main') continue;
+        const entry = branchMap.get(b) || { name: b, state: 'open', inClient: false, inApi: false, date: null };
+        entry.inApi = true;
+        const d = apiBranchDetails[b];
+        if (d && d.commitDate) {
+          const dt = new Date(d.commitDate);
+          if (!entry.date || dt > entry.date) entry.date = dt;
+        }
+        const pr = apiPRData.get(b);
+        if (pr && pr.mergedCount > 0 && entry.state !== 'active') entry.state = 'merged';
+        if (b === currentApiBranch && entry.state !== 'active') entry.state = 'active';
+        branchMap.set(b, entry);
+      }
+
+      // Add merged branches from backend
+      for (const b of clientMergedBranches) {
+        if (branchMap.has(b)) continue;
+        const d = clientMergedBranchDetails[b];
+        const dt = d && d.commitDate ? new Date(d.commitDate) : null;
+        branchMap.set(b, { name: b, state: 'merged', inClient: true, inApi: false, date: dt });
+      }
+      for (const b of apiMergedBranches) {
+        const existing = branchMap.get(b);
+        if (existing) { existing.inApi = true; continue; }
+        const d = apiMergedBranchDetails[b];
+        const dt = d && d.commitDate ? new Date(d.commitDate) : null;
+        branchMap.set(b, { name: b, state: 'merged', inClient: false, inApi: true, date: dt });
+      }
+
+      // Sort by date descending (newest first), nulls last
+      const entries = Array.from(branchMap.values());
+      entries.sort((a, b) => {
+        if (!a.date && !b.date) return 0;
+        if (!a.date) return 1;
+        if (!b.date) return -1;
+        return b.date - a.date;
+      });
+      return entries;
+    }
+
+    function renderBranchGraph(containerId) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+
+      const entries = buildGraphData();
+      if (entries.length === 0) {
+        container.innerHTML = '<div style="font-size:0.8rem;color:var(--color-text-muted)">No branches to display</div>';
+        return;
+      }
+
+      const COLORS = { merged: '#4caf50', open: '#ff9800', active: '#2196f3', main: '#9866f0' };
+      const ROW_H = 36;
+      const MAIN_X = 20;
+      const FORK_X = 48;
+      const LABEL_X = 160;
+      const DATE_X = 420;
+      const SVG_W = 560;
+      const SVG_H = entries.length * ROW_H + 20;
+
+      // Legend
+      let legendHtml = '<div class="bm__graph-legend">';
+      legendHtml += '<span class="bm__graph-legend-item"><span class="bm__graph-legend-dot" style="background:#9866f0"></span> main</span>';
+      legendHtml += '<span class="bm__graph-legend-item"><span class="bm__graph-legend-dot" style="background:#4caf50"></span> merged</span>';
+      legendHtml += '<span class="bm__graph-legend-item"><span class="bm__graph-legend-dot" style="background:#ff9800"></span> open</span>';
+      legendHtml += '<span class="bm__graph-legend-item"><span class="bm__graph-legend-dot" style="background:#2196f3"></span> active</span>';
+      legendHtml += '</div>';
+
+      // Build SVG
+      const ns = 'http://www.w3.org/2000/svg';
+      let paths = '';
+      let dots = '';
+      let labels = '';
+
+      entries.forEach((entry, i) => {
+        const y = i * ROW_H + ROW_H / 2 + 10;
+        const color = COLORS[entry.state] || COLORS.open;
+
+        // Fork curve from main line to branch lane
+        const forkEndX = FORK_X + 90;
+        paths += '<path d="M ' + MAIN_X + ' ' + y + ' C ' + (MAIN_X + 14) + ' ' + y + ' ' + (FORK_X - 6) + ' ' + y + ' ' + FORK_X + ' ' + y + ' L ' + forkEndX + ' ' + y + '"'
+          + ' fill="none" stroke="' + color + '" stroke-width="2" stroke-linecap="round"/>';
+
+        // Fork dot on main line
+        dots += '<circle cx="' + MAIN_X + '" cy="' + y + '" r="4" fill="' + COLORS.main + '"/>';
+
+        if (entry.state === 'merged') {
+          // Merge-back curve from end back to main
+          dots += '<circle cx="' + forkEndX + '" cy="' + y + '" r="4" fill="' + color + '"/>';
+          // Small arrowhead merge line curving back
+          const mergeX = forkEndX + 4;
+          paths += '<path d="M ' + forkEndX + ' ' + y + ' C ' + mergeX + ' ' + y + ' ' + (mergeX + 8) + ' ' + (y + 12) + ' ' + MAIN_X + ' ' + (y + 14) + '"'
+            + ' fill="none" stroke="' + color + '" stroke-width="1.5" stroke-dasharray="4 2" stroke-linecap="round" opacity="0.6"/>';
+        } else if (entry.state === 'active') {
+          // Pulsing dot for active
+          dots += '<circle cx="' + forkEndX + '" cy="' + y + '" r="5" fill="' + color + '" style="animation: bm-pulse 2s infinite"/>';
+          dots += '<circle cx="' + forkEndX + '" cy="' + y + '" r="3" fill="white"/>';
+          dots += '<circle cx="' + forkEndX + '" cy="' + y + '" r="2" fill="' + color + '"/>';
+        } else {
+          // Open circle for dangling branches
+          dots += '<circle cx="' + forkEndX + '" cy="' + y + '" r="4" fill="none" stroke="' + color + '" stroke-width="2"/>';
+        }
+
+        // Branch name label
+        const repoTag = (entry.inClient && entry.inApi) ? '' : (entry.inClient ? ' [client]' : ' [api]');
+        labels += '<text x="' + LABEL_X + '" y="' + (y + 4) + '" class="bm__graph-label" data-branch="' + escapeHtml(entry.name) + '">'
+          + escapeHtml(entry.name) + '<tspan style="font-size:9px;fill:var(--color-text-muted)">' + escapeHtml(repoTag) + '</tspan></text>';
+
+        // Date label
+        if (entry.date && !isNaN(entry.date)) {
+          const dateStr = entry.date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+            + ' ' + entry.date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+          labels += '<text x="' + DATE_X + '" y="' + (y + 4) + '" class="bm__graph-date">' + escapeHtml(dateStr) + '</text>';
+        }
+      });
+
+      // Main line (continuous vertical)
+      const mainTop = 10;
+      const mainBottom = entries.length * ROW_H + 10;
+      const mainLine = '<line x1="' + MAIN_X + '" y1="' + mainTop + '" x2="' + MAIN_X + '" y2="' + mainBottom
+        + '" stroke="' + COLORS.main + '" stroke-width="3" stroke-linecap="round"/>';
+
+      container.innerHTML = legendHtml
+        + '<svg class="bm__graph-svg" viewBox="0 0 ' + SVG_W + ' ' + SVG_H
+        + '" width="' + SVG_W + '" height="' + SVG_H + '" xmlns="http://www.w3.org/2000/svg">'
+        + mainLine + paths + dots + labels + '</svg>';
+
+      // Click handler for branch labels → link to GitHub
+      container.querySelectorAll('.bm__graph-label').forEach(el => {
+        el.addEventListener('click', () => {
+          const branch = el.dataset.branch;
+          window.open('https://github.com/bh679/carkedit-online/tree/' + encodeURIComponent(branch), '_blank');
+        });
+      });
+    }
+
     function loadStatus() {
       Promise.all([
         fetch(apiUrl + '?action=status').then(r => r.json()),
@@ -1380,6 +1588,10 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
           clientHasBM = data.client.hasBranchManager || {};
           clientBranchDetails = data.client.branchDetails || {};
           apiBranchDetails = data.api.branchDetails || {};
+          clientMergedBranches = data.client.mergedBranches || [];
+          apiMergedBranches = data.api.mergedBranches || [];
+          clientMergedBranchDetails = data.client.mergedBranchDetails || {};
+          apiMergedBranchDetails = data.api.mergedBranchDetails || {};
 
           const clientCur = data.client.current;
           const apiCur = data.api.current;
@@ -1396,6 +1608,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
           updateLinkedLabel();
           updateBmWarnings();
           populateMergedBranches('recent-branches');
+          renderBranchGraph('branch-graph');
           populateRecent('recent-tags-client', data.client.tags || [], {}, null, liveClientVersion);
           populateRecent('recent-tags-api', data.api.tags || [], {}, null, liveApiVersion);
           truncateList('recent-tags-client', 4);
