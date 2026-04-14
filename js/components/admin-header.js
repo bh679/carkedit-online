@@ -6,6 +6,7 @@ const NAV_LINKS = [
   { label: 'Stats',   path: 'stats' },
   { label: 'Users',   path: 'admin-users' },
   { label: 'ImageAI', path: 'admin-image-gen' },
+  { label: 'Costs',   path: 'financial-dashboard' },
   { label: 'Dev',     path: 'dev-dashboard' },
   { label: 'Branch',  path: 'branch-manager' },
 ];
