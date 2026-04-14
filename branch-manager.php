@@ -129,17 +129,28 @@ function getCommitGraph($dir, $openBranches = [], $limit = 50) {
     $escDir = escapeshellarg($dir);
     $escLimit = (int) $limit;
 
-    // Build explicit ref list: origin/main + open (unmerged) branches only.
-    // Using --all includes stale merged branches and stashes → disconnected dots.
-    $refs = ['origin/main'];
+    // 1. Get main's first-parent hashes — used to mark commits as on-main
+    $mainResult = runCmd('sudo -u bitnami bash -c "cd ' . $escDir . ' && git rev-list --first-parent origin/main -n ' . $escLimit . ' 2>/dev/null"');
+    $mainHashes = [];
+    if ($mainResult['rc'] === 0) {
+        foreach ($mainResult['output'] as $line) {
+            $h = trim($line);
+            if ($h !== '') $mainHashes[$h] = true;
+        }
+    }
+
+    // 2. Build explicit ref list: origin/main + open (unmerged) branches only.
+    $branchRefs = ['origin/main'];
     foreach ($openBranches as $branch) {
         if ($branch === 'main') continue;
         $safeBranch = preg_replace('/[^a-zA-Z0-9_\-\/.]/', '', $branch);
-        if ($safeBranch !== '') $refs[] = 'origin/' . $safeBranch;
+        if ($safeBranch !== '') $branchRefs[] = 'origin/' . $safeBranch;
     }
-    $refStr = implode(' ', array_map('escapeshellarg', $refs));
+    $refStr = implode(' ', array_map('escapeshellarg', $branchRefs));
 
-    $result = runCmd('sudo -u bitnami bash -c "cd ' . $escDir . ' && git log ' . $refStr . ' --topo-order --format=\'%H%x09%P%x09%aI%x09%s%x09%D\' -n ' . $escLimit . ' 2>/dev/null"');
+    // Higher limit to ensure main has a continuous backbone even with many branches
+    $totalLimit = $escLimit + count($openBranches) * 10;
+    $result = runCmd('sudo -u bitnami bash -c "cd ' . $escDir . ' && git log ' . $refStr . ' --topo-order --format=\'%H%x09%P%x09%aI%x09%s%x09%D\' -n ' . $totalLimit . ' 2>/dev/null"');
     if ($result['rc'] !== 0) return [];
     $commits = [];
     foreach ($result['output'] as $line) {
@@ -147,23 +158,24 @@ function getCommitGraph($dir, $openBranches = [], $limit = 50) {
         if ($line === '') continue;
         $parts = explode("\t", $line, 5);
         if (count($parts) < 5) continue;
+        $hash = $parts[0];
         $parents = $parts[1] !== '' ? explode(' ', $parts[1]) : [];
         $refsRaw = trim($parts[4]);
         $refs = $refsRaw !== '' ? array_map('trim', explode(',', $refsRaw)) : [];
         $cleanRefs = [];
         foreach ($refs as $ref) {
-            // Skip stash refs
             if (strpos($ref, 'refs/stash') !== false) continue;
             $ref = preg_replace('/^HEAD -> /', '', $ref);
             $ref = preg_replace('/^origin\//', '', $ref);
             if ($ref !== 'HEAD' && $ref !== '') $cleanRefs[] = $ref;
         }
         $commits[] = [
-            'hash'    => $parts[0],
+            'hash'    => $hash,
             'parents' => $parents,
             'date'    => $parts[2],
             'subject' => $parts[3],
             'refs'    => array_values(array_unique($cleanRefs)),
+            'onMain'  => isset($mainHashes[$hash]),
         ];
     }
     return $commits;
@@ -1480,25 +1492,37 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
 
     function assignLanes(commits) {
       // lanes[i] = hash of the commit expected next in that lane (or null if free)
-      const lanes = [];
+      // Lane 0 is reserved for main — onMain commits are always forced there.
+      const lanes = [null]; // pre-allocate lane 0 for main
       const laneMap = new Map();  // hash -> assigned lane
-      const rowMap = new Map();   // hash -> row index
-
-      commits.forEach((c, i) => rowMap.set(c.hash, i));
 
       function nextFreeLane() {
-        for (let i = 0; i < lanes.length; i++) { if (lanes[i] === null) return i; }
+        // Start from lane 1 — lane 0 is reserved for main
+        for (let i = 1; i < lanes.length; i++) { if (lanes[i] === null) return i; }
         lanes.push(null);
         return lanes.length - 1;
       }
 
       for (let i = 0; i < commits.length; i++) {
         const commit = commits[i];
-        // Find lane: where a child said this commit should appear
-        let lane = lanes.indexOf(commit.hash);
-        if (lane === -1) {
-          lane = nextFreeLane();
+        let lane;
+
+        if (commit.onMain) {
+          // Main commits always go in lane 0
+          lane = 0;
+          // Clear any other lane that was expecting this commit
+          for (let j = 1; j < lanes.length; j++) {
+            if (lanes[j] === commit.hash) lanes[j] = null;
+          }
+        } else {
+          // Find lane where a child said this commit should appear
+          lane = lanes.indexOf(commit.hash);
+          if (lane === -1 || lane === 0) {
+            // Don't take lane 0 for non-main commits
+            lane = nextFreeLane();
+          }
         }
+
         laneMap.set(commit.hash, lane);
 
         // First parent continues in the same lane
@@ -1517,8 +1541,8 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
           }
         }
 
-        // Free duplicate lane reservations for this commit
-        for (let j = 0; j < lanes.length; j++) {
+        // Free duplicate lane reservations for this commit (except lane 0)
+        for (let j = 1; j < lanes.length; j++) {
           if (j !== lane && lanes[j] === commit.hash) {
             lanes[j] = null;
           }
