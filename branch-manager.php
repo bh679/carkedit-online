@@ -1359,6 +1359,12 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
           btn.textContent = 'Show more (' + (filteredNames.length - showCount) + ' remaining)';
           btn.addEventListener('click', () => { showCount = filteredNames.length; renderCards(); });
           container.appendChild(btn);
+        } else if (filteredNames.length > INITIAL_SHOW) {
+          const btn = document.createElement('button');
+          btn.className = 'bm__show-more';
+          btn.textContent = 'Show less';
+          btn.addEventListener('click', () => { showCount = INITIAL_SHOW; renderCards(); });
+          container.appendChild(btn);
         }
       }
 
