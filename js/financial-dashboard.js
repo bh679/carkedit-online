@@ -73,8 +73,10 @@ function renderSummaryCards(data, aws) {
   const { totals } = data;
   const awsTotal = (aws && aws.configured) ? aws.totals.total_usd : 0;
   const awsCurMonth = (aws && aws.configured) ? aws.totals.current_month_usd : 0;
+  const awsProjected = (aws && aws.configured) ? aws.totals.projected_monthly_usd : 0;
   const combinedAllTime = totals.all_time_usd + awsTotal;
   const cur = totals.current_month_usd + awsCurMonth;
+  const projectedMonth = totals.current_month_usd + awsProjected;
   const prev = totals.previous_month_usd;
   let trendClass = 'fin-trend--flat';
   let trendText = 'No change';
@@ -107,6 +109,11 @@ function renderSummaryCards(data, aws) {
         <div class="fin-stat__value">${usd(prev)}</div>
         <div class="fin-stat__label">Last Month</div>
       </div>
+      ${projectedMonth > cur ? `<div class="fin-stat">
+        <div class="fin-stat__value">${usd(projectedMonth)}</div>
+        <div class="fin-stat__label">Projected / Month</div>
+        <div class="fin-trend fin-trend--flat">after free tier</div>
+      </div>` : ''}
       <div class="fin-stat">
         <div class="fin-stat__value">${totals.all_time_count.toLocaleString()}</div>
         <div class="fin-stat__label">Generations</div>
@@ -205,26 +212,39 @@ function renderAwsSection(aws) {
     </div>`;
   }
 
+  const hasProjected = (aws.by_service || []).some(s => s.projected_monthly != null);
+
   const serviceRows = (aws.by_service || []).map(s => {
     const pct = aws.totals.total_usd > 0 ? (s.total_usd / aws.totals.total_usd * 100).toFixed(1) : '0.0';
+    const projectedCol = hasProjected
+      ? `<td class="fin-table__num">${s.projected_monthly != null ? usd(s.projected_monthly) + '/mo' : '—'}</td>`
+      : '';
     return `<tr>
       <td><span class="fin-badge fin-badge--aws">${esc(s.service)}</span></td>
       <td class="fin-table__num">${usd(s.total_usd)}</td>
+      ${projectedCol}
       <td class="fin-table__num">${pct}%</td>
     </tr>`;
   }).join('');
 
+  const projectedHeader = hasProjected ? '<th>Projected</th>' : '';
+  const projectedTotal = hasProjected
+    ? `<td class="fin-table__num"><strong>${usd(aws.totals.projected_monthly_usd)}/mo</strong></td>`
+    : '';
+
   const serviceTable = `<table class="fin-table">
-    <thead><tr><th>Service</th><th>Cost</th><th>Share</th></tr></thead>
+    <thead><tr><th>Service</th><th>Actual Cost</th>${projectedHeader}<th>Share</th></tr></thead>
     <tbody>
       ${serviceRows}
       <tr class="fin-table__total">
         <td><strong>Total</strong></td>
         <td class="fin-table__num"><strong>${usd(aws.totals.total_usd)}</strong></td>
+        ${projectedTotal}
         <td class="fin-table__num"><strong>100%</strong></td>
       </tr>
     </tbody>
-  </table>`;
+  </table>
+  ${hasProjected ? '<div class="fin-note">Projected = estimated monthly cost after free tier / promotional periods end</div>' : ''}`;
 
   // Monthly bars for AWS
   const months = aws.by_month || [];
