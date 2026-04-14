@@ -30,7 +30,8 @@
 
       // Version
       var parts = [];
-      if (info.version) parts.push('v' + info.version);
+      if (info.version) parts.push('client v' + info.version);
+      if (info.apiVersion) parts.push('api v' + info.apiVersion);
       if (info.commitSha) parts.push(info.commitSha);
       if (info.commitDate) parts.push(info.commitDate);
 
@@ -61,7 +62,7 @@
         pullBtn.disabled = true;
         pullBtn.style.opacity = '0.6';
         pullBtn.style.cursor = 'default';
-        fetch('branch-manager.php?action=switch&client=' + encodeURIComponent(info.client))
+        fetch('branch-manager.php?action=switch&client=' + encodeURIComponent(info.client) + '&api=' + encodeURIComponent(info.api || 'main'))
           .then(function (r) { return r.json(); })
           .then(function (res) {
             if (res.status === 'ok') {
