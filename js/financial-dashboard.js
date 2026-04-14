@@ -54,13 +54,13 @@ function monthLabel(ym) {
 }
 
 // ── API Helper ────────────────────────────────────────
-async function costsFetch(path) {
-  const headers = {};
+async function costsFetch(path, opts = {}) {
+  const headers = { ...(opts.headers || {}) };
   if (_fbAuth && _fbAuth.currentUser) {
     const token = await _fbAuth.currentUser.getIdToken();
     if (token) headers.Authorization = `Bearer ${token}`;
   }
-  const res = await fetch(`/api/carkedit/costs${path}`, { headers });
+  const res = await fetch(`/api/carkedit/costs${path}`, { ...opts, headers });
   if (!res.ok) throw new Error(`API ${res.status}: ${res.statusText}`);
   return res.json();
 }
@@ -188,6 +188,52 @@ function renderMonthlyChart(data) {
     ${bars}`;
 }
 
+// ── AWS Cost Section ──────────────────────────────────
+
+function renderAwsSection(awsData) {
+  if (!awsData) {
+    return '<div class="fin-empty">No AWS data fetched yet. Click "Fetch Latest" to load.</div>';
+  }
+  const { months, fetched_at } = awsData;
+  const rows = months.map(m => {
+    const services = Object.entries(m.services)
+      .filter(([, v]) => v > 0)
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, amt]) => `<div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--color-text-muted);padding:1px 0"><span>${name}</span><span>$${amt.toFixed(4)}</span></div>`)
+      .join('');
+    return `
+      <div style="border:1px solid var(--color-border);border-radius:6px;padding:0.6rem 0.8rem;margin-bottom:0.5rem">
+        <div style="display:flex;justify-content:space-between;font-weight:600;margin-bottom:0.3rem">
+          <span>${m.month}</span>
+          <span>$${m.total_usd.toFixed(4)}</span>
+        </div>
+        ${services}
+      </div>`;
+  }).join('');
+  const fetchedStr = fetched_at ? new Date(fetched_at).toLocaleString() : '';
+  return `
+    <div style="font-size:0.7rem;color:var(--color-text-muted);margin-bottom:0.6rem">Last fetched: ${fetchedStr}</div>
+    ${rows || '<div class="fin-empty">No AWS costs found for this period.</div>'}`;
+}
+
+async function fetchAwsCosts(btn) {
+  btn.disabled = true;
+  btn.textContent = 'Fetching…';
+  const section = document.getElementById('section-aws');
+  try {
+    const resp = await costsFetch('/fetch/aws', { method: 'POST' });
+    section.innerHTML = renderAwsSection(resp);
+    btn.textContent = 'Fetch Latest';
+  } catch (err) {
+    section.innerHTML = `<div class="fin-error">Failed: ${err.message}</div>`;
+    btn.textContent = 'Retry';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+window._fetchAwsCosts = fetchAwsCosts;
+
 // ── Dashboard Shell ───────────────────────────────────
 
 function renderDashboard(data) {
@@ -215,6 +261,14 @@ function renderDashboard(data) {
         <div class="fin-card">
           <div class="fin-card__title">Monthly Costs</div>
           <div id="section-monthly">${renderMonthlyChart(data)}</div>
+        </div>
+
+        <div class="fin-card fin-card--full">
+          <div class="fin-card__title" style="display:flex;justify-content:space-between;align-items:center">
+            <span>AWS Costs (carkedit.com)</span>
+            <button class="btn btn--secondary" style="padding:0.3rem 0.8rem;font-size:0.75rem" onclick="window._fetchAwsCosts(this)">Fetch Latest</button>
+          </div>
+          <div id="section-aws">${renderAwsSection(null)}</div>
         </div>
 
       </div>
