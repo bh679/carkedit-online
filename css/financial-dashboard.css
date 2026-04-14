@@ -55,6 +55,17 @@
   grid-column: 1 / -1;
 }
 
+.fin-card--section-heading {
+  padding: var(--space-sm) var(--space-md);
+  margin-top: var(--space-sm);
+  border-top: 2px solid var(--color-border);
+  background: none;
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
+  border-radius: 0;
+}
+
 .fin-card__title {
   font-size: 0.875rem;
   font-weight: 700;
@@ -121,6 +132,8 @@
   width: 100%;
   border-collapse: collapse;
   font-size: 0.8rem;
+  table-layout: fixed;
+  word-wrap: break-word;
 }
 
 .fin-table th {

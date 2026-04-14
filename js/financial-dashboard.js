@@ -254,7 +254,10 @@ function renderAwsSection(aws) {
 
   const monthlyChart = months.length > 0 ? `<div class="fin-legend">${legend}</div>${bars}` : '<div class="fin-empty">No monthly AWS data.</div>';
 
-  return `<div class="fin-card">
+  return `<div class="fin-card fin-card--full fin-card--section-heading">
+    <div class="fin-card__title">Server Costs (AWS)</div>
+  </div>
+  <div class="fin-card">
     <div class="fin-card__title">AWS Service Breakdown</div>
     ${serviceTable}
     <div class="fin-note">Fetched ${new Date(aws.fetched_at).toLocaleString()}</div>
@@ -284,7 +287,7 @@ function renderDashboard(data, aws) {
           <div id="section-summary">${renderSummaryCards(data, aws)}</div>
         </div>
 
-        <div class="fin-card">
+        <div class="fin-card fin-card--full">
           <div class="fin-card__title">Provider Breakdown</div>
           <div id="section-providers">${renderProviderBreakdown(data)}</div>
         </div>
