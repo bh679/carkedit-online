@@ -1,9 +1,15 @@
 /* CarkedIt Online — Dev Dashboard Styles */
 
-/* Override the game's narrow max-width for the dev tool */
+/* Override the game's base styles for the dashboard page */
+body {
+  overflow-y: auto;
+}
+
 #app {
   position: relative;
   max-width: 960px;
+  overflow: visible;
+  height: auto;
 }
 
 /* ── Dashboard Header ──────────────────────────────── */
@@ -223,7 +229,7 @@
   font-size: 0.6rem;
   white-space: nowrap;
   pointer-events: none;
-  z-index: 10;
+  z-index: 1000;
 }
 
 .contrib-wrapper--full .contrib-cell[data-tooltip]:hover::after {
