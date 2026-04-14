@@ -489,6 +489,17 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         .bm__divider { border: none; border-top: 1px solid var(--color-border); margin: var(--space-md) 0; }
         .bm__recent { background: var(--color-surface); border-radius: var(--radius-md); padding: var(--space-md); margin-bottom: var(--space-sm); }
         .bm__recent h2 { font-size: 1rem; margin-bottom: var(--space-sm); }
+        .bm__filters { display: flex; gap: var(--space-md); flex-wrap: wrap; margin-bottom: var(--space-md); align-items: center; }
+        .bm__filter-group { display: flex; align-items: center; gap: var(--space-xs); }
+        .bm__filter-label { font-size: 0.7rem; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
+        .bm__filter-btn { padding: 0.2em 0.6em; font-size: 0.75rem; font-weight: 600; border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm); background: transparent; color: var(--color-text-muted); cursor: pointer; white-space: nowrap; }
+        .bm__filter-btn:hover { color: var(--color-text); border-color: var(--color-text-muted); }
+        .bm__filter-btn--active { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
+        .bm__filter-btn--active:hover { filter: brightness(1.15); }
+        .bm__filter-btn--client.bm__filter-btn--active { background: rgba(10,61,98,0.6); color: #82ccdd; border-color: #82ccdd; }
+        .bm__filter-btn--api.bm__filter-btn--active { background: rgba(60,19,97,0.6); color: #be2edd; border-color: #be2edd; }
+        .bm__filter-count { font-size: 0.75rem; color: var(--color-text-muted); margin-left: auto; }
         .bm__recent-cols { display: flex; gap: var(--space-md); }
         .bm__recent-col { flex: 1; }
         .bm__recent-col h3 { font-size: 0.85rem; margin-bottom: var(--space-xs); display: flex; align-items: center; gap: var(--space-xs); }
@@ -563,7 +574,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
             transition: background 0.1s, border-color 0.1s;
         }
         .bm__deploy-btn:hover:not(:disabled) { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
-        .bm__deploy-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .bm__deploy-btn:disabled { opacity: 0.25; cursor: not-allowed; background: transparent; color: var(--color-text-muted); border-color: transparent; }
         select option.has-pr { color: #4caf50; }
 
         /* Rescue link */
@@ -677,6 +688,9 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
     let apiPRBranches = new Set();
     let clientPRData = new Map(); // branch -> { openCount, mergedCount }
     let apiPRData = new Map();
+    let clientOpenSet = new Set();
+    let apiOpenSet = new Set();
+    let filters = { mergeStatus: 'all', openPR: 'all', repoClient: true, repoApi: true };
 
     async function ghFetch(path) {
       const headers = {};
@@ -1022,6 +1036,26 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
           <hr class="bm__divider">
           <div class="bm__recent">
             <h2>Recent Branches</h2>
+            <div class="bm__filters" id="branch-filters">
+              <div class="bm__filter-group">
+                <span class="bm__filter-label">Merged:</span>
+                <button class="bm__filter-btn bm__filter-btn--active" data-filter="mergeStatus" data-value="all">All</button>
+                <button class="bm__filter-btn" data-filter="mergeStatus" data-value="not_merged">Not Merged</button>
+                <button class="bm__filter-btn" data-filter="mergeStatus" data-value="merged">Merged</button>
+              </div>
+              <div class="bm__filter-group">
+                <span class="bm__filter-label">Open PR:</span>
+                <button class="bm__filter-btn bm__filter-btn--active" data-filter="openPR" data-value="all">All</button>
+                <button class="bm__filter-btn" data-filter="openPR" data-value="yes">Yes</button>
+                <button class="bm__filter-btn" data-filter="openPR" data-value="no">No</button>
+              </div>
+              <div class="bm__filter-group">
+                <span class="bm__filter-label">Repos:</span>
+                <button class="bm__filter-btn bm__filter-btn--client bm__filter-btn--active" data-filter="repoClient">Client</button>
+                <button class="bm__filter-btn bm__filter-btn--api bm__filter-btn--active" data-filter="repoApi">API</button>
+              </div>
+              <span class="bm__filter-count" id="filter-count"></span>
+            </div>
             <div class="bm__recent-list" id="recent-branches">
               <div>Loading...</div>
             </div>
@@ -1061,6 +1095,32 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
           this.classList.add('copied');
           setTimeout(() => { this.textContent = 'Copy'; this.classList.remove('copied'); }, 2000);
         });
+      });
+
+      // Branch filter buttons
+      document.getElementById('branch-filters').addEventListener('click', function(e) {
+        const btn = e.target.closest('.bm__filter-btn');
+        if (!btn) return;
+
+        const filterKey = btn.dataset.filter;
+        const filterVal = btn.dataset.value;
+
+        if (filterKey === 'repoClient' || filterKey === 'repoApi') {
+          // Toggle buttons — at least one repo must stay on
+          const next = !filters[filterKey];
+          const otherKey = filterKey === 'repoClient' ? 'repoApi' : 'repoClient';
+          if (!next && !filters[otherKey]) return;
+          filters[filterKey] = next;
+          btn.classList.toggle('bm__filter-btn--active', next);
+        } else {
+          // Radio buttons — one active per group
+          filters[filterKey] = filterVal;
+          const group = btn.closest('.bm__filter-group');
+          group.querySelectorAll('.bm__filter-btn').forEach(b => b.classList.remove('bm__filter-btn--active'));
+          btn.classList.add('bm__filter-btn--active');
+        }
+
+        populateMergedBranches('recent-branches');
       });
     }
 
@@ -1233,6 +1293,39 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
       container.appendChild(btn);
     }
 
+    function applyBranchFilters(names) {
+      return names.filter(b => {
+        const inClient = clientBranches.includes(b);
+        const inApi = apiBranches.includes(b);
+
+        // Repo filter — branch must be in at least one enabled repo
+        const repoPass = (filters.repoClient && inClient) || (filters.repoApi && inApi);
+        if (!repoPass) return false;
+
+        // Merge status filter
+        if (filters.mergeStatus !== 'all') {
+          const isOpen = clientOpenSet.has(b) || apiOpenSet.has(b);
+          if (filters.mergeStatus === 'not_merged' && !isOpen) return false;
+          if (filters.mergeStatus === 'merged' && isOpen) return false;
+        }
+
+        // Open PR filter
+        if (filters.openPR !== 'all') {
+          const totalOpen = (clientPRData.get(b)?.openCount || 0) + (apiPRData.get(b)?.openCount || 0);
+          if (filters.openPR === 'yes' && totalOpen === 0) return false;
+          if (filters.openPR === 'no' && totalOpen > 0) return false;
+        }
+
+        return true;
+      });
+    }
+
+    function updateFilterCount(filtered, total) {
+      const el = document.getElementById('filter-count');
+      if (!el) return;
+      el.textContent = filtered === total ? total + ' branches' : filtered + ' of ' + total + ' branches';
+    }
+
     function populateMergedBranches(elId) {
       const container = document.getElementById(elId);
       if (!container) return;
@@ -1244,8 +1337,11 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
       for (const b of clientBranches) { if (b !== 'main' && !allNames.has(b)) { allNames.add(b); orderedNames.push(b); } }
       for (const b of apiBranches) { if (b !== 'main' && !allNames.has(b)) { allNames.add(b); orderedNames.push(b); } }
 
-      if (orderedNames.length === 0) {
-        container.innerHTML = '<div style="font-size:0.8rem;color:var(--color-text-muted)">No branches</div>';
+      const filteredNames = applyBranchFilters(orderedNames);
+      updateFilterCount(filteredNames.length, orderedNames.length);
+
+      if (filteredNames.length === 0) {
+        container.innerHTML = '<div style="font-size:0.8rem;color:var(--color-text-muted)">No branches match filters</div>';
         return;
       }
 
@@ -1253,17 +1349,21 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
       let showCount = INITIAL_SHOW;
 
       function renderCards() {
-        // Clear cards but keep the button if it exists
-        const existingBtn = container.querySelector('.bm__show-more');
         container.innerHTML = '';
 
-        orderedNames.slice(0, showCount).forEach(renderBranchCard);
+        filteredNames.slice(0, showCount).forEach(renderBranchCard);
 
-        if (showCount < orderedNames.length) {
+        if (showCount < filteredNames.length) {
           const btn = document.createElement('button');
           btn.className = 'bm__show-more';
-          btn.textContent = 'Show more (' + (orderedNames.length - showCount) + ' remaining)';
-          btn.addEventListener('click', () => { showCount = orderedNames.length; renderCards(); });
+          btn.textContent = 'Show more (' + (filteredNames.length - showCount) + ' remaining)';
+          btn.addEventListener('click', () => { showCount = filteredNames.length; renderCards(); });
+          container.appendChild(btn);
+        } else if (filteredNames.length > INITIAL_SHOW) {
+          const btn = document.createElement('button');
+          btn.className = 'bm__show-more';
+          btn.textContent = 'Show less';
+          btn.addEventListener('click', () => { showCount = INITIAL_SHOW; renderCards(); });
           container.appendChild(btn);
         }
       }
@@ -1400,6 +1500,8 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
       ]).then(([data, , , ghBranches]) => {
           clientBranches = mergeBranchLists(data.client.openBranches || [], ghBranches.client);
           apiBranches = mergeBranchLists(data.api.openBranches || [], ghBranches.api);
+          clientOpenSet = new Set(data.client.openBranches || []);
+          apiOpenSet = new Set(data.api.openBranches || []);
           clientVersions = data.client.versions || {};
           apiVersions = data.api.versions || {};
           clientHasBM = data.client.hasBranchManager || {};
@@ -1466,6 +1568,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         const el = document.getElementById(id);
         if (el) el.disabled = true;
       });
+      document.querySelectorAll('.bm__deploy-btn').forEach(el => el.disabled = true);
     }
     function enableAll() {
       ['btn-client', 'btn-api', 'btn-linked', 'btn-reset', 'btn-restart'].forEach(id => {
@@ -1473,6 +1576,10 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         if (el) el.disabled = false;
       });
       // Tag & Deploy re-enabled only if on main (loadStatus will handle)
+      // Re-enable branch deploy buttons (except the active one — page reloads on success anyway)
+      document.querySelectorAll('.bm__deploy-btn').forEach(el => {
+        if (el.title !== 'Already active') el.disabled = false;
+      });
     }
 
     function switchLinked() {
