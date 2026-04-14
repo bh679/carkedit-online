@@ -125,11 +125,21 @@ function getBranchManagerMap($dir, $branches, $sha) {
     return $map;
 }
 
-function getCommitGraph($dir, $limit = 80) {
+function getCommitGraph($dir, $openBranches = [], $limit = 50) {
     $escDir = escapeshellarg($dir);
     $escLimit = (int) $limit;
-    // Use TAB as delimiter — printable, safe in shell, won't appear in git fields
-    $result = runCmd('sudo -u bitnami bash -c "cd ' . $escDir . ' && git log --all --topo-order --format=\'%H%x09%P%x09%aI%x09%s%x09%D\' -n ' . $escLimit . ' 2>/dev/null"');
+
+    // Build explicit ref list: origin/main + open (unmerged) branches only.
+    // Using --all includes stale merged branches and stashes → disconnected dots.
+    $refs = ['origin/main'];
+    foreach ($openBranches as $branch) {
+        if ($branch === 'main') continue;
+        $safeBranch = preg_replace('/[^a-zA-Z0-9_\-\/.]/', '', $branch);
+        if ($safeBranch !== '') $refs[] = 'origin/' . $safeBranch;
+    }
+    $refStr = implode(' ', array_map('escapeshellarg', $refs));
+
+    $result = runCmd('sudo -u bitnami bash -c "cd ' . $escDir . ' && git log ' . $refStr . ' --topo-order --format=\'%H%x09%P%x09%aI%x09%s%x09%D\' -n ' . $escLimit . ' 2>/dev/null"');
     if ($result['rc'] !== 0) return [];
     $commits = [];
     foreach ($result['output'] as $line) {
@@ -142,6 +152,8 @@ function getCommitGraph($dir, $limit = 80) {
         $refs = $refsRaw !== '' ? array_map('trim', explode(',', $refsRaw)) : [];
         $cleanRefs = [];
         foreach ($refs as $ref) {
+            // Skip stash refs
+            if (strpos($ref, 'refs/stash') !== false) continue;
             $ref = preg_replace('/^HEAD -> /', '', $ref);
             $ref = preg_replace('/^origin\//', '', $ref);
             if ($ref !== 'HEAD' && $ref !== '') $cleanRefs[] = $ref;
@@ -380,7 +392,6 @@ if ($authenticated && isset($_GET['action'])) {
                 'tags' => getTags($CLIENT_DIR),
                 'hasBranchManager' => getBranchManagerMap($CLIENT_DIR, $clientOpen, $BM_ORIGIN_SHA),
                 'branchDetails' => getBranchDetails($CLIENT_DIR, $clientOpen),
-                'commitGraph' => getCommitGraph($CLIENT_DIR),
             ],
             'api' => [
                 'current' => getCurrentBranch($API_DIR),
@@ -388,10 +399,19 @@ if ($authenticated && isset($_GET['action'])) {
                 'versions' => getVersionsForBranches($API_DIR, $apiOpen),
                 'tags' => getTags($API_DIR),
                 'branchDetails' => getBranchDetails($API_DIR, $apiOpen),
-                'commitGraph' => getCommitGraph($API_DIR),
             ],
             'state' => $state,
         ]);
+        exit;
+    }
+
+    if ($action === 'commitGraph') {
+        $clientOpen = getOpenBranches($CLIENT_DIR);
+        $apiOpen = getOpenBranches($API_DIR);
+        echo json_encode([
+            'client' => getCommitGraph($CLIENT_DIR, $clientOpen),
+            'api'    => getCommitGraph($API_DIR, $apiOpen),
+        ], JSON_INVALID_UTF8_SUBSTITUTE);
         exit;
     }
 
@@ -526,6 +546,10 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         .bm__recent-cols { display: flex; gap: var(--space-md); }
         .bm__recent-col { flex: 1; }
         .bm__recent-col h3 { font-size: 0.85rem; margin-bottom: var(--space-xs); display: flex; align-items: center; gap: var(--space-xs); }
+        .bm__graph-cols { display: flex; gap: var(--space-md); }
+        .bm__graph-col { flex: 1; min-width: 0; overflow-x: auto; }
+        .bm__graph-col h3 { font-size: 0.85rem; margin-bottom: var(--space-xs); display: flex; align-items: center; gap: var(--space-xs); }
+        @media (max-width: 768px) { .bm__graph-cols { flex-direction: column; } }
         .bm__recent-list { list-style: none; padding: 0; margin: 0; }
         .bm__recent-list li { font-size: 0.8rem; color: var(--color-text-muted); padding: 0.2em 0; font-family: monospace; }
         .bm__recent-list li.has-pr { color: var(--color-live, #4caf50); }
@@ -700,8 +724,6 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
     let clientHasBM = {};
     let clientBranchDetails = {};
     let apiBranchDetails = {};
-    let clientCommitGraph = [];
-    let apiCommitGraph = [];
     let currentClientBranch = '';
     let currentApiBranch = '';
     let _fbIdToken = null;
@@ -1072,12 +1094,19 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
           <hr class="bm__divider">
           <div class="bm__recent">
             <h2>Branch Graph</h2>
-            <div id="branch-graph-client">
-              <div style="font-size:0.8rem;color:var(--color-text-muted)">Loading...</div>
-            </div>
-            <hr style="border:none;border-top:1px solid var(--color-border);margin:var(--space-md) 0">
-            <div id="branch-graph-api">
-              <div style="font-size:0.8rem;color:var(--color-text-muted)">Loading...</div>
+            <div class="bm__graph-cols">
+              <div class="bm__graph-col">
+                <h3><span class="bm__badge bm__badge--client">client</span> carkedit-online</h3>
+                <div id="branch-graph-client">
+                  <div style="font-size:0.8rem;color:var(--color-text-muted)">Loading...</div>
+                </div>
+              </div>
+              <div class="bm__graph-col">
+                <h3><span class="bm__badge bm__badge--api">api</span> carkedit-api</h3>
+                <div id="branch-graph-api">
+                  <div style="font-size:0.8rem;color:var(--color-text-muted)">Loading...</div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1506,7 +1535,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
       return { nodes, maxLane: Math.max(0, ...nodes.map(n => n.lane)) };
     }
 
-    function renderCommitTree(containerId, commits, repoLabel) {
+    function renderCommitTree(containerId, commits) {
       const container = document.getElementById(containerId);
       if (!container) return;
 
@@ -1598,11 +1627,27 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         }
       }
 
-      container.innerHTML = (repoLabel ? '<div style="font-size:0.75rem;color:var(--color-text-muted);margin-bottom:4px">' + escapeHtml(repoLabel) + '</div>' : '')
-        + '<div style="overflow-x:auto">'
+      container.innerHTML = '<div style="overflow-x:auto">'
         + '<svg class="bm__graph-svg" viewBox="0 0 ' + SVG_W + ' ' + SVG_H
         + '" width="' + SVG_W + '" height="' + SVG_H + '" xmlns="http://www.w3.org/2000/svg">'
         + lines + dotGroups + labels + '</svg></div>';
+    }
+
+    function loadCommitGraph() {
+      fetch(apiUrl + '?action=commitGraph')
+        .then(r => {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.json();
+        })
+        .then(data => {
+          renderCommitTree('branch-graph-client', data.client || []);
+          renderCommitTree('branch-graph-api', data.api || []);
+        })
+        .catch(err => {
+          const msg = '<div style="font-size:0.8rem;color:var(--color-text-muted)">Failed to load graph</div>';
+          document.getElementById('branch-graph-client').innerHTML = msg;
+          document.getElementById('branch-graph-api').innerHTML = msg;
+        });
     }
 
     function loadStatus() {
@@ -1619,9 +1664,6 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
           clientHasBM = data.client.hasBranchManager || {};
           clientBranchDetails = data.client.branchDetails || {};
           apiBranchDetails = data.api.branchDetails || {};
-          clientCommitGraph = data.client.commitGraph || [];
-          apiCommitGraph = data.api.commitGraph || [];
-
           const clientCur = data.client.current;
           const apiCur = data.api.current;
           currentClientBranch = clientCur;
@@ -1637,8 +1679,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
           updateLinkedLabel();
           updateBmWarnings();
           populateMergedBranches('recent-branches');
-          renderCommitTree('branch-graph-client', clientCommitGraph, 'carkedit-online');
-          renderCommitTree('branch-graph-api', apiCommitGraph, 'carkedit-api');
+          loadCommitGraph();
           populateRecent('recent-tags-client', data.client.tags || [], {}, null, liveClientVersion);
           populateRecent('recent-tags-api', data.api.tags || [], {}, null, liveApiVersion);
           truncateList('recent-tags-client', 4);
