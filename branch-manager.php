@@ -135,8 +135,8 @@ function getRecentMergedBranches($dir, $limit = 20) {
         if (strpos($line, 'origin/main') !== false) continue;
         if (strpos($line, 'origin/') === 0) {
             $branches[] = substr($line, 7);
+            if (count($branches) >= $limit) break;
         }
-        if (count($branches) >= $limit) break;
     }
     return $branches;
 }
@@ -585,7 +585,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
             font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
         }
         .bm__graph-label { font-size: 11px; fill: var(--color-text); cursor: pointer; }
-        .bm__graph-label:hover { fill: var(--color-primary); text-decoration: underline; }
+        .bm__graph-label:hover { fill: var(--color-primary); }
         .bm__graph-date { font-size: 10px; fill: var(--color-text-muted); }
         .bm__graph-legend {
             display: flex; gap: var(--space-md); margin-bottom: var(--space-sm);
@@ -1423,34 +1423,32 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
     function buildGraphData() {
       const branchMap = new Map();
 
-      // Add open branches (from both repos)
+      // Add open branches (from both repos) — immutable updates
       for (const b of clientBranches) {
         if (b === 'main') continue;
-        const entry = branchMap.get(b) || { name: b, state: 'open', inClient: false, inApi: false, date: null };
-        entry.inClient = true;
+        let updated = { ...(branchMap.get(b) || { name: b, state: 'open', inClient: false, inApi: false, date: null }), inClient: true };
         const d = clientBranchDetails[b];
         if (d && d.commitDate) {
           const dt = new Date(d.commitDate);
-          if (!entry.date || dt > entry.date) entry.date = dt;
+          if (!updated.date || dt > updated.date) updated = { ...updated, date: dt };
         }
         const pr = clientPRData.get(b);
-        if (pr && pr.mergedCount > 0) entry.state = 'merged';
-        if (b === currentClientBranch) entry.state = 'active';
-        branchMap.set(b, entry);
+        if (pr && pr.mergedCount > 0) updated = { ...updated, state: 'merged' };
+        if (b === currentClientBranch) updated = { ...updated, state: 'active' };
+        branchMap.set(b, updated);
       }
       for (const b of apiBranches) {
         if (b === 'main') continue;
-        const entry = branchMap.get(b) || { name: b, state: 'open', inClient: false, inApi: false, date: null };
-        entry.inApi = true;
+        let updated = { ...(branchMap.get(b) || { name: b, state: 'open', inClient: false, inApi: false, date: null }), inApi: true };
         const d = apiBranchDetails[b];
         if (d && d.commitDate) {
           const dt = new Date(d.commitDate);
-          if (!entry.date || dt > entry.date) entry.date = dt;
+          if (!updated.date || dt > updated.date) updated = { ...updated, date: dt };
         }
         const pr = apiPRData.get(b);
-        if (pr && pr.mergedCount > 0 && entry.state !== 'active') entry.state = 'merged';
-        if (b === currentApiBranch && entry.state !== 'active') entry.state = 'active';
-        branchMap.set(b, entry);
+        if (pr && pr.mergedCount > 0 && updated.state !== 'active') updated = { ...updated, state: 'merged' };
+        if (b === currentApiBranch) updated = { ...updated, state: 'active' };
+        branchMap.set(b, updated);
       }
 
       // Add merged branches from backend
@@ -1462,7 +1460,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
       }
       for (const b of apiMergedBranches) {
         const existing = branchMap.get(b);
-        if (existing) { existing.inApi = true; continue; }
+        if (existing) { branchMap.set(b, { ...existing, inApi: true }); continue; }
         const d = apiMergedBranchDetails[b];
         const dt = d && d.commitDate ? new Date(d.commitDate) : null;
         branchMap.set(b, { name: b, state: 'merged', inClient: false, inApi: true, date: dt });
@@ -1507,7 +1505,6 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
       legendHtml += '</div>';
 
       // Build SVG
-      const ns = 'http://www.w3.org/2000/svg';
       let paths = '';
       let dots = '';
       let labels = '';
@@ -1543,7 +1540,8 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
 
         // Branch name label
         const repoTag = (entry.inClient && entry.inApi) ? '' : (entry.inClient ? ' [client]' : ' [api]');
-        labels += '<text x="' + LABEL_X + '" y="' + (y + 4) + '" class="bm__graph-label" data-branch="' + escapeHtml(entry.name) + '">'
+        const repoSlug = entry.inClient ? 'carkedit-online' : 'carkedit-api';
+        labels += '<text x="' + LABEL_X + '" y="' + (y + 4) + '" class="bm__graph-label" data-branch="' + escapeHtml(entry.name) + '" data-repo="' + repoSlug + '">'
           + escapeHtml(entry.name) + '<tspan style="font-size:9px;fill:var(--color-text-muted)">' + escapeHtml(repoTag) + '</tspan></text>';
 
         // Date label
@@ -1565,11 +1563,12 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         + '" width="' + SVG_W + '" height="' + SVG_H + '" xmlns="http://www.w3.org/2000/svg">'
         + mainLine + paths + dots + labels + '</svg>';
 
-      // Click handler for branch labels → link to GitHub
+      // Click handler for branch labels → link to correct GitHub repo
       container.querySelectorAll('.bm__graph-label').forEach(el => {
         el.addEventListener('click', () => {
           const branch = el.dataset.branch;
-          window.open('https://github.com/bh679/carkedit-online/tree/' + encodeURIComponent(branch), '_blank');
+          const repo = el.dataset.repo || 'carkedit-online';
+          window.open('https://github.com/bh679/' + repo + '/tree/' + encodeURIComponent(branch), '_blank');
         });
       });
     }
