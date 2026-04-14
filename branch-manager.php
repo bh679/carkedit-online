@@ -158,7 +158,9 @@ function getCommitGraph($dir, $openBranches = [], $limit = 50) {
     $refStr = implode(' ', $refList);
     $totalLimit = $escLimit + $branchCount * 15;
 
-    $result = runCmd('sudo -u bitnami bash -c "cd ' . $escDir . ' && git log ' . $refStr . ' --topo-order --format=\'%H%x09%P%x09%aI%x09%s%x09%D\' -n ' . $totalLimit . ' 2>/dev/null"');
+    // --first-parent prevents traversal into merged-branch side histories,
+    // so only main's backbone + open branch commits appear in the output.
+    $result = runCmd('sudo -u bitnami bash -c "cd ' . $escDir . ' && git log --first-parent ' . $refStr . ' --topo-order --format=\'%H%x09%P%x09%aI%x09%s%x09%D\' -n ' . $totalLimit . ' 2>/dev/null"');
     if ($result['rc'] !== 0) return [];
 
     $commits = [];
@@ -168,7 +170,13 @@ function getCommitGraph($dir, $openBranches = [], $limit = 50) {
         $parts = explode("\t", $line, 5);
         if (count($parts) < 5) continue;
         $hash = $parts[0];
-        $parents = $parts[1] !== '' ? explode(' ', $parts[1]) : [];
+        $allParents = $parts[1] !== '' ? explode(' ', $parts[1]) : [];
+        $onMain = isset($mainHashes[$hash]);
+        // Main commits: keep all parents (merge-back curves for visible branches)
+        // Branch commits: first parent only (removes merge-from-main zigzag noise)
+        $parents = (!$onMain && count($allParents) > 1)
+            ? [$allParents[0]]
+            : $allParents;
         $refsRaw = trim($parts[4]);
         $refs = $refsRaw !== '' ? array_map('trim', explode(',', $refsRaw)) : [];
         $cleanRefs = [];
@@ -184,7 +192,7 @@ function getCommitGraph($dir, $openBranches = [], $limit = 50) {
             'date'    => $parts[2],
             'subject' => $parts[3],
             'refs'    => array_values(array_unique($cleanRefs)),
-            'onMain'  => isset($mainHashes[$hash]),
+            'onMain'  => $onMain,
         ];
     }
     return $commits;
