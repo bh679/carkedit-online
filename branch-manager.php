@@ -555,6 +555,15 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
             color: var(--color-text-muted); font-size: 0.8rem; cursor: pointer; text-align: center;
         }
         .bm__show-more:hover { color: var(--color-text); border-color: var(--color-text-muted); }
+        .bm__deploy-btn {
+            padding: 0.15em 0.6em; font-size: 0.7rem; font-weight: 600;
+            border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+            background: var(--color-secondary); color: var(--color-text);
+            cursor: pointer; white-space: nowrap; flex-shrink: 0;
+            transition: background 0.1s, border-color 0.1s;
+        }
+        .bm__deploy-btn:hover:not(:disabled) { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
+        .bm__deploy-btn:disabled { opacity: 0.3; cursor: not-allowed; }
         select option.has-pr { color: #4caf50; }
 
         /* Rescue link */
@@ -1307,8 +1316,24 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         if (totalOpen > 0) rowHtml += '<span class="bm__count-badge bm__count-badge--pr">' + totalOpen + ' PR' + (totalOpen !== 1 ? 's' : '') + '</span>';
         if (totalMerged > 0) rowHtml += '<span class="bm__count-badge bm__count-badge--merged">' + totalMerged + ' merged</span>';
 
+        // Deploy button
+        rowHtml += '<button class="bm__deploy-btn"'
+          + (isActive ? ' disabled title="Already active"' : ' title="Deploy this branch to staging"')
+          + ' data-branch="' + escapeHtml(b) + '">Deploy</button>';
+
         row.innerHTML = rowHtml;
         card.appendChild(row);
+
+        // Wire up deploy button (stop propagation so card doesn't toggle)
+        const deployBtn = row.querySelector('.bm__deploy-btn');
+        if (deployBtn && !isActive) {
+          deployBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            deployBranch(b);
+          });
+        } else if (deployBtn) {
+          deployBtn.addEventListener('click', function(e) { e.stopPropagation(); });
+        }
 
         // Detail panel — stacked cards per repo
         const panel = document.createElement('div');
@@ -1475,6 +1500,21 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         .then(r => r.json()).then(showResult)
         .catch(err => { showStatus('Error: ' + err.message, 'error'); enableAll(); });
     }
+    function deployBranch(branch) {
+      const inClient = clientBranches.includes(branch);
+      const inApi = apiBranches.includes(branch);
+      const params = [];
+      if (inClient) params.push('client=' + encodeURIComponent(branch));
+      if (inApi) params.push('api=' + encodeURIComponent(branch));
+      if (params.length === 0) return;
+      const label = inClient && inApi ? 'client + API' : inClient ? 'client' : 'API';
+      showStatus('Deploying ' + label + ': ' + branch + '...', 'loading');
+      disableAll();
+      fetch(apiUrl + '?action=switch&' + params.join('&'))
+        .then(r => r.json()).then(showResult)
+        .catch(err => { showStatus('Error: ' + err.message, 'error'); enableAll(); });
+    }
+
     function resetToMain() {
       document.getElementById('reset-confirm').classList.remove('hidden');
     }
