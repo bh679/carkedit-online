@@ -61,7 +61,7 @@
         pullBtn.disabled = true;
         pullBtn.style.opacity = '0.6';
         pullBtn.style.cursor = 'default';
-        fetch('branch-manager.php?action=switch&client=' + encodeURIComponent(info.client))
+        fetch('branch-manager.php?action=switch&client=' + encodeURIComponent(info.client) + '&api=' + encodeURIComponent(info.api || 'main'))
           .then(function (r) { return r.json(); })
           .then(function (res) {
             if (res.status === 'ok') {

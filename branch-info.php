@@ -77,8 +77,19 @@ if ($commitSha !== '') {
     }
 }
 
+// --- API branch (from branch-state.json) ---
+$apiBranch = 'main';
+$stateFile = $dir . '/branch-state.json';
+if (is_readable($stateFile)) {
+    $state = json_decode(file_get_contents($stateFile), true);
+    if (is_array($state) && isset($state['api'])) {
+        $apiBranch = $state['api'];
+    }
+}
+
 echo json_encode([
     'client'     => $branch,
+    'api'        => $apiBranch,
     'version'    => $version,
     'commitSha'  => substr($commitSha, 0, 7),
     'commitDate' => $commitDate,
