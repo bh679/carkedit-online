@@ -214,6 +214,15 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* ── Estimated Cost Note ───────────────────────────── */
+
+.fin-note {
+  font-size: 0.65rem;
+  color: var(--color-text-muted);
+  margin-top: var(--space-xs);
+  font-style: italic;
+}
+
 /* ── Loading / Empty States ────────────────────────── */
 
 .fin-loading {

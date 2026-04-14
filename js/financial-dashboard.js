@@ -106,7 +106,8 @@ function renderSummaryCards(data) {
         <div class="fin-stat__value">${totals.all_time_count.toLocaleString()}</div>
         <div class="fin-stat__label">Generations</div>
       </div>
-    </div>`;
+    </div>
+    ${totals.estimated_count > 0 ? `<div class="fin-note">* ${totals.estimated_count} of ${totals.all_time_count} generations use estimated costs (pre-tracking)</div>` : ''}`;
 }
 
 function renderProviderBreakdown(data) {
