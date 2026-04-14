@@ -498,6 +498,8 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         }
         .bm__branch-card:hover { background: var(--color-secondary); }
         .bm__branch-card.has-pr { border-left: 3px solid var(--color-live, #4caf50); }
+        .bm__branch-card.is-active { border-left: 3px solid #2196f3; background: rgba(33,150,243,0.08); }
+        .bm__badge--active { background: rgba(33,150,243,0.2); color: #2196f3; }
         .bm__branch-card-row {
             display: flex; align-items: center; padding: var(--space-sm) var(--space-md);
             font-size: 0.85rem; gap: var(--space-sm);
@@ -1253,8 +1255,10 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         const totalMerged = (cPR ? cPR.mergedCount : 0) + (aPR ? aPR.mergedCount : 0);
         const totalAhead = (cDetails ? cDetails.commitsAhead : 0) + (aDetails ? aDetails.commitsAhead : 0);
 
+        const isActive = (b === currentClientBranch || b === currentApiBranch);
+
         const card = document.createElement('div');
-        card.className = 'bm__branch-card' + (totalOpen > 0 ? ' has-pr' : '');
+        card.className = 'bm__branch-card' + (totalOpen > 0 ? ' has-pr' : '') + (isActive ? ' is-active' : '');
 
         // Pick most recent commit date between repos
         const cDate = cDetails && cDetails.commitDate ? new Date(cDetails.commitDate) : null;
@@ -1277,6 +1281,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         // Repo badges
         if (inClient) rowHtml += '<span class="bm__badge bm__badge--client">client</span>';
         if (inApi) rowHtml += '<span class="bm__badge bm__badge--api">api</span>';
+        if (isActive) rowHtml += '<span class="bm__badge bm__badge--active">ACTIVE</span>';
 
         // Count badges
         if (totalAhead > 0) rowHtml += '<span class="bm__count-badge bm__count-badge--ahead">' + totalAhead + ' ahead</span>';
