@@ -128,12 +128,13 @@ function getBranchManagerMap($dir, $branches, $sha) {
 function getCommitGraph($dir, $limit = 80) {
     $escDir = escapeshellarg($dir);
     $escLimit = (int) $limit;
-    $result = runCmd('sudo -u bitnami bash -c "cd ' . $escDir . ' && git log --all --topo-order --format=\'%H|%P|%aI|%s|%D\' -n ' . $escLimit . ' 2>/dev/null"');
+    $sep = chr(0x1e); // record separator — safe delimiter, cannot appear in git fields
+    $result = runCmd('sudo -u bitnami bash -c "cd ' . $escDir . ' && git log --all --topo-order --format=\'%H' . $sep . '%P' . $sep . '%aI' . $sep . '%s' . $sep . '%D\' -n ' . $escLimit . ' 2>/dev/null"');
     $commits = [];
     foreach ($result['output'] as $line) {
         $line = trim($line);
         if ($line === '') continue;
-        $parts = explode('|', $line, 5);
+        $parts = explode($sep, $line, 5);
         if (count($parts) < 5) continue;
         $parents = $parts[1] !== '' ? explode(' ', $parts[1]) : [];
         $refsRaw = trim($parts[4]);
@@ -1062,7 +1063,11 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
           <hr class="bm__divider">
           <div class="bm__recent">
             <h2>Branch Graph</h2>
-            <div id="branch-graph">
+            <div id="branch-graph-client">
+              <div style="font-size:0.8rem;color:var(--color-text-muted)">Loading...</div>
+            </div>
+            <hr style="border:none;border-top:1px solid var(--color-border);margin:var(--space-md) 0">
+            <div id="branch-graph-api">
               <div style="font-size:0.8rem;color:var(--color-text-muted)">Loading...</div>
             </div>
           </div>
@@ -1422,9 +1427,10 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
     function assignLanes(commits) {
       // lanes[i] = hash of the commit expected next in that lane (or null if free)
       const lanes = [];
-      const commitMap = new Map();
-      const nodes = commits.map(c => ({ ...c, lane: -1, row: -1 }));
-      nodes.forEach((n, i) => { n.row = i; commitMap.set(n.hash, n); });
+      const laneMap = new Map();  // hash -> assigned lane
+      const rowMap = new Map();   // hash -> row index
+
+      commits.forEach((c, i) => rowMap.set(c.hash, i));
 
       function nextFreeLane() {
         for (let i = 0; i < lanes.length; i++) { if (lanes[i] === null) return i; }
@@ -1432,41 +1438,45 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         return lanes.length - 1;
       }
 
-      for (const node of nodes) {
+      for (let i = 0; i < commits.length; i++) {
+        const commit = commits[i];
         // Find lane: where a child said this commit should appear
-        let lane = lanes.indexOf(node.hash);
+        let lane = lanes.indexOf(commit.hash);
         if (lane === -1) {
-          // New branch tip — assign a free lane
           lane = nextFreeLane();
         }
-        node.lane = lane;
+        laneMap.set(commit.hash, lane);
 
         // First parent continues in the same lane
-        if (node.parents.length > 0) {
-          lanes[lane] = node.parents[0];
+        if (commit.parents.length > 0) {
+          lanes[lane] = commit.parents[0];
         } else {
-          lanes[lane] = null; // root commit — free the lane
+          lanes[lane] = null;
         }
 
         // Additional parents (merge sources) — find or assign their lanes
-        for (let p = 1; p < node.parents.length; p++) {
-          const parentHash = node.parents[p];
-          const existingLane = lanes.indexOf(parentHash);
-          if (existingLane === -1) {
-            // Parent not yet in any lane — assign one
+        for (let p = 1; p < commit.parents.length; p++) {
+          const parentHash = commit.parents[p];
+          if (lanes.indexOf(parentHash) === -1) {
             const pLane = nextFreeLane();
             lanes[pLane] = parentHash;
           }
-          // If already in a lane, the merge line will be drawn during rendering
         }
 
-        // Free any lanes that were waiting for this commit (duplicates from merges)
-        for (let i = 0; i < lanes.length; i++) {
-          if (i !== lane && lanes[i] === node.hash) {
-            lanes[i] = null;
+        // Free duplicate lane reservations for this commit
+        for (let j = 0; j < lanes.length; j++) {
+          if (j !== lane && lanes[j] === commit.hash) {
+            lanes[j] = null;
           }
         }
       }
+
+      // Build immutable node objects with lane/row assignments
+      const nodes = commits.map((c, i) => ({
+        ...c,
+        lane: laneMap.get(c.hash),
+        row: i,
+      }));
 
       return { nodes, maxLane: Math.max(0, ...nodes.map(n => n.lane)) };
     }
@@ -1499,8 +1509,9 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
       function laneColor(lane) { return LANE_COLORS[lane % LANE_COLORS.length]; }
 
       let lines = '';
-      let dots = '';
+      let dotGroups = '';
       let labels = '';
+      const CHAR_W = 7.2; // approximate monospace char width at font-size 10
 
       // Draw connections (lines between commits)
       for (const node of nodes) {
@@ -1509,7 +1520,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
 
         for (let p = 0; p < node.parents.length; p++) {
           const parent = commitMap.get(node.parents[p]);
-          if (!parent) continue; // parent outside our commit window
+          if (!parent) continue;
 
           const px = laneX(parent.lane);
           const py = rowY(parent.row);
@@ -1517,11 +1528,9 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
           const strokeW = p === 0 ? 2.5 : 2;
 
           if (node.lane === parent.lane) {
-            // Same lane — straight vertical line
             lines += '<line x1="' + x + '" y1="' + y + '" x2="' + px + '" y2="' + py
               + '" stroke="' + color + '" stroke-width="' + strokeW + '"/>';
           } else {
-            // Cross-lane — bezier curve (fork or merge)
             const midY = (y + py) / 2;
             lines += '<path d="M ' + x + ' ' + y + ' C ' + x + ' ' + midY + ' ' + px + ' ' + midY + ' ' + px + ' ' + py
               + '" fill="none" stroke="' + color + '" stroke-width="' + strokeW + '"/>';
@@ -1529,66 +1538,39 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         }
       }
 
-      // Draw commit dots and labels
+      // Draw commit dots (with tooltips) and ref labels
       for (const node of nodes) {
         const x = laneX(node.lane);
         const y = rowY(node.row);
         const color = laneColor(node.lane);
         const isMerge = node.parents.length > 1;
+        const shortHash = node.hash.substring(0, 7);
+        const titleText = escapeHtml(shortHash + ' \u2014 ' + node.subject);
 
-        // Commit dot
+        dotGroups += '<g><title>' + titleText + '</title>';
         if (isMerge) {
-          // Merge commit — larger hollow circle
-          dots += '<circle cx="' + x + '" cy="' + y + '" r="' + (COMMIT_R + 1) + '" fill="var(--color-surface, #1e1e2e)" stroke="' + color + '" stroke-width="2"/>';
+          dotGroups += '<circle cx="' + x + '" cy="' + y + '" r="' + (COMMIT_R + 1)
+            + '" fill="var(--color-surface, #1e1e2e)" stroke="' + color + '" stroke-width="2"/>';
         } else {
-          dots += '<circle cx="' + x + '" cy="' + y + '" r="' + COMMIT_R + '" fill="' + color + '"/>';
+          dotGroups += '<circle cx="' + x + '" cy="' + y + '" r="' + COMMIT_R + '" fill="' + color + '"/>';
         }
+        dotGroups += '</g>';
 
         // Branch/tag refs as badges at the tip
         if (node.refs.length > 0) {
           let refX = LABEL_X;
           for (const ref of node.refs) {
-            const badge = '<g transform="translate(' + refX + ',' + (y - 8) + ')">'
-              + '<rect rx="4" ry="4" width="' + (ref.length * 7 + 10) + '" height="16" fill="' + color + '" opacity="0.2"/>'
-              + '<text x="5" y="12" fill="' + color + '" font-size="10" font-weight="600" font-family="ui-monospace,monospace">'
+            const badgeW = Math.ceil(ref.length * CHAR_W) + 12;
+            labels += '<g transform="translate(' + refX + ',' + (y - 8) + ')">'
+              + '<rect rx="4" ry="4" width="' + badgeW + '" height="16" fill="' + color + '" opacity="0.2"/>'
+              + '<text x="6" y="12" fill="' + color + '" font-size="10" font-weight="600" font-family="ui-monospace,monospace">'
               + escapeHtml(ref) + '</text></g>';
-            labels += badge;
-            refX += ref.length * 7 + 16;
+            refX += badgeW + 6;
           }
-        }
-
-        // Commit subject — show for all commits with refs, or just as tooltip
-        const shortHash = node.hash.substring(0, 7);
-        const titleText = escapeHtml(shortHash + ' — ' + node.subject);
-        dots += '<title>' + titleText + '</title>';
-
-        // Show commit subject text for commits with branch refs
-        if (node.refs.length > 0) {
-          const textX = LABEL_X + node.refs.reduce((sum, r) => sum + r.length * 7 + 16, 0) + 4;
-          labels += '<text x="' + textX + '" y="' + (y + 4) + '" fill="var(--color-text-muted)" font-size="10" font-family="ui-monospace,monospace">'
+          labels += '<text x="' + (refX + 4) + '" y="' + (y + 4)
+            + '" fill="var(--color-text-muted)" font-size="10" font-family="ui-monospace,monospace">'
             + escapeHtml(shortHash) + '</text>';
         }
-      }
-
-      // Wrap title elements properly — they need to be inside circle groups
-      // Re-render dots with title elements inside <g> groups
-      let dotGroups = '';
-      for (const node of nodes) {
-        const x = laneX(node.lane);
-        const y = rowY(node.row);
-        const color = laneColor(node.lane);
-        const isMerge = node.parents.length > 1;
-        const shortHash = node.hash.substring(0, 7);
-        const titleText = escapeHtml(shortHash + ' — ' + node.subject);
-
-        dotGroups += '<g>';
-        dotGroups += '<title>' + titleText + '</title>';
-        if (isMerge) {
-          dotGroups += '<circle cx="' + x + '" cy="' + y + '" r="' + (COMMIT_R + 1) + '" fill="var(--color-surface, #1e1e2e)" stroke="' + color + '" stroke-width="2"/>';
-        } else {
-          dotGroups += '<circle cx="' + x + '" cy="' + y + '" r="' + COMMIT_R + '" fill="' + color + '"/>';
-        }
-        dotGroups += '</g>';
       }
 
       container.innerHTML = (repoLabel ? '<div style="font-size:0.75rem;color:var(--color-text-muted);margin-bottom:4px">' + escapeHtml(repoLabel) + '</div>' : '')
@@ -1630,7 +1612,8 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
           updateLinkedLabel();
           updateBmWarnings();
           populateMergedBranches('recent-branches');
-          renderCommitTree('branch-graph', clientCommitGraph, 'carkedit-online');
+          renderCommitTree('branch-graph-client', clientCommitGraph, 'carkedit-online');
+          renderCommitTree('branch-graph-api', apiCommitGraph, 'carkedit-api');
           populateRecent('recent-tags-client', data.client.tags || [], {}, null, liveClientVersion);
           populateRecent('recent-tags-api', data.api.tags || [], {}, null, liveApiVersion);
           truncateList('recent-tags-client', 4);
