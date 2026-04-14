@@ -38,6 +38,7 @@ function esc(str) {
 
 function usd(amount) {
   if (amount == null || isNaN(amount)) return '$0.00';
+  if (amount > 0 && amount < 0.01) return '$' + amount.toFixed(4);
   return '$' + amount.toFixed(2);
 }
 
@@ -289,7 +290,7 @@ function renderDashboard(data, aws) {
           <div id="section-summary">${renderSummaryCards(data, aws)}</div>
         </div>
 
-        <div class="fin-card fin-card--full">
+        <div class="fin-card">
           <div class="fin-card__title">Provider Breakdown</div>
           <div id="section-providers">${renderProviderBreakdown(data)}</div>
         </div>
