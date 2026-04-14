@@ -97,6 +97,13 @@
                 <div>
                     <h1>Branch Manager</h1>
                     <p>Full branch switching requires PHP and is available on the staging server.</p>
+                    <div id="restart-confirm" style="display:none;background:var(--color-surface,#1a1a2e);border:2px solid var(--color-danger,#e94560);border-radius:var(--radius-md,8px);padding:var(--space-md,1rem);margin-bottom:var(--space-md,1rem)">
+                      <p style="font-size:0.9rem;margin-bottom:var(--space-sm,0.5rem)">Restart the API server?</p>
+                      <div style="display:flex;gap:var(--space-sm,0.5rem)">
+                        <button id="restart-cancel" class="btn--secondary" style="padding:0.5rem var(--space-md,1rem)">Cancel</button>
+                        <button id="restart-go" style="padding:0.5rem var(--space-md,1rem);border:none;border-radius:var(--radius-sm,4px);background:var(--color-danger,#e94560);color:#fff;font-weight:700;cursor:pointer;font-size:0.85rem">Confirm Restart</button>
+                      </div>
+                    </div>
                     <div class="bm__actions">
                       <button id="btn-restart" class="btn--secondary">Restart Server</button>
                     </div>
@@ -106,7 +113,9 @@
             </div>
         </div>`;
       bindAdminHeader(document.getElementById('app'), {});
-      document.getElementById('btn-restart').addEventListener('click', restartServer);
+      document.getElementById('btn-restart').addEventListener('click', () => document.getElementById('restart-confirm').style.display = 'block');
+      document.getElementById('restart-cancel').addEventListener('click', () => document.getElementById('restart-confirm').style.display = 'none');
+      document.getElementById('restart-go').addEventListener('click', () => { document.getElementById('restart-confirm').style.display = 'none'; restartServer(); });
     }
 
     function restartServer() {

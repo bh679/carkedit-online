@@ -925,6 +925,14 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
             </div>
           </div>
 
+          <div id="restart-confirm" class="bm__confirm hidden">
+            <p>Restart the API server?</p>
+            <div class="bm__confirm-actions">
+              <button class="btn--cancel" id="restart-cancel">Cancel</button>
+              <button class="btn--danger" id="restart-go">Confirm Restart</button>
+            </div>
+          </div>
+
           <div class="bm__deploy-row">
             <button class="btn btn--accent" id="btn-tag-deploy" disabled title="Loading...">Tag &amp; Deploy</button>
             <button id="btn-reset" class="btn btn--secondary" style="padding:0.5rem var(--space-md);font-size:0.85rem">Reset to Main</button>
@@ -1023,7 +1031,9 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
       document.getElementById('reset-cancel').addEventListener('click', () => document.getElementById('reset-confirm').classList.add('hidden'));
       document.getElementById('reset-go').addEventListener('click', confirmResetToMain);
       document.getElementById('btn-tag-deploy').addEventListener('click', tagDeploy);
-      document.getElementById('btn-restart').addEventListener('click', restartServer);
+      document.getElementById('btn-restart').addEventListener('click', () => document.getElementById('restart-confirm').classList.remove('hidden'));
+      document.getElementById('restart-cancel').addEventListener('click', () => document.getElementById('restart-confirm').classList.add('hidden'));
+      document.getElementById('restart-go').addEventListener('click', () => { document.getElementById('restart-confirm').classList.add('hidden'); restartServer(); });
     }
 
     function showStatus(msg, type) {
