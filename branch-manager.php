@@ -1106,9 +1106,12 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         const filterVal = btn.dataset.value;
 
         if (filterKey === 'repoClient' || filterKey === 'repoApi') {
-          // Toggle buttons — flip the boolean
-          filters[filterKey] = !filters[filterKey];
-          btn.classList.toggle('bm__filter-btn--active', filters[filterKey]);
+          // Toggle buttons — at least one repo must stay on
+          const next = !filters[filterKey];
+          const otherKey = filterKey === 'repoClient' ? 'repoApi' : 'repoClient';
+          if (!next && !filters[otherKey]) return;
+          filters[filterKey] = next;
+          btn.classList.toggle('bm__filter-btn--active', next);
         } else {
           // Radio buttons — one active per group
           filters[filterKey] = filterVal;
@@ -1346,8 +1349,6 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
       let showCount = INITIAL_SHOW;
 
       function renderCards() {
-        // Clear cards but keep the button if it exists
-        const existingBtn = container.querySelector('.bm__show-more');
         container.innerHTML = '';
 
         filteredNames.slice(0, showCount).forEach(renderBranchCard);
