@@ -196,9 +196,11 @@ function renderMonthlyChart(data) {
 
 function renderAwsSection(aws) {
   if (!aws || !aws.configured) {
-    return `<div class="fin-card fin-card--unconfigured">
-      <div class="fin-card__title">AWS Costs</div>
-      <div class="fin-empty">AWS credentials not configured. Add <code>AWS_ACCESS_KEY_ID</code> and <code>AWS_SECRET_ACCESS_KEY</code> to <code>.env</code> to enable.</div>
+    return `<div class="fin-card fin-card--full fin-card--section-heading">
+      <div class="fin-card__title">Server Costs (AWS)</div>
+    </div>
+    <div class="fin-card fin-card--full fin-card--unconfigured">
+      <div class="fin-empty">AWS credentials not configured. Add <code>AWS_ACCESS_KEY_ID</code> and <code>AWS_SECRET_ACCESS_KEY</code> to the API <code>.env</code> to enable.</div>
     </div>`;
   }
 
