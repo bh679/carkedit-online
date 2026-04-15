@@ -217,11 +217,11 @@ $results = [];
 
 if ($action === "reset") {
     // Reset client to main
-    $r1 = runCmd("sudo -u bitnami bash -c \"cd " . escapeshellarg($clientDir) . " && git fetch origin && git checkout main && git reset --hard origin/main\"");
+    $r1 = runCmd("sudo -u bitnami bash -c \"cd " . escapeshellarg($clientDir) . " && git fetch origin && git checkout -- . && git clean -fd && git checkout main && git reset --hard origin/main\"");
     $results[] = ["repo" => "client", "rc" => $r1["rc"], "output" => $r1["output"]];
 
     // Reset API to main, rebuild, restart
-    $r2 = runCmd("sudo -u bitnami bash -c \"cd " . escapeshellarg($apiDir) . " && git fetch origin && git checkout main && git reset --hard origin/main && npm install && npm run build && npm prune --omit=dev\"");
+    $r2 = runCmd("sudo -u bitnami bash -c \"cd " . escapeshellarg($apiDir) . " && git fetch origin && git checkout -- . && git clean -fd && git checkout main && git reset --hard origin/main && npm install && npm run build && npm prune --omit=dev\"");
     $results[] = ["repo" => "api-pull", "rc" => $r2["rc"], "output" => $r2["output"]];
 
     if ($r2["rc"] === 0) {
@@ -383,34 +383,45 @@ if ($authenticated && isset($_GET['action'])) {
     if ($action === 'switch') {
         $clientBranch = $_GET['client'] ?? '';
         $apiBranch    = $_GET['api'] ?? '';
-        $results = [];
+        $wantClient   = $clientBranch !== '' && validateBranch($clientBranch);
+        $wantApi      = $apiBranch !== '' && validateBranch($apiBranch);
+        $results      = [];
+        $apiFailed    = false;
 
-        // Switch client branch
-        if ($clientBranch !== '' && validateBranch($clientBranch)) {
-            $esc = escapeshellarg($clientBranch);
-            $r = runCmd('sudo -u bitnami bash -c "cd ' . escapeshellarg($CLIENT_DIR) . ' && git fetch origin && git checkout ' . $esc . ' && git reset --hard origin/' . $esc . '"');
-            $results['client'] = ['branch' => $clientBranch, 'rc' => $r['rc'], 'output' => $r['output']];
-        }
-
-        // Switch API branch
-        if ($apiBranch !== '' && validateBranch($apiBranch)) {
+        // Deploy API first — it's most likely to fail (npm install/build).
+        // When both repos are requested, we skip the client if the API fails
+        // to avoid split-brain (client on new branch, API stuck on old).
+        if ($wantApi) {
             $esc = escapeshellarg($apiBranch);
-            $r = runCmd('sudo -u bitnami bash -c "cd ' . escapeshellarg($API_DIR) . ' && git fetch origin && git checkout ' . $esc . ' && git reset --hard origin/' . $esc . ' && npm install && npm run build && npm prune --omit=dev"');
+            // git checkout -- . && git clean -fd : reset dirty working tree
+            // left behind by npm install modifying package-lock.json
+            $r = runCmd('sudo -u bitnami bash -c "cd ' . escapeshellarg($API_DIR) . ' && git fetch origin && git checkout -- . && git clean -fd && git checkout ' . $esc . ' && git reset --hard origin/' . $esc . ' && npm install && npm run build && npm prune --omit=dev"');
             $results['api-pull'] = ['branch' => $apiBranch, 'rc' => $r['rc'], 'output' => $r['output']];
 
-            // Restart PM2 only if build succeeded
             if ($r['rc'] === 0) {
                 $r2 = runCmd('sudo -u bitnami bash -c "cd ' . escapeshellarg($API_DIR) . ' && pm2 restart carkedit-api"');
                 $results['api-restart'] = ['rc' => $r2['rc'], 'output' => $r2['output']];
             } else {
+                $apiFailed = true;
                 $results['api-restart'] = ['rc' => 1, 'output' => ['Skipped: build failed (rc=' . $r['rc'] . '). Server left running on previous version. Use Restart Server button to force.']];
             }
         }
 
-        // Update state
+        // Switch client branch (skip if API failed during a linked deploy)
+        if ($wantClient) {
+            if ($wantApi && $apiFailed) {
+                $results['client'] = ['branch' => $clientBranch, 'rc' => 1, 'output' => ['Skipped: API deploy failed. Client left on current branch to avoid split-brain.']];
+            } else {
+                $esc = escapeshellarg($clientBranch);
+                $r = runCmd('sudo -u bitnami bash -c "cd ' . escapeshellarg($CLIENT_DIR) . ' && git fetch origin && git checkout -- . && git clean -fd && git checkout ' . $esc . ' && git reset --hard origin/' . $esc . '"');
+                $results['client'] = ['branch' => $clientBranch, 'rc' => $r['rc'], 'output' => $r['output']];
+            }
+        }
+
+        // Update state — only record branches that actually deployed
         $state = readState($STATE_FILE);
-        if ($clientBranch !== '' && validateBranch($clientBranch)) $state['client'] = $clientBranch;
-        if ($apiBranch !== '' && validateBranch($apiBranch))       $state['api'] = $apiBranch;
+        if (isset($results['client']) && $results['client']['rc'] === 0) $state['client'] = $clientBranch;
+        if (isset($results['api-pull']) && $results['api-pull']['rc'] === 0) $state['api'] = $apiBranch;
         $state['updatedAt'] = gmdate('c');
         writeState($STATE_FILE, $state);
 
