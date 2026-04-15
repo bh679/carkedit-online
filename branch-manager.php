@@ -1610,42 +1610,49 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
 
       // --- Draw a graph side (client or API) ---
       function drawSide(nodes, commitMap, laneXFn, side) {
-        // Main backbone
-        const mainNodes = nodes.filter(n => n.onMain).sort((a, b) => a.row - b.row);
-        if (mainNodes.length > 1) {
-          const mx = laneXFn(0);
-          for (let i = 0; i < mainNodes.length - 1; i++) {
-            lines += '<line x1="' + mx + '" y1="' + rowY(mainNodes[i].row)
-              + '" x2="' + mx + '" y2="' + rowY(mainNodes[i + 1].row)
-              + '" stroke="' + LANE_COLORS[0] + '" stroke-width="2.5"/>';
-          }
+        // Group nodes by branch
+        const branchGroups = new Map();
+        for (const node of nodes) {
+          const br = node.branch || (node.onMain ? 'main' : '_unknown');
+          if (!branchGroups.has(br)) branchGroups.set(br, []);
+          branchGroups.get(br).push(node);
         }
 
-        // Branch connections
-        for (const node of nodes) {
-          const x = laneXFn(node.lane);
-          const y = rowY(node.row);
-          const color = branchColor(node.branch || 'main');
+        // Draw continuous backbone line for each branch (main and feature branches)
+        for (const [br, brNodes] of branchGroups) {
+          if (brNodes.length < 2) continue;
+          const sorted = [...brNodes].sort((a, b) => a.row - b.row);
+          const x = laneXFn(sorted[0].lane);
+          const color = branchColor(br);
+          const sw = br === 'main' ? 2.5 : 2;
+          // Draw continuous line from topmost to bottommost commit in this branch
+          const topY = rowY(sorted[0].row);
+          const botY = rowY(sorted[sorted.length - 1].row);
+          lines += '<line x1="' + x + '" y1="' + topY + '" x2="' + x + '" y2="' + botY
+            + '" stroke="' + color + '" stroke-width="' + sw + '"/>';
+        }
 
-          for (let p = 0; p < node.parents.length; p++) {
-            const parent = commitMap.get(node.parents[p]);
-            if (!parent) continue;
-            if (node.onMain && parent.onMain && p === 0) continue;
+        // Draw fork curves: connect each branch's oldest commit to its merge-base on main
+        for (const [br, brNodes] of branchGroups) {
+          if (br === 'main') continue;
+          const sorted = [...brNodes].sort((a, b) => a.row - b.row);
+          const oldest = sorted[sorted.length - 1];
+          if (!oldest.parents.length) continue;
+          const parent = commitMap.get(oldest.parents[0]);
+          if (!parent) continue;
+          // Only draw fork curve if parent is in a different lane (i.e. on main)
+          if (oldest.lane === parent.lane) continue;
 
-            const px = laneXFn(parent.lane);
-            const py = rowY(parent.row);
-            const pColor = p === 0 ? color : branchColor(parent.branch || 'main');
-            const sw = p === 0 ? 2.5 : 2;
+          const bx = laneXFn(oldest.lane);
+          const by = rowY(oldest.row);
+          const px = laneXFn(parent.lane);
+          const py = rowY(parent.row);
+          const color = branchColor(br);
 
-            if (node.lane === parent.lane) {
-              lines += '<line x1="' + x + '" y1="' + y + '" x2="' + px + '" y2="' + py
-                + '" stroke="' + pColor + '" stroke-width="' + sw + '"/>';
-            } else {
-              const midY = (y + py) / 2;
-              lines += '<path d="M ' + x + ' ' + y + ' C ' + x + ' ' + midY + ' ' + px + ' ' + midY + ' ' + px + ' ' + py
-                + '" fill="none" stroke="' + pColor + '" stroke-width="' + sw + '"/>';
-            }
-          }
+          // Draw a smooth curve from branch bottom to fork point on main
+          const midY = (by + py) / 2;
+          lines += '<path d="M ' + bx + ' ' + by + ' C ' + bx + ' ' + midY + ' ' + px + ' ' + midY + ' ' + px + ' ' + py
+            + '" fill="none" stroke="' + color + '" stroke-width="2"/>';
         }
 
         // Commit dots
