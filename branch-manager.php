@@ -134,7 +134,10 @@ function getBranchDetails($dir, $branches) {
     $details = [];
     foreach ($branches as $branch) {
         if ($branch === 'main') {
-            $details[$branch] = ['commitMessage' => '', 'commitsAhead' => 0, 'commitDate' => ''];
+            $escDir = escapeshellarg($dir);
+            $mainShaResult = runCmd('sudo -u bitnami bash -c "cd ' . $escDir . ' && git rev-parse origin/main 2>/dev/null"');
+            $mainRemoteSha = trim(implode('', $mainShaResult['output']));
+            $details[$branch] = ['commitMessage' => '', 'commitsAhead' => 0, 'commitDate' => '', 'remoteSha' => $mainRemoteSha];
             continue;
         }
         $escBranch = escapeshellarg('origin/' . $branch);
@@ -475,6 +478,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         .bm__badge--api { background: rgba(60,19,97,0.6); color: #be2edd; }
         .bm__current { font-size: 0.85rem; color: var(--color-text-muted); margin-bottom: var(--space-sm); }
         .bm__current strong { color: var(--color-live, #4caf50); }
+        .bm__update-badge { display: inline-block; font-size: 0.7rem; font-weight: 600; padding: 0.1em 0.5em; border-radius: 9999px; background: var(--color-live, #4caf50); color: #fff; margin-left: var(--space-xs); vertical-align: middle; }
 
         /* Branch select rows */
         .bm__row { display: flex; gap: var(--space-sm); align-items: center; flex-wrap: wrap; }
@@ -1543,8 +1547,17 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
           const clientVer = clientVersions[clientCur] || '?';
           const apiVer = apiVersions[apiCur] || '?';
 
-          document.getElementById('client-current').textContent = clientCur + ' (v' + clientVer + ')';
-          document.getElementById('api-current').textContent = apiCur + ' (v' + apiVer + ')';
+          const clientCurDetails = clientBranchDetails[clientCur];
+          const clientRemoteSha = clientCurDetails && clientCurDetails.remoteSha ? clientCurDetails.remoteSha : '';
+          const clientBehind = clientDeployedSha && clientRemoteSha && clientDeployedSha !== clientRemoteSha;
+          document.getElementById('client-current').innerHTML = escapeHtml(clientCur + ' (v' + clientVer + ')')
+            + (clientBehind ? ' <span class="bm__update-badge">update available</span>' : '');
+
+          const apiCurDetails = apiBranchDetails[apiCur];
+          const apiRemoteSha = apiCurDetails && apiCurDetails.remoteSha ? apiCurDetails.remoteSha : '';
+          const apiBehind = apiDeployedSha && apiRemoteSha && apiDeployedSha !== apiRemoteSha;
+          document.getElementById('api-current').innerHTML = escapeHtml(apiCur + ' (v' + apiVer + ')')
+            + (apiBehind ? ' <span class="bm__update-badge">update available</span>' : '');
           populateSelect(document.getElementById('client-select'), clientBranches, clientCur, clientVersions, clientPRBranches);
           populateSelect(document.getElementById('api-select'), apiBranches, apiCur, apiVersions, apiPRBranches);
           populateSelect(document.getElementById('linked-select'), clientBranches, clientCur, clientVersions, clientPRBranches);
