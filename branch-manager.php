@@ -1852,6 +1852,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
           const idToken = await user.getIdToken();
           storeFirebaseToken(idToken);
           loadStatus(); // re-fetch with PR data now available
+          loadCommitGraph(); // load graph now that auth token is available
         }
       });
     } else {
