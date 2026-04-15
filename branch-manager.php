@@ -1515,6 +1515,51 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
 
     const LANE_COLORS = ['#2196f3', '#ff6b35', '#e8c900', '#4caf50', '#e040fb', '#00bcd4', '#ff5252', '#7c4dff'];
 
+    /**
+     * Reorder commits so branch groups sit right after their fork point on main.
+     * This gives a SourceTree-style layout where branches are contiguous blocks.
+     */
+    function reorderForGraph(commits) {
+      const mainCommits = commits.filter(c => c.onMain);
+      const branches = new Map();
+      for (const c of commits) {
+        if (c.onMain) continue;
+        const br = c.branch || '_unknown';
+        if (!branches.has(br)) branches.set(br, []);
+        branches.get(br).push(c);
+      }
+
+      // Map main commit hash → index in mainCommits array
+      const mainHashIdx = new Map();
+      mainCommits.forEach((c, i) => mainHashIdx.set(c.hash, i));
+
+      // For each branch, find which main commit it forks from
+      const branchesAtFork = new Map(); // forkIdx → [[branchCommits], ...]
+      for (const [br, brCommits] of branches) {
+        const oldest = brCommits[brCommits.length - 1];
+        const forkHash = oldest.parents.length ? oldest.parents[0] : null;
+        const forkIdx = forkHash ? (mainHashIdx.get(forkHash) ?? mainCommits.length) : mainCommits.length;
+        if (!branchesAtFork.has(forkIdx)) branchesAtFork.set(forkIdx, []);
+        branchesAtFork.get(forkIdx).push(brCommits);
+      }
+
+      // Build result: main commits in order, branches inserted after their fork point
+      const result = [];
+      for (let i = 0; i < mainCommits.length; i++) {
+        result.push(mainCommits[i]);
+        const forkBranches = branchesAtFork.get(i);
+        if (forkBranches) {
+          for (const brCommits of forkBranches) result.push(...brCommits);
+        }
+      }
+      // Branches whose fork point is beyond the main window
+      const tailBranches = branchesAtFork.get(mainCommits.length);
+      if (tailBranches) {
+        for (const brCommits of tailBranches) result.push(...brCommits);
+      }
+      return result;
+    }
+
     function assignLanes(commits) {
       const branchLaneMap = new Map();
       branchLaneMap.set('main', 0);
@@ -1559,8 +1604,8 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         return;
       }
 
-      const cResult = assignLanes(clientCommits || []);
-      const aResult = assignLanes(apiCommits || []);
+      const cResult = assignLanes(reorderForGraph(clientCommits || []));
+      const aResult = assignLanes(reorderForGraph(apiCommits || []));
       const cNodes = cResult.nodes;
       const aNodes = aResult.nodes;
       const cMaxLane = cResult.maxLane;

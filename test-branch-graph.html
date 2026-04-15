@@ -103,6 +103,36 @@
 
     const LANE_COLORS = ['#2196f3', '#ff6b35', '#e8c900', '#4caf50', '#e040fb', '#00bcd4', '#ff5252', '#7c4dff'];
 
+    function reorderForGraph(commits) {
+      const mainCommits = commits.filter(c => c.onMain);
+      const branches = new Map();
+      for (const c of commits) {
+        if (c.onMain) continue;
+        const br = c.branch || '_unknown';
+        if (!branches.has(br)) branches.set(br, []);
+        branches.get(br).push(c);
+      }
+      const mainHashIdx = new Map();
+      mainCommits.forEach((c, i) => mainHashIdx.set(c.hash, i));
+      const branchesAtFork = new Map();
+      for (const [br, brCommits] of branches) {
+        const oldest = brCommits[brCommits.length - 1];
+        const forkHash = oldest.parents.length ? oldest.parents[0] : null;
+        const forkIdx = forkHash ? (mainHashIdx.get(forkHash) ?? mainCommits.length) : mainCommits.length;
+        if (!branchesAtFork.has(forkIdx)) branchesAtFork.set(forkIdx, []);
+        branchesAtFork.get(forkIdx).push(brCommits);
+      }
+      const result = [];
+      for (let i = 0; i < mainCommits.length; i++) {
+        result.push(mainCommits[i]);
+        const forkBranches = branchesAtFork.get(i);
+        if (forkBranches) { for (const bc of forkBranches) result.push(...bc); }
+      }
+      const tail = branchesAtFork.get(mainCommits.length);
+      if (tail) { for (const bc of tail) result.push(...bc); }
+      return result;
+    }
+
     function assignLanes(commits) {
       const branchLaneMap = new Map();
       branchLaneMap.set('main', 0);
@@ -139,8 +169,8 @@
         return;
       }
 
-      const cResult = assignLanes(clientCommits || []);
-      const aResult = assignLanes(apiCommits || []);
+      const cResult = assignLanes(reorderForGraph(clientCommits || []));
+      const aResult = assignLanes(reorderForGraph(apiCommits || []));
       const cNodes = cResult.nodes, aNodes = aResult.nodes;
       const cMaxLane = cResult.maxLane, aMaxLane = aResult.maxLane;
 
