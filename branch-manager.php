@@ -90,6 +90,11 @@ function getCurrentBranch($dir) {
     return trim(implode('', $result['output'])) ?: 'unknown';
 }
 
+function getDeployedSha($dir) {
+    $result = runCmd('sudo -u bitnami bash -c "cd ' . escapeshellarg($dir) . ' && git rev-parse HEAD 2>/dev/null"');
+    return trim(implode('', $result['output'])) ?: '';
+}
+
 function validateBranch($branch) {
     return preg_match('/^[a-zA-Z0-9_\-\.\/]+$/', $branch);
 }
@@ -129,7 +134,10 @@ function getBranchDetails($dir, $branches) {
     $details = [];
     foreach ($branches as $branch) {
         if ($branch === 'main') {
-            $details[$branch] = ['commitMessage' => '', 'commitsAhead' => 0, 'commitDate' => ''];
+            $escDir = escapeshellarg($dir);
+            $mainShaResult = runCmd('sudo -u bitnami bash -c "cd ' . $escDir . ' && git rev-parse origin/main 2>/dev/null"');
+            $mainRemoteSha = trim(implode('', $mainShaResult['output']));
+            $details[$branch] = ['commitMessage' => '', 'commitsAhead' => 0, 'commitDate' => '', 'remoteSha' => $mainRemoteSha];
             continue;
         }
         $escBranch = escapeshellarg('origin/' . $branch);
@@ -143,10 +151,15 @@ function getBranchDetails($dir, $branches) {
         $countResult = runCmd('sudo -u bitnami bash -c "cd ' . $escDir . ' && git rev-list --count origin/main..' . $escBranch . ' 2>/dev/null"');
         $commitsAhead = (int) trim(implode('', $countResult['output']));
 
+        // Get the remote tip SHA for this branch
+        $shaResult = runCmd('sudo -u bitnami bash -c "cd ' . $escDir . ' && git rev-parse ' . $escBranch . ' 2>/dev/null"');
+        $remoteSha = trim(implode('', $shaResult['output']));
+
         $details[$branch] = [
             'commitMessage' => $commitMessage,
             'commitsAhead'  => $commitsAhead,
             'commitDate'    => $commitDate,
+            'remoteSha'     => $remoteSha,
         ];
     }
     return $details;
@@ -347,6 +360,7 @@ if ($authenticated && isset($_GET['action'])) {
         echo json_encode([
             'client' => [
                 'current' => getCurrentBranch($CLIENT_DIR),
+                'deployedSha' => getDeployedSha($CLIENT_DIR),
                 'openBranches' => $clientOpen,
                 'versions' => getVersionsForBranches($CLIENT_DIR, $clientOpen),
                 'tags' => getTags($CLIENT_DIR),
@@ -355,6 +369,7 @@ if ($authenticated && isset($_GET['action'])) {
             ],
             'api' => [
                 'current' => getCurrentBranch($API_DIR),
+                'deployedSha' => getDeployedSha($API_DIR),
                 'openBranches' => $apiOpen,
                 'versions' => getVersionsForBranches($API_DIR, $apiOpen),
                 'tags' => getTags($API_DIR),
@@ -463,6 +478,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         .bm__badge--api { background: rgba(60,19,97,0.6); color: #be2edd; }
         .bm__current { font-size: 0.85rem; color: var(--color-text-muted); margin-bottom: var(--space-sm); }
         .bm__current strong { color: var(--color-live, #4caf50); }
+        .bm__update-badge { display: inline-block; font-size: 0.7rem; font-weight: 600; padding: 0.1em 0.5em; border-radius: 9999px; background: var(--color-live, #4caf50); color: #fff; margin-left: var(--space-xs); vertical-align: middle; }
 
         /* Branch select rows */
         .bm__row { display: flex; gap: var(--space-sm); align-items: center; flex-wrap: wrap; }
@@ -583,6 +599,8 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         }
         .bm__deploy-btn:hover:not(:disabled) { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
         .bm__deploy-btn:disabled { opacity: 0.25; cursor: not-allowed; background: transparent; color: var(--color-text-muted); border-color: transparent; }
+        .bm__deploy-btn--update { background: var(--color-live, #4caf50); color: #fff; border-color: var(--color-live, #4caf50); }
+        .bm__deploy-btn--update:hover:not(:disabled) { background: #43a047; border-color: #43a047; }
         select option.has-pr { color: #4caf50; }
 
         /* Rescue link */
@@ -681,6 +699,8 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
     let apiBranchDetails = {};
     let currentClientBranch = '';
     let currentApiBranch = '';
+    let clientDeployedSha = '';
+    let apiDeployedSha = '';
     let _fbIdToken = null;
 
     /* ── GitHub API (for Tag & Deploy) ───────────────── */
@@ -1424,9 +1444,15 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         if (totalOpen > 0) rowHtml += '<span class="bm__count-badge bm__count-badge--pr">' + totalOpen + ' PR' + (totalOpen !== 1 ? 's' : '') + '</span>';
         if (totalMerged > 0) rowHtml += '<span class="bm__count-badge bm__count-badge--merged">' + totalMerged + ' merged</span>';
 
-        // Deploy button
-        rowHtml += '<button class="bm__deploy-btn"'
-          + (isActive ? ' disabled title="Already active"' : ' title="Deploy this branch to staging"')
+        // Deploy button — always enabled; green if active branch is behind remote
+        const cRemoteSha = cDetails && cDetails.remoteSha ? cDetails.remoteSha : '';
+        const aRemoteSha = aDetails && aDetails.remoteSha ? aDetails.remoteSha : '';
+        const isBehindClient = isActive && inClient && b === currentClientBranch && clientDeployedSha && cRemoteSha && clientDeployedSha !== cRemoteSha;
+        const isBehindApi = isActive && inApi && b === currentApiBranch && apiDeployedSha && aRemoteSha && apiDeployedSha !== aRemoteSha;
+        const isBehind = isBehindClient || isBehindApi;
+        const deployBtnClass = 'bm__deploy-btn' + (isBehind ? ' bm__deploy-btn--update' : '');
+        const deployTitle = isBehind ? 'Update available — deploy latest' : (isActive ? 'Re-deploy this branch' : 'Deploy this branch to staging');
+        rowHtml += '<button class="' + deployBtnClass + '" title="' + deployTitle + '"'
           + ' data-branch="' + escapeHtml(b) + '">Deploy</button>';
 
         row.innerHTML = rowHtml;
@@ -1434,14 +1460,10 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
 
         // Wire up deploy button (stop propagation so card doesn't toggle)
         const deployBtn = row.querySelector('.bm__deploy-btn');
-        if (deployBtn && !isActive) {
-          deployBtn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            deployBranch(b);
-          });
-        } else if (deployBtn) {
-          deployBtn.addEventListener('click', function(e) { e.stopPropagation(); });
-        }
+        deployBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          deployBranch(b);
+        });
 
         // Detail panel — stacked cards per repo
         const panel = document.createElement('div');
@@ -1520,11 +1542,22 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
           const apiCur = data.api.current;
           currentClientBranch = clientCur;
           currentApiBranch = apiCur;
+          clientDeployedSha = data.client.deployedSha || '';
+          apiDeployedSha = data.api.deployedSha || '';
           const clientVer = clientVersions[clientCur] || '?';
           const apiVer = apiVersions[apiCur] || '?';
 
-          document.getElementById('client-current').textContent = clientCur + ' (v' + clientVer + ')';
-          document.getElementById('api-current').textContent = apiCur + ' (v' + apiVer + ')';
+          const clientCurDetails = clientBranchDetails[clientCur];
+          const clientRemoteSha = clientCurDetails && clientCurDetails.remoteSha ? clientCurDetails.remoteSha : '';
+          const clientBehind = clientDeployedSha && clientRemoteSha && clientDeployedSha !== clientRemoteSha;
+          document.getElementById('client-current').innerHTML = escapeHtml(clientCur + ' (v' + clientVer + ')')
+            + (clientBehind ? ' <span class="bm__update-badge">update available</span>' : '');
+
+          const apiCurDetails = apiBranchDetails[apiCur];
+          const apiRemoteSha = apiCurDetails && apiCurDetails.remoteSha ? apiCurDetails.remoteSha : '';
+          const apiBehind = apiDeployedSha && apiRemoteSha && apiDeployedSha !== apiRemoteSha;
+          document.getElementById('api-current').innerHTML = escapeHtml(apiCur + ' (v' + apiVer + ')')
+            + (apiBehind ? ' <span class="bm__update-badge">update available</span>' : '');
           populateSelect(document.getElementById('client-select'), clientBranches, clientCur, clientVersions, clientPRBranches);
           populateSelect(document.getElementById('api-select'), apiBranches, apiCur, apiVersions, apiPRBranches);
           populateSelect(document.getElementById('linked-select'), clientBranches, clientCur, clientVersions, clientPRBranches);
@@ -1584,10 +1617,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         if (el) el.disabled = false;
       });
       // Tag & Deploy re-enabled only if on main (loadStatus will handle)
-      // Re-enable branch deploy buttons (except the active one — page reloads on success anyway)
-      document.querySelectorAll('.bm__deploy-btn').forEach(el => {
-        if (el.title !== 'Already active') el.disabled = false;
-      });
+      document.querySelectorAll('.bm__deploy-btn').forEach(el => el.disabled = false);
     }
 
     function switchLinked() {
