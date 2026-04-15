@@ -1671,49 +1671,79 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
       drawSide(cNodes, cMap, cLaneX, 'client');
       drawSide(aNodes, aMap, aLaneX, 'api');
 
-      // --- Shared labels in center column ---
-      // Collect ref badges from both sides, placed at their row positions
-      const usedRows = new Set();
-
-      function drawLabels(nodes, side) {
-        for (const node of nodes) {
-          if (node.refs.length === 0) continue;
-          const y = rowY(node.row);
-          const color = branchColor(node.branch || 'main');
-          const short = node.hash.substring(0, 7);
-
-          // Stack labels if row is already used (offset down slightly)
-          let yOff = 0;
-          const rowKey = side + ':' + node.row;
-          while (usedRows.has(Math.round(y + yOff))) { yOff += 14; }
-          usedRows.add(Math.round(y + yOff));
-
-          // Side indicator
-          const sideTag = side === 'client' ? 'C' : 'A';
-          const sideColor = side === 'client' ? '#4caf50' : '#e040fb';
-
-          let refX = labelOrigin + 4;
-          // Small side indicator dot
-          labels += '<circle cx="' + (refX - 1) + '" cy="' + (y + yOff) + '" r="3" fill="' + sideColor + '" opacity="0.6"/>';
-          refX += 8;
-
-          for (const ref of node.refs) {
-            const badgeW = Math.ceil(ref.length * CHAR_W) + 12;
-            if (refX + badgeW > labelOrigin + LABEL_COL_W) break; // don't overflow
-            labels += '<g transform="translate(' + refX + ',' + (y + yOff - 8) + ')">'
-              + '<rect rx="4" ry="4" width="' + badgeW + '" height="16" fill="' + color + '" opacity="0.2"/>'
-              + '<text x="6" y="12" fill="' + color + '" font-size="10" font-weight="600" font-family="ui-monospace,monospace">'
-              + escapeHtml(ref) + '</text></g>';
-            refX += badgeW + 4;
-          }
-          labels += '<text x="' + refX + '" y="' + (y + yOff + 4)
-            + '" fill="var(--color-text-muted)" font-size="9" font-family="ui-monospace,monospace">'
-            + escapeHtml(short) + '</text>';
+      // --- Shared labels in center column (deduplicated) ---
+      // Build map: refName -> { clientRow, apiRow, branch, clientHash, apiHash }
+      const refMap = new Map();
+      for (const node of cNodes) {
+        for (const ref of node.refs) {
+          const entry = refMap.get(ref) || {};
+          entry.clientRow = node.row;
+          entry.clientHash = node.hash;
+          entry.branch = node.branch || 'main';
+          refMap.set(ref, entry);
+        }
+      }
+      for (const node of aNodes) {
+        for (const ref of node.refs) {
+          const entry = refMap.get(ref) || {};
+          entry.apiRow = node.row;
+          entry.apiHash = node.hash;
+          if (!entry.branch) entry.branch = node.branch || 'main';
+          refMap.set(ref, entry);
         }
       }
 
-      drawLabels(cNodes, 'client');
-      drawLabels(aNodes, 'api');
+      // Sort labels by topmost row position
+      const sortedRefs = [...refMap.entries()].sort((a, b) => {
+        const aRow = Math.min(a[1].clientRow ?? Infinity, a[1].apiRow ?? Infinity);
+        const bRow = Math.min(b[1].clientRow ?? Infinity, b[1].apiRow ?? Infinity);
+        return aRow - bRow;
+      });
+
+      // Render each label once, with indicator dots for which repos have it
+      const usedYPositions = [];
+      for (const [ref, info] of sortedRefs) {
+        const topRow = Math.min(info.clientRow ?? Infinity, info.apiRow ?? Infinity);
+        let y = rowY(topRow);
+
+        // Avoid overlapping labels
+        for (const usedY of usedYPositions) {
+          if (Math.abs(y - usedY) < 14) y = usedY + 14;
+        }
+        usedYPositions.push(y);
+
+        const color = branchColor(info.branch);
+        const hasClient = info.clientRow !== undefined;
+        const hasApi = info.apiRow !== undefined;
+
+        let refX = labelOrigin + 4;
+
+        // Repo indicator dots (green=client, purple=api)
+        if (hasClient) {
+          labels += '<circle cx="' + refX + '" cy="' + y + '" r="3" fill="#4caf50" opacity="0.7"/>';
+          refX += 8;
+        }
+        if (hasApi) {
+          labels += '<circle cx="' + refX + '" cy="' + y + '" r="3" fill="#e040fb" opacity="0.7"/>';
+          refX += 8;
+        }
+
+        // Branch badge
+        const badgeW = Math.ceil(ref.length * CHAR_W) + 12;
+        if (refX + badgeW <= labelOrigin + LABEL_COL_W) {
+          labels += '<g transform="translate(' + refX + ',' + (y - 8) + ')">'
+            + '<rect rx="4" ry="4" width="' + badgeW + '" height="16" fill="' + color + '" opacity="0.2"/>'
+            + '<text x="6" y="12" fill="' + color + '" font-size="10" font-weight="600" font-family="ui-monospace,monospace">'
+            + escapeHtml(ref) + '</text></g>';
+          refX += badgeW + 4;
+        }
+
+        // Short hash (show client hash if available, else api)
+        const hash = info.clientHash || info.apiHash || '';
+        labels += '<text x="' + refX + '" y="' + (y + 4)
+          + '" fill="var(--color-text-muted)" font-size="9" font-family="ui-monospace,monospace">'
+          + escapeHtml(hash.substring(0, 7)) + '</text>';
+      }
 
       // Divider lines between sections
       const dividerColor = 'rgba(255,255,255,0.06)';
