@@ -35,7 +35,7 @@
     button:hover { background: #3a3a4e; }
     textarea {
       width: 100%;
-      height: 200px;
+      height: 150px;
       background: #1a1a2a;
       color: #e0e0e0;
       border: 1px solid #444;
@@ -57,11 +57,22 @@
       color: #888;
       margin-top: 0.5rem;
     }
+    .header-badges {
+      display: flex;
+      justify-content: center;
+      gap: 0.5rem;
+      font-size: 0.8rem;
+      color: #888;
+      margin-bottom: 0.5rem;
+    }
+    .badge { display: inline-block; padding: 0.1rem 0.4rem; border-radius: 3px; font-size: 0.7rem; font-weight: 600; }
+    .badge--client { background: #4caf50; color: #fff; }
+    .badge--api { background: #e040fb; color: #fff; }
   </style>
 </head>
 <body>
   <h1>Branch Graph Test Harness</h1>
-  <p style="font-size:0.85rem;color:#888">Paste JSON from the API endpoint or load sample data to test the graph renderer.</p>
+  <p style="font-size:0.85rem;color:#888">Side-by-side commit graph: client (mirrored) | shared labels | API</p>
 
   <div class="controls">
     <button onclick="loadFromApi()">Fetch from API</button>
@@ -75,17 +86,15 @@
 
   <textarea id="json-input" placeholder='Paste JSON here: { "client": [...], "api": [...] }'></textarea>
 
-  <h2>Client Repo</h2>
-  <div class="graph-container" id="branch-graph-client">
+  <div class="header-badges">
+    <span><span class="badge badge--client">client</span> carkedit-online</span>
+    <span style="opacity:0.4">|</span>
+    <span><span class="badge badge--api">api</span> carkedit-api</span>
+  </div>
+  <div class="graph-container" id="branch-graph-combined">
     <div style="font-size:0.8rem;color:var(--color-text-muted)">No data loaded</div>
   </div>
-  <div class="stats" id="stats-client"></div>
-
-  <h2>API Repo</h2>
-  <div class="graph-container" id="branch-graph-api">
-    <div style="font-size:0.8rem;color:var(--color-text-muted)">No data loaded</div>
-  </div>
-  <div class="stats" id="stats-api"></div>
+  <div class="stats" id="stats-combined"></div>
 
   <script>
     function escapeHtml(str) {
@@ -98,149 +107,166 @@
       const branchLaneMap = new Map();
       branchLaneMap.set('main', 0);
       let nextLane = 1;
-
       for (const c of commits) {
         const br = c.branch || (c.onMain ? 'main' : '_unknown');
-        if (!branchLaneMap.has(br)) {
-          branchLaneMap.set(br, nextLane++);
-        }
+        if (!branchLaneMap.has(br)) branchLaneMap.set(br, nextLane++);
       }
-
       const nodes = commits.map((c, i) => ({
         ...c,
         lane: branchLaneMap.get(c.branch || (c.onMain ? 'main' : '_unknown')) || 0,
         row: i,
       }));
-
       return { nodes, maxLane: Math.max(0, nextLane - 1) };
     }
 
-    function renderCommitTree(containerId, commits) {
+    function buildBranchColorMap(clientCommits, apiCommits) {
+      const map = new Map();
+      map.set('main', LANE_COLORS[0]);
+      let idx = 1;
+      for (const c of [...clientCommits, ...apiCommits]) {
+        const br = c.branch || (c.onMain ? 'main' : '_unknown');
+        if (!map.has(br)) { map.set(br, LANE_COLORS[idx % LANE_COLORS.length]); idx++; }
+      }
+      return map;
+    }
+
+    function renderCombinedGraph(containerId, clientCommits, apiCommits) {
       const container = document.getElementById(containerId);
       if (!container) return;
 
-      if (!commits || commits.length === 0) {
+      if ((!clientCommits || clientCommits.length === 0) && (!apiCommits || apiCommits.length === 0)) {
         container.innerHTML = '<div style="font-size:0.8rem;color:var(--color-text-muted)">No commit data available</div>';
         return;
       }
 
-      const { nodes, maxLane } = assignLanes(commits);
-      const commitMap = new Map();
-      nodes.forEach(n => commitMap.set(n.hash, n));
+      const cResult = assignLanes(clientCommits || []);
+      const aResult = assignLanes(apiCommits || []);
+      const cNodes = cResult.nodes, aNodes = aResult.nodes;
+      const cMaxLane = cResult.maxLane, aMaxLane = aResult.maxLane;
 
-      const LANE_W = 20;
-      const ROW_H = 28;
-      const PAD_L = 16;
-      const PAD_T = 12;
-      const COMMIT_R = 5;
-      const GRAPH_W = PAD_L + (maxLane + 1) * LANE_W + 16;
-      const LABEL_X = GRAPH_W + 8;
-      const SVG_W = Math.max(LABEL_X + 360, 500);
-      const SVG_H = nodes.length * ROW_H + PAD_T * 2;
+      const branchColors = buildBranchColorMap(clientCommits || [], apiCommits || []);
+      function branchColor(br) { return branchColors.get(br) || LANE_COLORS[0]; }
 
-      function laneX(lane) { return PAD_L + lane * LANE_W; }
-      function rowY(row) { return PAD_T + row * ROW_H + ROW_H / 2; }
-      function laneColor(lane) { return LANE_COLORS[lane % LANE_COLORS.length]; }
+      const cMap = new Map(); cNodes.forEach(n => cMap.set(n.hash, n));
+      const aMap = new Map(); aNodes.forEach(n => aMap.set(n.hash, n));
 
-      let lines = '';
-      let dotGroups = '';
-      let labels = '';
-      const CHAR_W = 7.2;
+      const LANE_W = 20, ROW_H = 28, PAD = 12, COMMIT_R = 5, CHAR_W = 7.2;
+      const LABEL_COL_W = 220, LABEL_GAP = 12;
+      const cGraphW = PAD + (cMaxLane + 1) * LANE_W + PAD;
+      const aGraphW = PAD + (aMaxLane + 1) * LANE_W + PAD;
+      const maxRows = Math.max(cNodes.length, aNodes.length, 1);
+      const SVG_H = maxRows * ROW_H + PAD * 2;
+      const labelOrigin = cGraphW + LABEL_GAP;
+      const aOrigin = cGraphW + LABEL_GAP + LABEL_COL_W + LABEL_GAP;
+      const SVG_W = aOrigin + aGraphW;
 
-      const mainNodes = nodes.filter(n => n.onMain).sort((a, b) => a.row - b.row);
-      if (mainNodes.length > 1) {
-        const mx = laneX(0);
-        for (let i = 0; i < mainNodes.length - 1; i++) {
-          const y1 = rowY(mainNodes[i].row);
-          const y2 = rowY(mainNodes[i + 1].row);
-          lines += '<line x1="' + mx + '" y1="' + y1 + '" x2="' + mx + '" y2="' + y2
-            + '" stroke="' + LANE_COLORS[0] + '" stroke-width="2.5"/>';
-        }
-      }
+      function cLaneX(lane) { return cGraphW - PAD - lane * LANE_W; }
+      function aLaneX(lane) { return aOrigin + PAD + lane * LANE_W; }
+      function rowY(row) { return PAD + row * ROW_H + ROW_H / 2; }
 
-      for (const node of nodes) {
-        const x = laneX(node.lane);
-        const y = rowY(node.row);
+      let lines = '', dots = '', labels = '';
 
-        for (let p = 0; p < node.parents.length; p++) {
-          const parent = commitMap.get(node.parents[p]);
-          if (!parent) continue;
-
-          if (node.onMain && parent.onMain && p === 0) continue;
-
-          const px = laneX(parent.lane);
-          const py = rowY(parent.row);
-          const color = p === 0 ? laneColor(node.lane) : laneColor(parent.lane);
-          const strokeW = p === 0 ? 2.5 : 2;
-
-          if (node.lane === parent.lane) {
-            lines += '<line x1="' + x + '" y1="' + y + '" x2="' + px + '" y2="' + py
-              + '" stroke="' + color + '" stroke-width="' + strokeW + '"/>';
-          } else {
-            const midY = (y + py) / 2;
-            lines += '<path d="M ' + x + ' ' + y + ' C ' + x + ' ' + midY + ' ' + px + ' ' + midY + ' ' + px + ' ' + py
-              + '" fill="none" stroke="' + color + '" stroke-width="' + strokeW + '"/>';
+      function drawSide(nodes, commitMap, laneXFn, side) {
+        const mainNodes = nodes.filter(n => n.onMain).sort((a, b) => a.row - b.row);
+        if (mainNodes.length > 1) {
+          const mx = laneXFn(0);
+          for (let i = 0; i < mainNodes.length - 1; i++) {
+            lines += '<line x1="' + mx + '" y1="' + rowY(mainNodes[i].row) + '" x2="' + mx + '" y2="' + rowY(mainNodes[i + 1].row)
+              + '" stroke="' + LANE_COLORS[0] + '" stroke-width="2.5"/>';
           }
         }
+        for (const node of nodes) {
+          const x = laneXFn(node.lane), y = rowY(node.row);
+          const color = branchColor(node.branch || 'main');
+          for (let p = 0; p < node.parents.length; p++) {
+            const parent = commitMap.get(node.parents[p]);
+            if (!parent) continue;
+            if (node.onMain && parent.onMain && p === 0) continue;
+            const px = laneXFn(parent.lane), py = rowY(parent.row);
+            const pColor = p === 0 ? color : branchColor(parent.branch || 'main');
+            const sw = p === 0 ? 2.5 : 2;
+            if (node.lane === parent.lane) {
+              lines += '<line x1="' + x + '" y1="' + y + '" x2="' + px + '" y2="' + py + '" stroke="' + pColor + '" stroke-width="' + sw + '"/>';
+            } else {
+              const midY = (y + py) / 2;
+              lines += '<path d="M ' + x + ' ' + y + ' C ' + x + ' ' + midY + ' ' + px + ' ' + midY + ' ' + px + ' ' + py + '" fill="none" stroke="' + pColor + '" stroke-width="' + sw + '"/>';
+            }
+          }
+        }
+        for (const node of nodes) {
+          const x = laneXFn(node.lane), y = rowY(node.row);
+          const color = branchColor(node.branch || 'main');
+          const isMerge = node.parents.length > 1;
+          const title = escapeHtml((side === 'client' ? '[C] ' : '[A] ') + node.hash.substring(0, 7) + ' \u2014 ' + node.subject);
+          dots += '<g><title>' + title + '</title>';
+          if (isMerge) {
+            dots += '<circle cx="' + x + '" cy="' + y + '" r="' + (COMMIT_R + 1) + '" fill="var(--color-surface, #1e1e2e)" stroke="' + color + '" stroke-width="2"/>';
+          } else {
+            dots += '<circle cx="' + x + '" cy="' + y + '" r="' + COMMIT_R + '" fill="' + color + '"/>';
+          }
+          dots += '</g>';
+        }
       }
 
-      for (const node of nodes) {
-        const x = laneX(node.lane);
-        const y = rowY(node.row);
-        const color = laneColor(node.lane);
-        const isMerge = node.parents.length > 1;
-        const shortHash = node.hash.substring(0, 7);
-        const titleText = escapeHtml(shortHash + ' \u2014 ' + node.subject);
+      drawSide(cNodes, cMap, cLaneX, 'client');
+      drawSide(aNodes, aMap, aLaneX, 'api');
 
-        dotGroups += '<g><title>' + titleText + '</title>';
-        if (isMerge) {
-          dotGroups += '<circle cx="' + x + '" cy="' + y + '" r="' + (COMMIT_R + 1)
-            + '" fill="var(--color-surface, #1e1e2e)" stroke="' + color + '" stroke-width="2"/>';
-        } else {
-          dotGroups += '<circle cx="' + x + '" cy="' + y + '" r="' + COMMIT_R + '" fill="' + color + '"/>';
-        }
-        dotGroups += '</g>';
-
-        if (node.refs.length > 0) {
-          let refX = LABEL_X;
+      // Shared labels
+      const usedRows = new Set();
+      function drawLabels(nodes, side) {
+        for (const node of nodes) {
+          if (node.refs.length === 0) continue;
+          const y = rowY(node.row);
+          const color = branchColor(node.branch || 'main');
+          let yOff = 0;
+          while (usedRows.has(Math.round(y + yOff))) yOff += 14;
+          usedRows.add(Math.round(y + yOff));
+          const sideColor = side === 'client' ? '#4caf50' : '#e040fb';
+          let refX = labelOrigin + 4;
+          labels += '<circle cx="' + (refX - 1) + '" cy="' + (y + yOff) + '" r="3" fill="' + sideColor + '" opacity="0.6"/>';
+          refX += 8;
           for (const ref of node.refs) {
             const badgeW = Math.ceil(ref.length * CHAR_W) + 12;
-            labels += '<g transform="translate(' + refX + ',' + (y - 8) + ')">'
+            if (refX + badgeW > labelOrigin + LABEL_COL_W) break;
+            labels += '<g transform="translate(' + refX + ',' + (y + yOff - 8) + ')">'
               + '<rect rx="4" ry="4" width="' + badgeW + '" height="16" fill="' + color + '" opacity="0.2"/>'
               + '<text x="6" y="12" fill="' + color + '" font-size="10" font-weight="600" font-family="ui-monospace,monospace">'
               + escapeHtml(ref) + '</text></g>';
-            refX += badgeW + 6;
+            refX += badgeW + 4;
           }
-          labels += '<text x="' + (refX + 4) + '" y="' + (y + 4)
-            + '" fill="var(--color-text-muted)" font-size="10" font-family="ui-monospace,monospace">'
-            + escapeHtml(shortHash) + '</text>';
+          labels += '<text x="' + refX + '" y="' + (y + yOff + 4) + '" fill="var(--color-text-muted)" font-size="9" font-family="ui-monospace,monospace">'
+            + escapeHtml(node.hash.substring(0, 7)) + '</text>';
         }
       }
+      drawLabels(cNodes, 'client');
+      drawLabels(aNodes, 'api');
+
+      const dividerColor = 'rgba(255,255,255,0.06)';
+      lines += '<line x1="' + (cGraphW + LABEL_GAP / 2) + '" y1="0" x2="' + (cGraphW + LABEL_GAP / 2) + '" y2="' + SVG_H + '" stroke="' + dividerColor + '"/>';
+      lines += '<line x1="' + (aOrigin - LABEL_GAP / 2) + '" y1="0" x2="' + (aOrigin - LABEL_GAP / 2) + '" y2="' + SVG_H + '" stroke="' + dividerColor + '"/>';
+      labels += '<text x="' + (cGraphW / 2) + '" y="10" fill="var(--color-text-muted)" font-size="9" font-family="ui-monospace,monospace" text-anchor="middle" opacity="0.5">client</text>';
+      labels += '<text x="' + (aOrigin + aGraphW / 2) + '" y="10" fill="var(--color-text-muted)" font-size="9" font-family="ui-monospace,monospace" text-anchor="middle" opacity="0.5">api</text>';
 
       container.innerHTML = '<div style="overflow-x:auto">'
-        + '<svg class="bm__graph-svg" viewBox="0 0 ' + SVG_W + ' ' + SVG_H
-        + '" width="' + SVG_W + '" height="' + SVG_H + '" xmlns="http://www.w3.org/2000/svg">'
-        + lines + dotGroups + labels + '</svg></div>';
+        + '<svg class="bm__graph-svg" viewBox="0 0 ' + SVG_W + ' ' + SVG_H + '" width="' + SVG_W + '" height="' + SVG_H + '" xmlns="http://www.w3.org/2000/svg">'
+        + lines + dots + labels + '</svg></div>';
     }
 
-    function showStats(id, commits) {
+    function showStats(id, clientCommits, apiCommits) {
       const el = document.getElementById(id);
-      if (!el || !commits) return;
-      const mainCount = commits.filter(c => c.onMain).length;
-      const branches = [...new Set(commits.filter(c => !c.onMain).map(c => c.branch))];
-      el.textContent = commits.length + ' commits | ' + mainCount + ' on main | ' + branches.length + ' branches: ' + branches.join(', ');
+      if (!el) return;
+      const cBr = [...new Set((clientCommits||[]).filter(c => !c.onMain).map(c => c.branch))];
+      const aBr = [...new Set((apiCommits||[]).filter(c => !c.onMain).map(c => c.branch))];
+      const shared = cBr.filter(b => aBr.includes(b));
+      el.textContent = 'Client: ' + (clientCommits||[]).length + ' commits (' + cBr.length + ' branches) | API: ' + (apiCommits||[]).length + ' commits (' + aBr.length + ' branches) | Shared branches: ' + shared.length;
     }
 
     function renderFromTextarea() {
       try {
         const data = JSON.parse(document.getElementById('json-input').value);
-        renderCommitTree('branch-graph-client', data.client || []);
-        renderCommitTree('branch-graph-api', data.api || []);
-        showStats('stats-client', data.client);
-        showStats('stats-api', data.api);
-      } catch (e) {
-        alert('Invalid JSON: ' + e.message);
-      }
+        renderCombinedGraph('branch-graph-combined', data.client || [], data.api || []);
+        showStats('stats-combined', data.client, data.api);
+      } catch (e) { alert('Invalid JSON: ' + e.message); }
     }
 
     async function loadFromApi() {
@@ -250,13 +276,9 @@
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
         document.getElementById('json-input').value = JSON.stringify(data, null, 2);
-        renderCommitTree('branch-graph-client', data.client || []);
-        renderCommitTree('branch-graph-api', data.api || []);
-        showStats('stats-client', data.client);
-        showStats('stats-api', data.api);
-      } catch (e) {
-        alert('Fetch failed: ' + e.message);
-      }
+        renderCombinedGraph('branch-graph-combined', data.client || [], data.api || []);
+        showStats('stats-combined', data.client, data.api);
+      } catch (e) { alert('Fetch failed: ' + e.message); }
     }
 
     function loadSample() {
@@ -274,15 +296,15 @@
         ],
         api: [
           { hash: 'ddd1111', parents: ['ddd2222'], date: '2026-04-14T21:00:00+10:00', subject: 'feat: add graph endpoint', refs: ['main'], onMain: true, branch: 'main' },
+          { hash: 'eee1111', parents: ['eee2222'], date: '2026-04-14T20:30:00+10:00', subject: 'feat: api feature-a support', refs: ['dev/feature-a'], onMain: false, branch: 'dev/feature-a' },
           { hash: 'ddd2222', parents: ['ddd3333'], date: '2026-04-14T19:00:00+10:00', subject: 'fix: auth middleware', refs: [], onMain: true, branch: 'main' },
+          { hash: 'eee2222', parents: ['ddd3333'], date: '2026-04-14T18:30:00+10:00', subject: 'feat: api feature-a init', refs: [], onMain: false, branch: 'dev/feature-a' },
           { hash: 'ddd3333', parents: [], date: '2026-04-13T18:00:00+10:00', subject: 'initial setup', refs: [], onMain: true, branch: 'main' },
         ]
       };
       document.getElementById('json-input').value = JSON.stringify(sample, null, 2);
-      renderCommitTree('branch-graph-client', sample.client);
-      renderCommitTree('branch-graph-api', sample.api);
-      showStats('stats-client', sample.client);
-      showStats('stats-api', sample.api);
+      renderCombinedGraph('branch-graph-combined', sample.client, sample.api);
+      showStats('stats-combined', sample.client, sample.api);
     }
   </script>
 </body>

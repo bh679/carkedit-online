@@ -1072,14 +1072,12 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
           <hr class="bm__divider">
           <div class="bm__graph-section">
             <h2>Commit Graph</h2>
-            <div class="bm__graph-group">
-              <h3><span class="bm__badge bm__badge--client">client</span> carkedit-online</h3>
-              <div id="branch-graph-client"><div style="font-size:0.8rem;color:var(--color-text-muted)">Loading graph...</div></div>
+            <div style="display:flex;justify-content:center;gap:0.5rem;font-size:0.8rem;color:var(--color-text-muted);margin-bottom:0.5rem">
+              <span><span class="bm__badge bm__badge--client">client</span> carkedit-online</span>
+              <span style="opacity:0.4">|</span>
+              <span><span class="bm__badge bm__badge--api">api</span> carkedit-api</span>
             </div>
-            <div class="bm__graph-group" style="margin-top:1rem">
-              <h3><span class="bm__badge bm__badge--api">api</span> carkedit-api</h3>
-              <div id="branch-graph-api"><div style="font-size:0.8rem;color:var(--color-text-muted)">Loading graph...</div></div>
-            </div>
+            <div id="branch-graph-combined"><div style="font-size:0.8rem;color:var(--color-text-muted)">Loading graph...</div></div>
           </div>
 
           <div class="bm__rescue">
@@ -1513,7 +1511,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
       renderCards();
     }
 
-    /* ── Branch Graph — commit tree (SourceTree-style) ── */
+    /* ── Branch Graph — side-by-side commit tree ── */
 
     const LANE_COLORS = ['#2196f3', '#ff6b35', '#e8c900', '#4caf50', '#e040fb', '#00bcd4', '#ff5252', '#7c4dff'];
 
@@ -1538,116 +1536,199 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
       return { nodes, maxLane: Math.max(0, nextLane - 1) };
     }
 
-    function renderCommitTree(containerId, commits) {
+    function buildBranchColorMap(clientCommits, apiCommits) {
+      const map = new Map();
+      map.set('main', LANE_COLORS[0]);
+      let idx = 1;
+      for (const c of [...clientCommits, ...apiCommits]) {
+        const br = c.branch || (c.onMain ? 'main' : '_unknown');
+        if (!map.has(br)) {
+          map.set(br, LANE_COLORS[idx % LANE_COLORS.length]);
+          idx++;
+        }
+      }
+      return map;
+    }
+
+    function renderCombinedGraph(containerId, clientCommits, apiCommits) {
       const container = document.getElementById(containerId);
       if (!container) return;
 
-      if (!commits || commits.length === 0) {
+      if ((!clientCommits || clientCommits.length === 0) && (!apiCommits || apiCommits.length === 0)) {
         container.innerHTML = '<div style="font-size:0.8rem;color:var(--color-text-muted)">No commit data available</div>';
         return;
       }
 
-      const { nodes, maxLane } = assignLanes(commits);
-      const commitMap = new Map();
-      nodes.forEach(n => commitMap.set(n.hash, n));
+      const cResult = assignLanes(clientCommits || []);
+      const aResult = assignLanes(apiCommits || []);
+      const cNodes = cResult.nodes;
+      const aNodes = aResult.nodes;
+      const cMaxLane = cResult.maxLane;
+      const aMaxLane = aResult.maxLane;
+
+      const branchColors = buildBranchColorMap(clientCommits || [], apiCommits || []);
+      function branchColor(branchName) {
+        return branchColors.get(branchName) || LANE_COLORS[0];
+      }
+
+      const cMap = new Map();
+      cNodes.forEach(n => cMap.set(n.hash, n));
+      const aMap = new Map();
+      aNodes.forEach(n => aMap.set(n.hash, n));
 
       const LANE_W = 20;
       const ROW_H = 28;
-      const PAD_L = 16;
-      const PAD_T = 12;
+      const PAD = 12;
       const COMMIT_R = 5;
-      const GRAPH_W = PAD_L + (maxLane + 1) * LANE_W + 16;
-      const LABEL_X = GRAPH_W + 8;
-      const SVG_W = Math.max(LABEL_X + 360, 500);
-      const SVG_H = nodes.length * ROW_H + PAD_T * 2;
+      const CHAR_W = 7.2;
+      const LABEL_COL_W = 220;
+      const LABEL_GAP = 12;
 
-      function laneX(lane) { return PAD_L + lane * LANE_W; }
-      function rowY(row) { return PAD_T + row * ROW_H + ROW_H / 2; }
-      function laneColor(lane) { return LANE_COLORS[lane % LANE_COLORS.length]; }
+      // Client graph: mirrored (main on right, branches fan left)
+      const cGraphW = PAD + (cMaxLane + 1) * LANE_W + PAD;
+      // API graph: normal (main on left, branches fan right)
+      const aGraphW = PAD + (aMaxLane + 1) * LANE_W + PAD;
+
+      const maxRows = Math.max(cNodes.length, aNodes.length, 1);
+      const SVG_H = maxRows * ROW_H + PAD * 2;
+
+      // X offsets for each section
+      const cOrigin = 0;
+      const labelOrigin = cGraphW + LABEL_GAP;
+      const aOrigin = cGraphW + LABEL_GAP + LABEL_COL_W + LABEL_GAP;
+      const SVG_W = aOrigin + aGraphW;
+
+      // Client: lane 0 (main) is on the right, branches go left
+      function cLaneX(lane) { return cOrigin + cGraphW - PAD - lane * LANE_W; }
+      // API: lane 0 (main) is on the left, branches go right
+      function aLaneX(lane) { return aOrigin + PAD + lane * LANE_W; }
+      function rowY(row) { return PAD + row * ROW_H + ROW_H / 2; }
 
       let lines = '';
-      let dotGroups = '';
+      let dots = '';
       let labels = '';
-      const CHAR_W = 7.2;
 
-      // Draw main backbone — continuous blue line in lane 0
-      const mainNodes = nodes.filter(n => n.onMain).sort((a, b) => a.row - b.row);
-      if (mainNodes.length > 1) {
-        const mx = laneX(0);
-        for (let i = 0; i < mainNodes.length - 1; i++) {
-          const y1 = rowY(mainNodes[i].row);
-          const y2 = rowY(mainNodes[i + 1].row);
-          lines += '<line x1="' + mx + '" y1="' + y1 + '" x2="' + mx + '" y2="' + y2
-            + '" stroke="' + LANE_COLORS[0] + '" stroke-width="2.5"/>';
-        }
-      }
-
-      // Draw branch connections
-      for (const node of nodes) {
-        const x = laneX(node.lane);
-        const y = rowY(node.row);
-
-        for (let p = 0; p < node.parents.length; p++) {
-          const parent = commitMap.get(node.parents[p]);
-          if (!parent) continue;
-
-          // Skip main-to-main first-parent links (already drawn as backbone)
-          if (node.onMain && parent.onMain && p === 0) continue;
-
-          const px = laneX(parent.lane);
-          const py = rowY(parent.row);
-          const color = p === 0 ? laneColor(node.lane) : laneColor(parent.lane);
-          const strokeW = p === 0 ? 2.5 : 2;
-
-          if (node.lane === parent.lane) {
-            lines += '<line x1="' + x + '" y1="' + y + '" x2="' + px + '" y2="' + py
-              + '" stroke="' + color + '" stroke-width="' + strokeW + '"/>';
-          } else {
-            const midY = (y + py) / 2;
-            lines += '<path d="M ' + x + ' ' + y + ' C ' + x + ' ' + midY + ' ' + px + ' ' + midY + ' ' + px + ' ' + py
-              + '" fill="none" stroke="' + color + '" stroke-width="' + strokeW + '"/>';
+      // --- Draw a graph side (client or API) ---
+      function drawSide(nodes, commitMap, laneXFn, side) {
+        // Main backbone
+        const mainNodes = nodes.filter(n => n.onMain).sort((a, b) => a.row - b.row);
+        if (mainNodes.length > 1) {
+          const mx = laneXFn(0);
+          for (let i = 0; i < mainNodes.length - 1; i++) {
+            lines += '<line x1="' + mx + '" y1="' + rowY(mainNodes[i].row)
+              + '" x2="' + mx + '" y2="' + rowY(mainNodes[i + 1].row)
+              + '" stroke="' + LANE_COLORS[0] + '" stroke-width="2.5"/>';
           }
         }
+
+        // Branch connections
+        for (const node of nodes) {
+          const x = laneXFn(node.lane);
+          const y = rowY(node.row);
+          const color = branchColor(node.branch || 'main');
+
+          for (let p = 0; p < node.parents.length; p++) {
+            const parent = commitMap.get(node.parents[p]);
+            if (!parent) continue;
+            if (node.onMain && parent.onMain && p === 0) continue;
+
+            const px = laneXFn(parent.lane);
+            const py = rowY(parent.row);
+            const pColor = p === 0 ? color : branchColor(parent.branch || 'main');
+            const sw = p === 0 ? 2.5 : 2;
+
+            if (node.lane === parent.lane) {
+              lines += '<line x1="' + x + '" y1="' + y + '" x2="' + px + '" y2="' + py
+                + '" stroke="' + pColor + '" stroke-width="' + sw + '"/>';
+            } else {
+              const midY = (y + py) / 2;
+              lines += '<path d="M ' + x + ' ' + y + ' C ' + x + ' ' + midY + ' ' + px + ' ' + midY + ' ' + px + ' ' + py
+                + '" fill="none" stroke="' + pColor + '" stroke-width="' + sw + '"/>';
+            }
+          }
+        }
+
+        // Commit dots
+        for (const node of nodes) {
+          const x = laneXFn(node.lane);
+          const y = rowY(node.row);
+          const color = branchColor(node.branch || 'main');
+          const isMerge = node.parents.length > 1;
+          const short = node.hash.substring(0, 7);
+          const title = escapeHtml(short + ' \u2014 ' + node.subject);
+
+          dots += '<g><title>' + (side === 'client' ? '[C] ' : '[A] ') + title + '</title>';
+          if (isMerge) {
+            dots += '<circle cx="' + x + '" cy="' + y + '" r="' + (COMMIT_R + 1)
+              + '" fill="var(--color-surface, #1e1e2e)" stroke="' + color + '" stroke-width="2"/>';
+          } else {
+            dots += '<circle cx="' + x + '" cy="' + y + '" r="' + COMMIT_R + '" fill="' + color + '"/>';
+          }
+          dots += '</g>';
+        }
       }
 
-      // Draw commit dots and ref labels
-      for (const node of nodes) {
-        const x = laneX(node.lane);
-        const y = rowY(node.row);
-        const color = laneColor(node.lane);
-        const isMerge = node.parents.length > 1;
-        const shortHash = node.hash.substring(0, 7);
-        const titleText = escapeHtml(shortHash + ' \u2014 ' + node.subject);
+      drawSide(cNodes, cMap, cLaneX, 'client');
+      drawSide(aNodes, aMap, aLaneX, 'api');
 
-        dotGroups += '<g><title>' + titleText + '</title>';
-        if (isMerge) {
-          dotGroups += '<circle cx="' + x + '" cy="' + y + '" r="' + (COMMIT_R + 1)
-            + '" fill="var(--color-surface, #1e1e2e)" stroke="' + color + '" stroke-width="2"/>';
-        } else {
-          dotGroups += '<circle cx="' + x + '" cy="' + y + '" r="' + COMMIT_R + '" fill="' + color + '"/>';
-        }
-        dotGroups += '</g>';
+      // --- Shared labels in center column ---
+      // Collect ref badges from both sides, placed at their row positions
+      const usedRows = new Set();
 
-        if (node.refs.length > 0) {
-          let refX = LABEL_X;
+      function drawLabels(nodes, side) {
+        for (const node of nodes) {
+          if (node.refs.length === 0) continue;
+          const y = rowY(node.row);
+          const color = branchColor(node.branch || 'main');
+          const short = node.hash.substring(0, 7);
+
+          // Stack labels if row is already used (offset down slightly)
+          let yOff = 0;
+          const rowKey = side + ':' + node.row;
+          while (usedRows.has(Math.round(y + yOff))) { yOff += 14; }
+          usedRows.add(Math.round(y + yOff));
+
+          // Side indicator
+          const sideTag = side === 'client' ? 'C' : 'A';
+          const sideColor = side === 'client' ? '#4caf50' : '#e040fb';
+
+          let refX = labelOrigin + 4;
+          // Small side indicator dot
+          labels += '<circle cx="' + (refX - 1) + '" cy="' + (y + yOff) + '" r="3" fill="' + sideColor + '" opacity="0.6"/>';
+          refX += 8;
+
           for (const ref of node.refs) {
             const badgeW = Math.ceil(ref.length * CHAR_W) + 12;
-            labels += '<g transform="translate(' + refX + ',' + (y - 8) + ')">'
+            if (refX + badgeW > labelOrigin + LABEL_COL_W) break; // don't overflow
+            labels += '<g transform="translate(' + refX + ',' + (y + yOff - 8) + ')">'
               + '<rect rx="4" ry="4" width="' + badgeW + '" height="16" fill="' + color + '" opacity="0.2"/>'
               + '<text x="6" y="12" fill="' + color + '" font-size="10" font-weight="600" font-family="ui-monospace,monospace">'
               + escapeHtml(ref) + '</text></g>';
-            refX += badgeW + 6;
+            refX += badgeW + 4;
           }
-          labels += '<text x="' + (refX + 4) + '" y="' + (y + 4)
-            + '" fill="var(--color-text-muted)" font-size="10" font-family="ui-monospace,monospace">'
-            + escapeHtml(shortHash) + '</text>';
+          labels += '<text x="' + refX + '" y="' + (y + yOff + 4)
+            + '" fill="var(--color-text-muted)" font-size="9" font-family="ui-monospace,monospace">'
+            + escapeHtml(short) + '</text>';
         }
       }
+
+      drawLabels(cNodes, 'client');
+      drawLabels(aNodes, 'api');
+
+      // Divider lines between sections
+      const dividerColor = 'rgba(255,255,255,0.06)';
+      lines += '<line x1="' + (cGraphW + LABEL_GAP / 2) + '" y1="0" x2="' + (cGraphW + LABEL_GAP / 2) + '" y2="' + SVG_H + '" stroke="' + dividerColor + '" stroke-width="1"/>';
+      lines += '<line x1="' + (aOrigin - LABEL_GAP / 2) + '" y1="0" x2="' + (aOrigin - LABEL_GAP / 2) + '" y2="' + SVG_H + '" stroke="' + dividerColor + '" stroke-width="1"/>';
+
+      // Column headers
+      const headerY = 10;
+      labels += '<text x="' + (cGraphW / 2) + '" y="' + headerY + '" fill="var(--color-text-muted)" font-size="9" font-family="ui-monospace,monospace" text-anchor="middle" opacity="0.5">client</text>';
+      labels += '<text x="' + (aOrigin + aGraphW / 2) + '" y="' + headerY + '" fill="var(--color-text-muted)" font-size="9" font-family="ui-monospace,monospace" text-anchor="middle" opacity="0.5">api</text>';
 
       container.innerHTML = '<div style="overflow-x:auto">'
         + '<svg class="bm__graph-svg" viewBox="0 0 ' + SVG_W + ' ' + SVG_H
         + '" width="' + SVG_W + '" height="' + SVG_H + '" xmlns="http://www.w3.org/2000/svg">'
-        + lines + dotGroups + labels + '</svg></div>';
+        + lines + dots + labels + '</svg></div>';
     }
 
     function loadCommitGraph() {
@@ -1659,15 +1740,11 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
           return r.json();
         })
         .then(data => {
-          renderCommitTree('branch-graph-client', data.client || []);
-          renderCommitTree('branch-graph-api', data.api || []);
+          renderCombinedGraph('branch-graph-combined', data.client || [], data.api || []);
         })
         .catch(err => {
-          const msg = '<div style="font-size:0.8rem;color:var(--color-text-muted)">Failed to load graph</div>';
-          const el1 = document.getElementById('branch-graph-client');
-          const el2 = document.getElementById('branch-graph-api');
-          if (el1) el1.innerHTML = msg;
-          if (el2) el2.innerHTML = msg;
+          const el = document.getElementById('branch-graph-combined');
+          if (el) el.innerHTML = '<div style="font-size:0.8rem;color:var(--color-text-muted)">Failed to load graph</div>';
         });
     }
 
