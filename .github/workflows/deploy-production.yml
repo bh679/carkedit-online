@@ -3,7 +3,7 @@ name: Deploy to play.carkedit.com (production)
 on:
   push:
     tags:
-      - 'v*'
+      - 'v[0-9]*'
 
 jobs:
   deploy:
@@ -13,7 +13,7 @@ jobs:
         run: |
           echo "Deploying tag: ${{ github.ref_name }}"
           RESPONSE=$(curl -s -w "\n%{http_code}" \
-            "https://api.carkedit.com/.deploy/carkedit-online.php?token=${{ secrets.DEPLOY_TOKEN_PROD }}")
+            "https://play.carkedit.com/.deploy/carkedit-online.php?token=${{ secrets.DEPLOY_TOKEN_PROD }}")
           HTTP_CODE=$(echo "$RESPONSE" | tail -1)
           BODY=$(echo "$RESPONSE" | head -n -1)
           echo "Response: $BODY"

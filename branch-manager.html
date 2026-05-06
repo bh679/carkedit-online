@@ -34,7 +34,11 @@
     <script type="module">
     import { renderAdminHeader, bindAdminHeader, resetAdminHeaderMenu } from './js/components/admin-header.js';
 
-    if (window.location.hostname === 'brennan.games') {
+    // Redirect to the PHP variant on any non-production env (dev/staging
+    // hostnames). The .php version has the full branch-switching server
+    // logic; the .html stub on prod just links here from the dev manager.
+    var _h = window.location.hostname;
+    if (_h.indexOf('dev.') === 0 || _h.indexOf('staging.') === 0) {
         window.location.replace('branch-manager.php');
     }
 
@@ -108,7 +112,7 @@
                       <button id="btn-restart" class="btn--secondary">Restart Server</button>
                     </div>
                     <div id="status-box" class="bm__status" style="display:none"></div>
-                    <p style="margin-top:var(--space-lg)"><a class="btn" href="https://brennan.games/carkedit-online/branch-manager.php">Open Full Branch Manager on brennan.games</a></p>
+                    <p style="margin-top:var(--space-lg)"><a class="btn" href="https://dev.play.carkedit.com/carkedit-online/branch-manager.php">Open Full Branch Manager on dev</a></p>
                 </div>
             </div>
         </div>`;
