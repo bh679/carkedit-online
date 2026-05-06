@@ -1,18 +1,17 @@
 /**
  * Branch Banner — shows a thin bar at the top of every page when the site
- * is deployed on a non-main branch (brennan.games staging only).
+ * is deployed on a non-production env (dev or staging) on a non-main branch.
  *
  * Self-contained: all styles are inline, no external CSS dependencies.
- * Fetches branch-info.php which returns branch, version, and commit info.
- * Fails silently if the endpoint is missing or we're not on the staging host.
+ * Fetches branch-info.php which returns branch, version, commit, and envName.
+ * Fails silently if the endpoint is missing or we're on production.
  */
 (function () {
-  if (window.location.hostname !== 'brennan.games') return;
-
   fetch('branch-info.php')
     .then(function (r) { return r.ok ? r.json() : null; })
     .then(function (info) {
-      if (!info || !info.client || info.client === 'main') return;
+      if (!info || info.envName === 'production') return;
+      if (!info.client || info.client === 'main') return;
 
       var bar = document.createElement('div');
       bar.id = 'branch-banner';

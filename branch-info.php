@@ -95,6 +95,20 @@ if (is_readable($apiPkg)) {
     }
 }
 
+// --- Environment detection from Host header ---
+// Used by client code (branch-banner.js, branch-manager) so the same
+// JS works on every env without per-host conditionals.
+$host = strtolower($_SERVER['HTTP_HOST'] ?? '');
+if ($host === 'play.carkedit.com') {
+    $envName = 'production';
+} elseif (strpos($host, 'staging.') === 0) {
+    $envName = 'staging';
+} elseif (strpos($host, 'dev.') === 0) {
+    $envName = 'development';
+} else {
+    $envName = 'development'; // localhost, previews, untagged hosts
+}
+
 echo json_encode([
     'client'     => $branch,
     'api'        => $apiBranch,
@@ -103,4 +117,6 @@ echo json_encode([
     'commitSha'  => substr($commitSha, 0, 7),
     'commitDate' => $commitDate,
     'commitMsg'  => $commitMsg,
+    'envName'    => $envName,
+    'prodUrl'    => 'https://play.carkedit.com',
 ]);

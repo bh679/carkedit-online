@@ -969,8 +969,14 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
       }
     }
 
-    const IS_PRODUCTION = ['carkedit.com', 'www.carkedit.com'].includes(window.location.hostname);
-    const STAGING_URL = 'https://brennan.games/carkedit-online/branch-manager.php';
+    // Env detection mirrors branch-info.php's logic so the same hostname
+    // patterns drive both. STAGING_URL points at the dev server (where
+    // branch swapping lives) regardless of which env the user is on.
+    const _hostname = window.location.hostname;
+    const IS_PRODUCTION = _hostname === 'play.carkedit.com'
+        || _hostname === 'carkedit.com'
+        || _hostname === 'www.carkedit.com';
+    const STAGING_URL = 'https://dev.play.carkedit.com/carkedit-online/branch-manager.php';
 
     function renderDashboard() {
       resetAdminHeaderMenu();
@@ -1212,6 +1218,8 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
     let liveApiVersion = null;
 
     function fetchLiveVersions() {
+      // PROD points at the live game regardless of which env this manager
+      // is running on — used to compare dev/staging versions against live.
       const PROD = 'https://play.carkedit.com';
       return Promise.all([
         fetch(PROD + '/package.json').then(r => r.json()).then(d => { liveClientVersion = d.version || null; }).catch(() => {}),
