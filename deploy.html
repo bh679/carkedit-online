@@ -95,14 +95,69 @@
       bindAdminHeader(document.getElementById('app'), {});
     }
 
-    async function mountDeploySystem() {
+    async function fetchDeployToken(user) {
+      const idToken = await user.getIdToken();
+      const res = await fetch('/api/admin/deploy-token', {
+        headers: { Authorization: 'Bearer ' + idToken },
+      });
+      if (!res.ok) {
+        let body = '';
+        try { body = await res.text(); } catch (_) { /* ignore */ }
+        const err = new Error('HTTP ' + res.status + (body ? ' — ' + body.slice(0, 200) : ''));
+        err.status = res.status;
+        throw err;
+      }
+      const data = await res.json();
+      // carkedit-deploy's auth.ts accepts either token (timing-safe-compares
+      // against both .deploy-token-carkedit-{api,online} files), so either
+      // value works for the injected fragment. Prefer api as canonical.
+      return data.api || data.online;
+    }
+
+    async function mountDeploySystem(user) {
       const mount = document.getElementById('deploy-mount');
       if (!mount) return;
 
+      // Step 1 — probe deploy service health.
       try {
         const probe = await fetch('/api/admin/deploy/health', { credentials: 'omit' });
         if (!probe.ok) throw new Error('health probe ' + probe.status);
+      } catch (err) {
+        mount.innerHTML = `
+          <div class="dp__missing">
+            <h2>Can't find deployment system</h2>
+            <p>The carkedit-deploy service is not reachable on this server.</p>
+            <p><strong>To install:</strong> follow the README at
+              <a href="https://github.com/bh679/carkedit-deploy" target="_blank" rel="noopener noreferrer">
+                github.com/bh679/carkedit-deploy
+              </a>
+              and add the matching Apache reverse-proxy entry.</p>
+            <p style="font-size: 0.78rem; opacity: 0.6;">Probe error: ${(err && err.message) || err}</p>
+          </div>`;
+        return;
+      }
 
+      // Step 2 — fetch deploy token from carkedit-api (Session B's endpoint).
+      let deployToken;
+      try {
+        deployToken = await fetchDeployToken(user);
+      } catch (err) {
+        mount.innerHTML = `
+          <div class="dp__missing">
+            <h2>Deploy token endpoint missing</h2>
+            <p>The carkedit-api service does not expose <code>/api/admin/deploy-token</code> on this server.</p>
+            <p>This usually means <strong>Session B</strong> of the deploy migration has not been deployed yet,
+              or the signed-in user is not an admin.</p>
+            <p style="font-size: 0.78rem; opacity: 0.6;">Error: ${(err && err.message) || err}</p>
+          </div>`;
+        return;
+      }
+
+      // Step 3 — expose the contract the injected fragment consumes.
+      window.__cdGetDeployToken = async () => deployToken;
+
+      // Step 4 — fetch + inject the UI fragment.
+      try {
         const fragmentRes = await fetch('/api/admin/deploy/ui');
         if (!fragmentRes.ok) throw new Error('fragment fetch ' + fragmentRes.status);
         const html = await fragmentRes.text();
@@ -121,14 +176,9 @@
       } catch (err) {
         mount.innerHTML = `
           <div class="dp__missing">
-            <h2>Can't find deployment system</h2>
-            <p>The carkedit-deploy service is not reachable on this server.</p>
-            <p><strong>To install:</strong> follow the README at
-              <a href="https://github.com/bh679/carkedit-deploy" target="_blank" rel="noopener noreferrer">
-                github.com/bh679/carkedit-deploy
-              </a>
-              and add the matching Apache reverse-proxy entry.</p>
-            <p style="font-size: 0.78rem; opacity: 0.6;">Probe error: ${(err && err.message) || err}</p>
+            <h2>Deploy UI fragment failed to load</h2>
+            <p>The deploy service health probe and token fetch succeeded, but the UI fragment did not load.</p>
+            <p style="font-size: 0.78rem; opacity: 0.6;">Error: ${(err && err.message) || err}</p>
           </div>`;
       }
     }
@@ -147,14 +197,9 @@
         renderGate('Sign in with an admin Google account to continue.', true);
         return;
       }
-      try {
-        // Expose token getter for the deploy fragment's ui.js to consume.
-        window.__cdGetIdToken = () => user.getIdToken();
-        renderShell();
-        mountDeploySystem();
-      } catch (err) {
-        renderGate('Failed to get auth token: ' + (err.message || err), false);
-      }
+      renderShell();
+      // mountDeploySystem handles its own error states inside #deploy-mount.
+      mountDeploySystem(user);
     });
     </script>
 </body>
