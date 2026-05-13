@@ -62,7 +62,7 @@ npm run test:report  # view Playwright HTML report
 
 ## Deployment
 
-Deploy via `deploy.php`. See wiki for full deployment docs:
+Deploys are handled by the [carkedit-deploy](https://github.com/bh679/carkedit-deploy) Node webhook. Trigger a deploy from the browser at `/deploy.html`, or push a tag/branch to fire the GitHub Actions workflow. See the wiki for full deployment docs:
 [github.com/bh679/carkedit-online/wiki](https://github.com/bh679/carkedit-online/wiki)
 
 ---
