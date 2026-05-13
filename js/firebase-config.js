@@ -3,13 +3,12 @@
 // These configs are PUBLIC. Firebase web SDK configs (apiKey, appId, etc.)
 // are NOT secrets — they identify the project to the SDK and are visible to
 // any browser that loads the page. The real security boundary is Firebase
-// Auth + Firestore Security Rules + custom admin claims, all configured
-// inside each project's Firebase Console.
+// Auth rules + custom admin claims, configured inside each project's
+// Firebase Console.
 //
 // To add a new public hostname, add an entry to CONFIG_BY_HOST. To wire up
-// a fresh dev or staging Firebase project, replace the REPLACE_ME_* fields
-// in DEV_CONFIG / STAGING_CONFIG with the web-app config printed by the
-// Firebase Console for that project.
+// a new Firebase project, copy the web-app config block from the Firebase
+// Console (Project settings → General → Your apps).
 
 const PROD_CONFIG = {
   apiKey: "AIzaSyC6QJz6jTzJkBWV7Shd9XpCfHWrovJ9vaI",
@@ -19,24 +18,22 @@ const PROD_CONFIG = {
   appId: "1:144073275425:web:2301fbbccc2be69c654b60",
 };
 
-// Placeholders until the staging Firebase project is provisioned. See
-// docs/firebase-project-separation-runbook.md step 5 — the user pastes the
-// real web SDK config into this block before the carkedit-online PR merges.
 const STAGING_CONFIG = {
-  apiKey: "REPLACE_ME_STAGING_API_KEY",
+  apiKey: "AIzaSyC0ngHBR-_Uz3M5Dwbo-r5WiKel0SvuHGI",
   projectId: "carkedit-staging",
   storageBucket: "carkedit-staging.firebasestorage.app",
-  messagingSenderId: "REPLACE_ME_STAGING_SENDER_ID",
-  appId: "REPLACE_ME_STAGING_APP_ID",
+  messagingSenderId: "44484042956",
+  appId: "1:44484042956:web:8a98c9c742dd48f5256269",
+  measurementId: "G-TQQQQ6545W",
 };
 
-// Placeholders for the dev project, same lifecycle as staging.
 const DEV_CONFIG = {
-  apiKey: "REPLACE_ME_DEV_API_KEY",
-  projectId: "carkedit-dev",
-  storageBucket: "carkedit-dev.firebasestorage.app",
-  messagingSenderId: "REPLACE_ME_DEV_SENDER_ID",
-  appId: "REPLACE_ME_DEV_APP_ID",
+  apiKey: "AIzaSyADRu0zM_jXlfNswZcasR5Y0DtAz-C9xHE",
+  projectId: "carkeditdev",
+  storageBucket: "carkeditdev.firebasestorage.app",
+  messagingSenderId: "902836470179",
+  appId: "1:902836470179:web:5ba8e364f05308f2b49a16",
+  measurementId: "G-F8X3TL3BFJ",
 };
 
 const CONFIG_BY_HOST = {

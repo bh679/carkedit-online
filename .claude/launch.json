@@ -27,5 +27,11 @@
       "runtimeArgs": ["http-server", ".", "-p", "4620", "-c-1"],
       "port": 4620
     }
+  ,{
+      "name": "firebase-per-env-4540",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["http-server", ".", "-p", "4540", "-c-1"],
+      "port": 4540
+    }
   ]
 }

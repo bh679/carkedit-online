@@ -1,116 +1,96 @@
 # Firebase Project Separation Runbook
 
-Goal: three distinct Firebase projects — one per CarkedIt environment — so that signing in on `dev.play.carkedit.com` creates a user in the dev project, NOT in prod.
+Goal: three distinct Firebase projects — one per CarkedIt environment — so that signing in on `dev.play.carkedit.com` creates a user in the dev Firebase project, NOT in prod.
 
-After this runbook is followed, every Firebase Auth user and every Firestore write is bound to the environment it originated from.
+After this runbook is followed, every Firebase Auth user is bound to the environment it originated from.
 
 | Env     | Firebase project ID                      | Hostname                        |
 | ------- | ---------------------------------------- | ------------------------------- |
-| dev     | `carkedit-dev` *(to create)*             | `dev.play.carkedit.com`         |
-| staging | `carkedit-staging` *(to create)*         | `staging.play.carkedit.com`     |
+| dev     | `carkeditdev`                            | `dev.play.carkedit.com`         |
+| staging | `carkedit-staging`                       | `staging.play.carkedit.com`     |
 | prod    | `carkedit-5cc8e` *(existing, unchanged)* | `play.carkedit.com`             |
 
-The dev/staging projects are treated as **fresh** — no user data is migrated from prod.
+The dev/staging projects are treated as **fresh** — no user data is migrated from prod. The app uses Firebase Auth only (no Firestore, no Storage) so there's no other data to migrate either.
 
 ## Prerequisites
 
-- Firebase Console admin access on the existing `carkedit-5cc8e` project (to mirror its settings).
+- Firebase Console admin access on the existing `carkedit-5cc8e` project.
 - SSH access to the dev and staging Lightsail boxes as `bitnami`.
-- Engineering pairing for the placeholder-replacement step in `js/firebase-config.js`.
-- The code-side PRs from this feature branch must be merged before the server-side credential rotation runs (`dev/firebase-per-env` in both `carkedit-online` and `carkedit-api`).
+- The carkedit-online + carkedit-api PRs from `dev/firebase-per-env` merged to main before Step 7 below.
 
 ## Step 1 — Create two new Firebase projects
 
 In <https://console.firebase.google.com/>:
 
-1. **Add project** → name `carkedit-dev`. Suggest using the suggested project ID as `carkedit-dev`. If the ID is taken, Firebase will append a suffix — that's fine, just note the actual ID.
-2. Pick the same Google Cloud billing account that `carkedit-5cc8e` uses, so billing stays consolidated.
-3. Disable Google Analytics for the new project (the existing prod project does not have analytics wired into the app code; keeping dev/staging consistent avoids divergence).
+1. **Add project** → name `carkeditdev`. Note: the actual project ID Firebase assigns may differ if the name is taken; record whatever ID lands.
+2. Pick the same Google Cloud billing account `carkedit-5cc8e` uses so invoices stay consolidated.
+3. Google Analytics: optional. The current codebase doesn't call `getAnalytics()`, so enabling it is harmless. The `js/firebase-config.js` selector includes a `measurementId` field for dev + staging so analytics will be available later if someone wires it up.
 4. Repeat for `carkedit-staging`.
-
-Record the final project IDs — they go into `js/firebase-config.js`.
 
 ## Step 2 — Enable Google sign-in on each new project
 
 For each new project:
 
-1. **Authentication** → **Sign-in method** → enable **Google**.
-2. Set the project support email to match prod's.
-3. **Authorized domains** — add the matching hostname:
-   - For `carkedit-dev`: add `dev.play.carkedit.com` and `localhost`.
-   - For `carkedit-staging`: add `staging.play.carkedit.com`.
+1. **Authentication** → **Sign-in method** tab → enable **Google**. Set the project support email.
+2. **Authentication** → **Settings** tab → **Authorized domains** section → **Add domain**:
+   - dev project: add `dev.play.carkedit.com` (`localhost` is already a default).
+   - staging project: add `staging.play.carkedit.com`.
 
-## Step 3 — Clone Firestore security rules from prod
+> ⚠️ The "Authorized domains" list is in the **Settings** tab, NOT the "Safelist client IDs from external projects" field inside the Google sign-in provider. That other field accepts OAuth client IDs from other Google Cloud projects and is unrelated.
 
-1. Open the existing prod project (`carkedit-5cc8e`) → **Firestore Database** → **Rules** tab. Copy the rules text.
-2. In the new project → **Firestore Database** → **Create database** (production mode, same region as prod for latency parity).
-3. Paste the prod rules text into the new project's **Rules** tab and **Publish**.
-4. Repeat for the other new project.
+If the app uses email/password sign-in (it does — `signInWithEmail` is called by router, marketplace, and card-designer), also enable **Email/Password** under Sign-in method.
 
-No data is migrated. Both new projects start empty.
-
-## Step 4 — Generate service-account JSONs
+## Step 3 — Generate service-account JSONs
 
 For each new project:
 
-1. **Project settings** (gear icon) → **Service accounts** → **Generate new private key** → confirm.
-2. Save the JSON locally with a clearly named filename:
-   - `firebase-service-account-dev.json`
-   - `firebase-service-account-staging.json`
-3. **Do not commit these files anywhere.** Keep them in a password manager or encrypted note. They authenticate as Firebase Admin and can read every user.
+1. **Project settings** (gear icon) → **Service accounts** tab → scroll past the Admin SDK snippet → **Generate new private key** → confirm.
+2. Save the downloaded JSON with a clearly named filename, e.g.:
+   - `firebase-service-account-carkeditdev.json`
+   - `firebase-service-account-carkedit-staging.json`
+3. **Do not commit these anywhere.** They grant Firebase Admin access. Store in a password manager / encrypted note.
 
-## Step 5 — Capture the web SDK config for each new project
+## Step 4 — Capture the web SDK config for each new project
 
-For each new project:
+(Already done — values are committed in `js/firebase-config.js`. This step is here for the next person who provisions a fresh project.)
 
 1. **Project settings** → **General** tab → scroll to **Your apps** → click **Add app** → web (`</>` icon) → register a new web app named `carkedit-online`.
-2. Firebase shows a snippet:
-   ```js
-   const firebaseConfig = {
-     apiKey: "…",
-     authDomain: "carkedit-dev.firebaseapp.com",
-     projectId: "carkedit-dev",
-     storageBucket: "carkedit-dev.firebasestorage.app",
-     messagingSenderId: "…",
-     appId: "…",
-   };
+2. Firebase prints a `const firebaseConfig = { … }` block. Paste those values into the corresponding entry in `js/firebase-config.js`.
+
+## Step 5 — Bootstrap your admin account (per-env)
+
+Admin authorisation is gated by the `is_admin` column in the env's local SQLite (`/home/bitnami/server/carkedit-api/games.db`), not by Firebase custom claims. So provisioning the new Firebase projects doesn't auto-grant admin — you need a row in each env's local DB.
+
+Do this AFTER Step 7 (cutover) has rotated the service-account JSON on each box:
+
+1. SSH to the dev box:
+   ```bash
+   ssh -i ~/.ssh/<KEY> bitnami@dev.play.carkedit.com
+   sqlite3 /home/bitnami/server/carkedit-api/games.db \
+     "UPDATE users SET is_admin = 1 WHERE email = 'YOUR_GOOGLE_EMAIL_HERE';"
    ```
-3. Copy the snippet and paste it into the PR description for `dev/firebase-per-env` (or send to engineering directly). These values are **public** — safe to share via PR.
+   (Sign in once first via `https://dev.play.carkedit.com/` so the row exists; then run the UPDATE.)
+2. Repeat for staging.
 
-## Step 6 — Apply admin custom claims for your Google account
+Prod is unchanged — your existing admin row in prod's `games.db` stays.
 
-The admin gate on `branch-manager.html` / `deploy.html` / `admin-image-gen.html` requires a Firebase user with `is_admin = true` in the carkedit-api users table for the matching environment. Since dev/staging start fresh, the first admin user in each project must be created manually.
+## Step 6 — Land the code
 
-The simplest path (assuming you're the only admin):
+The two PRs in `dev/firebase-per-env` carry the real web SDK configs and the proxy fix:
 
-1. On each environment (dev box, then staging box), once Step 8 below has rotated the service-account file:
-   - Visit `https://<env-hostname>/admin-users.html`. Sign in once with your Google account. This upserts your user record into the env's local SQLite DB via `linkOrFetchUser`.
-   - The first user signing in to a fresh deployment auto-becomes admin via the `hasAnyAdmin()` bootstrap path in `carkedit-api`. (If that bootstrap path is no longer active, the operator can directly UPDATE `users SET is_admin = 1 WHERE email = …` on the box's `games.db`.)
+- `carkedit-online` PR: per-host Firebase config selector
+- `carkedit-api` PR: derives the OAuth proxy target from the service-account `project_id`
 
-If the auto-bootstrap doesn't fire (because the local DB already has anonymous users), SSH to the env, open `/home/bitnami/server/carkedit-api/games.db` with `sqlite3`, and run:
-```sql
-UPDATE users SET is_admin = 1 WHERE email = 'YOUR_GOOGLE_EMAIL_HERE';
-```
+Squash-merge both to main. After merge, dev + staging still authenticate against prod until Step 7 runs.
 
-## Step 7 — Engineering merges the code PRs
-
-Once the configs from Step 5 are pasted into the PR:
-
-1. Engineer replaces the `REPLACE_ME_*` placeholders in `carkedit-online/js/firebase-config.js` with the real values.
-2. Open PR for `dev/firebase-per-env` in `carkedit-online`.
-3. Open PR for `dev/firebase-per-env` in `carkedit-api` (paired — same branch name, different repo).
-4. Both squash-merge to main.
-
-After merge, dev/staging boxes are still using the old `firebase-service-account.json` pointing at prod — sign-in still works against prod for now. The cutover happens in Step 8.
-
-## Step 8 — Rotate service-account JSONs on dev + staging boxes
+## Step 7 — Rotate service-account JSONs on dev + staging boxes
 
 For the **dev** box (`dev.play.carkedit.com`):
 
 ```bash
 # From your local machine, replace ~/.ssh/<KEY> with your Lightsail SSH key.
 
-scp -i ~/.ssh/<KEY> firebase-service-account-dev.json \
+scp -i ~/.ssh/<KEY> firebase-service-account-carkeditdev.json \
     bitnami@dev.play.carkedit.com:/home/bitnami/server/carkedit-api/firebase-service-account.json
 
 ssh -i ~/.ssh/<KEY> bitnami@dev.play.carkedit.com
@@ -122,13 +102,13 @@ pm2 logs carkedit-api --lines 20 --nostream
 
 Check the pm2 log line:
 ```
-[CarkedIt API] Firebase Admin initialized (project: carkedit-dev)
+[CarkedIt API] Firebase Admin initialized (project: carkeditdev)
 ```
-The project name must match the dev project ID. If it still shows `carkedit-5cc8e`, the wrong file landed — re-`scp` and `pm2 reload` again.
+If it still shows `carkedit-5cc8e`, the wrong file landed — re-`scp` and `pm2 reload` again.
 
-Repeat for the **staging** box with `firebase-service-account-staging.json`. Leave the **prod** box untouched.
+Repeat for the **staging** box with `firebase-service-account-carkedit-staging.json`. Leave the **prod** box untouched.
 
-## Step 9 — Verify isolation
+## Step 8 — Verify isolation
 
 For each environment, open a private browser window:
 
@@ -136,13 +116,13 @@ For each environment, open a private browser window:
 2. Click **Sign in with Google**, choose your Google account.
 3. Confirm the sign-in completes without an OAuth error.
 4. In the Firebase Console, open the matching project's **Authentication** → **Users** tab. Your account should appear there.
-5. Open the **prod** project's **Authentication** → **Users** tab. The dev/staging sign-in should NOT appear there. (If it does, the cutover did not take effect — check Step 8.)
+5. Open the **prod** project's **Authentication** → **Users** tab. The dev/staging sign-in should NOT appear there. (If it does, the cutover did not take effect — check Step 7.)
 
 Then verify the auth proxy:
 ```bash
 curl -sI https://dev.play.carkedit.com/__/auth/handler | grep -i location
 ```
-The redirect should now route through `carkedit-dev.firebaseapp.com` (not `carkedit-5cc8e.firebaseapp.com`).
+The redirect should now route through `carkeditdev.firebaseapp.com` (not `carkedit-5cc8e.firebaseapp.com`).
 
 ## Rollback
 

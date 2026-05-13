@@ -7,36 +7,39 @@ test('returns prod config for play.carkedit.com', () => {
   assert.equal(cfg.projectId, 'carkedit-5cc8e');
   assert.equal(cfg.apiKey, 'AIzaSyC6QJz6jTzJkBWV7Shd9XpCfHWrovJ9vaI');
   assert.equal(cfg.messagingSenderId, '144073275425');
+  assert.equal(cfg.measurementId, undefined, 'prod config intentionally omits measurementId — analytics not wired');
 });
 
 test('returns staging config for staging.play.carkedit.com', () => {
   const cfg = getFirebaseConfig('staging.play.carkedit.com', 'staging.play.carkedit.com');
   assert.equal(cfg.projectId, 'carkedit-staging');
+  assert.equal(cfg.measurementId, 'G-TQQQQ6545W');
 });
 
 test('returns dev config for dev.play.carkedit.com', () => {
   const cfg = getFirebaseConfig('dev.play.carkedit.com', 'dev.play.carkedit.com');
-  assert.equal(cfg.projectId, 'carkedit-dev');
+  assert.equal(cfg.projectId, 'carkeditdev');
+  assert.equal(cfg.measurementId, 'G-F8X3TL3BFJ');
 });
 
 test('falls back to dev config for localhost', () => {
   const cfg = getFirebaseConfig('localhost', 'localhost:4540');
-  assert.equal(cfg.projectId, 'carkedit-dev');
+  assert.equal(cfg.projectId, 'carkeditdev');
 });
 
 test('falls back to dev config for 127.0.0.1', () => {
   const cfg = getFirebaseConfig('127.0.0.1', '127.0.0.1:4540');
-  assert.equal(cfg.projectId, 'carkedit-dev');
+  assert.equal(cfg.projectId, 'carkeditdev');
 });
 
 test('falls back to dev config for the legacy brennan.games host', () => {
   const cfg = getFirebaseConfig('brennan.games', 'brennan.games');
-  assert.equal(cfg.projectId, 'carkedit-dev');
+  assert.equal(cfg.projectId, 'carkeditdev');
 });
 
 test('falls back to dev config for an unknown hostname', () => {
   const cfg = getFirebaseConfig('random.example.com', 'random.example.com');
-  assert.equal(cfg.projectId, 'carkedit-dev');
+  assert.equal(cfg.projectId, 'carkeditdev');
 });
 
 test('hostname matching is case-insensitive', () => {
