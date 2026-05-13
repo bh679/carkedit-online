@@ -1,6 +1,6 @@
 {
   "name": "carkedit-online",
-  "version": "1.06.0176",
+  "version": "1.06.0177",
   "description": "CarkedIt Online — turn-based card game web app (vanilla HTML/CSS/JS)",
   "main": "index.html",
   "engines": {
@@ -10,6 +10,7 @@
     "prestart": "bash scripts/setup-worktree-assets.sh",
     "start": "npx http-server . -p ${PORT:-4600} -c-1",
     "test": "playwright test",
+    "test:unit": "node --test 'js/**/*.test.js'",
     "test:report": "playwright show-report"
   },
   "keywords": ["card-game", "multiplayer", "vanilla-js"],
