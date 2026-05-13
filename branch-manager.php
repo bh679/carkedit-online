@@ -685,15 +685,9 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
     }
 
     import { renderAdminHeader, bindAdminHeader, resetAdminHeaderMenu } from './js/components/admin-header.js';
+    import { getFirebaseConfig } from './js/firebase-config.js';
 
-    const FIREBASE_CONFIG = {
-      apiKey: "AIzaSyC6QJz6jTzJkBWV7Shd9XpCfHWrovJ9vaI",
-      authDomain: window.location.host,
-      projectId: "carkedit-5cc8e",
-      storageBucket: "carkedit-5cc8e.firebasestorage.app",
-      messagingSenderId: "144073275425",
-      appId: "1:144073275425:web:2301fbbccc2be69c654b60",
-    };
+    const FIREBASE_CONFIG = getFirebaseConfig();
 
     const PHP_AUTHED = <?= $authenticated ? 'true' : 'false' ?>;
     const apiUrl = 'branch-manager.php';

@@ -2,6 +2,7 @@
 'use strict';
 
 import { getState, setState as _gameSetState } from '../state.js';
+import { getFirebaseConfig } from '../firebase-config.js';
 
 // Allow external consumers (e.g. card designer) to provide their own state setter.
 // Call setStateSetter(fn) before initAuth() to redirect all auth state updates.
@@ -13,14 +14,7 @@ export function setStateSetter(setFn, getFn) {
   if (getFn) _getState = getFn;
 }
 
-const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyC6QJz6jTzJkBWV7Shd9XpCfHWrovJ9vaI",
-  authDomain: window.location.host,
-  projectId: "carkedit-5cc8e",
-  storageBucket: "carkedit-5cc8e.firebasestorage.app",
-  messagingSenderId: "144073275425",
-  appId: "1:144073275425:web:2301fbbccc2be69c654b60",
-};
+const FIREBASE_CONFIG = getFirebaseConfig();
 
 let firebaseApp = null;
 let firebaseAuth = null;

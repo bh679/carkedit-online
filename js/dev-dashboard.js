@@ -4,6 +4,7 @@
 import { loadAllCards } from './data/cardTypes.js';
 import { render as renderCard } from './components/card.js';
 import { renderAdminHeader, bindAdminHeader } from './components/admin-header.js';
+import { getFirebaseConfig } from './firebase-config.js';
 
 // ── Utilities ────────────────────────────────────────
 function escapeHtml(str) {
@@ -1034,14 +1035,7 @@ window.devDash = { switchDeck: miniSwitchDeck, nextCard: miniNextCard, showMore,
 let _fbAuth = null;
 let _fbUserInfo = null;
 
-const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyC6QJz6jTzJkBWV7Shd9XpCfHWrovJ9vaI",
-  authDomain: window.location.host,
-  projectId: "carkedit-5cc8e",
-  storageBucket: "carkedit-5cc8e.firebasestorage.app",
-  messagingSenderId: "144073275425",
-  appId: "1:144073275425:web:2301fbbccc2be69c654b60",
-};
+const FIREBASE_CONFIG = getFirebaseConfig();
 
 function renderAuthGate(msg, showSignIn = false) {
   const app = document.getElementById('app');

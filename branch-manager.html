@@ -33,6 +33,7 @@
     <div id="app"></div>
     <script type="module">
     import { renderAdminHeader, bindAdminHeader, resetAdminHeaderMenu } from './js/components/admin-header.js';
+    import { getFirebaseConfig } from './js/firebase-config.js';
 
     // Redirect to the PHP variant on any non-production env (dev/staging
     // hostnames). The .php version has the full branch-switching server
@@ -42,14 +43,7 @@
         window.location.replace('branch-manager.php');
     }
 
-    const FIREBASE_CONFIG = {
-      apiKey: "AIzaSyC6QJz6jTzJkBWV7Shd9XpCfHWrovJ9vaI",
-      authDomain: window.location.host,
-      projectId: "carkedit-5cc8e",
-      storageBucket: "carkedit-5cc8e.firebasestorage.app",
-      messagingSenderId: "144073275425",
-      appId: "1:144073275425:web:2301fbbccc2be69c654b60",
-    };
+    const FIREBASE_CONFIG = getFirebaseConfig();
 
     let firebaseAuth = null;
     let authModule = null;
