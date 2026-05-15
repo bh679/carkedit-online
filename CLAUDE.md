@@ -12,7 +12,7 @@ human oversight at each stage.
 ## Project Overview
 
 - **Project:** CarkedIt Online
-- **Live URL:** brennan.games/carkeditonline
+- **Live URL:** play.carkedit.com
 - **Repos:** carkedit-online
 - **GitHub Project:** https://github.com/bh679?tab=projects (Project #12)
 - **Wiki:** github.com/bh679/carkedit-online/wiki

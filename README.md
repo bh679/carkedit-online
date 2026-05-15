@@ -4,7 +4,7 @@ A turn-based card game web app — vanilla HTML/CSS/JS, no frameworks.
 
 **Buy the physical card game:** [carkedit.com](https://carkedit.com)
 
-**Live:** [brennan.games/carkeditonline](https://brennan.games/carkeditonline)
+**Live:** [play.carkedit.com](https://play.carkedit.com)
 
 ---
 
