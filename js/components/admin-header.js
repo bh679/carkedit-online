@@ -8,7 +8,7 @@ const NAV_LINKS = [
   { label: 'ImageAI', path: 'admin-image-gen' },
   { label: 'Costs',   path: 'financial-dashboard' },
   { label: 'Dev',     path: 'dev-dashboard' },
-  { label: 'Branch',  path: 'branch-manager' },
+  { label: 'Deploy',  path: 'deploy' },
 ];
 
 let _menuOpen = false;
