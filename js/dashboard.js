@@ -299,6 +299,7 @@ async function fetchStats() {
 let surveyStats = { count: 0, avgNps: 0, minNps: null, maxNps: null, nps: null, promoters: 0, passives: 0, detractors: 0 };
 let surveyResponses = [];
 let surveyTotal = 0;
+let surveyPageSize = 5;
 let surveyDevFilter = 'nodev'; // 'all' | 'dev' | 'nodev'
 
 async function fetchSurveyStats() {
@@ -311,18 +312,27 @@ async function fetchSurveyStats() {
   }
 }
 
-async function fetchSurveyResponses() {
+async function fetchSurveyResponses(append = false) {
   try {
+    const offset = append ? surveyResponses.length : 0;
     const devParam = surveyDevFilter !== 'all' ? `&dev=${surveyDevFilter}` : '';
-    const res = await authFetch(`${API_BASE}/api/carkedit/surveys?limit=50${devParam}`);
+    const res = await authFetch(
+      `${API_BASE}/api/carkedit/surveys?limit=${surveyPageSize}&offset=${offset}${devParam}`
+    );
     if (res.ok) {
       const data = await res.json();
-      surveyResponses = data.responses || [];
+      const incoming = data.responses || [];
+      surveyResponses = append ? [...surveyResponses, ...incoming] : incoming;
       surveyTotal = data.total || 0;
     }
   } catch (err) {
     console.warn('[dashboard] Failed to fetch survey responses:', err);
   }
+}
+
+async function loadMoreSurveys() {
+  await fetchSurveyResponses(true);
+  renderSurveyResponses();
 }
 
 async function cycleSurveyDev() {
@@ -606,12 +616,18 @@ function renderSurveyResponses() {
     `;
   }).join('');
 
+  const hasMore = surveyResponses.length < surveyTotal;
+  const loadMoreBtn = hasMore
+    ? `<button class="dashboard__load-more" onclick="window.dash.loadMoreSurveys()">Load more (${surveyResponses.length} of ${surveyTotal})</button>`
+    : '';
+
   el.innerHTML = `
     ${filterBar}
     <div class="survey-responses__summary">
       Showing ${surveyResponses.length} of ${surveyTotal} responses
     </div>
     <div class="survey-responses__list">${rows}</div>
+    ${loadMoreBtn}
   `;
 }
 
@@ -1904,7 +1920,7 @@ async function saveBaseCost(packId) {
   }
 }
 
-window.dash = { cyclePlayTime, cycleGamesCount, cyclePlayersCount, toggleGame, cycleDeckFilter, setCardSort, toggleCardSortDir, cycleCardDev, setPackFilter, setAuthorFilter, setPackSort, togglePackExpanded, cycleSurveyDev, previewCard, closePreview, prevPreviewCard, nextPreviewCard, scrollCards, loadMoreGames, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange, signInWithGoogle, signOut, toggleGameDev, toggleSurveyDev, togglePackDev, copyDebugData, openBaseCostModal, closeBaseCostModal, saveBaseCost };
+window.dash = { cyclePlayTime, cycleGamesCount, cyclePlayersCount, toggleGame, cycleDeckFilter, setCardSort, toggleCardSortDir, cycleCardDev, setPackFilter, setAuthorFilter, setPackSort, togglePackExpanded, cycleSurveyDev, previewCard, closePreview, prevPreviewCard, nextPreviewCard, scrollCards, loadMoreGames, loadMoreSurveys, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange, signInWithGoogle, signOut, toggleGameDev, toggleSurveyDev, togglePackDev, copyDebugData, openBaseCostModal, closeBaseCostModal, saveBaseCost };
 
 // ── Auth Gate UI ─────────────────────────────────────
 function renderAuthGate(message, showSignIn = true) {
