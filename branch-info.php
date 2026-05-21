@@ -2,6 +2,18 @@
 /**
  * Returns the current git branch, version, and last commit info as JSON.
  * No auth required — used by branch-banner.js to show deployment context.
+ *
+ * Handles two sources of truth for the deployed branch:
+ *   (a) `.git/HEAD` — works when the branch was checked out via the legacy
+ *       branch-manager.php (`git checkout <branch>` keeps HEAD on a ref).
+ *   (b) `branch-state.json` — required when carkedit-deploy does
+ *       `git reset --hard <sha>` (detached HEAD), since HEAD then holds a raw
+ *       SHA. The new service writes `/home/bitnami/server/branch-state.json`
+ *       with shape:
+ *         { client: { ref: { kind, value, sha }, sha, deployedAt, deployedBy } }
+ *       The legacy file lived at `<repo>/branch-state.json` with shape:
+ *         { client: "branch-name", api: "branch-name" }
+ *       Both shapes are accepted, per-field, in case of partial migration.
  */
 header('Content-Type: application/json');
 header('Cache-Control: no-cache');
@@ -12,11 +24,15 @@ $dir = __DIR__;
 $headFile = $dir . '/.git/HEAD';
 $branch = 'main';
 $ref = '';
+$detachedSha = '';
 if (is_readable($headFile)) {
     $head = trim(file_get_contents($headFile));
     if (strpos($head, 'ref: refs/heads/') === 0) {
         $branch = substr($head, 16);
         $ref = substr($head, 5); // refs/heads/branch-name
+    } elseif (preg_match('/^[0-9a-f]{40}$/', $head)) {
+        // Detached HEAD — record the SHA so commit info can still be looked up.
+        $detachedSha = $head;
     }
 }
 
@@ -30,13 +46,52 @@ if (is_readable($pkgFile)) {
     }
 }
 
-// --- Last commit info (SHA, date, message) ---
+// --- branch-state.json (used for detached-HEAD branch lookup + API branch) ---
+// Prefer the new carkedit-deploy location, fall back to the legacy in-repo one.
+$state = null;
+foreach (['/home/bitnami/server/branch-state.json', $dir . '/branch-state.json'] as $candidate) {
+    if (is_readable($candidate)) {
+        $decoded = json_decode(file_get_contents($candidate), true);
+        if (is_array($decoded)) {
+            $state = $decoded;
+            break;
+        }
+    }
+}
+
+// Resolve client branch + sha from state when HEAD didn't give us a branch
+// (i.e., detached HEAD after `git reset --hard`, or unreadable HEAD as in a
+// git worktree where `.git` is a file pointer). Attached HEAD wins over state.
 $commitSha = '';
+if ($ref === '' && is_array($state) && isset($state['client'])) {
+    $clientEntry = $state['client'];
+    if (is_array($clientEntry) && isset($clientEntry['ref']['value'])) {
+        // New shape — only treat as a branch if kind === 'branch'. Tags don't
+        // get a banner (they're version pins, typically on prod).
+        $kind = $clientEntry['ref']['kind'] ?? 'branch';
+        if ($kind === 'branch') {
+            $branch = $clientEntry['ref']['value'];
+        }
+        if (isset($clientEntry['sha']) && is_string($clientEntry['sha'])) {
+            $commitSha = $clientEntry['sha'];
+        }
+    } elseif (is_string($clientEntry)) {
+        // Legacy shape — string branch name.
+        $branch = $clientEntry;
+    }
+}
+
+// If still no commitSha but HEAD is detached, use the HEAD SHA directly.
+if ($commitSha === '' && $detachedSha !== '') {
+    $commitSha = $detachedSha;
+}
+
+// --- Last commit info (SHA, date, message) ---
 $commitDate = '';
 $commitMsg = '';
 
-// Get SHA from the ref
-if ($ref !== '') {
+// If we don't already have a SHA, look it up from the ref (attached HEAD path).
+if ($commitSha === '' && $ref !== '') {
     $refFile = $dir . '/.git/' . $ref;
     // Ref might be packed — check packed-refs if file doesn't exist
     if (is_readable($refFile)) {
@@ -53,7 +108,7 @@ if ($ref !== '') {
 }
 
 // Parse the commit object to get date and message
-if ($commitSha !== '') {
+if ($commitSha !== '' && preg_match('/^[0-9a-f]{40}$/', $commitSha)) {
     // Git objects are stored at .git/objects/XX/YYYY...
     $objPath = $dir . '/.git/objects/' . substr($commitSha, 0, 2) . '/' . substr($commitSha, 2);
     if (is_readable($objPath)) {
@@ -77,14 +132,20 @@ if ($commitSha !== '') {
     }
 }
 
-// --- API branch and version (from branch-state.json + API package.json) ---
+// --- API branch and version ---
 $apiBranch = 'main';
 $apiVersion = '';
-$stateFile = $dir . '/branch-state.json';
-if (is_readable($stateFile)) {
-    $state = json_decode(file_get_contents($stateFile), true);
-    if (is_array($state) && isset($state['api'])) {
-        $apiBranch = $state['api'];
+if (is_array($state) && isset($state['api'])) {
+    $apiEntry = $state['api'];
+    if (is_array($apiEntry) && isset($apiEntry['ref']['value'])) {
+        // New shape
+        $kind = $apiEntry['ref']['kind'] ?? 'branch';
+        if ($kind === 'branch') {
+            $apiBranch = $apiEntry['ref']['value'];
+        }
+    } elseif (is_string($apiEntry)) {
+        // Legacy shape
+        $apiBranch = $apiEntry;
     }
 }
 $apiPkg = '/home/bitnami/server/carkedit-api/package.json';
