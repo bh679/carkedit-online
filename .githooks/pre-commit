@@ -1,0 +1,18 @@
+#!/bin/sh
+# .githooks/pre-commit
+#
+# Stamp `requiredApiVersion` in package.json from sibling carkedit-api before
+# every commit. Re-stages package.json so the stamp is part of the commit.
+#
+# Implementation note: the stamping logic lives in
+# scripts/stamp-required-api-version.js so it can be unit-tested. This hook is
+# just the thin shell wrapper that git invokes. The stamping script ALWAYS
+# exits 0 (it warns on failure rather than blocking the commit).
+
+set -e
+
+# Resolve repo root so the hook works from any subdirectory.
+REPO_ROOT=$(git rev-parse --show-toplevel)
+
+node "$REPO_ROOT/scripts/stamp-required-api-version.js" --cwd "$REPO_ROOT"
+git add "$REPO_ROOT/package.json"
