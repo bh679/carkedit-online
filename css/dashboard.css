@@ -965,6 +965,10 @@ body {
   background: var(--color-surface);
   color: var(--color-text);
   padding: 0 28px 0 var(--space-sm);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   -webkit-appearance: none;
   -moz-appearance: none;
   appearance: none;
