@@ -1385,6 +1385,11 @@ function renderCardAnalytics() {
   const cardDevLabels = { all: 'With Dev', nodev: 'No Dev', dev: 'Only Dev' };
   const cardDevActive = cardDevFilter !== 'all' ? 'dashboard__filter-btn--active' : '';
 
+  const truncateLabel = (str, max = 28) => {
+    const s = String(str ?? '');
+    return s.length > max ? s.slice(0, max - 1) + '…' : s;
+  };
+
   const packOption = (value, label) =>
     `<option value="${value}" ${cardPackFilter === value ? 'selected' : ''}>${label}</option>`;
 
@@ -1406,7 +1411,7 @@ function renderCardAnalytics() {
         <select class="dashboard__sort-select" onchange="window.dash.setPackFilter(this.value)">
           ${packOption('all', 'All Packs')}
           ${cardAuthorFilter === 'all' ? packOption('base', 'Base Game') : ''}
-          ${packList.filter(p => cardAuthorFilter === 'all' || packCreatorMap[p.id] === cardAuthorFilter).map(p => packOption(p.id, p.title)).join('')}
+          ${packList.filter(p => cardAuthorFilter === 'all' || packCreatorMap[p.id] === cardAuthorFilter).map(p => packOption(p.id, truncateLabel(p.title))).join('')}
         </select>
         <select class="dashboard__sort-select" onchange="window.dash.setAuthorFilter(this.value)">
           ${authorOption('all', 'All Authors')}
