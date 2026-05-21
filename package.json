@@ -1,19 +1,26 @@
 {
   "name": "carkedit-online",
-  "version": "1.06.0186",
+  "version": "1.06.0187",
   "description": "CarkedIt Online — turn-based card game web app (vanilla HTML/CSS/JS)",
+  "requiredApiVersion": "0.02.0005",
   "main": "index.html",
   "engines": {
     "node": ">=22.22.2"
   },
   "scripts": {
+    "prepare": "node scripts/install-githooks.js",
     "prestart": "bash scripts/setup-worktree-assets.sh",
     "start": "npx http-server . -p ${PORT:-4600} -c-1",
+    "stamp-api-version": "node scripts/stamp-required-api-version.js",
     "test": "playwright test",
-    "test:unit": "node --test 'js/**/*.test.js'",
+    "test:unit": "node --test 'js/**/*.test.js' 'scripts/**/*.test.js'",
     "test:report": "playwright show-report"
   },
-  "keywords": ["card-game", "multiplayer", "vanilla-js"],
+  "keywords": [
+    "card-game",
+    "multiplayer",
+    "vanilla-js"
+  ],
   "author": "bh679",
   "license": "BUSL-1.1",
   "devDependencies": {
