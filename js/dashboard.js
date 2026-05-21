@@ -671,6 +671,13 @@ function escapeHtml(s) {
     .replace(/"/g, '&quot;');
 }
 
+function buildSurveysSeeAllHref() {
+  const params = new URLSearchParams();
+  if (surveyDevFilter !== 'all') params.set('dev', surveyDevFilter);
+  const qs = params.toString();
+  return qs ? `stats-surveys.html?${qs}` : 'stats-surveys.html';
+}
+
 function renderSurveyResponses() {
   const el = document.getElementById('survey-responses');
   if (!el) return;
@@ -682,6 +689,8 @@ function renderSurveyResponses() {
       <button class="dashboard__filter-btn ${devActive}" onclick="window.dash.cycleSurveyDev()">${devLabels[surveyDevFilter]}</button>
     </div>
   `;
+
+  const seeAllBtn = `<a class="dashboard__see-all" href="${buildSurveysSeeAllHref()}">See all</a>`;
 
   if (surveyResponses.length === 0) {
     el.innerHTML = `${filterBar}<p class="dashboard__empty">No survey responses yet.</p>`;
@@ -713,6 +722,8 @@ function renderSurveyResponses() {
   const loadMoreBtn = hasMore
     ? `<button class="dashboard__load-more" onclick="window.dash.loadMoreSurveys()">Load more (${surveyResponses.length} of ${surveyTotal})</button>`
     : '';
+  const actionsClass = hasMore ? 'dashboard__list-actions' : 'dashboard__list-actions dashboard__list-actions--solo';
+  const actions = `<div class="${actionsClass}">${loadMoreBtn}${seeAllBtn}</div>`;
 
   el.innerHTML = `
     ${filterBar}
@@ -720,7 +731,7 @@ function renderSurveyResponses() {
       Showing ${surveyResponses.length} of ${surveyTotal} responses
     </div>
     <div class="survey-responses__list">${rows}</div>
-    ${loadMoreBtn}
+    ${actions}
   `;
 }
 
@@ -1445,6 +1456,16 @@ function renderPlayerChips() {
   return `<div class="dashboard__chip-row" data-row="players"><span class="dashboard__chip-label">Players:</span>${chips}</div>`;
 }
 
+function buildGamesSeeAllHref() {
+  const params = new URLSearchParams();
+  if (filterErrorsOnly) params.set('errorsOnly', '1');
+  if (filterDev !== 'all') params.set('dev', filterDev);
+  if (filterStatus !== 'all') params.set('status', filterStatus);
+  if (filterDateRange !== 'all') params.set('dateRange', filterDateRange);
+  const qs = params.toString();
+  return qs ? `stats-games.html?${qs}` : 'stats-games.html';
+}
+
 function renderGameList() {
   const el = document.getElementById('game-list');
   if (!el) return;
@@ -1453,6 +1474,9 @@ function renderGameList() {
   const loadMoreBtn = hasMore
     ? `<button class="dashboard__load-more" onclick="window.dash.loadMoreGames()">Load more (${games.length} of ${gamesTotalCount})</button>`
     : '';
+  const seeAllBtn = `<a class="dashboard__see-all" href="${buildGamesSeeAllHref()}">See all</a>`;
+  const actionsClass = hasMore ? 'dashboard__list-actions' : 'dashboard__list-actions dashboard__list-actions--solo';
+  const actions = `<div class="${actionsClass}">${loadMoreBtn}${seeAllBtn}</div>`;
 
   el.innerHTML = `
     ${renderGameFilters()}
@@ -1472,7 +1496,7 @@ function renderGameList() {
         <span class="dashboard__cell dashboard__cell--issue"></span>
       </div>
       ${games.map(renderGameCard).join('')}
-      ${loadMoreBtn}
+      ${actions}
     `}
   `;
 }
