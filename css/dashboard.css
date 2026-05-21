@@ -1017,6 +1017,118 @@ body {
   color: var(--color-white);
 }
 
+.dashboard__filter-btn__count {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 1px 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  color: inherit;
+  line-height: 1.4;
+}
+
+/* Chip rows: status groups, duration buckets, player counts */
+.dashboard__chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  align-items: center;
+  margin-top: var(--space-xs);
+}
+
+.dashboard__chip-row--sub {
+  margin-top: 4px;
+  margin-left: var(--space-xs);
+  padding-left: var(--space-xs);
+  border-left: 2px solid var(--color-border);
+}
+
+.dashboard__chip-label {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-right: 2px;
+}
+
+.dashboard__chip-empty {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.dashboard__chip-wrap {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 0;
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+.dashboard__chip {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dashboard__chip:hover {
+  border-color: var(--color-primary);
+}
+
+.dashboard__chip--hidden {
+  background: transparent;
+  color: var(--color-text-muted);
+  text-decoration: line-through;
+  opacity: 0.55;
+}
+
+.dashboard__chip--expand {
+  padding: 0 6px;
+  margin-left: -1px;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.dashboard__chip--raw {
+  font-size: 0.7rem;
+  height: 24px;
+  padding: 0 8px;
+}
+
+.dashboard__chip__count {
+  display: inline-block;
+  padding: 1px 6px;
+  font-size: 0.7rem;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  color: inherit;
+  line-height: 1.4;
+}
+
+.dashboard__chip__chevron {
+  display: inline-block;
+  font-size: 0.85rem;
+  line-height: 1;
+  transition: transform 0.15s ease;
+}
+
+.dashboard__chip__chevron--expanded {
+  transform: rotate(90deg);
+}
+
 /* Card row sections (full width, horizontal scroll) */
 .dashboard__card-row-section {
   margin-bottom: var(--space-md);

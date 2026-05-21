@@ -69,7 +69,27 @@ let expandedGameId = null;
 let filterDateRange = 'today'; // 'all' | 'today' | 'week' | 'month'
 let filterErrorsOnly = false;
 let filterDev = 'nodev'; // 'all' | 'dev' | 'nodev'
-let filterStatus = 'all'; // 'all' | 'finished' | 'abandoned' | 'live'
+let filterStatus = 'all'; // 'all' | 'started' | 'finished' | 'abandoned' | 'live'
+let filterHideGroups = new Set();
+let filterHideRaw = new Set();
+let filterHideDuration = new Set();
+let filterHidePlayers = new Set();
+let filterCounts = { total: 0, date: {}, errors: {}, dev: {}, status: {}, groups: {}, raw: {}, duration: {}, players: {} };
+let expandedGroups = new Set();
+
+const STATUS_GROUP_ORDER = ['lobby', 'die', 'living', 'bye', 'eulogy', 'finished', 'other'];
+const STATUS_GROUP_MEMBERS = {
+  lobby:    ['lobby', ''],
+  die:      ['die', 'die_phase'],
+  living:   ['live', 'living_setup', 'living_submit', 'living_reveal', 'living_convince', 'living_select', 'living_winner'],
+  bye:      ['bye', 'bye_setup', 'bye_submit', 'bye_reveal', 'bye_convince', 'bye_select', 'bye_winner'],
+  eulogy:   ['eulogy', 'eulogy_intro', 'eulogy_pick', 'eulogy_speech', 'eulogy_judge', 'eulogy_points'],
+  finished: ['finished', 'winner', 'game_over'],
+  other:    ['abandoned'],
+};
+const STATUS_GROUP_LABELS = { lobby: 'Lobby', die: 'Die', living: 'Living', bye: 'Bye', eulogy: 'Eulogy', finished: 'Finished', other: 'Other' };
+const DURATION_ORDER = ['under5', '5to15', '15to30', 'over30', 'unknown'];
+const DURATION_LABELS = { under5: '<5m', '5to15': '5–15m', '15to30': '15–30m', over30: '30m+', unknown: 'unknown' };
 
 // Card data lookup (loaded from JSON files for images)
 const cardDataMap = {}; // key: `${deck}-${id}` → card object with illustrationKey
@@ -198,10 +218,8 @@ function rowClass(game) {
 }
 
 // ── Data Fetching ────────────────────────────────────
-function buildGamesUrl(limit, offset) {
+function buildGameFilterParams() {
   const params = new URLSearchParams();
-  params.set('limit', String(limit));
-  params.set('offset', String(offset));
   if (filterDateRange !== 'all') {
     const now = new Date();
     let dateFrom;
@@ -219,15 +237,40 @@ function buildGamesUrl(limit, offset) {
   if (filterErrorsOnly) params.set('errorsOnly', 'true');
   if (filterDev !== 'all') params.set('dev', filterDev);
   if (filterStatus !== 'all') params.set('status', filterStatus);
+  if (filterHideGroups.size > 0)   params.set('hideGroups', [...filterHideGroups].join(','));
+  if (filterHideRaw.size > 0)      params.set('hideRaw', [...filterHideRaw].join(','));
+  if (filterHideDuration.size > 0) params.set('hideDurationBuckets', [...filterHideDuration].join(','));
+  if (filterHidePlayers.size > 0)  params.set('hidePlayerCounts', [...filterHidePlayers].join(','));
+  return params;
+}
+
+function buildGamesUrl(limit, offset) {
+  const params = buildGameFilterParams();
+  params.set('limit', String(limit));
+  params.set('offset', String(offset));
   return `${API_BASE}/api/carkedit/games?${params}`;
+}
+
+async function fetchFilterCounts() {
+  try {
+    const url = `${API_BASE}/api/carkedit/games/filter-counts?${buildGameFilterParams()}`;
+    const res = await authFetch(url);
+    if (!res.ok) return;
+    filterCounts = await res.json();
+  } catch (err) {
+    console.warn('[dashboard] Failed to fetch filter counts:', err);
+  }
 }
 
 async function fetchGames(append = false) {
   try {
     const offset = append ? games.length : 0;
-    const res = await authFetch(buildGamesUrl(gamesPageSize, offset));
-    if (!res.ok) return;
-    const data = await res.json();
+    const [gamesRes] = await Promise.all([
+      authFetch(buildGamesUrl(gamesPageSize, offset)),
+      append ? Promise.resolve() : fetchFilterCounts(),
+    ]);
+    if (!gamesRes.ok) return;
+    const data = await gamesRes.json();
     if (append) {
       games = [...games, ...(data.games || [])];
     } else {
@@ -257,10 +300,40 @@ function setGameFilter(key, value) {
 }
 
 function cycleStatus() {
-  const opts = ['all', 'finished', 'abandoned', 'live'];
+  const opts = ['all', 'started', 'finished', 'abandoned', 'live'];
   const idx = opts.indexOf(filterStatus);
   filterStatus = opts[(idx + 1) % opts.length];
   applyGameFilters();
+}
+
+function toggleHideGroup(group) {
+  if (filterHideGroups.has(group)) filterHideGroups.delete(group);
+  else filterHideGroups.add(group);
+  applyGameFilters();
+}
+
+function toggleHideRaw(raw) {
+  if (filterHideRaw.has(raw)) filterHideRaw.delete(raw);
+  else filterHideRaw.add(raw);
+  applyGameFilters();
+}
+
+function toggleHideDuration(bucket) {
+  if (filterHideDuration.has(bucket)) filterHideDuration.delete(bucket);
+  else filterHideDuration.add(bucket);
+  applyGameFilters();
+}
+
+function toggleHidePlayers(key) {
+  if (filterHidePlayers.has(key)) filterHidePlayers.delete(key);
+  else filterHidePlayers.add(key);
+  applyGameFilters();
+}
+
+function toggleExpandGroup(group) {
+  if (expandedGroups.has(group)) expandedGroups.delete(group);
+  else expandedGroups.add(group);
+  renderGameList();
 }
 
 function cycleDev() {
@@ -1259,7 +1332,7 @@ function renderGameCard(game) {
 }
 
 function renderGameFilters() {
-  const statusLabels = { all: 'All Status', finished: 'Finished', abandoned: 'Abandon', live: 'Live' };
+  const statusLabels = { all: 'All Status', started: 'Started', finished: 'Finished', abandoned: 'Abandon', live: 'Live' };
   const devLabels = { all: 'With Dev', nodev: 'No Dev', dev: 'Only Dev' };
   const dateLabels = { all: 'All Time', today: 'Today', week: 'This Week', month: 'This Month' };
   const errActive = filterErrorsOnly ? 'dashboard__filter-btn--active' : '';
@@ -1267,13 +1340,109 @@ function renderGameFilters() {
   const devActive = filterDev !== 'all' ? 'dashboard__filter-btn--active' : '';
   const dateActive = filterDateRange !== 'all' ? 'dashboard__filter-btn--active' : '';
 
+  const dateCount = (filterCounts.date && filterCounts.date[filterDateRange]) ?? 0;
+  const errorsCount = filterErrorsOnly ? (filterCounts.errors?.on ?? 0) : (filterCounts.errors?.on ?? 0);
+  const devCount = (filterCounts.dev && filterCounts.dev[filterDev]) ?? 0;
+  const statusCount = (filterCounts.status && filterCounts.status[filterStatus]) ?? 0;
+
   return `
     <div class="dashboard__game-filters">
-      <button class="dashboard__filter-btn ${dateActive}" onclick="window.dash.cycleDateRange()">${dateLabels[filterDateRange]}</button>
-      <button class="dashboard__filter-btn ${errActive}" onclick="window.dash.setGameFilter('errorsOnly', ${!filterErrorsOnly})">Errors</button>
-      <button class="dashboard__filter-btn ${devActive}" onclick="window.dash.cycleDev()">${devLabels[filterDev]}</button>
-      <button class="dashboard__filter-btn ${statusActive}" onclick="window.dash.cycleStatus()">${statusLabels[filterStatus]}</button>
+      <button class="dashboard__filter-btn ${dateActive}" onclick="window.dash.cycleDateRange()">${dateLabels[filterDateRange]} <span class="dashboard__filter-btn__count">${dateCount}</span></button>
+      <button class="dashboard__filter-btn ${errActive}" onclick="window.dash.setGameFilter('errorsOnly', ${!filterErrorsOnly})">Errors <span class="dashboard__filter-btn__count">${errorsCount}</span></button>
+      <button class="dashboard__filter-btn ${devActive}" onclick="window.dash.cycleDev()">${devLabels[filterDev]} <span class="dashboard__filter-btn__count">${devCount}</span></button>
+      <button class="dashboard__filter-btn ${statusActive}" onclick="window.dash.cycleStatus()">${statusLabels[filterStatus]} <span class="dashboard__filter-btn__count">${statusCount}</span></button>
     </div>`;
+}
+
+function renderStatusChips() {
+  const groups = filterCounts.groups || {};
+  const raw = filterCounts.raw || {};
+  const chips = STATUS_GROUP_ORDER.map(g => {
+    const count = groups[g] ?? 0;
+    const hidden = filterHideGroups.has(g);
+    const expanded = expandedGroups.has(g);
+    const label = STATUS_GROUP_LABELS[g] || g;
+    const hiddenCls = hidden ? 'dashboard__chip--hidden' : '';
+    const expCls = expanded ? 'dashboard__chip__chevron--expanded' : '';
+    const sub = expanded ? renderRawChipsForGroup(g, raw) : '';
+    return `
+      <div class="dashboard__chip-wrap">
+        <button class="dashboard__chip ${hiddenCls}" onclick="window.dash.toggleHideGroup('${g}')">
+          ${label} <span class="dashboard__chip__count">${count}</span>
+        </button>
+        <button class="dashboard__chip dashboard__chip--expand" onclick="window.dash.toggleExpandGroup('${g}')" title="Show raw sub-statuses">
+          <span class="dashboard__chip__chevron ${expCls}">›</span>
+        </button>
+        ${sub}
+      </div>`;
+  }).join('');
+
+  // Detect any raw status not in any group (drift warning).
+  for (const r of Object.keys(raw)) {
+    let inGroup = false;
+    for (const members of Object.values(STATUS_GROUP_MEMBERS)) {
+      if (members.includes(r)) { inGroup = true; break; }
+    }
+    if (!inGroup) console.warn('[dashboard] status not in any group:', r);
+  }
+
+  return `<div class="dashboard__chip-row" data-row="status">${chips}</div>`;
+}
+
+function renderRawChipsForGroup(group, raw) {
+  const members = STATUS_GROUP_MEMBERS[group] || [];
+  // Skip the empty-string member from the raw expansion — empty-status games are
+  // already covered by the Lobby group toggle (and an empty CSV param can't be
+  // round-tripped through the hideRaw URL parameter).
+  const chips = members.filter(m => m !== '' && ((raw[m] ?? 0) > 0 || filterHideRaw.has(m))).map(m => {
+    const count = raw[m] ?? 0;
+    const hidden = filterHideRaw.has(m);
+    const hiddenCls = hidden ? 'dashboard__chip--hidden' : '';
+    return `
+      <button class="dashboard__chip dashboard__chip--raw ${hiddenCls}" onclick="window.dash.toggleHideRaw('${m}')">
+        ${m} <span class="dashboard__chip__count">${count}</span>
+      </button>`;
+  }).join('');
+  if (!chips) return `<div class="dashboard__chip-row dashboard__chip-row--sub"><span class="dashboard__chip-empty">no sub-statuses</span></div>`;
+  return `<div class="dashboard__chip-row dashboard__chip-row--sub">${chips}</div>`;
+}
+
+function renderDurationChips() {
+  const counts = filterCounts.duration || {};
+  const chips = DURATION_ORDER
+    .filter(key => (counts[key] ?? 0) > 0 || filterHideDuration.has(key))
+    .map(key => {
+      const count = counts[key] ?? 0;
+      const hidden = filterHideDuration.has(key);
+      const hiddenCls = hidden ? 'dashboard__chip--hidden' : '';
+      return `
+        <button class="dashboard__chip ${hiddenCls}" onclick="window.dash.toggleHideDuration('${key}')">
+          ${DURATION_LABELS[key] || key} <span class="dashboard__chip__count">${count}</span>
+        </button>`;
+    }).join('');
+  if (!chips) return '';
+  return `<div class="dashboard__chip-row" data-row="duration"><span class="dashboard__chip-label">Length:</span>${chips}</div>`;
+}
+
+function renderPlayerChips() {
+  const counts = filterCounts.players || {};
+  const keys = Object.keys(counts).sort((a, b) => {
+    if (a === '7plus') return 1;
+    if (b === '7plus') return -1;
+    return Number(a) - Number(b);
+  });
+  if (keys.length === 0) return '';
+  const chips = keys.map(key => {
+    const count = counts[key] ?? 0;
+    const hidden = filterHidePlayers.has(key);
+    const hiddenCls = hidden ? 'dashboard__chip--hidden' : '';
+    const label = key === '7plus' ? '7+' : key;
+    return `
+      <button class="dashboard__chip ${hiddenCls}" onclick="window.dash.toggleHidePlayers('${key}')">
+        ${label} <span class="dashboard__chip__count">${count}</span>
+      </button>`;
+  }).join('');
+  return `<div class="dashboard__chip-row" data-row="players"><span class="dashboard__chip-label">Players:</span>${chips}</div>`;
 }
 
 function renderGameList() {
@@ -1287,6 +1456,9 @@ function renderGameList() {
 
   el.innerHTML = `
     ${renderGameFilters()}
+    ${renderStatusChips()}
+    ${renderDurationChips()}
+    ${renderPlayerChips()}
     ${games.length === 0 ? '<p class="dashboard__empty">No games match filters.</p>' : `
       <div class="dashboard__list-header">
         <span class="dashboard__cell dashboard__cell--date">Date/Time</span>
@@ -2015,7 +2187,7 @@ async function saveBaseCost(packId) {
   }
 }
 
-window.dash = { cyclePlayTime, cycleGamesCount, cyclePlayersCount, toggleGame, cycleDeckFilter, setCardSort, toggleCardSortDir, cycleCardDev, setPackFilter, setAuthorFilter, setPackSort, togglePackExpanded, cycleSurveyDev, cycleUserStatsDev, previewCard, closePreview, prevPreviewCard, nextPreviewCard, scrollCards, loadMoreGames, loadMoreSurveys, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange, signInWithGoogle, signOut, toggleGameDev, toggleSurveyDev, togglePackDev, copyDebugData, openBaseCostModal, closeBaseCostModal, saveBaseCost };
+window.dash = { cyclePlayTime, cycleGamesCount, cyclePlayersCount, toggleGame, cycleDeckFilter, setCardSort, toggleCardSortDir, cycleCardDev, setPackFilter, setAuthorFilter, setPackSort, togglePackExpanded, cycleSurveyDev, cycleUserStatsDev, previewCard, closePreview, prevPreviewCard, nextPreviewCard, scrollCards, loadMoreGames, loadMoreSurveys, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange, toggleHideGroup, toggleHideRaw, toggleHideDuration, toggleHidePlayers, toggleExpandGroup, signInWithGoogle, signOut, toggleGameDev, toggleSurveyDev, togglePackDev, copyDebugData, openBaseCostModal, closeBaseCostModal, saveBaseCost };
 
 // ── Auth Gate UI ─────────────────────────────────────
 function renderAuthGate(message, showSignIn = true) {
