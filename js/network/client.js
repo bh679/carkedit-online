@@ -399,6 +399,7 @@ export function resyncFromRoomState() {
       screen: 'phase1',
       onlinePhase: 'die_intro',
       onlinePlayers: syncPlayersFromRoom(room),
+      players: buildPlayersFromOnline(room),
     });
     if (_onScreenChange) _onScreenChange('phase1');
     return;
@@ -511,6 +512,7 @@ function setupRoomListeners(room, onUpdate) {
         playerDieCards: {},
         onlinePhase: 'die_intro',
         onlinePlayers: syncPlayersFromRoom(room),
+        players: buildPlayersFromOnline(room),
       });
       if (_onScreenChange) _onScreenChange('phase1');
     } else if (phase === 'die_phase' && state.screen !== 'phase1') {
@@ -781,7 +783,9 @@ function setupRoomListeners(room, onUpdate) {
         if (_onScreenChange) _onScreenChange('phase4');
       } else if (introPhases.includes(room.state.phase)) {
         // Intro phases just need a re-render so updated player.ready states
-        // refresh the ready chips. onlinePlayers is already updated above.
+        // refresh the ready chips. Keep state.players in sync so the header
+        // list updates too.
+        setState({ players: buildPlayersFromOnline(room) });
         if (_onScreenChange) _onScreenChange(s.screen);
       } else if (s.onlinePhase) {
         const lbState = syncLivingPhaseState(room);

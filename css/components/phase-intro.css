@@ -1,12 +1,22 @@
 /* CarkedIt Online — Phase Intro Component */
 
 .phase-intro__layout {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   width: 100%;
   gap: var(--space-sm);
   padding: var(--space-sm) var(--space-md);
+}
+
+/* The active card must grow to fill remaining vertical space so the
+   card slot has a non-zero height for its container-query sizing. */
+.phase-intro__layout > .gameboard__active-card {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
 }
 
 .phase-intro__description {
