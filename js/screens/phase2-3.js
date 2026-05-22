@@ -9,11 +9,12 @@ import { render as renderCardGrid } from '../components/card-grid.js';
 import { render as renderLivingDeadProfile } from '../components/living-dead-profile.js';
 import { render as renderPassPhone } from '../components/pass-phone.js';
 import { render as renderCardBack } from '../components/cardBack.js';
+import { render as renderPhaseIntro } from '../components/phase-intro.js';
 import { escapeHtml } from '../utils/escape.js';
 
 const PHASE_CONFIG = {
-  live: { number: '2', label: 'Phase 2 - LIVE', deckType: 'live', nextScreen: 'phase3' },
-  bye:  { number: '3', label: 'Phase 3 - BYE',  deckType: 'bye',  nextScreen: 'phase4' },
+  live: { number: '2', label: 'Phase 2 - LIVE', deckType: 'live', nextScreen: 'phase3', introOnlinePhase: 'live_intro' },
+  bye:  { number: '3', label: 'Phase 3 - BYE',  deckType: 'bye',  nextScreen: 'phase4', introOnlinePhase: 'bye_intro' },
 };
 
 /**
@@ -50,6 +51,22 @@ function layout(config, state, playerListOptions, children) {
  */
 export function render(phase, state) {
   const config = PHASE_CONFIG[phase];
+  const isOnline = state.gameMode === 'online';
+
+  // Phase intro screen — shown before any cards are dealt.
+  if ((state.phaseIntroShowing && !isOnline) || state.onlinePhase === config.introOnlinePhase) {
+    const players = isOnline ? state.onlinePlayers : [];
+    const myPlayer = isOnline ? players.find(p => p.sessionId === state.mySessionId) : null;
+    return renderPhaseIntro({
+      phaseNumber: config.number,
+      state,
+      isOnline,
+      players,
+      amReady: myPlayer?.ready ?? false,
+      isFuneralDirector: isOnline ? state.isHost : true,
+      allReady: isOnline && players.length > 0 && players.every(p => p.ready),
+    });
+  }
 
   // Phase complete — show transition screen
   if (state.phaseComplete) {

@@ -1,0 +1,115 @@
+/* CarkedIt Online — Phase Intro Component */
+
+.phase-intro__layout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+}
+
+.phase-intro__description {
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--color-white);
+  text-align: center;
+  max-width: 28em;
+  padding: var(--space-sm) 0;
+}
+
+.phase-intro__ready-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-xs);
+  padding-top: var(--space-xs);
+  width: 100%;
+}
+
+.phase-intro__ready-chip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  min-width: 80px;
+}
+
+.phase-intro__ready-chip--ready {
+  background: rgba(46, 204, 113, 0.2);
+  border-color: rgba(46, 204, 113, 0.5);
+}
+
+.phase-intro__ready-chip-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-white);
+}
+
+.phase-intro__ready-chip-status {
+  font-size: 11px;
+  color: var(--color-text-70);
+  margin-top: 2px;
+}
+
+.phase-intro__ready-chip--ready .phase-intro__ready-chip-status {
+  color: rgb(46, 204, 113);
+}
+
+.phase-intro__actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  width: 100%;
+  align-items: stretch;
+  padding-top: var(--space-sm);
+}
+
+.phase-intro__actions .btn {
+  width: 100%;
+}
+
+.phase-intro__start-anyway {
+  font-size: 14px;
+}
+
+/* Phase 4 wildcard-holder list (reused styling, lighter for the intro) */
+.phase-intro__wildcard-holders {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: var(--space-xs) 0;
+  text-align: center;
+}
+
+.phase-intro__wildcard-holders-subtitle {
+  font-size: 13px;
+  color: var(--color-text-70);
+}
+
+.phase-intro__wildcard-names {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+
+.phase-intro__wildcard-name {
+  padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-white);
+}
+
+.phase-intro__no-wildcards {
+  font-size: 13px;
+  color: var(--color-text-70);
+  text-align: center;
+  padding: var(--space-xs) 0;
+}

@@ -9,7 +9,22 @@ import { render as renderLivingDeadProfile } from '../components/living-dead-pro
 import { render as renderPassPhone } from '../components/pass-phone.js';
 import { render as renderPhaseHeader } from '../components/phase-header.js';
 import { render as renderSurvey, hasSubmitted as surveySubmitted, showScores as surveyShowScores } from './survey.js';
+import { render as renderPhaseIntro } from '../components/phase-intro.js';
 import { escapeHtml } from '../utils/escape.js';
+
+function buildWildcardHoldersHtml(wildcardPlayers) {
+  if (!wildcardPlayers || wildcardPlayers.length === 0) {
+    return `<div class="phase-intro__no-wildcards"><p>No players held Eulogy Wildcards.</p></div>`;
+  }
+  return `
+    <div class="phase-intro__wildcard-holders">
+      <p class="phase-intro__wildcard-holders-subtitle">Players with Eulogy Wildcards:</p>
+      <div class="phase-intro__wildcard-names">
+        ${wildcardPlayers.map(name => `<span class="phase-intro__wildcard-name">${escapeHtml(name)}</span>`).join('')}
+      </div>
+    </div>
+  `;
+}
 
 const PHASE_LABEL = 'Phase 4 - EULOGY';
 
@@ -81,50 +96,18 @@ function renderOnline(state, subState) {
 
 function renderOnlineWildcardIntro(state) {
   const wildcardPlayers = state.wildcardPlayers ?? [];
-  const hasWildcards = wildcardPlayers.length > 0;
-
-  const wildcardDisplayCard = buildCard({
-    id: 'wildcard-intro',
-    title: 'Wildcard Eulogy',
-    description: 'Save this card until the end, for a chance at bonus points!',
-    prompt: 'Bonus Mini-Game: pick 2 players to give your Eulogy!',
-    illustrationKey: 'wildcard-eulogy',
-    deckType: 'bye',
+  const players = state.onlinePlayers ?? [];
+  const myPlayer = players.find(p => p.sessionId === state.mySessionId);
+  return renderPhaseIntro({
+    phaseNumber: '4',
+    state,
+    extraContent: buildWildcardHoldersHtml(wildcardPlayers),
+    isOnline: true,
+    players,
+    amReady: myPlayer?.ready ?? false,
+    isFuneralDirector: state.isHost,
+    allReady: players.length > 0 && players.every(p => p.ready),
   });
-  const wildcardCardHtml = renderActiveCard(
-    renderCard(wildcardDisplayCard),
-    { label: 'Wildcard Eulogy' },
-  );
-
-  const playerListHtml = hasWildcards
-    ? `<div class="phase4__wildcard-holders">
-        <h3 class="phase4__wildcard-holders-title">The Living Dead</h3>
-        <p class="phase4__wildcard-holders-subtitle">Players with Eulogy Wildcards:</p>
-        <div class="phase4__wildcard-names">
-          ${wildcardPlayers.map(name => `<span class="phase4__wildcard-name">${name}</span>`).join('')}
-        </div>
-      </div>`
-    : `<div class="phase4__no-wildcards">
-        <p>No players held Eulogy Wildcards.</p>
-      </div>`;
-
-  // Only host or wildcard holder can start
-  const canStart = state.isHost || state.isCurrentWildcardPlayer;
-  const actionBtn = hasWildcards
-    ? (canStart
-        ? `<button class="btn btn--primary" onclick="window.game.startEulogyRound()">Start Eulogy Round</button>`
-        : `<p class="phase4__waiting">Waiting for the host to start...</p>`)
-    : (canStart
-        ? `<button class="btn btn--primary" onclick="window.game.revealWinner()">Reveal Winner</button>`
-        : `<p class="phase4__waiting">Waiting for results...</p>`);
-
-  return layout(state, { funeralDirector: state.funeralDirector }, `
-    ${renderGameboard(wildcardCardHtml, 'Wildcard Eulogy Round')}
-    ${playerListHtml}
-    <div class="phase-actions">
-      ${actionBtn}
-    </div>
-  `);
 }
 
 function renderOnlinePickEulogists(state) {
@@ -334,45 +317,13 @@ function renderOnlinePointsAwarded(state) {
 
 function renderWildcardIntro(state) {
   const wildcardPlayers = state.wildcardPlayers ?? [];
-  const hasWildcards = wildcardPlayers.length > 0;
-
-  // Hardcoded wildcard card for intro display
-  const wildcardDisplayCard = buildCard({
-    id: 'wildcard-intro',
-    title: 'Wildcard Eulogy',
-    description: 'Save this card until the end, for a chance at bonus points!',
-    prompt: 'Bonus Mini-Game: pick 2 players to give your Eulogy!',
-    illustrationKey: 'wildcard-eulogy',
-    deckType: 'bye',
+  return renderPhaseIntro({
+    phaseNumber: '4',
+    state,
+    extraContent: buildWildcardHoldersHtml(wildcardPlayers),
+    isOnline: false,
+    isFuneralDirector: true,
   });
-  const wildcardCardHtml = renderActiveCard(
-    renderCard(wildcardDisplayCard),
-    { label: 'Wildcard Eulogy' },
-  );
-
-  const playerListHtml = hasWildcards
-    ? `<div class="phase4__wildcard-holders">
-        <h3 class="phase4__wildcard-holders-title">The Living Dead</h3>
-        <p class="phase4__wildcard-holders-subtitle">Players with Eulogy Wildcards:</p>
-        <div class="phase4__wildcard-names">
-          ${wildcardPlayers.map(name => `<span class="phase4__wildcard-name">${name}</span>`).join('')}
-        </div>
-      </div>`
-    : `<div class="phase4__no-wildcards">
-        <p>No players held Eulogy Wildcards.</p>
-      </div>`;
-
-  const actionBtn = hasWildcards
-    ? `<button class="btn btn--primary" onclick="window.game.startEulogyRound()">Start Eulogy Round</button>`
-    : `<button class="btn btn--primary" onclick="window.game.revealWinner()">Reveal Winner</button>`;
-
-  return layout(state, { funeralDirector: state.funeralDirector }, `
-    ${renderGameboard(wildcardCardHtml, 'Wildcard Eulogy Round')}
-    ${playerListHtml}
-    <div class="phase-actions">
-      ${actionBtn}
-    </div>
-  `);
 }
 
 function renderPickEulogists(state) {

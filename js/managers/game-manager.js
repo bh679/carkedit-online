@@ -74,11 +74,58 @@ export function startPhase1() {
     phaseComplete: false,
     playerDieCards: {},
     currentCard: null,
+    phaseIntroShowing: getState().gameMode === 'local',
   });
   showScreen('phase1');
 
   currentPhaseManager = createPhase1Manager({ onStateChange, onPhaseComplete });
-  currentPhaseManager.start();
+  if (getState().gameMode !== 'local') {
+    currentPhaseManager.start();
+  }
+}
+
+/**
+ * Dismiss the local-mode phase intro screen and start the phase's gameplay.
+ * Called from window.game.dismissPhaseIntro() — the "Start Phase" button on the
+ * intro screen for phases 1–3. For Phase 4, the existing wildcard-intro substate
+ * is dismissed via startEulogyRound() (which the intro component invokes here).
+ */
+export function dismissPhaseIntro() {
+  const state = getState();
+  if (state.phase === 4) {
+    // Phase 4's intro is gated by phase4SubState === 'wildcard-intro';
+    // advancing means starting the eulogy round (or revealing winner if no wildcards).
+    if ((state.wildcardPlayers ?? []).length === 0) {
+      revealWinner();
+    } else {
+      startEulogyRound();
+    }
+    return;
+  }
+  setState({ phaseIntroShowing: false });
+  showScreen(state.screen);
+  if (currentPhaseManager?.start) {
+    currentPhaseManager.start();
+  }
+}
+
+/**
+ * Online-mode: toggle the local player's ready state for the current phase
+ * intro. Reuses the existing 'ready' WebSocket message that the lobby uses;
+ * the server-side handler now accepts ready toggles in *_intro phases too.
+ */
+export function toggleIntroReady() {
+  if (getState().gameMode !== 'online') return;
+  sendMessage('ready');
+}
+
+/**
+ * Online-mode: Funeral Director override that starts the current phase even
+ * if not all players are ready. Host-only on the server side.
+ */
+export function startPhaseAnyway() {
+  if (getState().gameMode !== 'online') return;
+  sendMessage('start_phase_anyway');
 }
 
 export function doneDying() {
@@ -116,7 +163,8 @@ function createPhase23InitState() {
 // ── Phase 2 (LIVE) ──────────────────────────────────────
 
 export function startPhase2() {
-  setState({ screen: 'phase2', phase: 2, ...createPhase23InitState() });
+  const isLocal = getState().gameMode === 'local';
+  setState({ screen: 'phase2', phase: 2, ...createPhase23InitState(), phaseIntroShowing: isLocal });
 
   currentPhaseManager = createPhase23Manager({
     deckType: 'live',
@@ -130,13 +178,18 @@ export function startPhase2() {
     },
   });
 
-  currentPhaseManager.start();
+  if (!isLocal) {
+    currentPhaseManager.start();
+  } else {
+    showScreen('phase2');
+  }
 }
 
 // ── Phase 3 (BYE) ──────────────────────────────────────
 
 export function startPhase3() {
-  setState({ screen: 'phase3', phase: 3, ...createPhase23InitState() });
+  const isLocal = getState().gameMode === 'local';
+  setState({ screen: 'phase3', phase: 3, ...createPhase23InitState(), phaseIntroShowing: isLocal });
 
   // Apply wildcard count setting to bye deck
   const { forceWildcards, wildcardCount } = getState().gameSettings;
@@ -166,7 +219,11 @@ export function startPhase3() {
     },
   });
 
-  currentPhaseManager.start();
+  if (!isLocal) {
+    currentPhaseManager.start();
+  } else {
+    showScreen('phase3');
+  }
 }
 
 // ── Phase 2/3 Actions ───────────────────────────────────

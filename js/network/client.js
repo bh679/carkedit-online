@@ -181,7 +181,10 @@ function syncLivingPhaseState(room) {
   const serverPhase = room.state.phase;
   let onlinePhase = null;
   let screenName = null;
-  if (serverPhase === 'living_submit' || serverPhase === 'bye_submit') {
+  if (serverPhase === 'live_intro' || serverPhase === 'bye_intro') {
+    onlinePhase = serverPhase;
+    screenName = serverPhase === 'live_intro' ? 'phase2' : 'phase3';
+  } else if (serverPhase === 'living_submit' || serverPhase === 'bye_submit') {
     onlinePhase = 'submit';
     screenName = serverPhase.startsWith('living') ? 'phase2' : 'phase3';
   } else if (serverPhase === 'living_reveal' || serverPhase === 'bye_reveal') {
@@ -390,15 +393,26 @@ export function resyncFromRoomState() {
     return;
   }
 
-  if (phase === 'die_phase') {
-    const dieState = syncDiePhaseState(room);
-    setState({ phase: 1, ...dieState });
+  if (phase === 'die_intro') {
+    setState({
+      phase: 1,
+      screen: 'phase1',
+      onlinePhase: 'die_intro',
+      onlinePlayers: syncPlayersFromRoom(room),
+    });
     if (_onScreenChange) _onScreenChange('phase1');
     return;
   }
 
-  const livingBye = ['living_submit', 'living_reveal', 'living_convince', 'living_select', 'living_winner',
-                     'bye_submit', 'bye_reveal', 'bye_convince', 'bye_select', 'bye_winner'];
+  if (phase === 'die_phase') {
+    const dieState = syncDiePhaseState(room);
+    setState({ phase: 1, onlinePhase: null, ...dieState });
+    if (_onScreenChange) _onScreenChange('phase1');
+    return;
+  }
+
+  const livingBye = ['live_intro', 'living_submit', 'living_reveal', 'living_convince', 'living_select', 'living_winner',
+                     'bye_intro', 'bye_submit', 'bye_reveal', 'bye_convince', 'bye_select', 'bye_winner'];
   if (livingBye.includes(phase)) {
     const lbState = syncLivingPhaseState(room);
     const phaseNum = phase.startsWith('living') ? 2 : 3;
@@ -488,17 +502,34 @@ function setupRoomListeners(room, onUpdate) {
   // Listen for game phase changes
   $(room.state).listen('phase', (phase) => {
     const state = getState();
-    if (phase === 'die_phase' && state.screen !== 'phase1') {
+    if (phase === 'die_intro') {
+      // Phase 1 intro screen
+      setState({
+        phase: 1,
+        screen: 'phase1',
+        phaseComplete: false,
+        playerDieCards: {},
+        onlinePhase: 'die_intro',
+        onlinePlayers: syncPlayersFromRoom(room),
+      });
+      if (_onScreenChange) _onScreenChange('phase1');
+    } else if (phase === 'die_phase' && state.screen !== 'phase1') {
       // Transition to Phase 1 screen
       const dieState = syncDiePhaseState(room);
       setState({
         phase: 1,
         phaseComplete: false,
         playerDieCards: {},
+        onlinePhase: null,
         ...dieState,
       });
       if (_onScreenChange) _onScreenChange('phase1');
-    } else if (phase !== 'die_phase' && phase !== 'lobby' && state.screen === 'phase1') {
+    } else if (phase === 'die_phase' && state.screen === 'phase1') {
+      // Coming from die_intro into actual die_phase — refresh card state and clear intro flag
+      const dieState = syncDiePhaseState(room);
+      setState({ onlinePhase: null, ...dieState });
+      if (_onScreenChange) _onScreenChange('phase1');
+    } else if (phase !== 'die_phase' && phase !== 'die_intro' && phase !== 'lobby' && state.screen === 'phase1') {
       // Store the last player's die card before transitioning
       if (state.currentCard && state.players?.[state.currentPlayerIndex]) {
         const lastPlayerName = state.players[state.currentPlayerIndex].name;
@@ -511,8 +542,8 @@ function setupRoomListeners(room, onUpdate) {
     }
 
     // Living / Bye phase transitions
-    const livingBye = ['living_submit', 'living_reveal', 'living_convince', 'living_select', 'living_winner',
-                       'bye_submit', 'bye_reveal', 'bye_convince', 'bye_select', 'bye_winner'];
+    const livingBye = ['live_intro', 'living_submit', 'living_reveal', 'living_convince', 'living_select', 'living_winner',
+                       'bye_intro', 'bye_submit', 'bye_reveal', 'bye_convince', 'bye_select', 'bye_winner'];
     if (livingBye.includes(phase)) {
       const lbState = syncLivingPhaseState(room);
       const phaseNum = phase.startsWith('living') ? 2 : 3;
@@ -740,13 +771,18 @@ function setupRoomListeners(room, onUpdate) {
       setState({ onlinePlayers: refreshed });
       if (onUpdate) onUpdate(refreshed);
 
-      // Re-sync phase state when player properties change (e.g. hasSubmitted, score)
+      // Re-sync phase state when player properties change (e.g. hasSubmitted, score, ready)
       const s = getState();
       const eulogyPhases = ['eulogy_intro', 'eulogy_pick', 'eulogy_speech', 'eulogy_judge', 'eulogy_points', 'winner'];
+      const introPhases = ['die_intro', 'live_intro', 'bye_intro'];
       if (eulogyPhases.includes(room.state.phase)) {
         const eulogyState = syncEulogyPhaseState(room);
         setState(eulogyState);
         if (_onScreenChange) _onScreenChange('phase4');
+      } else if (introPhases.includes(room.state.phase)) {
+        // Intro phases just need a re-render so updated player.ready states
+        // refresh the ready chips. onlinePlayers is already updated above.
+        if (_onScreenChange) _onScreenChange(s.screen);
       } else if (s.onlinePhase) {
         const lbState = syncLivingPhaseState(room);
         setState(lbState);

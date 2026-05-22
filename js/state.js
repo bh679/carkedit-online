@@ -19,6 +19,9 @@ let _state = {
   preloadComplete: false,
   selectedPlayerForRemoval: null,
 
+  // Phase intro screen (shown before each phase's gameplay begins)
+  phaseIntroShowing: false,         // local mode: gate phase render behind intro
+
   // Network / online multiplayer state
   gameMode: 'local',               // 'local' | 'online'
   isHost: false,

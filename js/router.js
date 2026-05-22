@@ -45,6 +45,7 @@ import {
   inspectProfileCard, dismissProfileCard,
   startPhase4, startEulogyRound, selectEulogist, confirmEulogists,
   startEulogy, doneEulogy, pickBestEulogy, nextWildcard,
+  dismissPhaseIntro, toggleIntroReady, startPhaseAnyway,
 } from './managers/game-manager.js';
 
 const SCREENS = {
@@ -562,6 +563,10 @@ window.game = {
   confirmWinner,
   inspectProfileCard,
   dismissProfileCard,
+  // Phase intro actions
+  dismissPhaseIntro,
+  toggleIntroReady,
+  startPhaseAnyway,
   // Phase 4 actions
   startPhase4,
   startEulogyRound,
