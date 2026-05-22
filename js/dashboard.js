@@ -720,6 +720,12 @@ function renderUserStats() {
       apiBase: API_BASE,
       showSeeAllLink: true,
       expansionSteps: [10],
+      patchDevFlag,
+      confirmDevToggle,
+      onGameDevToggled(gameId, isDev) {
+        const mi = games.findIndex(x => x.id === gameId);
+        if (mi >= 0) games[mi] = { ...games[mi], is_dev: isDev };
+      },
     });
   } else if (playerStatsHandle) {
     playerStatsHandle.refresh();
