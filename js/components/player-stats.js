@@ -7,6 +7,7 @@ const DEV_FILTER_CYCLE = ['nodev', 'all', 'dev'];
 const DEV_FILTER_LABELS = { all: 'With Dev', nodev: 'No Dev', dev: 'Only Dev' };
 const INITIAL_LIMIT = 5;
 const FETCH_LIMIT = 1000;
+const DEFAULT_EXPANSION_STEPS = [50, 100, 'all'];
 
 function escapeHtml(s) {
   if (s == null) return '';
@@ -81,14 +82,19 @@ function renderRow(p) {
   `;
 }
 
-function renderActions(displayLimit, total, showSeeAllLink) {
+function renderActions(displayLimit, total, showSeeAllLink, expansionSteps) {
   const buttons = [];
   if (displayLimit < total) {
-    buttons.push(`<button class="dashboard__load-more" data-ps-action="add" data-ps-amount="50">+50</button>`);
-    if (total - displayLimit > 50) {
-      buttons.push(`<button class="dashboard__load-more" data-ps-action="add" data-ps-amount="100">+100</button>`);
+    for (const step of expansionSteps) {
+      if (step === 'all') {
+        buttons.push(`<button class="dashboard__load-more" data-ps-action="all">Show all</button>`);
+      } else if (typeof step === 'number' && step > 0) {
+        const remaining = total - displayLimit;
+        if (remaining > 0) {
+          buttons.push(`<button class="dashboard__load-more" data-ps-action="add" data-ps-amount="${step}">+${step}</button>`);
+        }
+      }
     }
-    buttons.push(`<button class="dashboard__load-more" data-ps-action="all">Show all</button>`);
   }
 
   const seeAll = showSeeAllLink
@@ -108,7 +114,12 @@ function renderActions(displayLimit, total, showSeeAllLink) {
 }
 
 export function mountPlayerStats(rootEl, opts) {
-  const { authFetch, apiBase = '', showSeeAllLink = false } = opts;
+  const {
+    authFetch,
+    apiBase = '',
+    showSeeAllLink = false,
+    expansionSteps = DEFAULT_EXPANSION_STEPS,
+  } = opts;
 
   const state = {
     devFilter: 'nodev',
@@ -178,7 +189,7 @@ export function mountPlayerStats(rootEl, opts) {
       ${filterBar}
       ${summary}
       <div class="user-stats__list">${rows}</div>
-      ${renderActions(state.displayLimit, total, showSeeAllLink)}
+      ${renderActions(state.displayLimit, total, showSeeAllLink, expansionSteps)}
     `;
   }
 

@@ -727,6 +727,7 @@ function renderUserStats() {
       authFetch,
       apiBase: API_BASE,
       showSeeAllLink: true,
+      expansionSteps: [10],
     });
   } else if (playerStatsHandle) {
     playerStatsHandle.refresh();
