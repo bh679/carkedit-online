@@ -272,6 +272,12 @@ body {
   flex: 1 1 100%;
 }
 
+/* When multiple load-more buttons (e.g. +50 / +100 / Show all) share the row,
+   give them equal weight instead of each grabbing 4× the see-all link. */
+.dashboard__list-actions--multi-step .dashboard__load-more {
+  flex: 1 1 0;
+}
+
 /* ── List Header ────────────────────────────────── */
 
 .dashboard__list-header {
@@ -1604,6 +1610,10 @@ body {
   color: var(--color-text-muted);
   font-size: 0.875rem;
   margin: 0.5rem 0 1rem;
+}
+.user-stats__summary-meta {
+  opacity: 0.7;
+  margin-left: 0.25rem;
 }
 .user-stats__list {
   display: flex;

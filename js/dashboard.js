@@ -4,6 +4,7 @@
 import { render as renderCardList, fromStatRow, bindScrollArrows } from './components/card-list.js';
 import { render as renderCard } from './components/card.js';
 import { renderAdminHeader, bindAdminHeader, resetAdminHeaderMenu } from './components/admin-header.js';
+import { mountPlayerStats } from './components/player-stats.js';
 import { getOrCreate as registryGetOrCreate } from './data/CardRegistry.js';
 import { getFirebaseConfig } from './firebase-config.js';
 
@@ -416,25 +417,7 @@ async function cycleSurveyDev() {
   renderSurveyResponses();
 }
 
-let userStats = { players: [], total_distinct: 0, total_matched_users: 0 };
-let userStatsDevFilter = 'nodev';
-
-async function fetchUserStats() {
-  try {
-    const res = await authFetch(`${API_BASE}/api/carkedit/users/stats?dev=${userStatsDevFilter}&limit=200`);
-    if (res.ok) userStats = await res.json();
-  } catch (err) {
-    console.warn('[dashboard] Failed to fetch user stats:', err);
-  }
-}
-
-async function cycleUserStatsDev() {
-  const opts = ['nodev', 'all', 'dev'];
-  const idx = opts.indexOf(userStatsDevFilter);
-  userStatsDevFilter = opts[(idx + 1) % opts.length];
-  await fetchUserStats();
-  renderUserStats();
-}
+let playerStatsHandle = null;
 
 async function fetchPeriodStats() {
   const now = new Date();
@@ -738,64 +721,16 @@ function renderSurveyResponses() {
 function renderUserStats() {
   const el = document.getElementById('user-stats');
   if (!el) return;
-
-  const devLabels = { all: 'With Dev', nodev: 'No Dev', dev: 'Only Dev' };
-  const devActive = userStatsDevFilter !== 'all' ? 'dashboard__filter-btn--active' : '';
-  const filterBar = `
-    <div class="dashboard__filter-bar">
-      <button class="dashboard__filter-btn ${devActive}" onclick="window.dash.cycleUserStatsDev()">${devLabels[userStatsDevFilter]}</button>
-    </div>
-  `;
-
-  const players = userStats.players || [];
-  if (players.length === 0) {
-    el.innerHTML = `${filterBar}<p class="dashboard__empty">No player data yet.</p>`;
-    return;
+  if (el.dataset.psMounted !== '1') {
+    el.dataset.psMounted = '1';
+    playerStatsHandle = mountPlayerStats(el, {
+      authFetch,
+      apiBase: API_BASE,
+      showSeeAllLink: true,
+    });
+  } else if (playerStatsHandle) {
+    playerStatsHandle.refresh();
   }
-
-  const fmtDate = iso => iso ? new Date(iso).toLocaleDateString() : '—';
-  const fmtBirth = (m, d) => (m && d) ? `${String(m).padStart(2, '0')}/${String(d).padStart(2, '0')}` : '';
-
-  const rows = players.map(p => {
-    const verified = p.matched_user_id ? '<span class="user-stats__badge user-stats__badge--verified" title="Matches a registered user">✓</span>' : '';
-    const avatar = p.avatar_url
-      ? `<img class="user-stats__avatar" src="${escAttr(p.avatar_url)}" alt="">`
-      : '<span class="user-stats__avatar user-stats__avatar--blank"></span>';
-    const birth = fmtBirth(p.birth_month, p.birth_day);
-    const birthChip = birth ? `<span class="user-stats__chip user-stats__chip--birth" title="Birth month/day">🎂 ${birth}</span>` : '';
-    const ipChip = (p.distinct_host_ips > 1)
-      ? `<span class="user-stats__chip user-stats__chip--multi" title="${p.distinct_host_ips} distinct host IPs seen for this name — could be multiple people">⚠ ${p.distinct_host_ips} IPs</span>`
-      : '';
-    const userIdChip = (p.distinct_host_user_ids > 1)
-      ? `<span class="user-stats__chip user-stats__chip--multi" title="${p.distinct_host_user_ids} distinct host user IDs seen for this name">⚠ ${p.distinct_host_user_ids} accts</span>`
-      : '';
-    const email = p.email ? `<span class="user-stats__email">${escapeHtml(p.email)}</span>` : '';
-
-    return `
-      <div class="user-stats__row">
-        <div class="user-stats__identity">
-          ${avatar}
-          <div class="user-stats__name-wrap">
-            <span class="user-stats__name">${escapeHtml(p.display_name)} ${verified}</span>
-            ${email}
-            <div class="user-stats__chips">${birthChip}${ipChip}${userIdChip}</div>
-          </div>
-        </div>
-        <div class="user-stats__metric"><span class="user-stats__metric-value">${p.games_played}</span><span class="user-stats__metric-label">games</span></div>
-        <div class="user-stats__metric"><span class="user-stats__metric-value">${formatDuration(p.total_seconds)}</span><span class="user-stats__metric-label">play time</span></div>
-        <div class="user-stats__metric"><span class="user-stats__metric-value">${fmtDate(p.first_game_at)}</span><span class="user-stats__metric-label">first</span></div>
-        <div class="user-stats__metric"><span class="user-stats__metric-value">${fmtDate(p.last_game_at)}</span><span class="user-stats__metric-label">last</span></div>
-      </div>
-    `;
-  }).join('');
-
-  el.innerHTML = `
-    ${filterBar}
-    <div class="user-stats__summary">
-      ${userStats.total_distinct} distinct players · ${userStats.total_matched_users} matched to user accounts
-    </div>
-    <div class="user-stats__list">${rows}</div>
-  `;
 }
 
 // ── Card Preview Modal ───────────────────────────────
@@ -2030,7 +1965,7 @@ function getRefreshInterval() {
 let refreshCountdown = REFRESH_INTERVAL_IDLE;
 
 async function refreshAll() {
-  await Promise.all([fetchGames(), fetchStats(), fetchPeriodStats(), fetchCardStats(), fetchPackStats(), fetchSurveyStats(), fetchSurveyResponses(), fetchUserStats()]);
+  await Promise.all([fetchGames(), fetchStats(), fetchPeriodStats(), fetchCardStats(), fetchPackStats(), fetchSurveyStats(), fetchSurveyResponses()]);
   // Re-fetch detail for expanded live games so phases/players update
   if (expandedGameId) {
     const cached = gameDetailCache[expandedGameId];
@@ -2211,7 +2146,7 @@ async function saveBaseCost(packId) {
   }
 }
 
-window.dash = { cyclePlayTime, cycleGamesCount, cyclePlayersCount, toggleGame, cycleDeckFilter, setCardSort, toggleCardSortDir, cycleCardDev, setPackFilter, setAuthorFilter, setPackSort, togglePackExpanded, cycleSurveyDev, cycleUserStatsDev, previewCard, closePreview, prevPreviewCard, nextPreviewCard, scrollCards, loadMoreGames, loadMoreSurveys, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange, toggleHideGroup, toggleHideRaw, toggleHideDuration, toggleHidePlayers, toggleExpandGroup, signInWithGoogle, signOut, toggleGameDev, toggleSurveyDev, togglePackDev, copyDebugData, openBaseCostModal, closeBaseCostModal, saveBaseCost };
+window.dash = { cyclePlayTime, cycleGamesCount, cyclePlayersCount, toggleGame, cycleDeckFilter, setCardSort, toggleCardSortDir, cycleCardDev, setPackFilter, setAuthorFilter, setPackSort, togglePackExpanded, cycleSurveyDev, previewCard, closePreview, prevPreviewCard, nextPreviewCard, scrollCards, loadMoreGames, loadMoreSurveys, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange, toggleHideGroup, toggleHideRaw, toggleHideDuration, toggleHidePlayers, toggleExpandGroup, signInWithGoogle, signOut, toggleGameDev, toggleSurveyDev, togglePackDev, copyDebugData, openBaseCostModal, closeBaseCostModal, saveBaseCost };
 
 // ── Auth Gate UI ─────────────────────────────────────
 function renderAuthGate(message, showSignIn = true) {
@@ -2358,7 +2293,7 @@ async function bootDashboard() {
       .catch(() => updateVersionEl(el, 'Server', data.version, null, started || 'Could not check GitHub'));
   }).catch(() => {});
 
-  await Promise.all([autoSelectDateRange(), fetchStats(), fetchPeriodStats(), fetchCardStats(), fetchPackStats(), fetchSurveyStats(), fetchSurveyResponses(), fetchUserStats(), loadCardData()]);
+  await Promise.all([autoSelectDateRange(), fetchStats(), fetchPeriodStats(), fetchCardStats(), fetchPackStats(), fetchSurveyStats(), fetchSurveyResponses(), loadCardData()]);
   renderStats();
   renderGameList();
   renderCardAnalytics();
