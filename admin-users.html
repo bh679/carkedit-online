@@ -65,8 +65,9 @@
     }
 
     function renderGate(msg, showSignIn = false) {
+      const role = currentUser?.role || 'Player';
       document.getElementById('app').innerHTML = `
-        ${renderAdminHeader()}
+        ${renderAdminHeader({ role })}
         <div class="admin-users__gate">
           <div>
             <h1>User Management</h1>
@@ -74,7 +75,7 @@
             ${showSignIn ? '<button class="btn btn--google" id="sign-in-btn" style="font-size:1rem;padding:0.75em 1.5em">Sign in with Google</button>' : ''}
           </div>
         </div>`;
-      bindAdminHeader(document.getElementById('app'), {});
+      bindAdminHeader(document.getElementById('app'), { role });
       if (showSignIn) {
         document.getElementById('sign-in-btn').addEventListener('click', async () => {
           const authMod = await loadFirebaseAuth();
