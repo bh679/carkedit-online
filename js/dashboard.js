@@ -418,6 +418,8 @@ async function cycleSurveyDev() {
 
 let userStats = { players: [], total_distinct: 0, total_matched_users: 0 };
 let userStatsDevFilter = 'nodev';
+let expandedPlayerKey = null;
+const playerGamesCache = {};
 
 async function fetchUserStats() {
   try {
@@ -426,6 +428,43 @@ async function fetchUserStats() {
   } catch (err) {
     console.warn('[dashboard] Failed to fetch user stats:', err);
   }
+}
+
+async function togglePlayer(nameKey) {
+  if (expandedPlayerKey === nameKey) {
+    expandedPlayerKey = null;
+    renderUserStats();
+    return;
+  }
+  expandedPlayerKey = nameKey;
+  if (!playerGamesCache[nameKey]) {
+    try {
+      const res = await authFetch(`${API_BASE}/api/carkedit/games?playerName=${encodeURIComponent(nameKey)}&dev=all&limit=100`);
+      if (res.ok) {
+        const data = await res.json();
+        playerGamesCache[nameKey] = data.games || [];
+      }
+    } catch (err) {
+      console.warn('[dashboard] Failed to fetch player games:', err);
+    }
+  }
+  renderUserStats();
+}
+
+async function togglePlayerGameDev(gameId, nameKey, next) {
+  const list = playerGamesCache[nameKey] || [];
+  const g = list.find(x => x.id === gameId);
+  const label = g ? `${g.host_name || '(no host)'} — ${gameId}` : gameId;
+  if (!await confirmDevToggle('Game', label, next)) return;
+  try {
+    const updated = await patchDevFlag('games', gameId, next);
+    const i = list.findIndex(x => x.id === gameId);
+    if (i >= 0) list[i] = { ...list[i], is_dev: !!updated.is_dev };
+    // Also reflect in the main games list if loaded
+    const mi = games.findIndex(x => x.id === gameId);
+    if (mi >= 0) games[mi] = { ...games[mi], is_dev: !!updated.is_dev };
+    renderUserStats();
+  } catch (e) { console.error(e); alert('Failed to toggle dev: ' + e.message); }
 }
 
 async function cycleUserStatsDev() {
@@ -735,6 +774,43 @@ function renderSurveyResponses() {
   `;
 }
 
+function renderPlayerGames(nameKey) {
+  const list = playerGamesCache[nameKey];
+  if (!list) {
+    return `<div class="user-stats__games user-stats__games--loading" onclick="event.stopPropagation()">Loading games…</div>`;
+  }
+  if (list.length === 0) {
+    return `<div class="user-stats__games user-stats__games--empty" onclick="event.stopPropagation()">No games found for this player.</div>`;
+  }
+  const nameKeyAttr = escAttr(nameKey);
+  const fmtDateTime = iso => iso ? new Date(iso).toLocaleString() : '—';
+  const rows = list.map(g => {
+    const devOn = g.is_dev ? 'is-on' : '';
+    const gid = escAttr(String(g.id));
+    const date = fmtDateTime(g.finished_at || g.started_at);
+    const host = escapeHtml(g.host_name || '(no host)');
+    const status = escapeHtml(g.status || '');
+    const live = g.live_status === 'live' ? '<span class="dashboard__badge dashboard__badge--live">live</span>'
+      : g.live_status === 'abandoned' ? '<span class="dashboard__badge dashboard__badge--abandoned">abandoned</span>'
+      : '';
+    return `
+      <div class="user-stats__game-row">
+        <span class="user-stats__game-date">${date}</span>
+        <span class="user-stats__game-host">${host}</span>
+        <span class="user-stats__game-meta">${g.player_count}p · ${formatDuration(g.duration_seconds)}</span>
+        <span class="user-stats__game-status">${status} ${live}</span>
+        <button class="dashboard__dev-toggle ${devOn}" title="Toggle dev for this game" onclick="event.stopPropagation(); window.dash.togglePlayerGameDev('${gid}', '${nameKeyAttr}', ${!g.is_dev})">DEV</button>
+      </div>
+    `;
+  }).join('');
+  return `
+    <div class="user-stats__games" onclick="event.stopPropagation()">
+      <div class="user-stats__games-header">Games (${list.length})</div>
+      ${rows}
+    </div>
+  `;
+}
+
 function renderUserStats() {
   const el = document.getElementById('user-stats');
   if (!el) return;
@@ -770,9 +846,13 @@ function renderUserStats() {
       ? `<span class="user-stats__chip user-stats__chip--multi" title="${p.distinct_host_user_ids} distinct host user IDs seen for this name">⚠ ${p.distinct_host_user_ids} accts</span>`
       : '';
     const email = p.email ? `<span class="user-stats__email">${escapeHtml(p.email)}</span>` : '';
+    const expanded = expandedPlayerKey === p.name_key;
+    const detail = expanded ? renderPlayerGames(p.name_key) : '';
+    const expandedCls = expanded ? ' user-stats__row--expanded' : '';
+    const nameKeyAttr = escAttr(p.name_key);
 
     return `
-      <div class="user-stats__row">
+      <div class="user-stats__row${expandedCls}" onclick="window.dash.togglePlayer('${nameKeyAttr}')">
         <div class="user-stats__identity">
           ${avatar}
           <div class="user-stats__name-wrap">
@@ -785,6 +865,7 @@ function renderUserStats() {
         <div class="user-stats__metric"><span class="user-stats__metric-value">${formatDuration(p.total_seconds)}</span><span class="user-stats__metric-label">play time</span></div>
         <div class="user-stats__metric"><span class="user-stats__metric-value">${fmtDate(p.first_game_at)}</span><span class="user-stats__metric-label">first</span></div>
         <div class="user-stats__metric"><span class="user-stats__metric-value">${fmtDate(p.last_game_at)}</span><span class="user-stats__metric-label">last</span></div>
+        ${detail}
       </div>
     `;
   }).join('');
@@ -2211,7 +2292,7 @@ async function saveBaseCost(packId) {
   }
 }
 
-window.dash = { cyclePlayTime, cycleGamesCount, cyclePlayersCount, toggleGame, cycleDeckFilter, setCardSort, toggleCardSortDir, cycleCardDev, setPackFilter, setAuthorFilter, setPackSort, togglePackExpanded, cycleSurveyDev, cycleUserStatsDev, previewCard, closePreview, prevPreviewCard, nextPreviewCard, scrollCards, loadMoreGames, loadMoreSurveys, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange, toggleHideGroup, toggleHideRaw, toggleHideDuration, toggleHidePlayers, toggleExpandGroup, signInWithGoogle, signOut, toggleGameDev, toggleSurveyDev, togglePackDev, copyDebugData, openBaseCostModal, closeBaseCostModal, saveBaseCost };
+window.dash = { cyclePlayTime, cycleGamesCount, cyclePlayersCount, toggleGame, cycleDeckFilter, setCardSort, toggleCardSortDir, cycleCardDev, setPackFilter, setAuthorFilter, setPackSort, togglePackExpanded, cycleSurveyDev, cycleUserStatsDev, previewCard, closePreview, prevPreviewCard, nextPreviewCard, scrollCards, loadMoreGames, loadMoreSurveys, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange, toggleHideGroup, toggleHideRaw, toggleHideDuration, toggleHidePlayers, toggleExpandGroup, signInWithGoogle, signOut, toggleGameDev, toggleSurveyDev, togglePackDev, togglePlayer, togglePlayerGameDev, copyDebugData, openBaseCostModal, closeBaseCostModal, saveBaseCost };
 
 // ── Auth Gate UI ─────────────────────────────────────
 function renderAuthGate(message, showSignIn = true) {
