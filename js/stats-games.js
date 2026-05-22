@@ -24,11 +24,20 @@ let gamesTotalCount = 0;
 const STATUS_VALUES = ['all', 'started', 'finished', 'abandoned', 'live'];
 const DEV_VALUES = ['nodev', 'all', 'dev'];
 const DATE_VALUES = ['all', 'today', 'week', 'month'];
+const SORT_VALUES = ['recency', 'longest', 'shortest'];
+const STATE_METRIC_VALUES = ['avg', 'median'];
+const STATE_ORDER = ['lobby', 'die', 'living', 'bye', 'eulogy', 'finished'];
+const STATE_LABELS = { lobby: 'Lobby', die: 'Die', living: 'Live', bye: 'Bye', eulogy: 'Eulogy', finished: 'Finished' };
 
 let filterDateRange = 'all';
 let filterErrorsOnly = false;
 let filterDev = 'all';
 let filterStatus = 'all';
+let sortMode = 'recency';
+let stateMetric = 'avg';
+
+let summaryStats = null;
+let stateStats = [];
 
 let filterHideGroups   = new Set();
 let filterHideRaw      = new Set();
@@ -55,6 +64,10 @@ function readFiltersFromUrl() {
   filterHideRaw      = parseCsvSet(params.get('hideRaw'));
   filterHideDuration = parseCsvSet(params.get('hideDurationBuckets'));
   filterHidePlayers  = parseCsvSet(params.get('hidePlayerCounts'));
+  const so = params.get('sort');
+  if (so && SORT_VALUES.includes(so)) sortMode = so;
+  const sm = params.get('stateMetric');
+  if (sm && STATE_METRIC_VALUES.includes(sm)) stateMetric = sm;
 }
 
 function writeFiltersToUrl() {
@@ -67,6 +80,8 @@ function writeFiltersToUrl() {
   if (filterHideRaw.size      > 0) params.set('hideRaw',             [...filterHideRaw].join(','));
   if (filterHideDuration.size > 0) params.set('hideDurationBuckets', [...filterHideDuration].join(','));
   if (filterHidePlayers.size  > 0) params.set('hidePlayerCounts',    [...filterHidePlayers].join(','));
+  if (sortMode !== 'recency') params.set('sort', sortMode);
+  if (stateMetric !== 'avg') params.set('stateMetric', stateMetric);
   const qs = params.toString();
   const url = qs ? `${location.pathname}?${qs}` : location.pathname;
   history.replaceState(null, '', url);
@@ -197,7 +212,17 @@ function buildGamesUrl(limit, offset) {
   const params = buildGameFilterParams();
   params.set('limit', String(limit));
   params.set('offset', String(offset));
+  if (sortMode === 'longest') { params.set('orderBy', 'duration'); params.set('orderDir', 'desc'); }
+  else if (sortMode === 'shortest') { params.set('orderBy', 'duration'); params.set('orderDir', 'asc'); }
   return `${API_BASE}/api/carkedit/games?${params}`;
+}
+
+function buildStatsUrl() {
+  return `${API_BASE}/api/carkedit/games/stats?${buildGameFilterParams()}`;
+}
+
+function buildStateStatsUrl() {
+  return `${API_BASE}/api/carkedit/games/stats/by-state?${buildGameFilterParams()}`;
 }
 
 async function fetchFilterCounts() {
@@ -230,6 +255,19 @@ async function fetchGames(append = false) {
   }
 }
 
+async function fetchStats() {
+  try {
+    const [s, ss] = await Promise.all([
+      authFetch(buildStatsUrl()).then(r => r.ok ? r.json() : null).catch(() => null),
+      authFetch(buildStateStatsUrl()).then(r => r.ok ? r.json() : null).catch(() => null),
+    ]);
+    summaryStats = s;
+    stateStats = (ss && Array.isArray(ss.states)) ? ss.states : [];
+  } catch (err) {
+    console.warn('[stats-games] Failed to fetch stats:', err);
+  }
+}
+
 async function loadMore() {
   await fetchGames(true);
   renderPage();
@@ -237,7 +275,7 @@ async function loadMore() {
 
 async function applyFilters() {
   writeFiltersToUrl();
-  await fetchGames(false);
+  await Promise.all([fetchGames(false), fetchStats()]);
   renderPage();
 }
 
@@ -296,6 +334,18 @@ function toggleExpandGroup(group) {
   renderPage();
 }
 
+function cycleSortMode() {
+  const idx = SORT_VALUES.indexOf(sortMode);
+  sortMode = SORT_VALUES[(idx + 1) % SORT_VALUES.length];
+  applyFilters();
+}
+
+function toggleStateMetric() {
+  stateMetric = stateMetric === 'avg' ? 'median' : 'avg';
+  writeFiltersToUrl();
+  renderPage();
+}
+
 async function toggleGameDev(id, next) {
   try {
     const res = await authFetch(`${API_BASE}/api/carkedit/games/${encodeURIComponent(id)}/dev`, {
@@ -326,6 +376,79 @@ function getGameFilterState() {
     filterHidePlayers,
     expandedGroups,
   };
+}
+
+function formatNumber(n) {
+  if (n == null || !Number.isFinite(n)) return '—';
+  return Number(n).toLocaleString('en-AU');
+}
+
+function tile(value, label, opts = {}) {
+  const cls = opts.clickable ? 'dashboard__stat dashboard__stat--clickable' : 'dashboard__stat';
+  const onclick = opts.onclick ? ` onclick="${opts.onclick}"` : '';
+  const title = opts.title ? ` title="${opts.title}"` : '';
+  return `<div class="${cls}"${onclick}${title}>
+    <span class="dashboard__stat-value">${value}</span>
+    <span class="dashboard__stat-label">${label}</span>
+  </div>`;
+}
+
+function renderStatsPanel() {
+  const s = summaryStats || {};
+  const total = s.totalGames || 0;
+  const finished = s.finishedGames || 0;
+  const completion = total > 0 ? Math.round((finished / total) * 100) + '%' : '—';
+  const avgPlayers = total > 0 ? (s.allPlayers / total).toFixed(1) : '—';
+
+  let longestLabel = 'Longest';
+  let longestValue = formatDurationCompact(s.longestPlayTime || 0);
+  if (sortMode === 'longest') { longestLabel = '↓ Longest'; }
+  else if (sortMode === 'shortest') { longestLabel = '↑ Shortest'; longestValue = formatDurationCompact(s.shortestPlayTime || 0); }
+  const longestTitle = sortMode === 'recency'
+    ? 'Click to sort by longest first'
+    : (sortMode === 'longest' ? 'Click to sort by shortest first' : 'Click to restore default order');
+
+  return `
+    <div class="dashboard__stats">
+      ${tile(formatNumber(total), 'Games Started')}
+      ${tile(formatNumber(finished), 'Games Finished')}
+      ${tile(completion, 'Completion')}
+      ${tile(formatNumber(s.liveGames || 0), 'Live Now')}
+      ${tile(formatNumber(s.abandonedGames || 0), 'Abandoned')}
+      ${tile(formatNumber(s.allPlayers || 0), 'Total Players')}
+      ${tile(avgPlayers, 'Avg Players')}
+      ${tile(formatDurationCompact(s.avgPlayTime || 0), 'Avg Duration')}
+      ${tile(longestValue, longestLabel, { clickable: true, onclick: 'window.statsGames.cycleSortMode()', title: longestTitle })}
+      ${tile(formatNumber(s.errorGames || 0), 'Errors')}
+      ${tile(formatNumber(s.issueGames || 0), 'Issues')}
+    </div>
+  `;
+}
+
+function renderStateBreakdown() {
+  if (!stateStats || stateStats.length === 0) return '';
+  const byState = {};
+  for (const r of stateStats) byState[r.state] = r;
+  const metricKey = stateMetric === 'median' ? 'median_seconds' : 'avg_seconds';
+  const metricLabel = stateMetric === 'median' ? 'Median' : 'Avg';
+  const altLabel = stateMetric === 'median' ? 'avg' : 'median';
+
+  const subs = STATE_ORDER.map(key => {
+    const r = byState[key] || { avg_seconds: 0, median_seconds: 0, count: 0 };
+    const seconds = r[metricKey] || 0;
+    const value = r.count > 0 ? formatDurationCompact(seconds) : '—';
+    return `<div class="dashboard__stat-sub" title="${r.count} sample(s)">
+      <span class="dashboard__stat-sub-value">${value}</span>
+      <span class="dashboard__stat-sub-label">${STATE_LABELS[key]}</span>
+    </div>`;
+  }).join('');
+
+  return `
+    <div class="dashboard__stat-group" style="margin-bottom: var(--space-md); cursor: pointer;" onclick="window.statsGames.toggleStateMetric()" title="Click to switch to ${altLabel}">
+      <span class="dashboard__stat-label" style="text-align:left;padding:0 4px">${metricLabel} time per state · click to switch to ${altLabel}</span>
+      <div class="dashboard__stat-breakdown">${subs}</div>
+    </div>
+  `;
 }
 
 function renderGameCard(game) {
@@ -419,6 +542,8 @@ function renderPage() {
         <h1 class="dashboard__title">All Games <span class="dashboard__versions"><a href="stats.html" class="dashboard__see-all" style="flex:0 0 auto;padding:0.25rem 0.75rem;font-size:0.75rem">← Back to Stats</a></span></h1>
       </header>
       <section class="dashboard__section">
+        ${renderStatsPanel()}
+        ${renderStateBreakdown()}
         <div id="game-list">
           ${renderGameFilters(state, 'statsGames')}
           ${renderStatusChips(state, 'statsGames')}
@@ -433,7 +558,7 @@ function renderPage() {
 }
 
 async function boot() {
-  await fetchGames(false);
+  await Promise.all([fetchGames(false), fetchStats()]);
   renderPage();
 }
 
@@ -442,6 +567,7 @@ window.statsGames = {
   setGameFilter,
   toggleHideGroup, toggleHideRaw, toggleHideDuration, toggleHidePlayers, toggleExpandGroup,
   loadMore, toggleGameDev,
+  cycleSortMode, toggleStateMetric,
 };
 
 readFiltersFromUrl();
