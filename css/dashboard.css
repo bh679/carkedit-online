@@ -1521,6 +1521,7 @@ body {
   font-size: 0.9rem;
   color: rgba(255, 255, 255, 0.8);
   margin-top: 0.2em;
+  overflow-wrap: anywhere;
 }
 
 /* ── Base Cost Modal ─────────────────────────────────── */

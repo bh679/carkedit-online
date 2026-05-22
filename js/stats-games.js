@@ -2,6 +2,12 @@
 'use strict';
 
 import { renderAdminHeader, bindAdminHeader, resetAdminHeaderMenu } from './components/admin-header.js';
+import {
+  renderGameFilters,
+  renderStatusChips,
+  renderDurationChips,
+  renderPlayerChips,
+} from './components/game-filters.js';
 import { getFirebaseConfig } from './firebase-config.js';
 
 const FIREBASE_CONFIG = getFirebaseConfig();
@@ -15,7 +21,7 @@ let firebaseUserInfo = null;
 let games = [];
 let gamesTotalCount = 0;
 
-const STATUS_VALUES = ['all', 'finished', 'abandoned', 'live'];
+const STATUS_VALUES = ['all', 'started', 'finished', 'abandoned', 'live'];
 const DEV_VALUES = ['nodev', 'all', 'dev'];
 const DATE_VALUES = ['all', 'today', 'week', 'month'];
 
@@ -23,6 +29,18 @@ let filterDateRange = 'all';
 let filterErrorsOnly = false;
 let filterDev = 'all';
 let filterStatus = 'all';
+
+let filterHideGroups   = new Set();
+let filterHideRaw      = new Set();
+let filterHideDuration = new Set();
+let filterHidePlayers  = new Set();
+let expandedGroups     = new Set();
+let filterCounts = { total: 0, date: {}, errors: {}, dev: {}, status: {}, groups: {}, raw: {}, duration: {}, players: {} };
+
+function parseCsvSet(value) {
+  if (!value) return new Set();
+  return new Set(value.split(',').filter(Boolean));
+}
 
 function readFiltersFromUrl() {
   const params = new URLSearchParams(location.search);
@@ -33,6 +51,10 @@ function readFiltersFromUrl() {
   if (dev && DEV_VALUES.includes(dev)) filterDev = dev;
   const st = params.get('status');
   if (st && STATUS_VALUES.includes(st)) filterStatus = st;
+  filterHideGroups   = parseCsvSet(params.get('hideGroups'));
+  filterHideRaw      = parseCsvSet(params.get('hideRaw'));
+  filterHideDuration = parseCsvSet(params.get('hideDurationBuckets'));
+  filterHidePlayers  = parseCsvSet(params.get('hidePlayerCounts'));
 }
 
 function writeFiltersToUrl() {
@@ -41,6 +63,10 @@ function writeFiltersToUrl() {
   if (filterErrorsOnly) params.set('errorsOnly', '1');
   if (filterDev !== 'all') params.set('dev', filterDev);
   if (filterStatus !== 'all') params.set('status', filterStatus);
+  if (filterHideGroups.size   > 0) params.set('hideGroups',          [...filterHideGroups].join(','));
+  if (filterHideRaw.size      > 0) params.set('hideRaw',             [...filterHideRaw].join(','));
+  if (filterHideDuration.size > 0) params.set('hideDurationBuckets', [...filterHideDuration].join(','));
+  if (filterHidePlayers.size  > 0) params.set('hidePlayerCounts',    [...filterHidePlayers].join(','));
   const qs = params.toString();
   const url = qs ? `${location.pathname}?${qs}` : location.pathname;
   history.replaceState(null, '', url);
@@ -141,10 +167,8 @@ function statusDot(liveStatus) {
 
 const ICON_PERSON = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;opacity:0.7"><path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5zm0 2c-3.3 0-10 1.7-10 5v3h20v-3c0-3.3-6.7-5-10-5z"/></svg>';
 
-function buildGamesUrl(limit, offset) {
+function buildGameFilterParams() {
   const params = new URLSearchParams();
-  params.set('limit', String(limit));
-  params.set('offset', String(offset));
   if (filterDateRange !== 'all') {
     const now = new Date();
     let dateFrom;
@@ -162,15 +186,39 @@ function buildGamesUrl(limit, offset) {
   if (filterErrorsOnly) params.set('errorsOnly', 'true');
   if (filterDev !== 'all') params.set('dev', filterDev);
   if (filterStatus !== 'all') params.set('status', filterStatus);
+  if (filterHideGroups.size   > 0) params.set('hideGroups',          [...filterHideGroups].join(','));
+  if (filterHideRaw.size      > 0) params.set('hideRaw',             [...filterHideRaw].join(','));
+  if (filterHideDuration.size > 0) params.set('hideDurationBuckets', [...filterHideDuration].join(','));
+  if (filterHidePlayers.size  > 0) params.set('hidePlayerCounts',    [...filterHidePlayers].join(','));
+  return params;
+}
+
+function buildGamesUrl(limit, offset) {
+  const params = buildGameFilterParams();
+  params.set('limit', String(limit));
+  params.set('offset', String(offset));
   return `${API_BASE}/api/carkedit/games?${params}`;
+}
+
+async function fetchFilterCounts() {
+  try {
+    const res = await authFetch(`${API_BASE}/api/carkedit/games/filter-counts?${buildGameFilterParams()}`);
+    if (!res.ok) return;
+    filterCounts = await res.json();
+  } catch (err) {
+    console.warn('[stats-games] Failed to fetch filter counts:', err);
+  }
 }
 
 async function fetchGames(append = false) {
   try {
     const offset = append ? games.length : 0;
-    const res = await authFetch(buildGamesUrl(PAGE_SIZE, offset));
-    if (!res.ok) return;
-    const data = await res.json();
+    const [gamesRes] = await Promise.all([
+      authFetch(buildGamesUrl(PAGE_SIZE, offset)),
+      append ? Promise.resolve() : fetchFilterCounts(),
+    ]);
+    if (!gamesRes.ok) return;
+    const data = await gamesRes.json();
     if (append) {
       games = [...games, ...(data.games || [])];
     } else {
@@ -193,6 +241,13 @@ async function applyFilters() {
   renderPage();
 }
 
+function setGameFilter(key, value) {
+  if (key === 'errorsOnly') filterErrorsOnly = value;
+  if (key === 'dev') filterDev = value;
+  if (key === 'status') filterStatus = value;
+  applyFilters();
+}
+
 function cycleStatus() {
   const idx = STATUS_VALUES.indexOf(filterStatus);
   filterStatus = STATUS_VALUES[(idx + 1) % STATUS_VALUES.length];
@@ -211,9 +266,34 @@ function cycleDateRange() {
   applyFilters();
 }
 
-function toggleErrors() {
-  filterErrorsOnly = !filterErrorsOnly;
+function toggleHideGroup(group) {
+  if (filterHideGroups.has(group)) filterHideGroups.delete(group);
+  else filterHideGroups.add(group);
   applyFilters();
+}
+
+function toggleHideRaw(raw) {
+  if (filterHideRaw.has(raw)) filterHideRaw.delete(raw);
+  else filterHideRaw.add(raw);
+  applyFilters();
+}
+
+function toggleHideDuration(bucket) {
+  if (filterHideDuration.has(bucket)) filterHideDuration.delete(bucket);
+  else filterHideDuration.add(bucket);
+  applyFilters();
+}
+
+function toggleHidePlayers(key) {
+  if (filterHidePlayers.has(key)) filterHidePlayers.delete(key);
+  else filterHidePlayers.add(key);
+  applyFilters();
+}
+
+function toggleExpandGroup(group) {
+  if (expandedGroups.has(group)) expandedGroups.delete(group);
+  else expandedGroups.add(group);
+  renderPage();
 }
 
 async function toggleGameDev(id, next) {
@@ -233,22 +313,19 @@ async function toggleGameDev(id, next) {
   }
 }
 
-function renderFilters() {
-  const statusLabels = { all: 'All Status', finished: 'Finished', abandoned: 'Abandon', live: 'Live' };
-  const devLabels = { all: 'With Dev', nodev: 'No Dev', dev: 'Only Dev' };
-  const dateLabels = { all: 'All Time', today: 'Today', week: 'This Week', month: 'This Month' };
-  const errActive = filterErrorsOnly ? 'dashboard__filter-btn--active' : '';
-  const statusActive = filterStatus !== 'all' ? 'dashboard__filter-btn--active' : '';
-  const devActive = filterDev !== 'all' ? 'dashboard__filter-btn--active' : '';
-  const dateActive = filterDateRange !== 'all' ? 'dashboard__filter-btn--active' : '';
-
-  return `
-    <div class="dashboard__game-filters">
-      <button class="dashboard__filter-btn ${dateActive}" onclick="window.statsGames.cycleDateRange()">${dateLabels[filterDateRange]}</button>
-      <button class="dashboard__filter-btn ${errActive}" onclick="window.statsGames.toggleErrors()">Errors</button>
-      <button class="dashboard__filter-btn ${devActive}" onclick="window.statsGames.cycleDev()">${devLabels[filterDev]}</button>
-      <button class="dashboard__filter-btn ${statusActive}" onclick="window.statsGames.cycleStatus()">${statusLabels[filterStatus]}</button>
-    </div>`;
+function getGameFilterState() {
+  return {
+    filterDateRange,
+    filterErrorsOnly,
+    filterDev,
+    filterStatus,
+    filterCounts,
+    filterHideGroups,
+    filterHideRaw,
+    filterHideDuration,
+    filterHidePlayers,
+    expandedGroups,
+  };
 }
 
 function renderGameCard(game) {
@@ -334,6 +411,7 @@ function renderPage() {
       ${loadMoreBtn}
     `;
 
+  const state = getGameFilterState();
   app.innerHTML = `
     ${renderAdminHeader({ user: firebaseUserInfo })}
     <div class="dashboard">
@@ -342,7 +420,10 @@ function renderPage() {
       </header>
       <section class="dashboard__section">
         <div id="game-list">
-          ${renderFilters()}
+          ${renderGameFilters(state, 'statsGames')}
+          ${renderStatusChips(state, 'statsGames')}
+          ${renderDurationChips(state, 'statsGames')}
+          ${renderPlayerChips(state, 'statsGames')}
           ${list}
         </div>
       </section>
@@ -356,7 +437,12 @@ async function boot() {
   renderPage();
 }
 
-window.statsGames = { cycleStatus, cycleDev, cycleDateRange, toggleErrors, loadMore, toggleGameDev };
+window.statsGames = {
+  cycleStatus, cycleDev, cycleDateRange,
+  setGameFilter,
+  toggleHideGroup, toggleHideRaw, toggleHideDuration, toggleHidePlayers, toggleExpandGroup,
+  loadMore, toggleGameDev,
+};
 
 readFiltersFromUrl();
 renderGate('Loading…', false);
