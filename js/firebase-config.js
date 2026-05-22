@@ -57,3 +57,11 @@ export function getFirebaseConfig(hostnameArg, hostArg) {
   // Safari ITP. See carkedit-api/src/index.ts.
   return { ...base, authDomain: host };
 }
+
+// Prod Firebase config for the "preview production data" toggle on the
+// dev/staging stats page. authDomain points at play.carkedit.com so the
+// OAuth popup runs through prod's same-origin /__/auth/* reverse-proxy,
+// matching the Safari ITP workaround used by getFirebaseConfig above.
+export function getProdFirebaseConfig() {
+  return { ...PROD_CONFIG, authDomain: 'play.carkedit.com' };
+}
