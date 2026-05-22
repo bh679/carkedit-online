@@ -2,6 +2,7 @@
 'use strict';
 
 import { getState } from '../state.js';
+import { getPitchOrder } from '../utils/turn-order.js';
 
 const DEFAULT_PITCH_DURATION = 120; // seconds — overridable via state.pitchDuration
 
@@ -460,12 +461,12 @@ export function createPhase23Manager({ deckType, onStateChange, onPhaseComplete 
   function donePitching() {
     clearPitchTimer();
     const state = getState();
-    const submittedPlayerNames = Object.keys(state.submittedCards ?? {});
+    const pitchOrder = getPitchOrder(state.players, state.livingDeadIndex);
     const nextIndex = state.pitchingPlayerIndex + 1;
     const countUp = state.gameSettings?.timerCountUp ?? false;
     const duration = state.gameSettings?.pitchDuration ?? DEFAULT_PITCH_DURATION;
 
-    if (nextIndex >= submittedPlayerNames.length) {
+    if (nextIndex >= pitchOrder.length) {
       onStateChange({
         phase2SubState: 'judging',
       });
