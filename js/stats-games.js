@@ -8,15 +8,32 @@ import {
   renderDurationChips,
   renderPlayerChips,
 } from './components/game-filters.js';
-import { getFirebaseConfig } from './firebase-config.js';
+import { getFirebaseConfig, getProdFirebaseConfig } from './firebase-config.js';
 
 const FIREBASE_CONFIG = getFirebaseConfig();
-const API_BASE = '';
+const PROD_API_ORIGIN = 'https://play.carkedit.com';
 const PAGE_SIZE = 100;
 
 let firebaseAuth = null;
 let authToken = null;
 let firebaseUserInfo = null;
+
+// "Preview production data" mode — cross-origin fetch against prod's API
+// using a secondary Firebase app instance for prod auth. See plan
+// async-floating-feather.md and the CORS allowance in carkedit-api/src/index.ts.
+let dataSource = 'local'; // 'local' | 'prod'
+let prodAuth = null;
+let prodAuthToken = null;
+
+function apiBase() {
+  return dataSource === 'prod' ? PROD_API_ORIGIN : '';
+}
+
+function canPreviewProd() {
+  return typeof window !== 'undefined'
+    && window.location
+    && window.location.hostname !== 'play.carkedit.com';
+}
 
 let games = [];
 let gamesTotalCount = 0;
@@ -68,6 +85,7 @@ function readFiltersFromUrl() {
   if (so && SORT_VALUES.includes(so)) sortMode = so;
   const sm = params.get('stateMetric');
   if (sm && STATE_METRIC_VALUES.includes(sm)) stateMetric = sm;
+  if (params.get('source') === 'prod' && canPreviewProd()) dataSource = 'prod';
 }
 
 function writeFiltersToUrl() {
@@ -82,6 +100,7 @@ function writeFiltersToUrl() {
   if (filterHidePlayers.size  > 0) params.set('hidePlayerCounts',    [...filterHidePlayers].join(','));
   if (sortMode !== 'recency') params.set('sort', sortMode);
   if (stateMetric !== 'avg') params.set('stateMetric', stateMetric);
+  if (dataSource === 'prod') params.set('source', 'prod');
   const qs = params.toString();
   const url = qs ? `${location.pathname}?${qs}` : location.pathname;
   history.replaceState(null, '', url);
@@ -97,10 +116,55 @@ async function loadFirebaseAuth() {
   return authMod;
 }
 
+// Initialize a secondary Firebase app pointing at prod, prompt sign-in via
+// popup, and keep prodAuthToken fresh as the Firebase SDK silently refreshes
+// the underlying ID token. Idempotent — safe to call repeatedly.
+async function ensureProdAuth() {
+  const [appMod, authMod] = await Promise.all([
+    import('https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js'),
+    import('https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js'),
+  ]);
+  if (!prodAuth) {
+    let prodApp;
+    try {
+      prodApp = appMod.getApp('prod');
+    } catch {
+      prodApp = appMod.initializeApp(getProdFirebaseConfig(), 'prod');
+    }
+    prodAuth = authMod.getAuth(prodApp);
+    authMod.onAuthStateChanged(prodAuth, async (user) => {
+      prodAuthToken = user ? await user.getIdToken() : null;
+    });
+  }
+  if (!prodAuth.currentUser) {
+    const provider = new authMod.GoogleAuthProvider();
+    await authMod.signInWithPopup(prodAuth, provider);
+  }
+  prodAuthToken = await prodAuth.currentUser.getIdToken();
+  return prodAuthToken;
+}
+
 function authFetch(url, opts = {}) {
   const headers = { ...(opts.headers || {}) };
-  if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+  const token = dataSource === 'prod' ? prodAuthToken : authToken;
+  if (token) headers['Authorization'] = `Bearer ${token}`;
   return fetch(url, { ...opts, headers });
+}
+
+async function cycleDataSource() {
+  if (!canPreviewProd()) return;
+  if (dataSource === 'local') {
+    try {
+      await ensureProdAuth();
+    } catch (err) {
+      console.warn('[stats-games] Prod sign-in failed:', err);
+      return;
+    }
+    dataSource = 'prod';
+  } else {
+    dataSource = 'local';
+  }
+  applyFilters();
 }
 
 async function doSignOut() {
@@ -214,20 +278,20 @@ function buildGamesUrl(limit, offset) {
   params.set('offset', String(offset));
   if (sortMode === 'longest') { params.set('orderBy', 'duration'); params.set('orderDir', 'desc'); }
   else if (sortMode === 'shortest') { params.set('orderBy', 'duration'); params.set('orderDir', 'asc'); }
-  return `${API_BASE}/api/carkedit/games?${params}`;
+  return `${apiBase()}/api/carkedit/games?${params}`;
 }
 
 function buildStatsUrl() {
-  return `${API_BASE}/api/carkedit/games/stats?${buildGameFilterParams()}`;
+  return `${apiBase()}/api/carkedit/games/stats?${buildGameFilterParams()}`;
 }
 
 function buildStateStatsUrl() {
-  return `${API_BASE}/api/carkedit/games/stats/by-state?${buildGameFilterParams()}`;
+  return `${apiBase()}/api/carkedit/games/stats/by-state?${buildGameFilterParams()}`;
 }
 
 async function fetchFilterCounts() {
   try {
-    const res = await authFetch(`${API_BASE}/api/carkedit/games/filter-counts?${buildGameFilterParams()}`);
+    const res = await authFetch(`${apiBase()}/api/carkedit/games/filter-counts?${buildGameFilterParams()}`);
     if (!res.ok) return;
     filterCounts = await res.json();
   } catch (err) {
@@ -347,8 +411,9 @@ function toggleStateMetric() {
 }
 
 async function toggleGameDev(id, next) {
+  if (dataSource === 'prod') return; // read-only in prod-preview mode
   try {
-    const res = await authFetch(`${API_BASE}/api/carkedit/games/${encodeURIComponent(id)}/dev`, {
+    const res = await authFetch(`${apiBase()}/api/carkedit/games/${encodeURIComponent(id)}/dev`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ is_dev: !!next }),
@@ -455,7 +520,9 @@ function renderGameCard(game) {
   const cls = rowClass(game);
   const errorFlag = game.has_error ? '<span class="dashboard__flag dashboard__flag--error" title="Error">!</span>' : '';
   const issueFlag = game.issue_count > 0 ? `<span class="dashboard__flag dashboard__flag--issue" title="${game.issue_count} issue report(s)">&#9873;</span>` : '';
-  const devFlag = `<button class="dashboard__dev-toggle ${game.is_dev ? 'is-on' : ''}" title="Toggle dev" onclick="event.stopPropagation(); window.statsGames.toggleGameDev('${game.id}', ${!game.is_dev})">DEV</button>`;
+  const devFlag = dataSource === 'prod'
+    ? `<span class="dashboard__dev-toggle ${game.is_dev ? 'is-on' : ''}" title="Read-only in prod preview" style="opacity:0.4;cursor:not-allowed">DEV</span>`
+    : `<button class="dashboard__dev-toggle ${game.is_dev ? 'is-on' : ''}" title="Toggle dev" onclick="event.stopPropagation(); window.statsGames.toggleGameDev('${game.id}', ${!game.is_dev})">DEV</button>`;
   const liveLabel = liveStatusLabel(game.live_status);
   const liveBadge = liveLabel ? `<span class="dashboard__badge dashboard__badge--${game.live_status}">${liveLabel}</span>` : '';
   const isLive = game.live_status === 'live';
@@ -535,11 +602,19 @@ function renderPage() {
     `;
 
   const state = getGameFilterState();
+  const sourceToggle = canPreviewProd()
+    ? `<button class="dashboard__filter-btn ${dataSource === 'prod' ? 'dashboard__filter-btn--active' : ''}" onclick="window.statsGames.cycleDataSource()" title="Toggle production data preview">${dataSource === 'prod' ? '⚠ PROD DATA' : 'Local data'}</button>`
+    : '';
+  const prodBanner = dataSource === 'prod'
+    ? '<div class="dashboard__source-banner">Viewing PRODUCTION data — read-only preview</div>'
+    : '';
   app.innerHTML = `
     ${renderAdminHeader({ user: firebaseUserInfo })}
     <div class="dashboard">
+      ${prodBanner}
       <header class="dashboard__header">
         <h1 class="dashboard__title">All Games <span class="dashboard__versions"><a href="stats.html" class="dashboard__see-all" style="flex:0 0 auto;padding:0.25rem 0.75rem;font-size:0.75rem">← Back to Stats</a></span></h1>
+        ${sourceToggle}
       </header>
       <section class="dashboard__section">
         ${renderStatsPanel()}
@@ -566,7 +641,7 @@ window.statsGames = {
   cycleStatus, cycleDev, cycleDateRange,
   setGameFilter,
   toggleHideGroup, toggleHideRaw, toggleHideDuration, toggleHidePlayers, toggleExpandGroup,
-  loadMore, toggleGameDev,
+  loadMore, toggleGameDev, cycleDataSource,
   cycleSortMode, toggleStateMetric,
 };
 
@@ -579,6 +654,9 @@ try {
     if (user) {
       authToken = await user.getIdToken();
       firebaseUserInfo = { displayName: user.displayName, photoURL: user.photoURL, email: user.email };
+      if (dataSource === 'prod') {
+        try { await ensureProdAuth(); } catch (err) { console.warn('[stats-games] Prod sign-in failed:', err); dataSource = 'local'; }
+      }
       await boot();
     } else {
       authToken = null;

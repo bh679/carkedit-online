@@ -12,15 +12,34 @@ import {
   renderPlayerChips,
 } from './components/game-filters.js';
 import { getOrCreate as registryGetOrCreate } from './data/CardRegistry.js';
-import { getFirebaseConfig } from './firebase-config.js';
+import { getFirebaseConfig, getProdFirebaseConfig } from './firebase-config.js';
 
 // ── Firebase Auth for Admin Gate ────────────────────
 const FIREBASE_CONFIG = getFirebaseConfig();
+const PROD_API_ORIGIN = 'https://play.carkedit.com';
 
 let firebaseAuth = null;
 let authToken = null;
 let authUser = null; // local user from /users/me
 let firebaseUserInfo = null; // { displayName, photoURL, email }
+
+// "Preview production data" mode — cross-origin fetch against prod's API
+// using a secondary Firebase app instance for prod auth. See plan
+// async-floating-feather.md and the CORS allowance in carkedit-api/src/index.ts.
+let dataSource = 'local'; // 'local' | 'prod'
+let prodAuth = null;
+let prodAuthToken = null;
+let pendingDataSource = null; // set from URL on boot; applied after local admin check
+
+function canPreviewProd() {
+  return typeof window !== 'undefined'
+    && window.location
+    && window.location.hostname !== 'play.carkedit.com';
+}
+
+function apiBase() {
+  return dataSource === 'prod' ? PROD_API_ORIGIN : '';
+}
 
 function isMobileDevice() {
   return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -38,7 +57,8 @@ async function loadFirebaseAuth() {
 
 function authHeaders() {
   const h = {};
-  if (authToken) h['Authorization'] = `Bearer ${authToken}`;
+  const token = dataSource === 'prod' ? prodAuthToken : authToken;
+  if (token) h['Authorization'] = `Bearer ${token}`;
   return h;
 }
 
@@ -48,7 +68,8 @@ function authFetch(url, opts = {}) {
 }
 
 async function patchDevFlag(kind, id, isDev) {
-  const res = await authFetch(`${API_BASE}/api/carkedit/${kind}/${encodeURIComponent(id)}/dev`, {
+  if (dataSource === 'prod') throw new Error('Mutations disabled in prod preview mode');
+  const res = await authFetch(`${apiBase()}/api/carkedit/${kind}/${encodeURIComponent(id)}/dev`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ is_dev: !!isDev }),
@@ -57,7 +78,81 @@ async function patchDevFlag(kind, id, isDev) {
   return res.json();
 }
 
-const API_BASE = '';  // Same origin
+// Initialize a secondary Firebase app pointing at prod, prompt sign-in via
+// popup, and keep prodAuthToken fresh as the Firebase SDK silently refreshes
+// the underlying ID token. Idempotent — safe to call repeatedly.
+async function ensureProdAuth() {
+  const [appMod, authMod] = await Promise.all([
+    import('https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js'),
+    import('https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js'),
+  ]);
+  if (!prodAuth) {
+    let prodApp;
+    try {
+      prodApp = appMod.getApp('prod');
+    } catch {
+      prodApp = appMod.initializeApp(getProdFirebaseConfig(), 'prod');
+    }
+    prodAuth = authMod.getAuth(prodApp);
+    authMod.onAuthStateChanged(prodAuth, async (user) => {
+      prodAuthToken = user ? await user.getIdToken() : null;
+    });
+  }
+  if (!prodAuth.currentUser) {
+    const provider = new authMod.GoogleAuthProvider();
+    await authMod.signInWithPopup(prodAuth, provider);
+  }
+  prodAuthToken = await prodAuth.currentUser.getIdToken();
+  return prodAuthToken;
+}
+
+async function cycleDataSource() {
+  if (!canPreviewProd()) return;
+  if (dataSource === 'local') {
+    try {
+      await ensureProdAuth();
+    } catch (err) {
+      console.warn('[dashboard] Prod sign-in failed:', err);
+      return;
+    }
+    dataSource = 'prod';
+  } else {
+    dataSource = 'local';
+  }
+  writeSourceToUrl();
+  await refreshAllFromCurrentSource();
+}
+
+function writeSourceToUrl() {
+  const params = new URLSearchParams(location.search);
+  if (dataSource === 'prod') params.set('source', 'prod');
+  else params.delete('source');
+  const qs = params.toString();
+  const url = qs ? `${location.pathname}?${qs}` : location.pathname;
+  history.replaceState(null, '', url);
+}
+
+function readSourceFromUrl() {
+  const params = new URLSearchParams(location.search);
+  if (params.get('source') === 'prod' && canPreviewProd()) pendingDataSource = 'prod';
+}
+
+async function refreshAllFromCurrentSource() {
+  // Re-render immediately so the banner + toggle reflect the new state
+  renderPage();
+  await Promise.all([
+    autoSelectDateRange(), fetchStats(), fetchPeriodStats(), fetchCardStats(),
+    fetchPackStats(), fetchSurveyStats(), fetchSurveyResponses(), fetchUserStats(),
+  ]);
+  renderStats();
+  renderGameList();
+  renderCardAnalytics();
+  renderPackStats();
+  renderSurveyResponses();
+  renderUserStats();
+  renderGraph();
+}
+
 let games = [];
 let gamesTotalCount = 0;
 let gamesPageSize = 5;
@@ -113,14 +208,14 @@ async function loadCardData() {
 
   // Load expansion-pack cards so we can resolve their image_url
   try {
-    const res = await authFetch(`${API_BASE}/api/carkedit/packs`);
+    const res = await authFetch(`${apiBase()}/api/carkedit/packs`);
     if (res.ok) {
       const data = await res.json();
       const packs = data.packs ?? data ?? [];
       packList.length = 0;
       await Promise.all(packs.map(async (p) => {
         try {
-          const pr = await authFetch(`${API_BASE}/api/carkedit/packs/${p.id}`);
+          const pr = await authFetch(`${apiBase()}/api/carkedit/packs/${p.id}`);
           if (!pr.ok) return;
           const pack = await pr.json();
           packList.push({ id: p.id, title: pack.title || p.title || p.id });
@@ -241,12 +336,12 @@ function buildGamesUrl(limit, offset) {
   const params = buildGameFilterParams();
   params.set('limit', String(limit));
   params.set('offset', String(offset));
-  return `${API_BASE}/api/carkedit/games?${params}`;
+  return `${apiBase()}/api/carkedit/games?${params}`;
 }
 
 async function fetchFilterCounts() {
   try {
-    const url = `${API_BASE}/api/carkedit/games/filter-counts?${buildGameFilterParams()}`;
+    const url = `${apiBase()}/api/carkedit/games/filter-counts?${buildGameFilterParams()}`;
     const res = await authFetch(url);
     if (!res.ok) return;
     filterCounts = await res.json();
@@ -354,7 +449,7 @@ async function autoSelectDateRange() {
 
 async function fetchStats() {
   try {
-    const res = await authFetch(`${API_BASE}/api/carkedit/games/stats`);
+    const res = await authFetch(`${apiBase()}/api/carkedit/games/stats`);
     if (!res.ok) return;
     stats = await res.json();
   } catch (err) {
@@ -371,7 +466,7 @@ let surveyDevFilter = 'nodev'; // 'all' | 'dev' | 'nodev'
 async function fetchSurveyStats() {
   try {
     // Key Stats always excludes dev data
-    const res = await authFetch(`${API_BASE}/api/carkedit/surveys/stats?dev=nodev`);
+    const res = await authFetch(`${apiBase()}/api/carkedit/surveys/stats?dev=nodev`);
     if (res.ok) surveyStats = await res.json();
   } catch (err) {
     console.warn('[dashboard] Failed to fetch survey stats:', err);
@@ -383,7 +478,7 @@ async function fetchSurveyResponses(append = false) {
     const offset = append ? surveyResponses.length : 0;
     const devParam = surveyDevFilter !== 'all' ? `&dev=${surveyDevFilter}` : '';
     const res = await authFetch(
-      `${API_BASE}/api/carkedit/surveys?limit=${surveyPageSize}&offset=${offset}${devParam}`
+      `${apiBase()}/api/carkedit/surveys?limit=${surveyPageSize}&offset=${offset}${devParam}`
     );
     if (res.ok) {
       const data = await res.json();
@@ -418,10 +513,10 @@ async function fetchPeriodStats() {
   const monthAgo = new Date(now - 30 * 24 * 60 * 60 * 1000).toISOString();
   try {
     const [dayRes, weekRes, monthRes, liveRes] = await Promise.all([
-      authFetch(`${API_BASE}/api/carkedit/games/stats?since=${dayAgo}`),
-      authFetch(`${API_BASE}/api/carkedit/games/stats?since=${weekAgo}`),
-      authFetch(`${API_BASE}/api/carkedit/games/stats?since=${monthAgo}`),
-      authFetch(`${API_BASE}/api/carkedit/games/stats/live`),
+      authFetch(`${apiBase()}/api/carkedit/games/stats?since=${dayAgo}`),
+      authFetch(`${apiBase()}/api/carkedit/games/stats?since=${weekAgo}`),
+      authFetch(`${apiBase()}/api/carkedit/games/stats?since=${monthAgo}`),
+      authFetch(`${apiBase()}/api/carkedit/games/stats/live`),
     ]);
     if (dayRes.ok) dayStats = await dayRes.json();
     if (weekRes.ok) weekStats = await weekRes.json();
@@ -526,7 +621,7 @@ async function toggleGame(gameId) {
   const isLive = !cachedGame || cachedGame.live_status === 'live';
   if (!cachedGame || isLive) {
     try {
-      const res = await authFetch(`${API_BASE}/api/carkedit/games/${gameId}`);
+      const res = await authFetch(`${apiBase()}/api/carkedit/games/${gameId}`);
       if (res.ok) gameDetailCache[gameId] = await res.json();
     } catch (err) {
       console.warn('[dashboard] Failed to fetch game detail:', err);
@@ -685,7 +780,9 @@ function renderSurveyResponses() {
           <span class="nps-chip ${bucket}">${r.nps_score}</span>
           <span class="survey-response__player">${escapeHtml(player)}</span>
           <span class="survey-response__date">${date}</span>
-          <button class="dashboard__dev-toggle ${r.is_dev ? 'is-on' : ''}" title="Toggle dev" onclick="window.dash.toggleSurveyDev('${sid}', ${!r.is_dev})">DEV</button>
+          ${dataSource === 'prod'
+            ? `<span class="dashboard__dev-toggle ${r.is_dev ? 'is-on' : ''}" title="Read-only in prod preview" style="opacity:0.4;cursor:not-allowed">DEV</span>`
+            : `<button class="dashboard__dev-toggle ${r.is_dev ? 'is-on' : ''}" title="Toggle dev" onclick="window.dash.toggleSurveyDev('${sid}', ${!r.is_dev})">DEV</button>`}
         </div>
         ${comment ? `<div class="survey-response__field"><strong>Comment:</strong> ${comment}</div>` : ''}
         ${improvement ? `<div class="survey-response__field"><strong>Improve:</strong> ${improvement}</div>` : ''}
@@ -717,10 +814,10 @@ function renderUserStats() {
     el.dataset.psMounted = '1';
     playerStatsHandle = mountPlayerStats(el, {
       authFetch,
-      apiBase: API_BASE,
+      apiBase: apiBase(),
       showSeeAllLink: true,
       expansionSteps: [10],
-      patchDevFlag,
+      patchDevFlag: dataSource === 'prod' ? null : patchDevFlag,
       confirmDevToggle,
       onGameDevToggled(gameId, isDev) {
         const mi = games.findIndex(x => x.id === gameId);
@@ -1075,7 +1172,7 @@ async function copyDebugData(gameId) {
     // Fetch game events (supplementary — don't fail if unavailable)
     let events = [];
     try {
-      const res = await authFetch(`${API_BASE}/api/carkedit/games/${gameId}/events`);
+      const res = await authFetch(`${apiBase()}/api/carkedit/games/${gameId}/events`);
       if (res.ok) { const data = await res.json(); events = data.events || []; }
     } catch { /* events are optional */ }
 
@@ -1225,7 +1322,9 @@ function renderGameCard(game) {
   const expanded = expandedGameId === game.id;
   const errorFlag = game.has_error ? '<span class="dashboard__flag dashboard__flag--error" title="Error">!</span>' : '';
   const issueFlag = game.issue_count > 0 ? `<span class="dashboard__flag dashboard__flag--issue" title="${game.issue_count} issue report(s)">&#9873;</span>` : '';
-  const devFlag = `<button class="dashboard__dev-toggle ${game.is_dev ? 'is-on' : ''}" title="Toggle dev" onclick="event.stopPropagation(); window.dash.toggleGameDev('${game.id}', ${!game.is_dev})">DEV</button>`;
+  const devFlag = dataSource === 'prod'
+    ? `<span class="dashboard__dev-toggle ${game.is_dev ? 'is-on' : ''}" title="Read-only in prod preview" style="opacity:0.4;cursor:not-allowed">DEV</span>`
+    : `<button class="dashboard__dev-toggle ${game.is_dev ? 'is-on' : ''}" title="Toggle dev" onclick="event.stopPropagation(); window.dash.toggleGameDev('${game.id}', ${!game.is_dev})">DEV</button>`;
   const liveLabel = liveStatusLabel(game.live_status);
   const liveBadge = liveLabel ? `<span class="dashboard__badge dashboard__badge--${game.live_status}">${liveLabel}</span>` : '';
 
@@ -1348,7 +1447,7 @@ let cardAuthorFilter = 'all'; // 'all' | creator_name string
 async function fetchCardStats() {
   try {
     const params = cardDevFilter !== 'all' ? `?dev=${cardDevFilter}` : '';
-    const res = await authFetch(`${API_BASE}/api/carkedit/cards/stats${params}`);
+    const res = await authFetch(`${apiBase()}/api/carkedit/cards/stats${params}`);
     if (!res.ok) return;
     cardStats = await res.json();
   } catch (err) {
@@ -1575,7 +1674,7 @@ let packExpanded = false;
 
 async function fetchPackStats() {
   try {
-    const res = await authFetch(`${API_BASE}/api/carkedit/packs/stats`);
+    const res = await authFetch(`${apiBase()}/api/carkedit/packs/stats`);
     if (!res.ok) return;
     packStats = await res.json();
   } catch (err) {
@@ -1643,7 +1742,9 @@ function renderPackStats() {
   const rows = packs.map((p) => {
     const winRatePct = ((p.win_rate || 0) * 100).toFixed(0);
     const officialBadge = p.is_official ? ' <span class="dashboard__pack-badge dashboard__pack-badge--official">OFFICIAL</span>' : '';
-    const devBadge = ` <button class="dashboard__dev-toggle ${p.is_dev ? 'is-on' : ''}" title="Toggle dev" onclick="window.dash.togglePackDev('${escAttr(p.id)}', ${!p.is_dev})">DEV</button>`;
+    const devBadge = dataSource === 'prod'
+      ? ` <span class="dashboard__dev-toggle ${p.is_dev ? 'is-on' : ''}" title="Read-only in prod preview" style="opacity:0.4;cursor:not-allowed">DEV</span>`
+      : ` <button class="dashboard__dev-toggle ${p.is_dev ? 'is-on' : ''}" title="Toggle dev" onclick="window.dash.togglePackDev('${escAttr(p.id)}', ${!p.is_dev})">DEV</button>`;
     const statusKey = (p.status || 'draft').toLowerCase();
     const statusBadge = ` <span class="dashboard__pack-badge dashboard__pack-badge--status dashboard__pack-badge--${statusKey}">${statusKey.toUpperCase()}</span>`;
     const titleEsc = escAttr(p.title || '(untitled)');
@@ -1790,9 +1891,16 @@ function renderGraph() {
 function renderPage() {
   resetAdminHeaderMenu();
   const app = document.getElementById('app');
+  const sourceToggle = canPreviewProd()
+    ? `<button class="dashboard__filter-btn ${dataSource === 'prod' ? 'dashboard__filter-btn--active' : ''}" onclick="window.dash.cycleDataSource()" title="Toggle production data preview" style="margin-left:0.5rem">${dataSource === 'prod' ? '⚠ PROD DATA' : 'Local data'}</button>`
+    : '';
+  const prodBanner = dataSource === 'prod'
+    ? '<div class="dashboard__source-banner">Viewing PRODUCTION data — read-only preview</div>'
+    : '';
   app.innerHTML = `
     ${renderAdminHeader({ user: firebaseUserInfo })}
     <div class="dashboard">
+      ${prodBanner}
       <header class="dashboard__header">
         <h1 class="dashboard__title">CarkedIt — Game Stats
           <span class="dashboard__versions">
@@ -1800,6 +1908,7 @@ function renderPage() {
             <span id="dash-version-server" class="dashboard__version-item" data-tooltip="Checking...">...<span class="version-dot version-dot--checking"></span></span>
             <span id="dash-refresh-timer" class="dashboard__refresh-timer">${REFRESH_INTERVAL_IDLE}s</span>
             <button class="dashboard__refresh-btn" onclick="window.dash.refreshNow()" title="Refresh now">&#x21bb;</button>
+            ${sourceToggle}
           </span>
         </h1>
       </header>
@@ -1871,7 +1980,7 @@ async function refreshAll() {
     const cached = gameDetailCache[expandedGameId];
     if (!cached || cached.live_status === 'live') {
       try {
-        const res = await authFetch(`${API_BASE}/api/carkedit/games/${expandedGameId}`);
+        const res = await authFetch(`${apiBase()}/api/carkedit/games/${expandedGameId}`);
         if (res.ok) gameDetailCache[expandedGameId] = await res.json();
       } catch {}
     }
@@ -1942,6 +2051,7 @@ function confirmDevToggle(kind, label, next) {
 }
 
 async function toggleGameDev(id, next) {
+  if (dataSource === 'prod') return; // read-only in prod-preview mode
   const g = games.find(x => x.id === id);
   const label = g ? `${g.host_name || '(no host)'} — ${id}` : id;
   if (!await confirmDevToggle('Game', label, next)) return;
@@ -1954,6 +2064,7 @@ async function toggleGameDev(id, next) {
 }
 
 async function toggleSurveyDev(id, next) {
+  if (dataSource === 'prod') return; // read-only in prod-preview mode
   const r = surveyResponses.find(x => String(x.id) === String(id));
   const label = r ? `NPS ${r.nps_score} — ${r.player_name || '(anonymous)'}` : String(id);
   if (!await confirmDevToggle('Survey response', label, next)) return;
@@ -1966,6 +2077,7 @@ async function toggleSurveyDev(id, next) {
 }
 
 async function togglePackDev(id, next) {
+  if (dataSource === 'prod') return; // read-only in prod-preview mode
   const p = packStats.packs.find(x => x.id === id);
   const label = p ? (p.title || '(untitled)') : id;
   if (!await confirmDevToggle('Pack', label, next)) return;
@@ -1979,6 +2091,7 @@ async function togglePackDev(id, next) {
 
 // ── Base Cost Modal ──────────────────────────────────
 function openBaseCostModal(packId, currentBase, generatedCost) {
+  if (dataSource === 'prod') return; // read-only in prod-preview mode
   closeBaseCostModal();
   const total = (currentBase + generatedCost).toFixed(2);
   const overlay = document.createElement('div');
@@ -2030,7 +2143,7 @@ async function saveBaseCost(packId) {
     return;
   }
   try {
-    await authFetch(`${API_BASE}/api/carkedit/packs/${encodeURIComponent(packId)}/base-cost`, {
+    await authFetch(`${apiBase()}/api/carkedit/packs/${encodeURIComponent(packId)}/base-cost`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ base_cost_usd: val }),
@@ -2046,7 +2159,7 @@ async function saveBaseCost(packId) {
   }
 }
 
-window.dash = { cyclePlayTime, cycleGamesCount, cyclePlayersCount, toggleGame, cycleDeckFilter, setCardSort, toggleCardSortDir, cycleCardDev, setPackFilter, setAuthorFilter, setPackSort, togglePackExpanded, cycleSurveyDev, previewCard, closePreview, prevPreviewCard, nextPreviewCard, scrollCards, loadMoreGames, loadMoreSurveys, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange, toggleHideGroup, toggleHideRaw, toggleHideDuration, toggleHidePlayers, toggleExpandGroup, signInWithGoogle, signOut, toggleGameDev, toggleSurveyDev, togglePackDev, copyDebugData, openBaseCostModal, closeBaseCostModal, saveBaseCost };
+window.dash = { cyclePlayTime, cycleGamesCount, cyclePlayersCount, toggleGame, cycleDeckFilter, setCardSort, toggleCardSortDir, cycleCardDev, setPackFilter, setAuthorFilter, setPackSort, togglePackExpanded, cycleSurveyDev, previewCard, closePreview, prevPreviewCard, nextPreviewCard, scrollCards, loadMoreGames, loadMoreSurveys, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange, toggleHideGroup, toggleHideRaw, toggleHideDuration, toggleHidePlayers, toggleExpandGroup, signInWithGoogle, signOut, toggleGameDev, toggleSurveyDev, togglePackDev, copyDebugData, openBaseCostModal, closeBaseCostModal, saveBaseCost, cycleDataSource };
 
 // ── Auth Gate UI ─────────────────────────────────────
 function renderAuthGate(message, showSignIn = true) {
@@ -2090,7 +2203,7 @@ async function signOut() {
 
 async function bootstrapAdmin() {
   try {
-    const res = await authFetch(`${API_BASE}/api/carkedit/admin/bootstrap`, { method: 'POST' });
+    const res = await authFetch(`${apiBase()}/api/carkedit/admin/bootstrap`, { method: 'POST' });
     if (res.ok) {
       authUser = await res.json();
       bootDashboard();
@@ -2107,7 +2220,7 @@ async function bootstrapAdmin() {
 async function checkAdminAndBoot() {
   // Fetch current user profile to check admin flag
   try {
-    const res = await authFetch(`${API_BASE}/api/carkedit/users/me`);
+    const res = await authFetch(`${apiBase()}/api/carkedit/users/me`);
     if (!res.ok) {
       renderAuthGate('You do not have admin access.', false);
       return;
@@ -2115,7 +2228,7 @@ async function checkAdminAndBoot() {
     authUser = await res.json();
     if (!authUser.is_admin) {
       // Try bootstrap — succeeds only if no admins exist yet
-      const bootstrapRes = await authFetch(`${API_BASE}/api/carkedit/admin/bootstrap`, { method: 'POST' });
+      const bootstrapRes = await authFetch(`${apiBase()}/api/carkedit/admin/bootstrap`, { method: 'POST' });
       if (bootstrapRes.ok) {
         authUser = await bootstrapRes.json();
         bootDashboard();
@@ -2202,6 +2315,13 @@ async function bootDashboard() {
   renderUserStats();
   renderGraph();
 
+  // Honour ?source=prod on first load — the local admin gate above runs in
+  // local mode, then we flip to prod and re-fetch everything cross-origin.
+  if (pendingDataSource === 'prod') {
+    pendingDataSource = null;
+    cycleDataSource();
+  }
+
   // Countdown timer — tick every second, refresh at 0
   setInterval(() => {
     refreshCountdown--;
@@ -2221,6 +2341,7 @@ async function bootDashboard() {
 
 // ── Init — Auth Gate ────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
+  readSourceFromUrl();
   renderAuthGate('Loading...', false);
 
   try {

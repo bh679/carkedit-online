@@ -19,6 +19,21 @@ body {
   padding: var(--space-md) var(--space-lg);
 }
 
+/* ── Prod-Preview Banner ─────────────────────────── */
+
+.dashboard__source-banner {
+  background: #c62828;
+  color: #fff;
+  font-weight: 700;
+  text-align: center;
+  padding: 0.5rem var(--space-md);
+  margin: 0 calc(-1 * var(--space-lg)) var(--space-md);
+  letter-spacing: 0.05em;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
 /* ── Header ─────────────────────────────────────── */
 
 .dashboard__header {
