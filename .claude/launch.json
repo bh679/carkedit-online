@@ -39,5 +39,11 @@
       "runtimeArgs": ["http-server", ".", "-p", "4555", "-c-1"],
       "port": 4555
     }
+  ,{
+      "name": "fix-eulogy-picker-4501",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["http-server", ".", "-p", "4501", "-c-1"],
+      "port": 4501
+    }
   ]
 }
