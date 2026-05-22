@@ -415,6 +415,11 @@ function renderOnlineSubmit(config, state, playerListOptions, livingDead, living
     ? `<div class="${playCardTimerClass}"><span class="pitch-timer__time">${formatTime(playCardSeconds)}</span></div>`
     : '';
 
+  // If this player has already submitted, the inspect overlay's CTA becomes "Swap"
+  // so they can replace their played card with a different one from their hand.
+  const hasSubmitted = (state.onlineSubmittedCards ?? [])
+    .some(c => c.submittedBy === state.mySessionId);
+
   return layout(config, state, playerListOptions, `
     ${renderLivingDeadProfile({
       player: livingDead,
@@ -422,11 +427,11 @@ function renderOnlineSubmit(config, state, playerListOptions, livingDead, living
       chosenCards,
       profileInspectCard: state.profileInspectCard ?? null,
       deckType: config.deckType,
-      hint: 'Select your best card to play',
+      hint: hasSubmitted ? 'Tap a card to swap it in' : 'Select your best card to play',
       submittedCards: submittedCardsMap,
     })}
     ${playCardTimerHtml}
-    ${renderHand(state.hand ?? [], { selectedCard: state.selectedCard, deckType: config.deckType })}
+    ${renderHand(state.hand ?? [], { selectedCard: state.selectedCard, deckType: config.deckType, hasSubmitted })}
   `);
 }
 
