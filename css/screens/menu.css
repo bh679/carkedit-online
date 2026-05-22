@@ -79,3 +79,58 @@
 .menu__version:hover {
   opacity: 0.8;
 }
+
+.menu__recover-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.menu__recover-card {
+  background: var(--color-surface, #1a1a1a);
+  border-radius: 12px;
+  padding: var(--space-xl, 2rem);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md, 1rem);
+  max-width: 320px;
+  text-align: center;
+}
+
+.menu__recover-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--color-text-muted, #888);
+  border-top-color: var(--color-primary, #e63946);
+  border-radius: 50%;
+  animation: menu-recover-spin 0.9s linear infinite;
+}
+
+@keyframes menu-recover-spin {
+  to { transform: rotate(360deg); }
+}
+
+.menu__recover-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-text, #fff);
+  margin: 0;
+}
+
+.menu__recover-sub {
+  font-size: 0.85rem;
+  color: var(--color-text-muted, #aaa);
+  letter-spacing: 0.05em;
+  margin: 0;
+}
+
+.menu__recover-cancel {
+  margin-top: var(--space-sm, 0.75rem);
+  min-width: 120px;
+}

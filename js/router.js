@@ -22,11 +22,13 @@ import {
   joinRoom as networkJoinRoom,
   leaveRoom as networkLeaveRoom,
   lookupRoom as networkLookupRoom,
+  attemptRecover as networkAttemptRecover,
   sendMessage,
   onScreenChange,
   onSettingsChange,
   resyncFromRoomState,
 } from './network/client.js';
+import { loadSession, clearSession } from './managers/session-recovery.js';
 import { onTimerUpdate } from './managers/online-timer.js';
 import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, logOut, updateUserProfile } from './managers/auth-manager.js';
 import { fetchMyPacks, fetchPublicPacks, fetchFavoritePacks, setPackFavorite, getPack } from './card-designer/pack-manager.js';
@@ -516,9 +518,16 @@ function revealWinner() {
   showScreen('phase4');
 }
 
+function cancelRecover() {
+  clearSession();
+  setState({ connectionStatus: 'disconnected', onlineError: null, roomCode: null });
+  showScreen('menu');
+}
+
 // Expose game API for inline onclick handlers
 window.game = {
   showScreen,
+  cancelRecover,
   addPlayer,
   selectPlayerRemoval,
   removePlayer,
@@ -1057,7 +1066,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const params = new URLSearchParams(window.location.search);
   const joinCode = params.get('join');
-  if (joinCode) {
+  const savedSession = loadSession();
+
+  // Page-reload recovery — only attempt if we saved a session in this tab.
+  // sessionStorage already filters out cross-tab/post-close scenarios.
+  if (savedSession) {
+    setState({ connectionStatus: 'reconnecting', roomCode: savedSession.roomCode });
+    showScreen('menu');
+    networkAttemptRecover((players) => {
+      setState({ onlinePlayers: players });
+    })
+      .then(() => {
+        resyncFromRoomState();
+      })
+      .catch((err) => {
+        console.log(`[router] Recover failed: ${err?.message ?? err}`);
+        clearSession();
+        setState({ connectionStatus: 'disconnected', onlineError: null, roomCode: null });
+        showScreen('menu');
+      });
+  } else if (joinCode) {
     setState({ roomCode: joinCode.toUpperCase() });
     showScreen('join-game');
     // Pre-fill the room code input after render
