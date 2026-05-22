@@ -19,12 +19,14 @@
         .admin-users__table th { color: #888; font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
         .admin-users__table tr:hover { background: rgba(255,255,255,0.03); }
         .admin-users__avatar { width: 28px; height: 28px; border-radius: 50%; vertical-align: middle; margin-right: 0.5rem; }
-        .admin-users__badge { display: inline-block; padding: 0.15em 0.5em; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
-        .admin-users__badge--admin { background: #2d6a4f; color: #b7e4c7; }
-        .admin-users__badge--user { background: #333; color: #888; }
-        .btn--toggle-admin { padding: 0.3em 0.8em; font-size: 0.8rem; border: 1px solid #555; border-radius: 4px; background: transparent; color: #ccc; cursor: pointer; }
-        .btn--toggle-admin:hover { border-color: #888; color: #fff; }
-        .btn--toggle-admin--active { border-color: #2d6a4f; color: #b7e4c7; }
+        .admin-users__badge { display: inline-block; padding: 0.15em 0.55em; border-radius: 4px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.02em; }
+        .admin-users__badge--admin  { background: #6a2d4f; color: #e4b7d4; }
+        .admin-users__badge--qa     { background: #4a3a85; color: #c8b9ff; }
+        .admin-users__badge--host   { background: #2d4a6a; color: #b7d4e4; }
+        .admin-users__badge--player { background: #333;    color: #888; }
+        .admin-users__role-select { padding: 0.3em 0.6em; font-size: 0.8rem; border: 1px solid #555; border-radius: 4px; background: #1a1a1a; color: #ccc; cursor: pointer; }
+        .admin-users__role-select:hover:not(:disabled) { border-color: #888; color: #fff; }
+        .admin-users__role-select:disabled { opacity: 0.5; cursor: not-allowed; }
         .admin-users__count { color: #888; font-size: 0.85rem; }
         .admin-users__gate { display: flex; align-items: center; justify-content: center; min-height: 60vh; text-align: center; }
         .admin-users__gate p { color: #888; margin-bottom: 1em; }
@@ -83,12 +85,28 @@
     }
 
     let users = [];
+    let currentUser = null;
+    const ROLES = ['Player', 'Host', 'QA', 'Admin'];
 
     async function doSignOut() {
       const { signOut } = await import('https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js');
       await signOut(firebaseAuth);
       authToken = null;
       renderGate('Sign in to access user management.', true);
+    }
+
+    function roleBadge(role) {
+      const r = role || 'Player';
+      return `<span class="admin-users__badge admin-users__badge--${r.toLowerCase()}">${r}</span>`;
+    }
+
+    function roleSelect(u, currentRole, disabled) {
+      const opts = ROLES.map(r => {
+        const sel = r === currentRole ? ' selected' : '';
+        return `<option value="${r}"${sel}>${r}</option>`;
+      }).join('');
+      const dis = disabled ? ' disabled title="Promote another admin first before changing your own role"' : '';
+      return `<select class="admin-users__role-select" data-user-id="${u.id}"${dis}>${opts}</select>`;
     }
 
     function renderUsers() {
@@ -98,23 +116,21 @@
         const avatar = u.avatar_url
           ? `<img class="admin-users__avatar" src="${u.avatar_url}" alt="" />`
           : '';
-        const badge = u.is_admin
-          ? '<span class="admin-users__badge admin-users__badge--admin">Admin</span>'
-          : '<span class="admin-users__badge admin-users__badge--user">User</span>';
-        const btnLabel = u.is_admin ? 'Remove Admin' : 'Make Admin';
-        const btnClass = u.is_admin ? 'btn--toggle-admin btn--toggle-admin--active' : 'btn--toggle-admin';
+        const role = u.role || (u.is_admin ? 'Admin' : 'Host');
+        const isSelf = currentUser && u.id === currentUser.id;
         return `<tr>
           <td>${avatar}${u.display_name || '—'}</td>
           <td>${u.email || '—'}</td>
-          <td>${badge}</td>
+          <td>${roleBadge(role)}</td>
           <td>${u.firebase_uid ? 'Yes' : 'No'}</td>
           <td>${new Date(u.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: '2-digit' })}</td>
-          <td><button class="${btnClass}" data-user-id="${u.id}" data-set-admin="${u.is_admin ? 0 : 1}">${btnLabel}</button></td>
+          <td>${roleSelect(u, role, isSelf)}</td>
         </tr>`;
       }).join('');
 
+      const headerRole = currentUser?.role || 'Admin';
       app.innerHTML = `
-        ${renderAdminHeader({ user: fbUserInfo })}
+        ${renderAdminHeader({ user: fbUserInfo, role: headerRole })}
         <div class="admin-users">
           <div class="admin-users__header">
             <h1 class="admin-users__title">User Management <span class="admin-users__count">(${users.length} users)</span></h1>
@@ -127,26 +143,26 @@
                 <th>Role</th>
                 <th>Linked</th>
                 <th>Created</th>
-                <th>Action</th>
+                <th>Role</th>
               </tr>
             </thead>
             <tbody>${rows}</tbody>
           </table>
         </div>`;
 
-      bindAdminHeader(app, { user: fbUserInfo, onSignOut: doSignOut });
+      bindAdminHeader(app, { user: fbUserInfo, role: headerRole, onSignOut: doSignOut });
 
-      document.querySelectorAll('[data-user-id]').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          const userId = btn.getAttribute('data-user-id');
-          const setAdmin = parseInt(btn.getAttribute('data-set-admin'));
-          btn.disabled = true;
-          btn.textContent = '...';
+      document.querySelectorAll('.admin-users__role-select').forEach(sel => {
+        sel.addEventListener('change', async () => {
+          const userId = sel.getAttribute('data-user-id');
+          const newRole = sel.value;
+          const prev = users.find(u => u.id === userId)?.role;
+          sel.disabled = true;
           try {
-            const res = await authFetch(`/api/carkedit/users/${userId}/admin`, {
+            const res = await authFetch(`/api/carkedit/users/${userId}/role`, {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ is_admin: !!setAdmin }),
+              body: JSON.stringify({ role: newRole }),
             });
             if (res.ok) {
               const updated = await res.json();
@@ -155,25 +171,37 @@
               renderUsers();
             } else {
               const data = await res.json();
-              alert(data.error || 'Failed to update');
-              btn.disabled = false;
+              alert(data.error || 'Failed to update role');
+              sel.value = prev || 'Host';
+              sel.disabled = false;
             }
           } catch (err) {
             alert('Network error');
-            btn.disabled = false;
+            sel.value = prev || 'Host';
+            sel.disabled = false;
           }
         });
       });
     }
 
+    async function fetchCurrentUser() {
+      try {
+        const res = await authFetch('/api/carkedit/users/me');
+        if (res.ok) currentUser = await res.json();
+      } catch (err) {
+        // Non-fatal; header will fall back to default 'Admin' filter.
+      }
+    }
+
     async function boot() {
       try {
+        await fetchCurrentUser();
         const res = await authFetch('/api/carkedit/users');
         if (res.status === 403) {
           // Not admin — try bootstrap (works only if no admins exist)
           const bootstrapRes = await authFetch('/api/carkedit/admin/bootstrap', { method: 'POST' });
           if (bootstrapRes.ok) {
-            // Bootstrapped — retry loading users
+            await fetchCurrentUser();
             const retryRes = await authFetch('/api/carkedit/users');
             if (retryRes.ok) {
               const data = await retryRes.json();
