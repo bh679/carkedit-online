@@ -33,5 +33,11 @@
       "runtimeArgs": ["http-server", ".", "-p", "4540", "-c-1"],
       "port": 4540
     }
+  ,{
+      "name": "shared-game-filters-4555",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["http-server", ".", "-p", "4555", "-c-1"],
+      "port": 4555
+    }
   ]
 }
