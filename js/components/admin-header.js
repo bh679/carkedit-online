@@ -1,15 +1,25 @@
 // CarkedIt Online — Shared Admin Header Component
 'use strict';
 
+// Per-link minimum role. Anyone with role >= minRole sees the link.
+// Hierarchy: Player(0) < Host(1) < QA(2) < Admin(3).
 const NAV_LINKS = [
-  { label: '\u2190',  path: '.', className: 'admin-header__link--back' },
-  { label: 'Stats',   path: 'stats' },
-  { label: 'Users',   path: 'admin-users' },
-  { label: 'ImageAI', path: 'admin-image-gen' },
-  { label: 'Costs',   path: 'financial-dashboard' },
-  { label: 'Dev',     path: 'dev-dashboard' },
-  { label: 'Deploy',  path: 'deploy' },
+  { label: '\u2190',  path: '.', className: 'admin-header__link--back', minRole: 'QA' },
+  { label: 'Stats',   path: 'stats',               minRole: 'QA' },
+  { label: 'Users',   path: 'admin-users',         minRole: 'Admin' },
+  { label: 'ImageAI', path: 'admin-image-gen',     minRole: 'QA' },
+  { label: 'Costs',   path: 'financial-dashboard', minRole: 'QA' },
+  { label: 'Dev',     path: 'dev-dashboard',       minRole: 'QA' },
+  { label: 'Deploy',  path: 'deploy',              minRole: 'QA' },
 ];
+
+const ROLE_RANK = { Player: 0, Host: 1, QA: 2, Admin: 3 };
+
+function meetsRole(userRole, minRole) {
+  const cur = ROLE_RANK[userRole] ?? 0;
+  const min = ROLE_RANK[minRole] ?? 0;
+  return cur >= min;
+}
 
 let _menuOpen = false;
 let _version = null;
@@ -43,17 +53,20 @@ function fetchVersion() {
 
 /**
  * Returns the admin header HTML string.
- * @param {{ user?: { displayName?: string, photoURL?: string }, onSignOut?: Function }} opts
+ * @param {{ user?: { displayName?: string, photoURL?: string }, role?: string, onSignOut?: Function }} opts
+ *        `role` defaults to 'Admin' for backwards compatibility — pages that
+ *        don't pass it keep showing every link.
  */
 export function renderAdminHeader(opts = {}) {
   const user = opts.user || {};
+  const role = opts.role || 'Admin';
   const name = esc(user.displayName || 'Admin');
   const initial = (user.displayName || 'A').charAt(0).toUpperCase();
   const avatar = user.photoURL
     ? `<img class="admin-header__avatar" src="${esc(user.photoURL)}" alt="" />`
     : `<span class="admin-header__avatar admin-header__avatar--initial">${esc(initial)}</span>`;
 
-  const nav = NAV_LINKS.map(l => {
+  const nav = NAV_LINKS.filter(l => meetsRole(role, l.minRole)).map(l => {
     const active = isActive(l.path) ? ' admin-header__link--active' : '';
     const extra = l.className ? ` ${l.className}` : '';
     return `<a class="admin-header__link${active}${extra}" href="${l.path}">${esc(l.label)}</a>`;
