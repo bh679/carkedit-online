@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CarkedIt — User Management</title>
-    <link rel="stylesheet" href="css/base.css?v=1.06.0051">
-    <link rel="stylesheet" href="css/components/auth.css?v=1.06.0051">
-    <link rel="stylesheet" href="css/components/admin-header.css?v=1.06.0051">
-    <link rel="stylesheet" href="css/dashboard.css?v=1.06.0051">
+    <link rel="stylesheet" href="css/base.css?v=1.06.0193">
+    <link rel="stylesheet" href="css/components/auth.css?v=1.06.0193">
+    <link rel="stylesheet" href="css/components/admin-header.css?v=1.06.0193">
+    <link rel="stylesheet" href="css/dashboard.css?v=1.06.0193">
     <style>
         .admin-users { max-width: 900px; margin: 0 auto; padding: 1.5rem; }
         .admin-users__header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.5rem; }
@@ -30,6 +30,8 @@
         .admin-users__count { color: #888; font-size: 0.85rem; }
         .admin-users__gate { display: flex; align-items: center; justify-content: center; min-height: 60vh; text-align: center; }
         .admin-users__gate p { color: #888; margin-bottom: 1em; }
+        .admin-users__players { max-width: 900px; margin: 0 auto 2rem; padding: 1.5rem; border-top: 1px solid #333; }
+        .admin-users__players h2 { font-size: 1.2rem; margin: 0 0 1rem; color: #ccc; }
     </style>
     <script src="js/branch-banner.js"></script>
 </head>
@@ -39,6 +41,7 @@
     'use strict';
 
     import { renderAdminHeader, bindAdminHeader, resetAdminHeaderMenu } from './js/components/admin-header.js';
+    import { mountPlayerStats } from './js/components/player-stats.js';
     import { getFirebaseConfig } from './js/firebase-config.js';
 
     const FIREBASE_CONFIG = getFirebaseConfig();
@@ -149,9 +152,19 @@
             </thead>
             <tbody>${rows}</tbody>
           </table>
-        </div>`;
+        </div>
+        <section class="admin-users__players">
+          <h2>Users (Gameplay)</h2>
+          <div id="player-stats"></div>
+        </section>`;
 
       bindAdminHeader(app, { user: fbUserInfo, role: headerRole, onSignOut: doSignOut });
+
+      mountPlayerStats(document.getElementById('player-stats'), {
+        authFetch,
+        apiBase: '',
+        showSeeAllLink: false,
+      });
 
       document.querySelectorAll('.admin-users__role-select').forEach(sel => {
         sel.addEventListener('change', async () => {

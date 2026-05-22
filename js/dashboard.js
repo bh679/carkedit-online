@@ -4,6 +4,7 @@
 import { render as renderCardList, fromStatRow, bindScrollArrows } from './components/card-list.js';
 import { render as renderCard } from './components/card.js';
 import { renderAdminHeader, bindAdminHeader, resetAdminHeaderMenu } from './components/admin-header.js';
+import { mountPlayerStats } from './components/player-stats.js';
 import {
   renderGameFilters,
   renderStatusChips,
@@ -408,64 +409,7 @@ async function cycleSurveyDev() {
   renderSurveyResponses();
 }
 
-let userStats = { players: [], total_distinct: 0, total_matched_users: 0 };
-let userStatsDevFilter = 'nodev';
-let expandedPlayerKey = null;
-const playerGamesCache = {};
-
-async function fetchUserStats() {
-  try {
-    const res = await authFetch(`${API_BASE}/api/carkedit/users/stats?dev=${userStatsDevFilter}&limit=200`);
-    if (res.ok) userStats = await res.json();
-  } catch (err) {
-    console.warn('[dashboard] Failed to fetch user stats:', err);
-  }
-}
-
-async function togglePlayer(nameKey) {
-  if (expandedPlayerKey === nameKey) {
-    expandedPlayerKey = null;
-    renderUserStats();
-    return;
-  }
-  expandedPlayerKey = nameKey;
-  if (!playerGamesCache[nameKey]) {
-    try {
-      const res = await authFetch(`${API_BASE}/api/carkedit/games?playerName=${encodeURIComponent(nameKey)}&dev=all&limit=100`);
-      if (res.ok) {
-        const data = await res.json();
-        playerGamesCache[nameKey] = data.games || [];
-      }
-    } catch (err) {
-      console.warn('[dashboard] Failed to fetch player games:', err);
-    }
-  }
-  renderUserStats();
-}
-
-async function togglePlayerGameDev(gameId, nameKey, next) {
-  const list = playerGamesCache[nameKey] || [];
-  const g = list.find(x => x.id === gameId);
-  const label = g ? `${g.host_name || '(no host)'} — ${gameId}` : gameId;
-  if (!await confirmDevToggle('Game', label, next)) return;
-  try {
-    const updated = await patchDevFlag('games', gameId, next);
-    const i = list.findIndex(x => x.id === gameId);
-    if (i >= 0) list[i] = { ...list[i], is_dev: !!updated.is_dev };
-    // Also reflect in the main games list if loaded
-    const mi = games.findIndex(x => x.id === gameId);
-    if (mi >= 0) games[mi] = { ...games[mi], is_dev: !!updated.is_dev };
-    renderUserStats();
-  } catch (e) { console.error(e); alert('Failed to toggle dev: ' + e.message); }
-}
-
-async function cycleUserStatsDev() {
-  const opts = ['nodev', 'all', 'dev'];
-  const idx = opts.indexOf(userStatsDevFilter);
-  userStatsDevFilter = opts[(idx + 1) % opts.length];
-  await fetchUserStats();
-  renderUserStats();
-}
+let playerStatsHandle = null;
 
 async function fetchPeriodStats() {
   const now = new Date();
@@ -766,109 +710,26 @@ function renderSurveyResponses() {
   `;
 }
 
-function renderPlayerGames(nameKey) {
-  const list = playerGamesCache[nameKey];
-  if (!list) {
-    return `<div class="user-stats__games user-stats__games--loading" onclick="event.stopPropagation()">Loading games…</div>`;
-  }
-  if (list.length === 0) {
-    return `<div class="user-stats__games user-stats__games--empty" onclick="event.stopPropagation()">No games found for this player.</div>`;
-  }
-  const nameKeyAttr = escAttr(nameKey);
-  const fmtDateTime = iso => iso ? new Date(iso).toLocaleString() : '—';
-  const rows = list.map(g => {
-    const devOn = g.is_dev ? 'is-on' : '';
-    const gid = escAttr(String(g.id));
-    const date = fmtDateTime(g.finished_at || g.started_at);
-    const host = escapeHtml(g.host_name || '(no host)');
-    const status = escapeHtml(g.status || '');
-    const live = g.live_status === 'live' ? '<span class="dashboard__badge dashboard__badge--live">live</span>'
-      : g.live_status === 'abandoned' ? '<span class="dashboard__badge dashboard__badge--abandoned">abandoned</span>'
-      : '';
-    return `
-      <div class="user-stats__game-row">
-        <span class="user-stats__game-date">${date}</span>
-        <span class="user-stats__game-host">${host}</span>
-        <span class="user-stats__game-meta">${g.player_count}p · ${formatDuration(g.duration_seconds)}</span>
-        <span class="user-stats__game-status">${status} ${live}</span>
-        <button class="dashboard__dev-toggle ${devOn}" title="Toggle dev for this game" onclick="event.stopPropagation(); window.dash.togglePlayerGameDev('${gid}', '${nameKeyAttr}', ${!g.is_dev})">DEV</button>
-      </div>
-    `;
-  }).join('');
-  return `
-    <div class="user-stats__games" onclick="event.stopPropagation()">
-      <div class="user-stats__games-header">Games (${list.length})</div>
-      ${rows}
-    </div>
-  `;
-}
-
 function renderUserStats() {
   const el = document.getElementById('user-stats');
   if (!el) return;
-
-  const devLabels = { all: 'With Dev', nodev: 'No Dev', dev: 'Only Dev' };
-  const devActive = userStatsDevFilter !== 'all' ? 'dashboard__filter-btn--active' : '';
-  const filterBar = `
-    <div class="dashboard__filter-bar">
-      <button class="dashboard__filter-btn ${devActive}" onclick="window.dash.cycleUserStatsDev()">${devLabels[userStatsDevFilter]}</button>
-    </div>
-  `;
-
-  const players = userStats.players || [];
-  if (players.length === 0) {
-    el.innerHTML = `${filterBar}<p class="dashboard__empty">No player data yet.</p>`;
-    return;
+  if (el.dataset.psMounted !== '1') {
+    el.dataset.psMounted = '1';
+    playerStatsHandle = mountPlayerStats(el, {
+      authFetch,
+      apiBase: API_BASE,
+      showSeeAllLink: true,
+      expansionSteps: [10],
+      patchDevFlag,
+      confirmDevToggle,
+      onGameDevToggled(gameId, isDev) {
+        const mi = games.findIndex(x => x.id === gameId);
+        if (mi >= 0) games[mi] = { ...games[mi], is_dev: isDev };
+      },
+    });
+  } else if (playerStatsHandle) {
+    playerStatsHandle.refresh();
   }
-
-  const fmtDate = iso => iso ? new Date(iso).toLocaleDateString() : '—';
-  const fmtBirth = (m, d) => (m && d) ? `${String(m).padStart(2, '0')}/${String(d).padStart(2, '0')}` : '';
-
-  const rows = players.map(p => {
-    const verified = p.matched_user_id ? '<span class="user-stats__badge user-stats__badge--verified" title="Matches a registered user">✓</span>' : '';
-    const avatar = p.avatar_url
-      ? `<img class="user-stats__avatar" src="${escAttr(p.avatar_url)}" alt="">`
-      : '<span class="user-stats__avatar user-stats__avatar--blank"></span>';
-    const birth = fmtBirth(p.birth_month, p.birth_day);
-    const birthChip = birth ? `<span class="user-stats__chip user-stats__chip--birth" title="Birth month/day">🎂 ${birth}</span>` : '';
-    const ipChip = (p.distinct_host_ips > 1)
-      ? `<span class="user-stats__chip user-stats__chip--multi" title="${p.distinct_host_ips} distinct host IPs seen for this name — could be multiple people">⚠ ${p.distinct_host_ips} IPs</span>`
-      : '';
-    const userIdChip = (p.distinct_host_user_ids > 1)
-      ? `<span class="user-stats__chip user-stats__chip--multi" title="${p.distinct_host_user_ids} distinct host user IDs seen for this name">⚠ ${p.distinct_host_user_ids} accts</span>`
-      : '';
-    const email = p.email ? `<span class="user-stats__email">${escapeHtml(p.email)}</span>` : '';
-    const expanded = expandedPlayerKey === p.name_key;
-    const detail = expanded ? renderPlayerGames(p.name_key) : '';
-    const expandedCls = expanded ? ' user-stats__row--expanded' : '';
-    const nameKeyAttr = escAttr(p.name_key);
-
-    return `
-      <div class="user-stats__row${expandedCls}" onclick="window.dash.togglePlayer('${nameKeyAttr}')">
-        <div class="user-stats__identity">
-          ${avatar}
-          <div class="user-stats__name-wrap">
-            <span class="user-stats__name">${escapeHtml(p.display_name)} ${verified}</span>
-            ${email}
-            <div class="user-stats__chips">${birthChip}${ipChip}${userIdChip}</div>
-          </div>
-        </div>
-        <div class="user-stats__metric"><span class="user-stats__metric-value">${p.games_played}</span><span class="user-stats__metric-label">games</span></div>
-        <div class="user-stats__metric"><span class="user-stats__metric-value">${formatDuration(p.total_seconds)}</span><span class="user-stats__metric-label">play time</span></div>
-        <div class="user-stats__metric"><span class="user-stats__metric-value">${fmtDate(p.first_game_at)}</span><span class="user-stats__metric-label">first</span></div>
-        <div class="user-stats__metric"><span class="user-stats__metric-value">${fmtDate(p.last_game_at)}</span><span class="user-stats__metric-label">last</span></div>
-        ${detail}
-      </div>
-    `;
-  }).join('');
-
-  el.innerHTML = `
-    ${filterBar}
-    <div class="user-stats__summary">
-      ${userStats.total_distinct} distinct players · ${userStats.total_matched_users} matched to user accounts
-    </div>
-    <div class="user-stats__list">${rows}</div>
-  `;
 }
 
 // ── Card Preview Modal ───────────────────────────────
@@ -2004,7 +1865,7 @@ function getRefreshInterval() {
 let refreshCountdown = REFRESH_INTERVAL_IDLE;
 
 async function refreshAll() {
-  await Promise.all([fetchGames(), fetchStats(), fetchPeriodStats(), fetchCardStats(), fetchPackStats(), fetchSurveyStats(), fetchSurveyResponses(), fetchUserStats()]);
+  await Promise.all([fetchGames(), fetchStats(), fetchPeriodStats(), fetchCardStats(), fetchPackStats(), fetchSurveyStats(), fetchSurveyResponses()]);
   // Re-fetch detail for expanded live games so phases/players update
   if (expandedGameId) {
     const cached = gameDetailCache[expandedGameId];
@@ -2185,7 +2046,7 @@ async function saveBaseCost(packId) {
   }
 }
 
-window.dash = { cyclePlayTime, cycleGamesCount, cyclePlayersCount, toggleGame, cycleDeckFilter, setCardSort, toggleCardSortDir, cycleCardDev, setPackFilter, setAuthorFilter, setPackSort, togglePackExpanded, cycleSurveyDev, cycleUserStatsDev, previewCard, closePreview, prevPreviewCard, nextPreviewCard, scrollCards, loadMoreGames, loadMoreSurveys, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange, toggleHideGroup, toggleHideRaw, toggleHideDuration, toggleHidePlayers, toggleExpandGroup, signInWithGoogle, signOut, toggleGameDev, toggleSurveyDev, togglePackDev, togglePlayer, togglePlayerGameDev, copyDebugData, openBaseCostModal, closeBaseCostModal, saveBaseCost };
+window.dash = { cyclePlayTime, cycleGamesCount, cyclePlayersCount, toggleGame, cycleDeckFilter, setCardSort, toggleCardSortDir, cycleCardDev, setPackFilter, setAuthorFilter, setPackSort, togglePackExpanded, cycleSurveyDev, previewCard, closePreview, prevPreviewCard, nextPreviewCard, scrollCards, loadMoreGames, loadMoreSurveys, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange, toggleHideGroup, toggleHideRaw, toggleHideDuration, toggleHidePlayers, toggleExpandGroup, signInWithGoogle, signOut, toggleGameDev, toggleSurveyDev, togglePackDev, copyDebugData, openBaseCostModal, closeBaseCostModal, saveBaseCost };
 
 // ── Auth Gate UI ─────────────────────────────────────
 function renderAuthGate(message, showSignIn = true) {
@@ -2332,7 +2193,7 @@ async function bootDashboard() {
       .catch(() => updateVersionEl(el, 'Server', data.version, null, started || 'Could not check GitHub'));
   }).catch(() => {});
 
-  await Promise.all([autoSelectDateRange(), fetchStats(), fetchPeriodStats(), fetchCardStats(), fetchPackStats(), fetchSurveyStats(), fetchSurveyResponses(), fetchUserStats(), loadCardData()]);
+  await Promise.all([autoSelectDateRange(), fetchStats(), fetchPeriodStats(), fetchCardStats(), fetchPackStats(), fetchSurveyStats(), fetchSurveyResponses(), loadCardData()]);
   renderStats();
   renderGameList();
   renderCardAnalytics();
