@@ -9,6 +9,7 @@ import {
   renderPlayerChips,
 } from './components/game-filters.js';
 import { getFirebaseConfig, getProdFirebaseConfig } from './firebase-config.js';
+import { renderGameDetail, init as initGameDetail } from './components/game-detail.js';
 
 const FIREBASE_CONFIG = getFirebaseConfig();
 const PROD_API_ORIGIN = 'https://play.carkedit.com';
@@ -62,6 +63,9 @@ let filterHideDuration = new Set();
 let filterHidePlayers  = new Set();
 let expandedGroups     = new Set();
 let filterCounts = { total: 0, date: {}, errors: {}, dev: {}, status: {}, groups: {}, raw: {}, duration: {}, players: {} };
+
+let expandedGameId = null;
+const gameDetailCache = {};
 
 function parseCsvSet(value) {
   if (!value) return new Set();
@@ -410,6 +414,26 @@ function toggleStateMetric() {
   renderPage();
 }
 
+async function toggleGame(gameId) {
+  if (expandedGameId === gameId) {
+    expandedGameId = null;
+    renderPage();
+    return;
+  }
+  expandedGameId = gameId;
+  const cached = gameDetailCache[gameId];
+  const isLive = !cached || cached.live_status === 'live';
+  if (!cached || isLive) {
+    try {
+      const res = await authFetch(`${apiBase()}/api/carkedit/games/${gameId}`);
+      if (res.ok) gameDetailCache[gameId] = await res.json();
+    } catch (err) {
+      console.warn('[stats-games] Failed to fetch game detail:', err);
+    }
+  }
+  renderPage();
+}
+
 async function toggleGameDev(id, next) {
   if (dataSource === 'prod') return; // read-only in prod-preview mode
   try {
@@ -537,8 +561,15 @@ function renderGameCard(game) {
   const playersDisplay = `${game.player_count} ${ICON_PERSON}`;
   const statusLiveDisplay = `${statusDot(game.live_status)}${statusLabel(game.status)}`;
 
+  const expanded = expandedGameId === game.id;
+  let detail = '';
+  if (expanded) {
+    const gd = gameDetailCache[game.id] || game;
+    detail = renderGameDetail(gd);
+  }
+
   return `
-    <div class="dashboard__card ${cls}">
+    <div class="dashboard__card ${cls}" onclick="window.statsGames.toggleGame('${game.id}')">
       <div class="dashboard__card-row">
         <span class="dashboard__cell dashboard__cell--date">${dateDisplay}</span>
         <span class="dashboard__cell dashboard__cell--host">${maskName(game.host_name)}</span>
@@ -551,6 +582,7 @@ function renderGameCard(game) {
         <span class="dashboard__cell dashboard__cell--error">${errorFlag}</span>
         <span class="dashboard__cell dashboard__cell--issue">${issueFlag}</span>
       </div>
+      ${detail}
     </div>
   `;
 }
@@ -633,6 +665,7 @@ function renderPage() {
 }
 
 async function boot() {
+  initGameDetail({ authFetch, apiBase });
   await Promise.all([fetchGames(false), fetchStats()]);
   renderPage();
 }
@@ -641,7 +674,7 @@ window.statsGames = {
   cycleStatus, cycleDev, cycleDateRange,
   setGameFilter,
   toggleHideGroup, toggleHideRaw, toggleHideDuration, toggleHidePlayers, toggleExpandGroup,
-  loadMore, toggleGameDev, cycleDataSource,
+  loadMore, toggleGame, toggleGameDev, cycleDataSource,
   cycleSortMode, toggleStateMetric,
 };
 
