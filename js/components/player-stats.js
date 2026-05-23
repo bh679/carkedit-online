@@ -3,7 +3,9 @@
 // dashboard USERS section and the bottom of admin-users.html. Supports
 // clickable row expansion: each row opens to show that player's games,
 // each with an optional DEV-flag toggle (requires patchDevFlag + confirm
-// helpers to be passed in).
+// helpers to be passed in). When fetchGameDetail + renderGameDetail are
+// supplied, clicking a game row expands it inline with the same detail
+// view used by the main Games list.
 'use strict';
 
 const DEV_FILTER_CYCLE = ['nodev', 'all', 'dev'];
@@ -53,7 +55,7 @@ function formatBirth(month, day) {
   return `${String(month).padStart(2, '0')}/${String(day).padStart(2, '0')}`;
 }
 
-function renderPlayerGames(nameKey, games, canToggleDev) {
+function renderPlayerGames(nameKey, games, canToggleDev, canExpandGame, expandedGameId, gameDetailCache, renderGameDetailFn) {
   if (games === undefined) {
     return `<div class="user-stats__games user-stats__games--loading" data-ps-stop>Loading games…</div>`;
   }
@@ -73,14 +75,29 @@ function renderPlayerGames(nameKey, games, canToggleDev) {
     const devBtn = canToggleDev
       ? `<button class="dashboard__dev-toggle ${devOn}" title="Toggle dev for this game" data-ps-action="toggle-game-dev" data-ps-game-id="${gid}" data-ps-name-key="${nameKeyAttr}" data-ps-next="${g.is_dev ? '0' : '1'}">DEV</button>`
       : '';
+    const isExpanded = canExpandGame && expandedGameId === g.id;
+    const rowAction = canExpandGame ? ` data-ps-action="toggle-game-expand" data-ps-game-id="${gid}"` : '';
+    const rowExpandedCls = isExpanded ? ' user-stats__game-row--expanded' : '';
+    let detail = '';
+    if (isExpanded) {
+      const gd = gameDetailCache[g.id];
+      if (gd === undefined) {
+        detail = `<div class="user-stats__game-detail user-stats__game-detail--loading" data-ps-stop>Loading game…</div>`;
+      } else if (gd === null) {
+        detail = `<div class="user-stats__game-detail user-stats__game-detail--empty" data-ps-stop>Could not load game detail.</div>`;
+      } else {
+        detail = `<div class="user-stats__game-detail" data-ps-stop>${renderGameDetailFn(gd)}</div>`;
+      }
+    }
     return `
-      <div class="user-stats__game-row">
+      <div class="user-stats__game-row${rowExpandedCls}"${rowAction}>
         <span class="user-stats__game-date">${date}</span>
         <span class="user-stats__game-host">${host}</span>
         <span class="user-stats__game-meta">${g.player_count}p · ${formatDuration(g.duration_seconds)}</span>
         <span class="user-stats__game-status">${status} ${live}</span>
         ${devBtn}
       </div>
+      ${detail}
     `;
   }).join('');
   return `
@@ -91,7 +108,7 @@ function renderPlayerGames(nameKey, games, canToggleDev) {
   `;
 }
 
-function renderRow(p, expandedKey, playerGamesCache, canToggleDev) {
+function renderRow(p, expandedKey, playerGamesCache, canToggleDev, canExpandGame, expandedGameId, gameDetailCache, renderGameDetailFn) {
   const verified = p.matched_user_id
     ? '<span class="user-stats__badge user-stats__badge--verified" title="Matches a registered user">✓</span>'
     : '';
@@ -114,7 +131,7 @@ function renderRow(p, expandedKey, playerGamesCache, canToggleDev) {
   const expandedCls = expanded ? ' user-stats__row--expanded' : '';
   const nameKeyAttr = escAttr(p.name_key);
   const detail = expanded
-    ? renderPlayerGames(p.name_key, playerGamesCache[p.name_key], canToggleDev)
+    ? renderPlayerGames(p.name_key, playerGamesCache[p.name_key], canToggleDev, canExpandGame, expandedGameId, gameDetailCache, renderGameDetailFn)
     : '';
 
   return `
@@ -176,9 +193,12 @@ export function mountPlayerStats(rootEl, opts) {
     patchDevFlag = null,
     confirmDevToggle = null,
     onGameDevToggled = null,
+    fetchGameDetail = null,
+    renderGameDetail = null,
   } = opts;
 
   const canToggleDev = typeof patchDevFlag === 'function';
+  const canExpandGame = typeof fetchGameDetail === 'function' && typeof renderGameDetail === 'function';
 
   const state = {
     devFilter: 'nodev',
@@ -188,6 +208,8 @@ export function mountPlayerStats(rootEl, opts) {
     error: null,
     expandedPlayerKey: null,
     playerGamesCache: {},
+    expandedGameId: null,
+    gameDetailCache: {},
   };
 
   async function fetchData() {
@@ -253,7 +275,7 @@ export function mountPlayerStats(rootEl, opts) {
 
     const visibleCount = Math.min(state.displayLimit, total);
     const rows = players.slice(0, visibleCount)
-      .map(p => renderRow(p, state.expandedPlayerKey, state.playerGamesCache, canToggleDev))
+      .map(p => renderRow(p, state.expandedPlayerKey, state.playerGamesCache, canToggleDev, canExpandGame, state.expandedGameId, state.gameDetailCache, renderGameDetail))
       .join('');
 
     const summary = `
@@ -279,15 +301,41 @@ export function mountPlayerStats(rootEl, opts) {
   async function togglePlayer(nameKey) {
     if (state.expandedPlayerKey === nameKey) {
       state.expandedPlayerKey = null;
+      state.expandedGameId = null;
       render();
       return;
     }
     state.expandedPlayerKey = nameKey;
+    state.expandedGameId = null;
     if (!state.playerGamesCache[nameKey]) {
       render();
       await fetchPlayerGames(nameKey);
     }
     render();
+  }
+
+  async function toggleGameExpansion(gameId) {
+    if (!canExpandGame) return;
+    if (state.expandedGameId === gameId) {
+      state.expandedGameId = null;
+      render();
+      return;
+    }
+    state.expandedGameId = gameId;
+    const cached = state.gameDetailCache[gameId];
+    const isLive = cached && cached.live_status === 'live';
+    // Show "Loading…" while fetching only when there's no cached snapshot yet.
+    if (cached === undefined) render();
+    if (cached === undefined || isLive) {
+      try {
+        const detail = await fetchGameDetail(gameId);
+        state.gameDetailCache[gameId] = detail || null;
+      } catch (err) {
+        console.warn('[player-stats] fetch game detail failed:', err);
+        state.gameDetailCache[gameId] = null;
+      }
+    }
+    if (state.expandedGameId === gameId) render();
   }
 
   async function togglePlayerGameDev(gameId, nameKey, next) {
@@ -312,9 +360,17 @@ export function mountPlayerStats(rootEl, opts) {
   }
 
   rootEl.addEventListener('click', async (e) => {
-    if (e.target.closest('[data-ps-stop]')) return;
     const target = e.target.closest('[data-ps-action]');
     if (!target) return;
+    // Honor data-ps-stop only when the stop boundary sits *between* the click
+    // and the action element (i.e. clicks in empty space inside a stop region
+    // shouldn't bubble up to a parent action). Buttons that are themselves
+    // data-ps-action inside a stop region must still fire.
+    let n = e.target;
+    while (n && n !== target) {
+      if (n.dataset && n.dataset.psStop !== undefined) return;
+      n = n.parentElement;
+    }
     const action = target.getAttribute('data-ps-action');
 
     if (action === 'cycle-dev') {
@@ -356,6 +412,13 @@ export function mountPlayerStats(rootEl, opts) {
       const nameKey = target.getAttribute('data-ps-name-key');
       const next = target.getAttribute('data-ps-next') === '1';
       if (gameId && nameKey) togglePlayerGameDev(gameId, nameKey, next);
+      return;
+    }
+
+    if (action === 'toggle-game-expand') {
+      e.stopPropagation();
+      const gameId = target.getAttribute('data-ps-game-id');
+      if (gameId) toggleGameExpansion(gameId);
       return;
     }
   });
