@@ -771,8 +771,10 @@ function renderSurveyResponses() {
     const date = new Date(r.created_at).toLocaleString();
     const bucket = npsBucketClass(r.nps_score);
     const player = r.player_name || '(anonymous)';
-    const comment = escapeHtml(r.comment || '');
-    const improvement = escapeHtml(r.improvement || '');
+    const rawComment = r.comment || '';
+    const rawImprovement = r.improvement || '';
+    const comment = escapeHtml(rawComment);
+    const improvement = escapeHtml(rawImprovement);
     const sid = escAttr(String(r.id));
     return `
       <div class="survey-response">
@@ -784,8 +786,8 @@ function renderSurveyResponses() {
             ? `<span class="dashboard__dev-toggle ${r.is_dev ? 'is-on' : ''}" title="Read-only in prod preview" style="opacity:0.4;cursor:not-allowed">DEV</span>`
             : `<button class="dashboard__dev-toggle ${r.is_dev ? 'is-on' : ''}" title="Toggle dev" onclick="window.dash.toggleSurveyDev('${sid}', ${!r.is_dev})">DEV</button>`}
         </div>
-        ${comment ? `<div class="survey-response__field"><strong>Comment:</strong> ${comment}</div>` : ''}
-        ${improvement ? `<div class="survey-response__field"><strong>Improve:</strong> ${improvement}</div>` : ''}
+        ${comment ? `<div class="${surveyFieldClass(rawComment)}"${surveyFieldOnclick(rawComment)}><strong>Comment:</strong> ${comment}</div>` : ''}
+        ${improvement ? `<div class="${surveyFieldClass(rawImprovement)}"${surveyFieldOnclick(rawImprovement)}><strong>Improve:</strong> ${improvement}</div>` : ''}
       </div>
     `;
   }).join('');
@@ -807,6 +809,27 @@ function renderSurveyResponses() {
   `;
 }
 
+const SURVEY_TRUNCATE_CHAR_THRESHOLD = 280;
+const SURVEY_TRUNCATE_LINE_THRESHOLD = 5;
+
+function surveyShouldTruncate(text) {
+  if (!text) return false;
+  if (text.length > SURVEY_TRUNCATE_CHAR_THRESHOLD) return true;
+  return text.split('\n').length > SURVEY_TRUNCATE_LINE_THRESHOLD;
+}
+
+function surveyFieldClass(text) {
+  return surveyShouldTruncate(text)
+    ? 'survey-response__field survey-response__field--truncatable'
+    : 'survey-response__field';
+}
+
+function surveyFieldOnclick(text) {
+  return surveyShouldTruncate(text)
+    ? ` onclick="this.classList.toggle('survey-response__field--expanded')"`
+    : '';
+}
+
 function renderUserStats() {
   const el = document.getElementById('user-stats');
   if (!el) return;
@@ -823,6 +846,24 @@ function renderUserStats() {
         const mi = games.findIndex(x => x.id === gameId);
         if (mi >= 0) games[mi] = { ...games[mi], is_dev: isDev };
       },
+      // Re-use the dashboard's gameDetailCache and renderGameDetail so the
+      // per-player game expansion matches the main Games-list expansion 1:1.
+      // The returned HTML references window.dash.* handlers, which exist on
+      // this page.
+      fetchGameDetail: async (gameId) => {
+        const cached = gameDetailCache[gameId];
+        const isLive = !cached || cached.live_status === 'live';
+        if (!cached || isLive) {
+          try {
+            const res = await authFetch(`${apiBase()}/api/carkedit/games/${gameId}`);
+            if (res.ok) gameDetailCache[gameId] = await res.json();
+          } catch (err) {
+            console.warn('[dashboard] fetch game detail (player-stats) failed:', err);
+          }
+        }
+        return gameDetailCache[gameId] || null;
+      },
+      renderGameDetail,
     });
   } else if (playerStatsHandle) {
     playerStatsHandle.refresh();
