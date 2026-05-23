@@ -52,10 +52,12 @@
       meta.style.cssText = 'opacity:0.85;font-weight:400;';
       meta.textContent = parts.join(' · ');
 
-      // Switch to main button (absolute right so text stays centered)
+      // Switch to main button (absolute right so text stays centered).
+      // The auto=1 query param tells deploy.html to POST the deploy as soon
+      // as the user is signed in — one-click switch back to main.
       var btn = document.createElement('a');
       btn.textContent = 'Switch to main';
-      btn.href = 'deploy.html';
+      btn.href = 'deploy.html?target=client&branch=main&auto=1';
       btn.style.cssText =
         'color:#fff;background:rgba(255,255,255,.25);padding:2px 10px;' +
         'border-radius:3px;text-decoration:none;font-size:11px;font-weight:600;' +

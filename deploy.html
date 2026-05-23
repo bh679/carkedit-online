@@ -108,6 +108,46 @@
       return data.api || data.online;
     }
 
+    // Reads ?target=<api|client|deploy>&branch=<...>|tag=<...>&auto=1 from
+    // the URL and fires a one-shot deploy POST. Used by the branch banner's
+    // "Switch to main" link so a single click does the actual switch.
+    // Clears the params from the URL so a reload doesn't re-trigger.
+    function autoTriggerFromQueryParams(deployToken) {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('auto') !== '1') return;
+      const target = params.get('target') || 'client';
+      const branch = params.get('branch');
+      const tag = params.get('tag');
+      if (!branch && !tag) return;
+      if (!['api', 'client', 'deploy'].includes(target)) return;
+
+      // Strip auto-trigger params so refresh doesn't fire the deploy again.
+      const url = new URL(window.location.href);
+      ['auto', 'target', 'branch', 'tag'].forEach((k) => url.searchParams.delete(k));
+      history.replaceState({}, '', url.pathname + (url.search ? url.search : ''));
+
+      const qs = new URLSearchParams();
+      if (branch) qs.set('branch', branch);
+      else qs.set('tag', tag);
+
+      const endpoint = '/api/admin/deploy/api/' + encodeURIComponent(target) + '?' + qs.toString();
+      fetch(endpoint, {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + deployToken },
+      })
+        .then(async (res) => {
+          // 409 = a deploy is already in flight. Fine — the fragment's /status
+          // poll will reflect whatever is currently running. Other non-2xx
+          // statuses we surface so the user knows the auto-trigger failed.
+          if (res.ok || res.status === 409) return;
+          const body = await res.text().catch(() => '');
+          console.error('[deploy] auto-trigger failed:', res.status, body.slice(0, 200));
+        })
+        .catch((err) => {
+          console.error('[deploy] auto-trigger error:', err);
+        });
+    }
+
     async function mountDeploySystem(user) {
       const mount = document.getElementById('deploy-mount');
       if (!mount) return;
@@ -149,6 +189,12 @@
 
       // Step 3 — expose the contract the injected fragment consumes.
       window.__cdGetDeployToken = async () => deployToken;
+
+      // Step 3.5 — if we got here via a deep-link from the branch banner
+      // (e.g. deploy.html?target=client&branch=main&auto=1), fire the deploy
+      // before mounting the fragment. The fragment's /status poll picks it up
+      // within 2-5 seconds and renders the in-flight UI.
+      autoTriggerFromQueryParams(deployToken);
 
       // Step 4 — fetch + inject the UI fragment.
       try {
