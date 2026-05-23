@@ -108,23 +108,46 @@
       return data.api || data.online;
     }
 
-    // Reads ?target=<api|client|deploy>&branch=<...>|tag=<...>&auto=1 from
-    // the URL and fires a one-shot deploy POST. Used by the branch banner's
-    // "Switch to main" link so a single click does the actual switch.
-    // Clears the params from the URL so a reload doesn't re-trigger.
+    // Reads auto-deploy intent from the URL and either seeds the carkedit-deploy
+    // fragment's reset-to-main chain (?reset=main&auto=1) or fires a one-shot
+    // single-target deploy (?target=<api|client|deploy>&branch=<...>|tag=<...>&auto=1).
+    // Strips the params via history.replaceState so a refresh doesn't re-fire.
+    //
+    // Used by the branch banner's "Switch to main" link so a single click,
+    // after sign-in, resets api → client → deploy back to main/latest tag
+    // with no manual form fill.
     function autoTriggerFromQueryParams(deployToken) {
       const params = new URLSearchParams(window.location.search);
-      if (params.get('auto') !== '1') return;
+      if (params.get('auto') !== '1') {
+        return;
+      }
+
+      // Strip auto-trigger params so refresh doesn't fire the deploy again.
+      const url = new URL(window.location.href);
+      ['auto', 'reset', 'target', 'branch', 'tag'].forEach((k) => url.searchParams.delete(k));
+      history.replaceState({}, '', url.pathname + (url.search ? url.search : ''));
+
+      // Reset-to-main chain mode: seed the fragment's sessionStorage queue and
+      // let its mount() resume the chain. The fragment picks the right ref per
+      // env (branch=main on dev, latest staging tag on staging, latest release
+      // tag on prod) via getResetTargetRef(). No POST from us — the chain
+      // serialises api → client → deploy with proper status polling between.
+      if (params.get('reset') === 'main') {
+        try {
+          sessionStorage.setItem('cd-reset-chain', JSON.stringify(['api', 'client', 'deploy']));
+          sessionStorage.removeItem('cd-reset-chain:done');
+        } catch (e) {
+          console.error('[deploy] failed to seed reset chain:', e);
+        }
+        return;
+      }
+
+      // Single-target deploy mode (kept for potential future deep-link use).
       const target = params.get('target') || 'client';
       const branch = params.get('branch');
       const tag = params.get('tag');
       if (!branch && !tag) return;
       if (!['api', 'client', 'deploy'].includes(target)) return;
-
-      // Strip auto-trigger params so refresh doesn't fire the deploy again.
-      const url = new URL(window.location.href);
-      ['auto', 'target', 'branch', 'tag'].forEach((k) => url.searchParams.delete(k));
-      history.replaceState({}, '', url.pathname + (url.search ? url.search : ''));
 
       const qs = new URLSearchParams();
       if (branch) qs.set('branch', branch);
