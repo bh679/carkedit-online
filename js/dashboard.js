@@ -846,6 +846,24 @@ function renderUserStats() {
         const mi = games.findIndex(x => x.id === gameId);
         if (mi >= 0) games[mi] = { ...games[mi], is_dev: isDev };
       },
+      // Re-use the dashboard's gameDetailCache and renderGameDetail so the
+      // per-player game expansion matches the main Games-list expansion 1:1.
+      // The returned HTML references window.dash.* handlers, which exist on
+      // this page.
+      fetchGameDetail: async (gameId) => {
+        const cached = gameDetailCache[gameId];
+        const isLive = !cached || cached.live_status === 'live';
+        if (!cached || isLive) {
+          try {
+            const res = await authFetch(`${apiBase()}/api/carkedit/games/${gameId}`);
+            if (res.ok) gameDetailCache[gameId] = await res.json();
+          } catch (err) {
+            console.warn('[dashboard] fetch game detail (player-stats) failed:', err);
+          }
+        }
+        return gameDetailCache[gameId] || null;
+      },
+      renderGameDetail,
     });
   } else if (playerStatsHandle) {
     playerStatsHandle.refresh();
