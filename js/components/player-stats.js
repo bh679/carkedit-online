@@ -74,7 +74,7 @@ function renderPlayerGames(nameKey, games, canToggleDev, canExpandGame, expanded
       : '';
     const devBtn = canToggleDev
       ? `<button class="dashboard__dev-toggle ${devOn}" title="Toggle dev for this game" data-ps-action="toggle-game-dev" data-ps-game-id="${gid}" data-ps-name-key="${nameKeyAttr}" data-ps-next="${g.is_dev ? '0' : '1'}">DEV</button>`
-      : '';
+      : `<span class="dashboard__dev-toggle ${devOn}" title="Read-only in prod preview" style="opacity:0.4;cursor:not-allowed" data-ps-stop>DEV</span>`;
     const isExpanded = canExpandGame && expandedGameId === g.id;
     const rowAction = canExpandGame ? ` data-ps-action="toggle-game-expand" data-ps-game-id="${gid}"` : '';
     const rowExpandedCls = isExpanded ? ' user-stats__game-row--expanded' : '';
