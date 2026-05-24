@@ -40,9 +40,13 @@
     <script type="module">
     'use strict';
 
+    import { guardPage } from './js/managers/page-permission-guard.js';
     import { renderAdminHeader, bindAdminHeader, resetAdminHeaderMenu } from './js/components/admin-header.js';
     import { mountPlayerStats } from './js/components/player-stats.js';
     import { getFirebaseConfig } from './js/firebase-config.js';
+
+    // Block render if user lacks the configured min role. Throws on deny.
+    await guardPage('admin-users').catch((err) => { throw err; });
 
     const FIREBASE_CONFIG = getFirebaseConfig();
 

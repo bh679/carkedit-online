@@ -1,8 +1,11 @@
 // CarkedIt Online — Financial Dashboard
 'use strict';
 
+import { guardPage } from './managers/page-permission-guard.js';
 import { renderAdminHeader, bindAdminHeader } from './components/admin-header.js';
 import { getFirebaseConfig } from './firebase-config.js';
+
+await guardPage('financial-dashboard').catch((err) => { throw err; });
 
 // ── Constants ─────────────────────────────────────────
 const FIREBASE_CONFIG = getFirebaseConfig();

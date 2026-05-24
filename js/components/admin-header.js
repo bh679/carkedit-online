@@ -1,29 +1,38 @@
 // CarkedIt Online — Shared Admin Header Component
 'use strict';
 
-// Per-link minimum role. Anyone with role >= minRole sees the link.
-// Hierarchy: Player(0) < Host(1) < QA(2) < Admin(3).
-const NAV_LINKS = [
-  { label: '\u2190',  path: '.', className: 'admin-header__link--back', minRole: 'QA' },
-  { label: 'Stats',   path: 'stats',               minRole: 'QA' },
-  { label: 'Users',   path: 'admin-users',         minRole: 'Admin' },
-  { label: 'ImageAI', path: 'admin-image-gen',     minRole: 'QA' },
-  { label: 'Costs',   path: 'financial-dashboard', minRole: 'QA' },
-  { label: 'Dev',     path: 'dev-dashboard',       minRole: 'QA' },
-  { label: 'Deploy',  path: 'deploy',              minRole: 'QA' },
-];
+import { PAGES, meetsRole, fetchEffectivePermissions } from '../config/pages.js';
 
-const ROLE_RANK = { Player: 0, Host: 1, QA: 2, Admin: 3 };
+// Short labels for admin pages shown in the nav bar (keeps the header compact
+// while the admin-roles page can show longer labels).
+const NAV_LABELS = {
+  'stats':               'Stats',
+  'admin-users':         'Users',
+  'admin-roles':         'Roles',
+  'admin-image-gen':     'ImageAI',
+  'financial-dashboard': 'Costs',
+  'dev-dashboard':       'Dev',
+  'deploy':              'Deploy',
+};
 
-function meetsRole(userRole, minRole) {
-  const cur = ROLE_RANK[userRole] ?? 0;
-  const min = ROLE_RANK[minRole] ?? 0;
-  return cur >= min;
+function buildNavLinks(effectivePages) {
+  const links = [{ label: '←', path: '.', className: 'admin-header__link--back', minRole: 'QA' }];
+  for (const p of effectivePages) {
+    if (p.category !== 'admin') continue;
+    const label = NAV_LABELS[p.path] ?? p.label;
+    links.push({ label, path: p.path, minRole: p.currentMinRole });
+  }
+  return links;
+}
+
+function staticPagesAsEffective() {
+  return PAGES.map((p) => ({ ...p, currentMinRole: p.defaultMinRole }));
 }
 
 let _menuOpen = false;
 let _version = null;
 let _versionFetched = false;
+let _permsFetched = false;
 
 function esc(str) {
   if (!str) return '';
@@ -51,6 +60,22 @@ function fetchVersion() {
     .catch(() => {});
 }
 
+function renderNavLinksHtml(role, effectivePages) {
+  const links = buildNavLinks(effectivePages).filter((l) => meetsRole(role, l.minRole));
+  return links.map((l) => {
+    const active = isActive(l.path) ? ' admin-header__link--active' : '';
+    const extra = l.className ? ` ${l.className}` : '';
+    return `<a class="admin-header__link${active}${extra}" href="${l.path}">${esc(l.label)}</a>`;
+  }).join('');
+}
+
+function refreshNavInDom(role) {
+  fetchEffectivePermissions().then((effective) => {
+    const nav = document.querySelector('.admin-header__nav');
+    if (nav) nav.innerHTML = renderNavLinksHtml(role, effective);
+  }).catch(() => {});
+}
+
 /**
  * Returns the admin header HTML string.
  * @param {{ user?: { displayName?: string, photoURL?: string }, role?: string, onSignOut?: Function }} opts
@@ -66,11 +91,9 @@ export function renderAdminHeader(opts = {}) {
     ? `<img class="admin-header__avatar" src="${esc(user.photoURL)}" alt="" />`
     : `<span class="admin-header__avatar admin-header__avatar--initial">${esc(initial)}</span>`;
 
-  const nav = NAV_LINKS.filter(l => meetsRole(role, l.minRole)).map(l => {
-    const active = isActive(l.path) ? ' admin-header__link--active' : '';
-    const extra = l.className ? ` ${l.className}` : '';
-    return `<a class="admin-header__link${active}${extra}" href="${l.path}">${esc(l.label)}</a>`;
-  }).join('');
+  // Initial render uses static defaults so the header paints immediately.
+  // bindAdminHeader() kicks off the async fetch and refreshes the nav in place.
+  const nav = renderNavLinksHtml(role, staticPagesAsEffective());
 
   const versionText = _version ? `v${_version}` : '';
 
@@ -101,10 +124,12 @@ export function renderAdminHeader(opts = {}) {
  * Attach event listeners for the admin header.
  * Call after the HTML from renderAdminHeader() is in the DOM.
  * @param {Element} root — container to search within
- * @param {{ onSignOut?: Function }} opts
+ * @param {{ onSignOut?: Function, role?: string, user?: object }} opts
  */
 export function bindAdminHeader(root, opts = {}) {
   fetchVersion();
+  refreshNavInDom(opts.role || 'Admin');
+  _permsFetched = true;
 
   root.querySelector('[data-admin-header-action="toggle-menu"]')?.addEventListener('click', (e) => {
     e.stopPropagation();

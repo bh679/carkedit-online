@@ -1,10 +1,13 @@
 // CarkedIt Online — Dev Dashboard
 'use strict';
 
+import { guardPage } from './managers/page-permission-guard.js';
 import { loadAllCards } from './data/cardTypes.js';
 import { render as renderCard } from './components/card.js';
 import { renderAdminHeader, bindAdminHeader } from './components/admin-header.js';
 import { getFirebaseConfig } from './firebase-config.js';
+
+await guardPage('dev-dashboard').catch((err) => { throw err; });
 
 // ── Utilities ────────────────────────────────────────
 function escapeHtml(str) {

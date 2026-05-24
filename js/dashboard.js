@@ -1,6 +1,7 @@
 // CarkedIt Online — Game Dashboard (standalone)
 'use strict';
 
+import { guardPage } from './managers/page-permission-guard.js';
 import { render as renderCardList, fromStatRow, bindScrollArrows } from './components/card-list.js';
 import { render as renderCard } from './components/card.js';
 import { renderAdminHeader, bindAdminHeader, resetAdminHeaderMenu } from './components/admin-header.js';
@@ -14,6 +15,8 @@ import {
 import { getOrCreate as registryGetOrCreate } from './data/CardRegistry.js';
 import { getFirebaseConfig, getProdFirebaseConfig } from './firebase-config.js';
 import { renderGameDetail, init as initGameDetail } from './components/game-detail.js';
+
+await guardPage('stats').catch((err) => { throw err; });
 
 // ── Firebase Auth for Admin Gate ────────────────────
 const FIREBASE_CONFIG = getFirebaseConfig();

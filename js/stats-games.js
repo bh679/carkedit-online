@@ -1,6 +1,7 @@
 // CarkedIt Online — All Games (See All page)
 'use strict';
 
+import { guardPage } from './managers/page-permission-guard.js';
 import { renderAdminHeader, bindAdminHeader, resetAdminHeaderMenu } from './components/admin-header.js';
 import {
   renderGameFilters,
@@ -10,6 +11,8 @@ import {
 } from './components/game-filters.js';
 import { getFirebaseConfig, getProdFirebaseConfig } from './firebase-config.js';
 import { renderGameDetail, init as initGameDetail } from './components/game-detail.js';
+
+await guardPage('stats-games').catch((err) => { throw err; });
 
 const FIREBASE_CONFIG = getFirebaseConfig();
 const PROD_API_ORIGIN = 'https://play.carkedit.com';
