@@ -1539,6 +1539,21 @@ body {
   overflow-wrap: anywhere;
 }
 
+.survey-response__field--truncatable {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+  line-clamp: 5;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.survey-response__field--truncatable.survey-response__field--expanded {
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+  overflow: visible;
+}
+
 /* ── Base Cost Modal ─────────────────────────────────── */
 .dashboard__pack-cell--cost {
   cursor: pointer;
