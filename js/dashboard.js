@@ -54,7 +54,8 @@ async function loadFirebaseAuth() {
     import('https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js'),
     import('https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js'),
   ]);
-  const app = appMod.initializeApp(FIREBASE_CONFIG);
+  // Idempotent: guardPage may have already initialized the default app.
+  const app = appMod.getApps().length ? appMod.getApp() : appMod.initializeApp(FIREBASE_CONFIG);
   firebaseAuth = authMod.getAuth(app);
   return authMod;
 }

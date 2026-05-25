@@ -1061,7 +1061,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       import('https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js'),
       import('https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js'),
     ]);
-    const fbApp = appMod.initializeApp(FIREBASE_CONFIG);
+    // Idempotent: guardPage may have already initialized the default app.
+    const fbApp = appMod.getApps().length ? appMod.getApp() : appMod.initializeApp(FIREBASE_CONFIG);
     const fbAuth = authMod.getAuth(fbApp);
     _fbAuth = fbAuth;
 

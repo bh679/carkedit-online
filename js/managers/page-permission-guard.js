@@ -20,6 +20,13 @@ function esc(str) {
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+// Defensive ceiling on the auth-state wait. Firebase's onAuthStateChanged
+// is normally fast (synchronous on warm cache, ~hundreds of ms on cold),
+// but if persistent-session restoration stalls we'd otherwise hang the
+// entire page module. On timeout we fall through to a sentinel so the
+// caller can choose to skip the gate.
+const AUTH_TIMEOUT_MS = 4000;
+
 async function getCurrentUserRole() {
   // Resolve current Firebase user (if any) and exchange for the local role.
   // Signed-out users are Player (per roles.ts hierarchy).
@@ -31,9 +38,23 @@ async function getCurrentUserRole() {
     ]);
     const app = appMod.getApps?.().length ? appMod.getApp() : appMod.initializeApp(getFirebaseConfig());
     const auth = authMod.getAuth(app);
-    const user = await new Promise((resolve) => {
-      const unsub = authMod.onAuthStateChanged(auth, (u) => { unsub(); resolve(u); });
-    });
+    let timeoutHandle;
+    const user = await Promise.race([
+      new Promise((resolve) => {
+        const unsub = authMod.onAuthStateChanged(auth, (u) => {
+          clearTimeout(timeoutHandle);
+          unsub();
+          resolve(u);
+        });
+      }),
+      new Promise((resolve) => {
+        timeoutHandle = setTimeout(() => resolve(undefined), AUTH_TIMEOUT_MS);
+      }),
+    ]);
+    if (user === undefined) {
+      console.warn('[page-permission-guard] auth state lookup timed out — skipping gate');
+      return null;
+    }
     if (!user) return 'Player';
     const token = await user.getIdToken();
     const res = await fetch('/api/carkedit/users/me', {
@@ -42,7 +63,8 @@ async function getCurrentUserRole() {
     if (!res.ok) return 'Player';
     const me = await res.json();
     return me?.role || 'Player';
-  } catch {
+  } catch (err) {
+    console.warn('[page-permission-guard] role lookup failed', err);
     return 'Player';
   }
 }
@@ -67,6 +89,13 @@ export async function guardPage(pathSlug) {
     fetchEffectivePermissions(),
     getCurrentUserRole(),
   ]);
+  // null = auth couldn't be determined within the timeout. Fall through and
+  // let the page proceed — the backend API role middleware still enforces
+  // real access. Belt-and-braces: don't hold the whole page hostage to a
+  // slow Firebase init.
+  if (userRole === null) {
+    return { allowed: true, role: 'unknown', minRole: 'unknown', skipped: true };
+  }
   const page = pages.find((p) => p.path === pathSlug) ?? getPageByPath(pathSlug);
   const minRole = page?.currentMinRole ?? page?.defaultMinRole ?? 'Player';
   if (meetsRole(userRole, minRole)) return { allowed: true, role: userRole, minRole };
