@@ -236,10 +236,28 @@
     function onCheckboxClick(_event, input) {
       const pagePath = input.getAttribute('data-page-path');
       const role = input.getAttribute('data-role');
-      // Hierarchy: clicking any cell sets the min_role for the row to that role.
-      // The cells are purely a visual representation of the resulting range.
-      // (Visual feedback is handled by re-render after patch.)
-      patchPermission(pagePath, role);
+      // Hierarchy intent:
+      //   - After the click, `input.checked === true` → user wants this role to have
+      //     access → set min_role to this role (granting it and everyone higher).
+      //   - After the click, `input.checked === false` → user wants this role to NOT
+      //     have access → raise min_role to the next higher rank.
+      // Admin can never lose access (top of hierarchy), so unchecking Admin is a no-op
+      // that restores the visual state.
+      const idx = ROLES.indexOf(role);
+      let newMinRole;
+      if (input.checked) {
+        newMinRole = role;
+      } else if (idx < ROLES.length - 1) {
+        newMinRole = ROLES[idx + 1];
+      } else {
+        // Unchecking Admin — no higher rank, restore and bail
+        input.checked = true;
+        return;
+      }
+      // No-op guard: don't PATCH if the new value matches what's already saved.
+      const current = permissions.find((p) => p.path === pagePath)?.currentMinRole;
+      if (current === newMinRole) return;
+      patchPermission(pagePath, newMinRole);
     }
 
     function onReset(pagePath) {

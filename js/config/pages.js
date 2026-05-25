@@ -15,7 +15,7 @@ export const PAGES = [
   { path: 'card-test',            label: 'Card Test',             defaultMinRole: 'QA',     category: 'dev'    },
   { path: 'color-demo',           label: 'Color Demo',            defaultMinRole: 'QA',     category: 'dev'    },
   { path: 'deploy',               label: 'Deploy',                defaultMinRole: 'QA',     category: 'admin'  },
-  { path: 'deploying',            label: 'Deploying',             defaultMinRole: 'QA',     category: 'public' },
+  { path: 'deploying',            label: 'Deploying',             defaultMinRole: 'Player', category: 'public' },
   { path: 'dev-dashboard',        label: 'Dev Dashboard',         defaultMinRole: 'QA',     category: 'admin'  },
   { path: 'expansions',           label: 'Expansion Packs',       defaultMinRole: 'Player', category: 'public' },
   { path: 'financial-dashboard',  label: 'Costs',                 defaultMinRole: 'QA',     category: 'admin'  },
