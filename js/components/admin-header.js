@@ -7,6 +7,8 @@ import { PAGES, meetsRole, fetchEffectivePermissions } from '../config/pages.js'
 // while the admin-roles page can show longer labels).
 const NAV_LABELS = {
   'stats':               'Stats',
+  'stats-games':         'Games',
+  'stats-surveys':       'Surveys',
   'admin-users':         'Users',
   'admin-roles':         'Roles',
   'admin-image-gen':     'ImageAI',
@@ -15,12 +17,29 @@ const NAV_LABELS = {
   'deploy':              'Deploy',
 };
 
+// Builds a 2-level nav tree from the merged page list:
+//   [
+//     { label: '←', path: '.', minRole: 'QA' },                       // back link
+//     { label: 'Roles', path: 'admin-roles', minRole: 'Admin' },      // top-level
+//     { label: 'Stats', path: 'stats', minRole: 'QA',                 // top-level w/ children
+//       children: [ { label: 'Games', path: 'stats-games', minRole: 'QA' }, … ] },
+//     …
+//   ]
+// Only admin-category pages appear. Children are pages whose `parent` matches a
+// top-level page's path.
 function buildNavLinks(effectivePages) {
   const links = [{ label: '←', path: '.', className: 'admin-header__link--back', minRole: 'QA' }];
-  for (const p of effectivePages) {
-    if (p.category !== 'admin') continue;
+  const adminPages = effectivePages.filter((p) => p.category === 'admin');
+  const topLevel = adminPages.filter((p) => !p.parent);
+  for (const p of topLevel) {
     const label = NAV_LABELS[p.path] ?? p.label;
-    links.push({ label, path: p.path, minRole: p.currentMinRole });
+    const childPages = adminPages.filter((c) => c.parent === p.path);
+    const children = childPages.map((c) => ({
+      label: NAV_LABELS[c.path] ?? c.label,
+      path: c.path,
+      minRole: c.currentMinRole,
+    }));
+    links.push({ label, path: p.path, minRole: p.currentMinRole, children });
   }
   return links;
 }
@@ -60,12 +79,33 @@ function fetchVersion() {
     .catch(() => {});
 }
 
+function renderLinkAnchor(link, extraClass = '') {
+  const active = isActive(link.path) ? ' admin-header__link--active' : '';
+  const extra = link.className ? ` ${link.className}` : '';
+  const cls = `admin-header__link${active}${extra}${extraClass ? ' ' + extraClass : ''}`;
+  return `<a class="${cls}" href="${link.path}">${esc(link.label)}</a>`;
+}
+
 function renderNavLinksHtml(role, effectivePages) {
   const links = buildNavLinks(effectivePages).filter((l) => meetsRole(role, l.minRole));
   return links.map((l) => {
-    const active = isActive(l.path) ? ' admin-header__link--active' : '';
-    const extra = l.className ? ` ${l.className}` : '';
-    return `<a class="admin-header__link${active}${extra}" href="${l.path}">${esc(l.label)}</a>`;
+    const visibleChildren = (l.children || []).filter((c) => meetsRole(role, c.minRole));
+    if (visibleChildren.length === 0) {
+      return renderLinkAnchor(l);
+    }
+    // Active when the parent itself OR any of its children are active.
+    const childActive = visibleChildren.some((c) => isActive(c.path));
+    const parentAnchor = renderLinkAnchor(
+      { ...l, label: `${l.label}<span class="admin-header__chevron"> ▾</span>` },
+      childActive && !isActive(l.path) ? 'admin-header__link--active' : '',
+    );
+    // The label was HTML-escaped above, so we need to bypass esc() for the chevron span:
+    // simpler: rebuild the anchor inline.
+    const active = (isActive(l.path) || childActive) ? ' admin-header__link--active' : '';
+    const safeLabel = esc(l.label);
+    const parent = `<a class="admin-header__link admin-header__link--has-children${active}" href="${l.path}">${safeLabel}<span class="admin-header__chevron">▾</span></a>`;
+    const submenu = `<div class="admin-header__submenu">${visibleChildren.map((c) => renderLinkAnchor(c)).join('')}</div>`;
+    return `<div class="admin-header__nav-item admin-header__nav-item--parent">${parent}${submenu}</div>`;
   }).join('');
 }
 

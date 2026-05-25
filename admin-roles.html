@@ -22,6 +22,9 @@
         .admin-roles__table tr:hover { background: rgba(255,255,255,0.03); }
         .admin-roles__page-label { font-weight: 600; color: #ddd; }
         .admin-roles__page-path { display: block; font-size: 0.75rem; color: #888; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+        .admin-roles__child-marker { color: #666; margin-right: 0.25em; }
+        tr[data-parent] .admin-roles__page-label { padding-left: 1.25em; }
+        tr[data-parent] .admin-roles__page-path { padding-left: 1.25em; }
         .admin-roles__cat { display: inline-block; padding: 0.1em 0.5em; border-radius: 3px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
         .admin-roles__cat--admin  { background: #6a2d4f; color: #e4b7d4; }
         .admin-roles__cat--public { background: #2d6a4a; color: #b7e4c7; }
@@ -136,9 +139,10 @@
                  ${checked} />
         </td>`;
       }).join('');
-      return `<tr data-row-path="${esc(page.path)}">
+      const indent = page.parent ? '<span class="admin-roles__child-marker" aria-hidden="true">↳ </span>' : '';
+      return `<tr data-row-path="${esc(page.path)}" ${page.parent ? `data-parent="${esc(page.parent)}"` : ''}>
         <td>
-          <div class="admin-roles__page-label">${esc(page.label)}</div>
+          <div class="admin-roles__page-label">${indent}${esc(page.label)}</div>
           <code class="admin-roles__page-path">${esc(page.path)}.html</code>
         </td>
         <td><span class="admin-roles__cat admin-roles__cat--${esc(page.category)}">${esc(page.category)}</span></td>
