@@ -1,6 +1,7 @@
 // CarkedIt Online — Game Dashboard (standalone)
 'use strict';
 
+import { guardPage } from './managers/page-permission-guard.js';
 import { render as renderCardList, fromStatRow, bindScrollArrows } from './components/card-list.js';
 import { render as renderCard } from './components/card.js';
 import { renderAdminHeader, bindAdminHeader, resetAdminHeaderMenu } from './components/admin-header.js';
@@ -14,6 +15,8 @@ import {
 import { getOrCreate as registryGetOrCreate } from './data/CardRegistry.js';
 import { getFirebaseConfig, getProdFirebaseConfig } from './firebase-config.js';
 import { renderGameDetail, init as initGameDetail } from './components/game-detail.js';
+
+await guardPage('stats').catch((err) => { throw err; });
 
 // ── Firebase Auth for Admin Gate ────────────────────
 const FIREBASE_CONFIG = getFirebaseConfig();
@@ -51,7 +54,8 @@ async function loadFirebaseAuth() {
     import('https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js'),
     import('https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js'),
   ]);
-  const app = appMod.initializeApp(FIREBASE_CONFIG);
+  // Idempotent: guardPage may have already initialized the default app.
+  const app = appMod.getApps().length ? appMod.getApp() : appMod.initializeApp(FIREBASE_CONFIG);
   firebaseAuth = authMod.getAuth(app);
   return authMod;
 }
@@ -2027,7 +2031,13 @@ async function bootDashboard() {
 }
 
 // ── Init — Auth Gate ────────────────────────────────
-document.addEventListener('DOMContentLoaded', async () => {
+// Run at module top level. Wrapping in `DOMContentLoaded` breaks when a
+// top-level `await` earlier in this module (e.g. `await guardPage('stats')`)
+// delays evaluation past the actual DOMContentLoaded event — the listener
+// gets registered after the event already fired and never runs, leaving the
+// page blank. `<script type="module">` already runs after DOM parse, so the
+// wrapper was redundant.
+(async () => {
   readSourceFromUrl();
   renderAuthGate('Loading...', false);
 
@@ -2057,4 +2067,4 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.warn('[dashboard] Firebase init failed:', err);
     renderAuthGate('Authentication service unavailable.', false);
   }
-});
+})();

@@ -1,6 +1,7 @@
 // CarkedIt Online — All Games (See All page)
 'use strict';
 
+import { guardPage } from './managers/page-permission-guard.js';
 import { renderAdminHeader, bindAdminHeader, resetAdminHeaderMenu } from './components/admin-header.js';
 import {
   renderGameFilters,
@@ -11,6 +12,8 @@ import {
 import { getFirebaseConfig, getProdFirebaseConfig } from './firebase-config.js';
 import { renderGameDetail, init as initGameDetail } from './components/game-detail.js';
 import { getOrCreate as registryGetOrCreate } from './data/CardRegistry.js';
+
+await guardPage('stats-games').catch((err) => { throw err; });
 
 const FIREBASE_CONFIG = getFirebaseConfig();
 const PROD_API_ORIGIN = 'https://play.carkedit.com';
@@ -116,7 +119,8 @@ async function loadFirebaseAuth() {
     import('https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js'),
     import('https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js'),
   ]);
-  const app = appMod.initializeApp(FIREBASE_CONFIG);
+  // Idempotent: guardPage may have already initialized the default app.
+  const app = appMod.getApps().length ? appMod.getApp() : appMod.initializeApp(FIREBASE_CONFIG);
   firebaseAuth = authMod.getAuth(app);
   return authMod;
 }

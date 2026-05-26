@@ -1,8 +1,11 @@
 // CarkedIt Online — Financial Dashboard
 'use strict';
 
+import { guardPage } from './managers/page-permission-guard.js';
 import { renderAdminHeader, bindAdminHeader } from './components/admin-header.js';
 import { getFirebaseConfig } from './firebase-config.js';
+
+await guardPage('financial-dashboard').catch((err) => { throw err; });
 
 // ── Constants ─────────────────────────────────────────
 const FIREBASE_CONFIG = getFirebaseConfig();
@@ -373,14 +376,19 @@ function renderAuthGate(msg, showSignIn = false) {
   bindAdminHeader(app, {});
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
+// Module scripts run after DOM parse; using a DOMContentLoaded listener here
+// breaks when the top-level `await guardPage(...)` above delays evaluation past
+// the actual DOMContentLoaded event — the listener registers too late and the
+// page renders blank. See dashboard.js for the same fix.
+(async () => {
   renderAuthGate('Loading...', false);
   try {
     const [appMod, authMod] = await Promise.all([
       import('https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js'),
       import('https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js'),
     ]);
-    const fbApp = appMod.initializeApp(FIREBASE_CONFIG);
+    // Idempotent: guardPage may have already initialized the default app.
+    const fbApp = appMod.getApps().length ? appMod.getApp() : appMod.initializeApp(FIREBASE_CONFIG);
     const fbAuth = authMod.getAuth(fbApp);
     _fbAuth = fbAuth;
 
@@ -420,4 +428,4 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.warn('[financial-dashboard] Firebase init failed:', err);
     renderAuthGate('Authentication service unavailable.', false);
   }
-});
+})();

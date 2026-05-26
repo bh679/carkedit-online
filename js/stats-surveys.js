@@ -1,8 +1,11 @@
 // CarkedIt Online — All Survey Responses (See All page)
 'use strict';
 
+import { guardPage } from './managers/page-permission-guard.js';
 import { renderAdminHeader, bindAdminHeader, resetAdminHeaderMenu } from './components/admin-header.js';
 import { getFirebaseConfig } from './firebase-config.js';
+
+await guardPage('stats-surveys').catch((err) => { throw err; });
 
 const FIREBASE_CONFIG = getFirebaseConfig();
 const API_BASE = '';
@@ -37,7 +40,8 @@ async function loadFirebaseAuth() {
     import('https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js'),
     import('https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js'),
   ]);
-  const app = appMod.initializeApp(FIREBASE_CONFIG);
+  // Idempotent: guardPage may have already initialized the default app.
+  const app = appMod.getApps().length ? appMod.getApp() : appMod.initializeApp(FIREBASE_CONFIG);
   firebaseAuth = authMod.getAuth(app);
   return authMod;
 }
