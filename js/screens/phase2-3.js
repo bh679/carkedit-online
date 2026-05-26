@@ -10,6 +10,7 @@ import { render as renderLivingDeadProfile } from '../components/living-dead-pro
 import { render as renderPassPhone } from '../components/pass-phone.js';
 import { render as renderCardBack } from '../components/cardBack.js';
 import { escapeHtml } from '../utils/escape.js';
+import { getPitchOrder } from '../utils/turn-order.js';
 
 const PHASE_CONFIG = {
   live: { number: '2', label: 'Phase 2 - LIVE', deckType: 'live', nextScreen: 'phase3' },
@@ -107,8 +108,8 @@ export function render(phase, state) {
 }
 
 function getPitchingPlayerName(state) {
-  const submittedPlayerNames = Object.keys(state.submittedCards ?? {});
-  return submittedPlayerNames[state.pitchingPlayerIndex] ?? null;
+  const pitchOrder = getPitchOrder(state.players, state.livingDeadIndex);
+  return pitchOrder[state.pitchingPlayerIndex] ?? null;
 }
 
 function renderDieCard(card) {
@@ -264,8 +265,8 @@ function formatTime(seconds) {
 }
 
 function renderPitchingScreen(config, state, playerListOptions, nonDeadPlayers) {
-  const submittedPlayerNames = Object.keys(state.submittedCards ?? {});
-  const pitcherName = submittedPlayerNames[state.pitchingPlayerIndex] ?? '';
+  const pitchOrder = getPitchOrder(state.players, state.livingDeadIndex);
+  const pitcherName = pitchOrder[state.pitchingPlayerIndex] ?? '';
   const { timerEnabled, timerVisible, timerCountUp } = state.gameSettings ?? {};
   const seconds = state.pitchTimerSeconds ?? (timerCountUp ? 0 : 120);
   const timerClass = (!timerCountUp && seconds < 30) ? 'pitch-timer pitch-timer--warning' : 'pitch-timer';
