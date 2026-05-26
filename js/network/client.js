@@ -7,6 +7,7 @@ import { getOrCreate as registryGetOrCreate } from '../data/CardRegistry.js';
 import { startPlayCardTimer, clearPlayCardTimer, startPitchTimer, clearPitchTimer, clearAllTimers } from '../managers/online-timer.js';
 import { startRevealSequence, clearRevealTimer } from '../managers/reveal-timer.js';
 import { saveGameToHistory } from '../managers/game-history.js';
+import { saveSession, loadSession, clearSession } from '../managers/session-recovery.js';
 
 const _origin = window.location.origin;
 let _serverUrl = _origin;
@@ -18,7 +19,14 @@ let _room = null;
 let _onScreenChange = null;
 let _onSettingsChange = null;
 let _lastOnUpdate = null;
+let _lastIdentity = null;
 let _reconnecting = false;
+// index.html loads router.js with a cache-buster, while game-manager.js
+// imports it without one. The browser treats those as two module URLs and
+// both register DOMContentLoaded, which would otherwise call attemptRecover
+// twice. client.js is single-instance, so memoising the in-flight promise
+// here de-dupes safely.
+let _recoverPromise = null;
 
 async function loadConfig() {
   if (_configLoaded) return;
@@ -827,14 +835,23 @@ function setupRoomListeners(room, onUpdate) {
         connectionStatus: 'connected',
         onlinePlayers: syncPlayersFromRoom(reconnectedRoom),
         mySessionId: reconnectedRoom.sessionId,
+        roomCode: reconnectedRoom.state?.roomCode || getState().roomCode,
       });
       setupRoomListeners(reconnectedRoom, _lastOnUpdate);
+      // Persist the rotated reconnection token so a page reload right after
+      // a WebSocket reconnect can still recover.
+      saveSession({
+        roomCode: reconnectedRoom.state?.roomCode || getState().roomCode,
+        reconnectionToken: reconnectedRoom.reconnectionToken,
+        identity: _lastIdentity,
+      });
       resyncFromRoomState();
       console.log('[client] Reconnected successfully');
     } catch (err) {
       console.log(`[client] Reconnection failed: ${err.message}`);
       _reconnecting = false;
       _room = null;
+      clearSession();
       setState({
         connectionStatus: 'disconnected',
         onlineError: `Disconnected — could not reconnect`,
@@ -914,7 +931,13 @@ export async function createRoom({ name, birthMonth, birthDay, isPrivate = true,
       disabledPackDecks: Array.from(room.state.disabledPackDecks ?? []),
     });
     _lastOnUpdate = onUpdate;
+    _lastIdentity = { name, birthMonth: birthMonth || 0, birthDay: birthDay || 0, isDevName, userId };
     setupRoomListeners(room, onUpdate);
+    saveSession({
+      roomCode: room.state?.roomCode || null,
+      reconnectionToken: room.reconnectionToken,
+      identity: _lastIdentity,
+    });
     return room;
   } catch (err) {
     setState({
@@ -963,13 +986,93 @@ export async function joinRoom(code, { name, birthMonth, birthDay, isDevName = f
       disabledPackDecks: Array.from(room.state.disabledPackDecks ?? []),
     });
     _lastOnUpdate = onUpdate;
+    _lastIdentity = { name, birthMonth: birthMonth || 0, birthDay: birthDay || 0, isDevName, userId };
     setupRoomListeners(room, onUpdate);
+    saveSession({
+      roomCode: code.toUpperCase(),
+      reconnectionToken: room.reconnectionToken,
+      identity: _lastIdentity,
+    });
     return room;
   } catch (err) {
     setState({
       connectionStatus: 'disconnected',
       onlineError: err.message || 'Failed to join room',
     });
+    throw err;
+  }
+}
+
+/**
+ * Restore an online session after a page reload. Tries the Colyseus
+ * reconnection token first (preserves seat + hand during active phases).
+ * Falls back to a fresh joinRoom() with the saved identity (covers the
+ * lobby phase where the server has already dropped the player).
+ *
+ * Returns the reconnected/rejoined room on success. Throws if both
+ * paths fail — caller is responsible for clearing the saved session
+ * and showing the menu.
+ */
+export function attemptRecover(onUpdate) {
+  if (_recoverPromise) return _recoverPromise;
+  if (_room) return Promise.resolve(_room);
+  _recoverPromise = _doRecover(onUpdate).finally(() => { _recoverPromise = null; });
+  return _recoverPromise;
+}
+
+async function _doRecover(onUpdate) {
+  const saved = loadSession();
+  if (!saved) throw new Error('no saved session');
+
+  setState({
+    connectionStatus: 'reconnecting',
+    onlineError: null,
+    roomCode: saved.roomCode,
+    gameMode: 'online',
+  });
+
+  // Path 1: Colyseus reconnect (preserves seat/hand during active phases)
+  try {
+    const client = await getColyseusClient();
+    const room = await client.reconnect(saved.reconnectionToken);
+    _room = room;
+
+    await waitForState(room);
+
+    const state = getState();
+    setState({
+      connectionStatus: 'connected',
+      roomCode: room.state?.roomCode || saved.roomCode,
+      gameMode: 'online',
+      onlinePlayers: syncPlayersFromRoom(room),
+      mySessionId: room.sessionId,
+      gameSettings: { ...state.gameSettings, ...syncGameSettingsFromRoom(room) },
+      selectedPackIds: Array.from(room.state.selectedPackIds ?? []),
+      disabledPackDecks: Array.from(room.state.disabledPackDecks ?? []),
+    });
+    _lastOnUpdate = onUpdate;
+    _lastIdentity = saved.identity;
+    setupRoomListeners(room, onUpdate);
+    saveSession({
+      roomCode: room.state?.roomCode || saved.roomCode,
+      reconnectionToken: room.reconnectionToken,
+      identity: saved.identity,
+    });
+    console.log('[client] Recovered session via Colyseus reconnect');
+    return room;
+  } catch (err) {
+    console.log(`[client] Token-based recover failed (${err.message}); trying joinRoom fallback`);
+  }
+
+  // Path 2: fresh join by room code (covers lobby — server already removed us)
+  if (!saved.identity?.name) {
+    clearSession();
+    throw new Error('no identity for join fallback');
+  }
+  try {
+    return await joinRoom(saved.roomCode, saved.identity, onUpdate);
+  } catch (err) {
+    clearSession();
     throw err;
   }
 }
@@ -987,6 +1090,8 @@ export async function lookupRoom(code) {
 
 export async function leaveRoom() {
   clearAllTimers();
+  clearSession();
+  _lastIdentity = null;
   if (_room) {
     await _room.leave();
     _room = null;

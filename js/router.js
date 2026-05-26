@@ -22,11 +22,13 @@ import {
   joinRoom as networkJoinRoom,
   leaveRoom as networkLeaveRoom,
   lookupRoom as networkLookupRoom,
+  attemptRecover as networkAttemptRecover,
   sendMessage,
   onScreenChange,
   onSettingsChange,
   resyncFromRoomState,
 } from './network/client.js';
+import { loadSession, clearSession } from './managers/session-recovery.js';
 import { onTimerUpdate } from './managers/online-timer.js';
 import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, logOut, updateUserProfile } from './managers/auth-manager.js';
 import { fetchMyPacks, fetchPublicPacks, fetchFavoritePacks, setPackFavorite, getPack } from './card-designer/pack-manager.js';
@@ -204,7 +206,7 @@ function refreshOnlineLobbyAfterPackChange() {
 let _preloadPromise = null;
 
 function startPreload() {
-  if (_preloadPromise) return; // already in progress
+  if (_preloadPromise) return _preloadPromise;
   _preloadPromise = preloadCards((loaded, total) => {
     const el = document.getElementById('preload-progress');
     if (el) el.textContent = `Loading cards\u2026 ${loaded}/${total}`;
@@ -223,6 +225,7 @@ function startPreload() {
       showScreen('lobby');
     }
   });
+  return _preloadPromise;
 }
 
 function isMobile() {
@@ -516,9 +519,16 @@ function revealWinner() {
   showScreen('phase4');
 }
 
+function cancelRecover() {
+  clearSession();
+  setState({ connectionStatus: 'disconnected', onlineError: null, roomCode: null });
+  showScreen('menu');
+}
+
 // Expose game API for inline onclick handlers
 window.game = {
   showScreen,
+  cancelRecover,
   addPlayer,
   selectPlayerRemoval,
   removePlayer,
@@ -1058,7 +1068,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const params = new URLSearchParams(window.location.search);
   const joinCode = params.get('join');
-  if (joinCode) {
+  const savedSession = loadSession();
+
+  // Page-reload recovery — only attempt if we saved a session in this tab.
+  // sessionStorage already filters out cross-tab/post-close scenarios.
+  if (savedSession) {
+    setState({ connectionStatus: 'reconnecting', roomCode: savedSession.roomCode });
+    showScreen('menu');
+    // Preload card data first so the recovered phase screen has illustrations.
+    // Without this, syncDiePhaseState / syncLivingPhaseState can't find the
+    // local card metadata and falls back to the CSS-only render.
+    startPreload()
+      .then(() => networkAttemptRecover((players) => {
+        setState({ onlinePlayers: players });
+      }))
+      .then(() => {
+        resyncFromRoomState();
+      })
+      .catch((err) => {
+        console.log(`[router] Recover failed: ${err?.message ?? err}`);
+        clearSession();
+        setState({ connectionStatus: 'disconnected', onlineError: null, roomCode: null });
+        showScreen('menu');
+      });
+  } else if (joinCode) {
     setState({ roomCode: joinCode.toUpperCase() });
     showScreen('join-game');
     // Pre-fill the room code input after render
