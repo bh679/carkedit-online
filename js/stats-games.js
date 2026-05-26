@@ -11,6 +11,7 @@ import {
 } from './components/game-filters.js';
 import { getFirebaseConfig, getProdFirebaseConfig } from './firebase-config.js';
 import { renderGameDetail, init as initGameDetail } from './components/game-detail.js';
+import { getOrCreate as registryGetOrCreate } from './data/CardRegistry.js';
 
 await guardPage('stats-games').catch((err) => { throw err; });
 
@@ -668,9 +669,47 @@ function renderPage() {
   bindAdminHeader(app, { user: firebaseUserInfo, onSignOut: doSignOut });
 }
 
+// Populate the shared CardRegistry so renderGameDetail's mini-cards in the
+// Phase panel can resolve card text + image. Without this, renderCard() falls
+// back to an empty placeholder and the mini-cards render as blank rectangles.
+// Mirrors what dashboard.js's loadCardData does, minus the dashboard-only
+// cardDataMap/packList/authorList bookkeeping (which the See-All page has no
+// UI for).
+async function loadCardData() {
+  const deckFiles = [
+    { file: 'js/data/cards/die.json',  deckType: 'die'  },
+    { file: 'js/data/cards/live.json', deckType: 'live' },
+    { file: 'js/data/cards/bye.json',  deckType: 'bye'  },
+  ];
+  await Promise.all(deckFiles.map(async ({ file, deckType }) => {
+    try {
+      const res = await fetch(file);
+      if (!res.ok) return;
+      for (const c of await res.json()) registryGetOrCreate({ ...c, deckType });
+    } catch {}
+  }));
+  try {
+    const res = await authFetch(`${apiBase()}/api/carkedit/packs`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const packs = data.packs ?? data ?? [];
+    await Promise.all(packs.map(async (p) => {
+      try {
+        const pr = await authFetch(`${apiBase()}/api/carkedit/packs/${p.id}`);
+        if (!pr.ok) return;
+        const pack = await pr.json();
+        for (const c of (pack.cards ?? [])) {
+          const deckType = c.deck_type === 'live' ? 'live' : c.deck_type;
+          registryGetOrCreate({ ...c, deckType });
+        }
+      } catch {}
+    }));
+  } catch {}
+}
+
 async function boot() {
   initGameDetail({ authFetch, apiBase });
-  await Promise.all([fetchGames(false), fetchStats()]);
+  await Promise.all([fetchGames(false), fetchStats(), loadCardData()]);
   renderPage();
 }
 
