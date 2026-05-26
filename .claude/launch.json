@@ -39,5 +39,17 @@
       "runtimeArgs": ["http-server", ".", "-p", "4555", "-c-1"],
       "port": 4555
     }
+  ,{
+      "name": "fix-eulogy-picker-4501",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["http-server", ".", "-p", "4501", "-c-1"],
+      "port": 4501
+    }
+  ,{
+      "name": "fix-cardback-onload-null-4506",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["http-server", ".", "-p", "4506", "-c-1"],
+      "port": 4506
+    }
   ]
 }
