@@ -250,6 +250,12 @@ export function submitCard(cardId) {
   currentPhaseManager?.submitCard(cardId);
 }
 
+export function swapCard(cardId) {
+  if (getState().gameMode !== 'online') return;
+  const cardIndex = findServerCardIndex(cardId);
+  if (cardIndex >= 0) sendMessage('swap_card', { cardIndex });
+}
+
 export function revealCards() {
   if (getState().gameMode === 'online') {
     sendMessage('reveal_submission');
