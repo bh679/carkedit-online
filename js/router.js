@@ -206,7 +206,7 @@ function refreshOnlineLobbyAfterPackChange() {
 let _preloadPromise = null;
 
 function startPreload() {
-  if (_preloadPromise) return; // already in progress
+  if (_preloadPromise) return _preloadPromise;
   _preloadPromise = preloadCards((loaded, total) => {
     const el = document.getElementById('preload-progress');
     if (el) el.textContent = `Loading cards\u2026 ${loaded}/${total}`;
@@ -225,6 +225,7 @@ function startPreload() {
       showScreen('lobby');
     }
   });
+  return _preloadPromise;
 }
 
 function isMobile() {
@@ -1073,9 +1074,13 @@ document.addEventListener('DOMContentLoaded', () => {
   if (savedSession) {
     setState({ connectionStatus: 'reconnecting', roomCode: savedSession.roomCode });
     showScreen('menu');
-    networkAttemptRecover((players) => {
-      setState({ onlinePlayers: players });
-    })
+    // Preload card data first so the recovered phase screen has illustrations.
+    // Without this, syncDiePhaseState / syncLivingPhaseState can't find the
+    // local card metadata and falls back to the CSS-only render.
+    startPreload()
+      .then(() => networkAttemptRecover((players) => {
+        setState({ onlinePlayers: players });
+      }))
       .then(() => {
         resyncFromRoomState();
       })
