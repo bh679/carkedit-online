@@ -28,12 +28,15 @@
 <body>
     <div id="app"></div>
     <script type="module">
+    import { guardPage } from './js/managers/page-permission-guard.js';
     import { renderAdminHeader, bindAdminHeader, resetAdminHeaderMenu } from './js/components/admin-header.js';
     import { getFirebaseConfig } from './js/firebase-config.js';
 
     if (window.location.hostname === 'brennan.games') {
         window.location.replace('branch-manager.php');
     }
+
+    await guardPage('deploy').catch((err) => { throw err; });
 
     const FIREBASE_CONFIG = getFirebaseConfig();
 
@@ -45,7 +48,8 @@
         import('https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js'),
         import('https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js'),
       ]);
-      const app = appMod.initializeApp(FIREBASE_CONFIG);
+      // Idempotent: guardPage may have already initialized the default app.
+      const app = appMod.getApps().length ? appMod.getApp() : appMod.initializeApp(FIREBASE_CONFIG);
       firebaseAuth = authMod.getAuth(app);
       authModule = authMod;
     }

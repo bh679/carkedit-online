@@ -161,3 +161,46 @@
 .admin-header__menu-item--logout:hover {
   background: rgba(255, 107, 107, 0.1);
 }
+
+/* ── Nested nav (parent + hover submenu) ─────────────── */
+
+.admin-header__nav-item {
+  position: relative;
+  display: inline-flex;
+}
+
+.admin-header__chevron {
+  font-size: 0.7em;
+  opacity: 0.6;
+  margin-left: 0.25em;
+}
+
+.admin-header__submenu {
+  position: absolute;
+  top: calc(100% + 0.25em);
+  left: 0;
+  min-width: 160px;
+  display: none;
+  flex-direction: column;
+  background: var(--color-surface, #252540);
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+  border-radius: 8px;
+  padding: 0.3em 0;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  z-index: 50;
+}
+
+.admin-header__nav-item--parent:hover .admin-header__submenu,
+.admin-header__nav-item--parent:focus-within .admin-header__submenu {
+  display: flex;
+}
+
+.admin-header__submenu .admin-header__link {
+  border-radius: 0;
+  padding: 0.4em 0.9em;
+  white-space: nowrap;
+}
+
+.admin-header__submenu .admin-header__link:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
