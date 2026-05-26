@@ -1054,7 +1054,11 @@ function renderAuthGate(msg, showSignIn = false) {
   bindAdminHeader(app, {});
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
+// Module scripts run after DOM parse; using a DOMContentLoaded listener here
+// breaks when the top-level `await guardPage(...)` above delays evaluation past
+// the actual DOMContentLoaded event — the listener registers too late and the
+// page renders blank. See dashboard.js for the same fix.
+(async () => {
   renderAuthGate('Loading...', false);
   try {
     const [appMod, authMod] = await Promise.all([
@@ -1104,4 +1108,4 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.warn('[dev-dashboard] Firebase init failed:', err);
     renderAuthGate('Authentication service unavailable.', false);
   }
-});
+})();

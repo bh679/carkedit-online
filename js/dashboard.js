@@ -2031,7 +2031,13 @@ async function bootDashboard() {
 }
 
 // ── Init — Auth Gate ────────────────────────────────
-document.addEventListener('DOMContentLoaded', async () => {
+// Run at module top level. Wrapping in `DOMContentLoaded` breaks when a
+// top-level `await` earlier in this module (e.g. `await guardPage('stats')`)
+// delays evaluation past the actual DOMContentLoaded event — the listener
+// gets registered after the event already fired and never runs, leaving the
+// page blank. `<script type="module">` already runs after DOM parse, so the
+// wrapper was redundant.
+(async () => {
   readSourceFromUrl();
   renderAuthGate('Loading...', false);
 
@@ -2061,4 +2067,4 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.warn('[dashboard] Firebase init failed:', err);
     renderAuthGate('Authentication service unavailable.', false);
   }
-});
+})();
