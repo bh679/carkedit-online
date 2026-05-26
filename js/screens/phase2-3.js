@@ -10,6 +10,7 @@ import { render as renderLivingDeadProfile } from '../components/living-dead-pro
 import { render as renderPassPhone } from '../components/pass-phone.js';
 import { render as renderCardBack } from '../components/cardBack.js';
 import { escapeHtml } from '../utils/escape.js';
+import { getPitchOrder } from '../utils/turn-order.js';
 
 const PHASE_CONFIG = {
   live: { number: '2', label: 'Phase 2 - LIVE', deckType: 'live', nextScreen: 'phase3' },
@@ -107,8 +108,8 @@ export function render(phase, state) {
 }
 
 function getPitchingPlayerName(state) {
-  const submittedPlayerNames = Object.keys(state.submittedCards ?? {});
-  return submittedPlayerNames[state.pitchingPlayerIndex] ?? null;
+  const pitchOrder = getPitchOrder(state.players, state.livingDeadIndex);
+  return pitchOrder[state.pitchingPlayerIndex] ?? null;
 }
 
 function renderDieCard(card) {
@@ -264,8 +265,8 @@ function formatTime(seconds) {
 }
 
 function renderPitchingScreen(config, state, playerListOptions, nonDeadPlayers) {
-  const submittedPlayerNames = Object.keys(state.submittedCards ?? {});
-  const pitcherName = submittedPlayerNames[state.pitchingPlayerIndex] ?? '';
+  const pitchOrder = getPitchOrder(state.players, state.livingDeadIndex);
+  const pitcherName = pitchOrder[state.pitchingPlayerIndex] ?? '';
   const { timerEnabled, timerVisible, timerCountUp } = state.gameSettings ?? {};
   const seconds = state.pitchTimerSeconds ?? (timerCountUp ? 0 : 120);
   const timerClass = (!timerCountUp && seconds < 30) ? 'pitch-timer pitch-timer--warning' : 'pitch-timer';
@@ -415,6 +416,11 @@ function renderOnlineSubmit(config, state, playerListOptions, livingDead, living
     ? `<div class="${playCardTimerClass}"><span class="pitch-timer__time">${formatTime(playCardSeconds)}</span></div>`
     : '';
 
+  // If this player has already submitted, the inspect overlay's CTA becomes "Swap"
+  // so they can replace their played card with a different one from their hand.
+  const hasSubmitted = (state.onlineSubmittedCards ?? [])
+    .some(c => c.submittedBy === state.mySessionId);
+
   return layout(config, state, playerListOptions, `
     ${renderLivingDeadProfile({
       player: livingDead,
@@ -422,11 +428,11 @@ function renderOnlineSubmit(config, state, playerListOptions, livingDead, living
       chosenCards,
       profileInspectCard: state.profileInspectCard ?? null,
       deckType: config.deckType,
-      hint: 'Select your best card to play',
+      hint: hasSubmitted ? 'Tap a card to swap it in' : 'Select your best card to play',
       submittedCards: submittedCardsMap,
     })}
     ${playCardTimerHtml}
-    ${renderHand(state.hand ?? [], { selectedCard: state.selectedCard, deckType: config.deckType })}
+    ${renderHand(state.hand ?? [], { selectedCard: state.selectedCard, deckType: config.deckType, hasSubmitted })}
   `);
 }
 

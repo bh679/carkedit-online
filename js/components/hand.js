@@ -69,7 +69,7 @@ export function renderInspectOverlay({ selectedCard, deckType, submitLabel, onSu
  * @param {string} options.deckType - Deck type for card rendering ('live' or 'bye')
  * @returns {string} HTML string
  */
-export function render(cards = [], { dimmed = false, selectedCard = null, livingDeadMessage = null, deckType = 'live', footer = '' } = {}) {
+export function render(cards = [], { dimmed = false, selectedCard = null, livingDeadMessage = null, deckType = 'live', footer = '', hasSubmitted = false } = {}) {
   const footerHtml = footer
     ? `<div class="hand__footer">${footer}</div>`
     : '';
@@ -111,8 +111,10 @@ export function render(cards = [], { dimmed = false, selectedCard = null, living
   const inspectOverlay = renderInspectOverlay({
     selectedCard,
     deckType,
-    submitLabel: 'Play This Card',
-    onSubmit: `window.game.submitCard('${selectedCard?.id}')`,
+    submitLabel: hasSubmitted ? 'Swap' : 'Play This Card',
+    onSubmit: hasSubmitted
+      ? `window.game.swapCard('${selectedCard?.id}')`
+      : `window.game.submitCard('${selectedCard?.id}')`,
     onPrev:   `window.game.prevCard('${selectedCard?.id}')`,
     onNext:   `window.game.nextCard('${selectedCard?.id}')`,
   });

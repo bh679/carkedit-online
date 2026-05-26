@@ -215,6 +215,15 @@ function syncLivingPhaseState(room) {
     }
   }
 
+  // Only clear the local card preview when the phase actually changes, or when
+  // the previously previewed hand card is no longer in hand (i.e. the user
+  // just submitted it). Without these guards, every remote-player submission
+  // would wipe the local preview because syncLivingPhaseState runs on every
+  // server state change.
+  const phaseChanged = state.onlinePhase !== onlinePhase;
+  const selectedHandCardGone = !!state.selectedCard
+    && !hand.some(c => String(c.id) === String(state.selectedCard.id));
+
   // Count submitters and collect submitted player names
   // Mirror server's allPlayersSubmitted() logic: skip late joiners awaiting die card
   // and players with empty hands so the "X/Y submitted" display matches the server.
@@ -292,17 +301,24 @@ function syncLivingPhaseState(room) {
     roundWinnerCard,
     // During select/winner phases, build the submittedCards map (keyed by player name)
     // so that confirmWinner/findSubmittedCardIndex can look up cards reliably.
-    // Outside those phases, reset submittedCards and selectedCard.
+    // Outside those phases, reset submittedCards. selectedCard is only cleared
+    // on phase transitions or when the previewed hand card is no longer in hand.
     ...(onlinePhase === 'select' || onlinePhase === 'winner'
-      ? { submittedCards: (() => {
-          const map = {};
-          for (const card of submittedCards) {
-            const p = players.find(pl => pl.sessionId === card.submittedBy);
-            if (p) map[p.name] = card;
-          }
-          return map;
-        })() }
-      : { submittedCards: {}, selectedCard: null }),
+      ? {
+          submittedCards: (() => {
+            const map = {};
+            for (const card of submittedCards) {
+              const p = players.find(pl => pl.sessionId === card.submittedBy);
+              if (p) map[p.name] = card;
+            }
+            return map;
+          })(),
+          ...(phaseChanged ? { selectedCard: null } : {}),
+        }
+      : {
+          submittedCards: {},
+          ...((phaseChanged || selectedHandCardGone) ? { selectedCard: null } : {}),
+        }),
     phaseComplete: false,
   };
 }

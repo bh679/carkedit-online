@@ -54,8 +54,9 @@ Decide how you want to live your life before you cark it!
    hand and place it face down on the table.
 
 3. Once everyone has placed a card, all players reveal their card and take turns
-   convincing Player 1 that their choice is the best option. Argue, persuade, be
-   sensible, silly, or stupendous!
+   convincing Player 1 that their choice is the best option. Pitching begins with
+   the player immediately after The Living Dead (clockwise) and continues clockwise,
+   wrapping past the Living Dead. Argue, persuade, be sensible, silly, or stupendous!
 
 4. Player 1 chooses their favourite Live card and places it to the left of their Die
    card. The player who put forward the winning card is awarded 1 point. The Funeral
