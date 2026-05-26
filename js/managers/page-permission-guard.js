@@ -20,49 +20,62 @@ function esc(str) {
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-// Defensive ceiling on the auth-state wait. Firebase's onAuthStateChanged
-// is normally fast (synchronous on warm cache, ~hundreds of ms on cold),
-// but if persistent-session restoration stalls we'd otherwise hang the
-// entire page module. On timeout we fall through to a sentinel so the
-// caller can choose to skip the gate.
+// Defensive ceilings. The whole role lookup is wrapped in a master timeout
+// so a hang in *any* await — auth state, getIdToken, or the /users/me
+// fetch — can never block the page module's top-level await indefinitely.
+// On timeout we return a `null` sentinel and the caller skips the gate;
+// backend API role middleware still enforces real access.
 const AUTH_TIMEOUT_MS = 4000;
+const ROLE_LOOKUP_TIMEOUT_MS = 6000;
+
+async function doRoleLookup() {
+  const { getFirebaseConfig } = await import('../firebase-config.js');
+  const [appMod, authMod] = await Promise.all([
+    import(FIREBASE_APP_URL),
+    import(FIREBASE_AUTH_URL),
+  ]);
+  const app = appMod.getApps?.().length ? appMod.getApp() : appMod.initializeApp(getFirebaseConfig());
+  const auth = authMod.getAuth(app);
+  let timeoutHandle;
+  const user = await Promise.race([
+    new Promise((resolve) => {
+      const unsub = authMod.onAuthStateChanged(auth, (u) => {
+        clearTimeout(timeoutHandle);
+        unsub();
+        resolve(u);
+      });
+    }),
+    new Promise((resolve) => {
+      timeoutHandle = setTimeout(() => resolve(undefined), AUTH_TIMEOUT_MS);
+    }),
+  ]);
+  if (user === undefined) {
+    console.warn('[page-permission-guard] auth state lookup timed out — skipping gate');
+    return null;
+  }
+  if (!user) return 'Player';
+  const token = await user.getIdToken();
+  const res = await fetch('/api/carkedit/users/me', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return 'Player';
+  const me = await res.json();
+  return me?.role || 'Player';
+}
 
 async function getCurrentUserRole() {
-  // Resolve current Firebase user (if any) and exchange for the local role.
-  // Signed-out users are Player (per roles.ts hierarchy).
+  // Master timeout: regardless of which internal await stalls (Firebase
+  // module fetch, getIdToken, /users/me, etc), we resolve within this
+  // budget so the page module's top-level `await guardPage(...)` never
+  // hangs forever.
   try {
-    const { getFirebaseConfig } = await import('../firebase-config.js');
-    const [appMod, authMod] = await Promise.all([
-      import(FIREBASE_APP_URL),
-      import(FIREBASE_AUTH_URL),
+    return await Promise.race([
+      doRoleLookup(),
+      new Promise((resolve) => setTimeout(() => {
+        console.warn('[page-permission-guard] role lookup hit master timeout — skipping gate');
+        resolve(null);
+      }, ROLE_LOOKUP_TIMEOUT_MS)),
     ]);
-    const app = appMod.getApps?.().length ? appMod.getApp() : appMod.initializeApp(getFirebaseConfig());
-    const auth = authMod.getAuth(app);
-    let timeoutHandle;
-    const user = await Promise.race([
-      new Promise((resolve) => {
-        const unsub = authMod.onAuthStateChanged(auth, (u) => {
-          clearTimeout(timeoutHandle);
-          unsub();
-          resolve(u);
-        });
-      }),
-      new Promise((resolve) => {
-        timeoutHandle = setTimeout(() => resolve(undefined), AUTH_TIMEOUT_MS);
-      }),
-    ]);
-    if (user === undefined) {
-      console.warn('[page-permission-guard] auth state lookup timed out — skipping gate');
-      return null;
-    }
-    if (!user) return 'Player';
-    const token = await user.getIdToken();
-    const res = await fetch('/api/carkedit/users/me', {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) return 'Player';
-    const me = await res.json();
-    return me?.role || 'Player';
   } catch (err) {
     console.warn('[page-permission-guard] role lookup failed', err);
     return 'Player';
