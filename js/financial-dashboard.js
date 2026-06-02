@@ -123,10 +123,10 @@ function renderSummaryCards(data, aws) {
 const ENV_META = {
   dev:      { label: 'Dev',         bg: 'rgba(59, 130, 246, 0.15)', fg: '#2563eb' },
   staging:  { label: 'Staging',     bg: 'rgba(245, 158, 11, 0.15)', fg: '#d97706' },
-  play:     { label: 'Play (prod)', bg: 'rgba(34, 197, 94, 0.15)',  fg: '#16a34a' },
+  prod:     { label: 'Prod',        bg: 'rgba(34, 197, 94, 0.15)',  fg: '#16a34a' },
   untagged: { label: 'Untagged',    bg: 'var(--color-input-bg)',    fg: 'var(--color-text-muted)' },
 };
-const ENV_ORDER = ['dev', 'staging', 'play'];
+const ENV_ORDER = ['dev', 'staging', 'prod'];
 
 function getEnvMeta(env) {
   return ENV_META[env] || { label: env, bg: 'var(--color-input-bg)', fg: 'var(--color-text-muted)' };
