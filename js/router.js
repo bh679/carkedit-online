@@ -1022,10 +1022,15 @@ window.game = {
         btn.textContent = 'Copied!';
         setTimeout(() => { btn.innerHTML = original; }, 1500);
       }
-      const label = document.querySelector('.online-lobby__code-label');
-      if (label) {
-        label.textContent = 'Copied';
-        setTimeout(() => { label.textContent = 'Room Code'; }, 1500);
+      const hint = document.querySelector('.online-lobby__code-hint');
+      if (hint) {
+        const originalHint = hint.textContent;
+        hint.textContent = 'Link copied, send to players to invite';
+        hint.classList.add('online-lobby__code-hint--copied');
+        setTimeout(() => {
+          hint.textContent = originalHint;
+          hint.classList.remove('online-lobby__code-hint--copied');
+        }, 2200);
       }
     }).catch(() => {});
   },

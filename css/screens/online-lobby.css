@@ -114,6 +114,13 @@
   letter-spacing: 0.08em;
 }
 
+/* Post-copy confirmation: sentence-case + on-brand colour, swapped in by copyJoinLink() */
+.online-lobby__code-hint--copied {
+  color: var(--color-primary);
+  text-transform: none;
+  letter-spacing: normal;
+}
+
 /* Lobby reuses player-list__chip from player-list component in a vertical layout */
 .online-lobby__player-list {
   display: flex;
