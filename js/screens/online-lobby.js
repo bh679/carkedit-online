@@ -128,6 +128,7 @@ function renderConnectedLobby(state) {
     ? `<div class="online-lobby__room-code" onclick="window.game.copyJoinLink()" style="cursor:pointer" title="Click to copy join link">
         <span class="online-lobby__code-label">Room Code</span>
         <span class="online-lobby__code-value">${escapeHtml(roomCode)}</span>
+        <span class="online-lobby__code-hint">Click to invite players</span>
        </div>`
     : '';
 

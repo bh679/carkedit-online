@@ -106,6 +106,21 @@
   letter-spacing: 0.2em;
 }
 
+.online-lobby__code-hint {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* Post-copy confirmation: sentence-case + on-brand colour, swapped in by copyJoinLink() */
+.online-lobby__code-hint--copied {
+  color: var(--color-primary);
+  text-transform: none;
+  letter-spacing: normal;
+}
+
 /* Lobby reuses player-list__chip from player-list component in a vertical layout */
 .online-lobby__player-list {
   display: flex;
