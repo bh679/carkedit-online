@@ -2,46 +2,16 @@
 'use strict';
 
 import { PAGES, meetsRole, fetchEffectivePermissions } from '../config/pages.js';
+import { buildAdminNavLinks } from '../config/admin-nav.js';
 
-// Short labels for admin pages shown in the nav bar (keeps the header compact
-// while the admin-roles page can show longer labels).
-const NAV_LABELS = {
-  'stats':               'Stats',
-  'stats-games':         'Games',
-  'stats-surveys':       'Surveys',
-  'admin-users':         'Users',
-  'admin-roles':         'Roles',
-  'admin-image-gen':     'ImageAI',
-  'financial-dashboard': 'Costs',
-  'dev-dashboard':       'Dev',
-  'deploy':              'Deploy',
-};
-
-// Builds a 2-level nav tree from the merged page list:
-//   [
-//     { label: '←', path: '.', minRole: 'QA' },                       // back link
-//     { label: 'Roles', path: 'admin-roles', minRole: 'Admin' },      // top-level
-//     { label: 'Stats', path: 'stats', minRole: 'QA',                 // top-level w/ children
-//       children: [ { label: 'Games', path: 'stats-games', minRole: 'QA' }, … ] },
-//     …
-//   ]
-// Only admin-category pages appear. Children are pages whose `parent` matches a
-// top-level page's path.
+// Prepends the header-specific ← back link to the shared admin nav tree.
+// NAV_LABELS + the registry→tree logic now live in config/admin-nav.js so the
+// avatar dropdown menus build their admin links from the same source.
 function buildNavLinks(effectivePages) {
-  const links = [{ label: '←', path: '.', className: 'admin-header__link--back', minRole: 'QA' }];
-  const adminPages = effectivePages.filter((p) => p.category === 'admin');
-  const topLevel = adminPages.filter((p) => !p.parent);
-  for (const p of topLevel) {
-    const label = NAV_LABELS[p.path] ?? p.label;
-    const childPages = adminPages.filter((c) => c.parent === p.path);
-    const children = childPages.map((c) => ({
-      label: NAV_LABELS[c.path] ?? c.label,
-      path: c.path,
-      minRole: c.currentMinRole,
-    }));
-    links.push({ label, path: p.path, minRole: p.currentMinRole, children });
-  }
-  return links;
+  return [
+    { label: '←', path: '.', className: 'admin-header__link--back', minRole: 'QA' },
+    ...buildAdminNavLinks(effectivePages),
+  ];
 }
 
 function staticPagesAsEffective() {

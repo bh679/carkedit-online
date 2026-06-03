@@ -1,6 +1,8 @@
 // CarkedIt Online — Auth Button Component
 'use strict';
 
+import { renderAdminMenuItems } from '../config/admin-nav.js';
+
 export function renderAuthButton(state) {
   if (state.authLoading) {
     return '<div class="auth-bar"><span class="auth-bar__loading">...</span></div>';
@@ -16,12 +18,7 @@ export function renderAuthButton(state) {
       ? `<img class="auth-bar__avatar" src="${state.firebaseUser.photoURL}" alt="" />`
       : `<span class="auth-bar__avatar auth-bar__avatar--initial">${initial}</span>`;
 
-    const adminItems = isAdmin ? `
-      <a class="auth-menu__item" href="stats">Stats</a>
-      <a class="auth-menu__item" href="admin-users">Users</a>
-      <a class="auth-menu__item" href="admin-image-gen">ImageAI</a>
-      <a class="auth-menu__item" href="dev-dashboard">Dev</a>
-    ` : '';
+    const adminItems = isAdmin ? renderAdminMenuItems() : '';
 
     const menu = state.showUserMenu ? `
       <div class="auth-menu" onclick="event.stopPropagation()">

@@ -13,6 +13,7 @@ import {
 } from './pack-manager.js';
 import { registerPackBrand } from '../state.js';
 import { getOrCreate as registryGetOrCreate } from '../data/CardRegistry.js';
+import { renderAdminMenuItems } from '../config/admin-nav.js';
 
 /** Register an array of raw pack card objects in the CardRegistry. */
 function registerPackCards(cards) {
@@ -198,12 +199,7 @@ function renderAuthBar() {
     ? `<img class="auth-bar__avatar" src="${esc(state.firebaseUser.photoURL)}" alt="" />`
     : `<span class="auth-bar__avatar auth-bar__avatar--initial">${initial}</span>`;
 
-  const adminItems = isAdmin ? `
-    <a class="auth-menu__item" href="stats">Stats</a>
-    <a class="auth-menu__item" href="admin-users">Users</a>
-    <a class="auth-menu__item" href="admin-image-gen">ImageAI</a>
-    <a class="auth-menu__item" href="dev-dashboard">Dev</a>
-  ` : '';
+  const adminItems = isAdmin ? renderAdminMenuItems() : '';
 
   const menu = state.showUserMenu ? `
     <div class="auth-menu" onclick="event.stopPropagation()">
