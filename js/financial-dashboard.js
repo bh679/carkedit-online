@@ -119,6 +119,78 @@ function renderSummaryCards(data, aws) {
     ${totals.estimated_count > 0 ? `<div class="fin-note">* ${totals.estimated_count} of ${totals.all_time_count} generations use estimated costs (pre-tracking)</div>` : ''}`;
 }
 
+// ── Environment Breakdown ─────────────────────────────
+const ENV_META = {
+  dev:      { label: 'Dev',         bg: 'rgba(59, 130, 246, 0.15)', fg: '#2563eb' },
+  staging:  { label: 'Staging',     bg: 'rgba(245, 158, 11, 0.15)', fg: '#d97706' },
+  prod:     { label: 'Prod',        bg: 'rgba(34, 197, 94, 0.15)',  fg: '#16a34a' },
+  untagged: { label: 'Untagged',    bg: 'var(--color-input-bg)',    fg: 'var(--color-text-muted)' },
+};
+const ENV_ORDER = ['dev', 'staging', 'prod'];
+
+function getEnvMeta(env) {
+  return ENV_META[env] || { label: env, bg: 'var(--color-input-bg)', fg: 'var(--color-text-muted)' };
+}
+
+// Merge per-environment image-gen costs (summary.by_environment) with
+// per-environment server costs (aws.by_environment) into one table.
+function renderEnvironmentTable(data, aws) {
+  const imgByEnv = {};
+  (data.by_environment || []).forEach(e => { imgByEnv[e.environment] = e.total_usd; });
+
+  const awsConfigured = !!(aws && aws.configured);
+  const srvByEnv = {};
+  (awsConfigured ? (aws.by_environment || []) : []).forEach(e => { srvByEnv[e.environment] = e.total_usd; });
+  const hasServer = awsConfigured && (aws.by_environment || []).length > 0;
+
+  const seen = new Set([...Object.keys(imgByEnv), ...Object.keys(srvByEnv)]);
+  const envs = [
+    ...ENV_ORDER.filter(e => seen.has(e)),
+    ...[...seen].filter(e => !ENV_ORDER.includes(e)).sort(),
+  ];
+
+  if (envs.length === 0) {
+    return '<div class="fin-empty">No per-environment cost data yet.</div>';
+  }
+
+  let totImg = 0, totSrv = 0;
+  const rows = envs.map(env => {
+    const img = imgByEnv[env] || 0;
+    const srv = srvByEnv[env] || 0;
+    totImg += img; totSrv += srv;
+    const meta = getEnvMeta(env);
+    return `<tr>
+      <td><span class="fin-badge" style="background:${meta.bg};color:${meta.fg}">${esc(meta.label)}</span></td>
+      <td class="fin-table__num">${usd(img)}</td>
+      <td class="fin-table__num">${hasServer ? usd(srv) : '—'}</td>
+      <td class="fin-table__num">${usd(img + srv)}</td>
+    </tr>`;
+  }).join('');
+
+  const note = !awsConfigured
+    ? '<div class="fin-note">Server (AWS) costs need AWS credentials — showing image-gen costs per environment only.</div>'
+    : (!hasServer
+        ? '<div class="fin-note">Per-environment server costs appear once the AWS <code>Environment</code> cost-allocation tag is activated (~24–48h, forward-only).</div>'
+        : '');
+
+  return `
+    <table class="fin-table">
+      <thead>
+        <tr><th>Environment</th><th>Image Gen</th><th>Server (AWS)</th><th>Total</th></tr>
+      </thead>
+      <tbody>
+        ${rows}
+        <tr class="fin-table__total">
+          <td><strong>Total</strong></td>
+          <td class="fin-table__num"><strong>${usd(totImg)}</strong></td>
+          <td class="fin-table__num"><strong>${hasServer ? usd(totSrv) : '—'}</strong></td>
+          <td class="fin-table__num"><strong>${usd(totImg + totSrv)}</strong></td>
+        </tr>
+      </tbody>
+    </table>
+    ${note}`;
+}
+
 function renderProviderBreakdown(data) {
   if (!data.by_provider || data.by_provider.length === 0) {
     return '<div class="fin-empty">No image generation costs recorded yet.</div>';
@@ -305,6 +377,11 @@ function renderDashboard(data, aws) {
         <div class="fin-card fin-card--full">
           <div class="fin-card__title">Cost Summary</div>
           <div id="section-summary">${renderSummaryCards(data, aws)}</div>
+        </div>
+
+        <div class="fin-card fin-card--full">
+          <div class="fin-card__title">Cost by Environment</div>
+          <div id="section-environments">${renderEnvironmentTable(data, aws)}</div>
         </div>
 
         <div class="fin-card fin-card--wide">
