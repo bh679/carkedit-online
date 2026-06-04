@@ -1148,6 +1148,10 @@ export async function editPack(packId) {
   await handleEditPack(packId);
 }
 
+export async function newPack() {
+  await handleNewPack();
+}
+
 export function syncAuth(auth) {
   const wasAuthed = !!state.authUser;
   Object.assign(state, {
