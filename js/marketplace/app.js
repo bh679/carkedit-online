@@ -5,7 +5,7 @@ import { render as renderCardList, bindScrollArrows } from '../components/card-l
 import { renderPackCard } from '../components/pack-card.js';
 import { render as renderPackBg } from '../components/pack-card-background.js';
 import { setList as setPreviewList } from '../components/card-preview-overlay.js';
-import { mount as mountDesigner, unmount as unmountDesigner, syncAuth as syncDesignerAuth, getView as getDesignerView, editPack } from '../card-designer/app.js';
+import { mount as mountDesigner, unmount as unmountDesigner, syncAuth as syncDesignerAuth, getView as getDesignerView, editPack, newPack } from '../card-designer/app.js';
 import { getOrCreate as registryGetOrCreate } from '../data/CardRegistry.js';
 import { renderAdminMenuItems } from '../config/admin-nav.js';
 
@@ -299,7 +299,7 @@ function renderList() {
           : '<div id="my-packs-mount" class="marketplace__my-packs"></div>'}
 
       <div class="menu__actions marketplace__actions">
-        ${state.tab === 'my-packs' ? '' : '<button class="btn btn--primary menu__site-link" data-action="tab-my-packs">+ Create Pack</button>'}
+        ${state.tab === 'my-packs' ? '' : '<button class="btn btn--primary menu__site-link" data-action="create-pack">+ Create Pack</button>'}
         <a class="btn mode-select__back-btn menu__site-link" href="index.html">← Home</a>
       </div>
     </div>
@@ -561,6 +561,10 @@ function onAction(e) {
       if (id) toggleFavorite(id, fav);
       break;
     }
+    case 'create-pack':
+      setState({ tab: 'my-packs', view: 'list', selectedPack: null });
+      if (state.authUser) newPack();
+      break;
     case 'edit-pack': {
       const id = target.getAttribute('data-pack-id');
       if (id) {
