@@ -140,7 +140,7 @@ function renderCreateSectionInner(state, connecting) {
 
   if (!state.authUser) {
     return `
-      ${heading}
+      <h2 class="online-lobby__heading">Create Account</h2>
       <div class="online-lobby__auth-choice-row">
         <button class="btn btn--google" onclick="window.game.lobbyGoogleAuth()">
           Google
