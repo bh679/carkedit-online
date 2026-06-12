@@ -185,7 +185,9 @@ async function linkOrFetchUser(firebaseUser, token) {
       method: 'POST',
       headers,
       body: JSON.stringify({
-        display_name: firebaseUser.displayName || 'User',
+        // New accounts start nameless — the player provides their name when
+        // creating a room. Google sign-in keeps its displayName.
+        display_name: firebaseUser.displayName || '',
         firebase_uid: firebaseUser.uid,
         email: firebaseUser.email,
         avatar_url: firebaseUser.photoURL,
