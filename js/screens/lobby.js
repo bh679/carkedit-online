@@ -304,7 +304,7 @@ export function render(state) {
             <button class="btn lobby__mode-btn ${isQuick ? 'btn--primary' : 'btn--secondary'}"
               onclick="window.game.setGameMode('quick')">Quick</button>
             <button class="btn lobby__mode-btn ${isNormal ? 'btn--primary' : 'btn--secondary'}"
-              onclick="window.game.setGameMode('normal')">Normal</button>
+              onclick="window.game.setGameMode('normal')">Classic</button>
             ${pc > 6 ? `<button class="btn lobby__mode-btn ${isBigGroup ? 'btn--primary' : 'btn--secondary'}"
               onclick="window.game.setGameMode('big-group')">Big Group</button>` : ''}
             ${pc > 9 ? `<button class="btn lobby__mode-btn ${isHugeGroup ? 'btn--primary' : 'btn--secondary'}"

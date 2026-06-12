@@ -165,7 +165,7 @@ function refreshAdvancedPanel() {
       <button class="btn lobby__mode-btn ${isQuick ? 'btn--primary' : 'btn--secondary'}"
         onclick="window.game.setGameMode('quick')">Quick</button>
       <button class="btn lobby__mode-btn ${isNormal ? 'btn--primary' : 'btn--secondary'}"
-        onclick="window.game.setGameMode('normal')">Normal</button>
+        onclick="window.game.setGameMode('normal')">Classic</button>
       ${pc > 6 ? `<button class="btn lobby__mode-btn ${isBigGroup ? 'btn--primary' : 'btn--secondary'}"
         onclick="window.game.setGameMode('big-group')">Big Group</button>` : ''}
       ${pc > 9 ? `<button class="btn lobby__mode-btn ${isHugeGroup ? 'btn--primary' : 'btn--secondary'}"
@@ -399,7 +399,7 @@ function setHandRedraws(value) {
 const PITCH_DURATIONS = [30, 60, 120, 180, 240, 300, 600, 900, 1800, 3600];
 
 const DEFAULT_GAME_SETTINGS = {
-  rounds: 2,
+  rounds: 1,
   handSize: 5,
   enableDie: true,
   enableLive: true,
