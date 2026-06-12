@@ -6,7 +6,7 @@ import { preloadCards } from './preloader.js';
 import { render as renderMenu } from './screens/menu.js';
 import { render as renderModeSelect } from './screens/mode-select.js';
 import { render as renderLobby, renderAdvancedPanel } from './screens/lobby.js';
-import { render as renderOnlineLobby, renderSettingsSummary, renderEditDrawerBody, refreshEditDrawerPackTabLabel } from './screens/online-lobby.js';
+import { render as renderOnlineLobby, renderSettingsSummary, renderEditDrawerBody, refreshEditDrawerPackTabLabel, refreshCreateSection } from './screens/online-lobby.js';
 import { render as renderJoinGame } from './screens/join-game.js';
 import { render as renderPhase1 } from './screens/phase1.js';
 import { render as renderPhase23 } from './screens/phase2-3.js';
@@ -30,7 +30,7 @@ import {
 } from './network/client.js';
 import { loadSession, clearSession } from './managers/session-recovery.js';
 import { onTimerUpdate } from './managers/online-timer.js';
-import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, logOut, updateUserProfile } from './managers/auth-manager.js';
+import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, logOut, updateUserProfile, getAuthToken } from './managers/auth-manager.js';
 import { fetchMyPacks, fetchPublicPacks, fetchFavoritePacks, setPackFavorite, getPack } from './card-designer/pack-manager.js';
 import { render as renderCardFace } from './components/card.js';
 import { buildCard } from './data/card.js';
@@ -816,8 +816,8 @@ window.game = {
     return false;
   },
   // Auth actions
-  showLogin() {
-    setState({ showLoginModal: true, loginMode: 'signin', loginError: null });
+  showLogin(mode = 'signin') {
+    setState({ showLoginModal: true, loginMode: mode, loginError: null });
     renderLoginModalOverlay();
   },
   hideLogin() {
@@ -831,6 +831,12 @@ window.game = {
   },
   async signInWithGoogle() {
     await signInWithGoogle();
+    // Surface popup errors wherever the auth UI lives (modal or inline
+    // lobby form) — success re-renders via the auth state change instead.
+    if (getState().loginError) {
+      renderLoginModalOverlay();
+      refreshCreateSection(getState());
+    }
   },
   async submitEmailAuth(event) {
     event.preventDefault();
@@ -846,8 +852,50 @@ window.game = {
     // Re-render modal if there's an error (auth state change will close it on success)
     if (getState().loginError) renderLoginModalOverlay();
   },
+  // Inline auth form on the online-lobby create section (no popup —
+  // signed-out players need an account to host, so the form lives in-page).
+  async submitLobbyAuth(event) {
+    event.preventDefault();
+    const form = event.target;
+    const email = form.email.value.trim();
+    const password = form.password.value;
+    // Keep the typed email across the partial re-render below
+    setState({ lobbyAuthEmail: email });
+    if (getState().lobbyAuthMode === 'signin') {
+      await signInWithEmail(email, password);
+    } else {
+      await signUpWithEmail(email, password);
+    }
+    // On success the auth state change re-renders the screen; on failure
+    // refresh just the form so the error shows without losing the email.
+    if (getState().loginError) refreshCreateSection(getState());
+  },
+  setLobbyAuthMode(mode) {
+    setState({ lobbyAuthMode: mode, loginError: null });
+    refreshCreateSection(getState());
+  },
+  // Two-step unconnected lobby: details first, then the chosen account flow.
+  openOnlineLobby() {
+    setState({ lobbyStep: 'details' });
+    showScreen('online-lobby');
+  },
+  lobbyEmailAuth() {
+    captureLobbyDetails();
+    setState({ lobbyStep: 'email-auth', loginError: null });
+    showScreen('online-lobby');
+  },
+  lobbyBackToDetails() {
+    setState({ lobbyStep: 'details', loginError: null });
+    showScreen('online-lobby');
+  },
+  async lobbyGoogleAuth() {
+    // Keep typed details — the post-sign-in re-render rebuilds the screen.
+    captureLobbyDetails();
+    await signInWithGoogle();
+    if (getState().loginError) refreshCreateSection(getState());
+  },
   async logOut() {
-    setState({ showUserMenu: false });
+    setState({ showUserMenu: false, lobbyStep: 'details' });
     await logOut();
     // Re-render current screen to update auth button
     showScreen(getState().screen);
@@ -874,6 +922,15 @@ window.game = {
   },
   // Online multiplayer actions
   async createRoom(event) {
+    // Hosting requires a signed-up account (enforced server-side too).
+    // The lobby hides the create button when signed out — this guard covers
+    // direct calls and stale screens.
+    if (!getState().authUser) {
+      setState({ onlineError: 'Please sign in to host a game' });
+      showScreen('online-lobby');
+      window.game.showLogin('signup');
+      return;
+    }
     let name = document.getElementById('online-player-name')?.value?.trim();
     let birthMonth = parseInt(document.getElementById('online-birth-month')?.value ?? '', 10) || 0;
     let birthDay = parseInt(document.getElementById('online-birth-day')?.value ?? '', 10) || 0;
@@ -909,9 +966,12 @@ window.game = {
     if (userId && !isDevName) {
       updateUserProfile({ display_name: name, birth_month: birthMonth, birth_day: birthDay });
     }
+    // Fresh Firebase ID token (stored tokens expire after an hour) — the
+    // server verifies it before allowing the room to be created.
+    const authToken = await getAuthToken();
     try {
       await networkCreateRoom(
-        { name, birthMonth, birthDay, isPrivate: true, isDevName, devMode, userId },
+        { name, birthMonth, birthDay, isPrivate: true, isDevName, devMode, userId, authToken },
         () => { refreshOnlineLobbyAfterPackChange(); },
       );
       showScreen('online-lobby');
@@ -1041,6 +1101,17 @@ function renderLoginModalOverlay() {
   if (root) root.innerHTML = renderLoginModal(getState());
 }
 
+/**
+ * Snapshot the details-step inputs into state so they survive the re-render
+ * caused by switching lobby steps or completing a sign-in.
+ */
+function captureLobbyDetails() {
+  const name = document.getElementById('online-player-name')?.value?.trim() || '';
+  const birthMonth = parseInt(document.getElementById('online-birth-month')?.value ?? '', 10) || 0;
+  const birthDay = parseInt(document.getElementById('online-birth-day')?.value ?? '', 10) || 0;
+  setState({ lobbyDetails: { name, birthMonth, birthDay } });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   // Start capturing errors for issue reports
   initErrorLogger();
@@ -1104,6 +1175,11 @@ document.addEventListener('DOMContentLoaded', () => {
       const codeInput = document.getElementById('online-room-code');
       if (codeInput) codeInput.value = joinCode.toUpperCase();
     });
+  } else if (params.has('host')) {
+    // Deep-link from the How to Play page — straight to "Your Details / Create a Room"
+    // (mirrors window.game.openOnlineLobby()).
+    setState({ lobbyStep: 'details' });
+    showScreen('online-lobby');
   } else {
     showScreen('menu');
   }

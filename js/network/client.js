@@ -901,7 +901,7 @@ function syncGameSettingsFromRoom(room) {
   return settings;
 }
 
-export async function createRoom({ name, birthMonth, birthDay, isPrivate = true, isDevName = false, devMode = false, userId = '' }, onUpdate) {
+export async function createRoom({ name, birthMonth, birthDay, isPrivate = true, isDevName = false, devMode = false, userId = '', authToken = null }, onUpdate) {
   setState({ connectionStatus: 'connecting', onlineError: null });
   try {
     const client = await getColyseusClient();
@@ -913,6 +913,8 @@ export async function createRoom({ name, birthMonth, birthDay, isPrivate = true,
       isDevName,
       devMode,
       userId,
+      // Verified server-side: hosting requires a signed-up account
+      authToken: authToken || undefined,
     });
     _room = room;
 
