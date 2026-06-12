@@ -1,48 +1,92 @@
 // CarkedIt Online — Game History Manager
 'use strict';
 
-const STORAGE_KEY = 'carkedit_game_history';
+import { getState } from '../state.js';
+import { getAuthToken } from './auth-manager.js';
+
+const STORAGE_PREFIX = 'carkedit_game_history';
 const MAX_LOCAL_ENTRIES = 100;
 
 /**
- * Save a game result to localStorage and optionally POST to the API.
+ * The signed-in user's id, or 'guest' when signed out. Used to namespace the
+ * local cache so one browser's history never bleeds across accounts.
+ */
+function currentUid() {
+  return getState().authUser?.id || 'guest';
+}
+
+/** localStorage key for a given user's cached history. */
+function keyFor(uid) {
+  return `${STORAGE_PREFIX}:${uid}`;
+}
+
+/** Read the cached history array for a user (defaults to the current user). */
+function readHistory(uid = currentUid()) {
+  try {
+    const raw = localStorage.getItem(keyFor(uid));
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Persist a history array (capped) for a user. */
+function writeHistory(uid, entries) {
+  try {
+    localStorage.setItem(keyFor(uid), JSON.stringify(entries.slice(0, MAX_LOCAL_ENTRIES)));
+  } catch (err) {
+    console.warn('[game-history] Failed to save to localStorage:', err);
+  }
+}
+
+/** Map a server game record to the local display/entry shape. */
+function mapServerGame(g) {
+  return {
+    id: g.id,
+    finishedAt: g.finished_at,
+    mode: g.mode,
+    rounds: g.rounds,
+    players: (g.players || []).map((p) => ({
+      name: p.player_name,
+      score: p.score,
+      rank: p.rank,
+    })),
+    winnerName: g.winner_name,
+    winnerScore: g.winner_score,
+    synced: true,
+    settings: null,
+  };
+}
+
+/**
+ * Save a game result to the current account's local cache and POST local games
+ * to the API.
  * @param {object} gameData - { id, mode, rounds, players, settings, finishedAt, synced }
  */
 export function saveGameToHistory(gameData) {
+  // Build players immutably, sorted by score with ranks assigned.
+  const players = (gameData.players || [])
+    .map((p) => ({ name: p.name, score: p.score ?? 0, rank: 0 }))
+    .sort((a, b) => b.score - a.score)
+    .map((p, i) => ({ ...p, rank: i + 1 }));
+
   const entry = {
     id: gameData.id || crypto.randomUUID(),
     finishedAt: gameData.finishedAt || new Date().toISOString(),
     mode: gameData.mode || 'local',
     rounds: gameData.rounds || 1,
-    players: (gameData.players || []).map((p, i) => ({
-      name: p.name,
-      score: p.score ?? 0,
-      rank: i + 1,
-    })),
-    winnerName: gameData.players?.[0]?.name || 'Unknown',
-    winnerScore: gameData.players?.[0]?.score ?? 0,
+    players,
+    winnerName: players[0]?.name || 'Unknown',
+    winnerScore: players[0]?.score ?? 0,
     synced: gameData.synced || false,
     settings: gameData.settings || null,
     isDev: gameData.isDev || false,
   };
 
-  // Sort players by score descending and assign ranks
-  entry.players.sort((a, b) => b.score - a.score);
-  entry.players.forEach((p, i) => { p.rank = i + 1; });
-  entry.winnerName = entry.players[0]?.name || 'Unknown';
-  entry.winnerScore = entry.players[0]?.score ?? 0;
+  const uid = currentUid();
+  writeHistory(uid, [entry, ...readHistory(uid)]);
 
-  // Save to localStorage
-  try {
-    const history = getGameHistory();
-    history.unshift(entry);
-    if (history.length > MAX_LOCAL_ENTRIES) history.length = MAX_LOCAL_ENTRIES;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
-  } catch (err) {
-    console.warn('[game-history] Failed to save to localStorage:', err);
-  }
-
-  // POST local games to server
+  // POST local games to the server (online games are recorded server-side already).
   if (entry.mode === 'local' && !entry.synced) {
     postGameToServer(entry).catch(() => {});
   }
@@ -51,67 +95,41 @@ export function saveGameToHistory(gameData) {
 }
 
 /**
- * Get all game history from localStorage.
+ * Get the current account's cached game history from localStorage.
  * @returns {object[]}
  */
 export function getGameHistory() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
+  return readHistory();
 }
 
 /**
- * Sync local history with the server: fetch remote games and merge.
- * @returns {Promise<object[]>} merged history
+ * Sync with the server: fetch the signed-in user's own games (host_user_id) and
+ * cache them. Falls back to the local device cache when signed out or offline.
+ * @returns {Promise<object[]>}
  */
 export async function syncWithServer() {
+  const uid = currentUid();
+
+  // Re-POST any unsynced local games (authenticated) so they get owned server-side.
+  for (const entry of readHistory(uid).filter((e) => !e.synced && e.mode === 'local')) {
+    await postGameToServer(entry).catch(() => {});
+  }
+
+  const token = await getAuthToken();
+  if (!token) return getGameHistory(); // signed out → device cache only
+
   try {
-    const res = await fetch('/api/carkedit/games?limit=100');
+    const res = await fetch('/api/carkedit/games/mine?limit=100', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
     if (!res.ok) return getGameHistory();
 
     const data = await res.json();
-    const serverGames = (data.games || []).map((g) => ({
-      id: g.id,
-      finishedAt: g.finished_at,
-      mode: g.mode,
-      rounds: g.rounds,
-      players: g.players.map((p) => ({
-        name: p.player_name,
-        score: p.score,
-        rank: p.rank,
-      })),
-      winnerName: g.winner_name,
-      winnerScore: g.winner_score,
-      synced: true,
-      settings: null,
-    }));
+    const serverGames = (data.games || []).map(mapServerGame);
 
-    // Merge: local entries + server entries, deduplicate by ID
-    const local = getGameHistory();
-    const seen = new Set();
-    const merged = [];
-
-    for (const entry of [...local, ...serverGames]) {
-      if (!seen.has(entry.id)) {
-        seen.add(entry.id);
-        merged.push({ ...entry, synced: true });
-      }
-    }
-
-    merged.sort((a, b) => new Date(b.finishedAt) - new Date(a.finishedAt));
-    if (merged.length > MAX_LOCAL_ENTRIES) merged.length = MAX_LOCAL_ENTRIES;
-
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
-
-    // POST any unsynced local games
-    for (const entry of local.filter((e) => !e.synced && e.mode === 'local')) {
-      postGameToServer(entry).catch(() => {});
-    }
-
-    return merged;
+    // Server is authoritative for the signed-in account.
+    writeHistory(uid, serverGames);
+    return serverGames;
   } catch (err) {
     console.warn('[game-history] Sync failed:', err);
     return getGameHistory();
@@ -119,14 +137,19 @@ export async function syncWithServer() {
 }
 
 /**
- * POST a game result to the server.
+ * POST a game result to the server, authenticated when signed in so the game is
+ * attributed to the host's account (host_user_id).
  * @param {object} entry
  */
 async function postGameToServer(entry) {
   try {
+    const headers = { 'Content-Type': 'application/json' };
+    const token = await getAuthToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+
     const res = await fetch('/api/carkedit/games', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         mode: entry.mode,
         rounds: entry.rounds,
@@ -138,12 +161,12 @@ async function postGameToServer(entry) {
     });
 
     if (res.ok) {
-      // Mark as synced in localStorage
-      const history = getGameHistory();
+      // Mark as synced in the current account's cache (immutably).
+      const uid = currentUid();
+      const history = readHistory(uid);
       const idx = history.findIndex((h) => h.id === entry.id);
       if (idx !== -1) {
-        history[idx].synced = true;
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+        writeHistory(uid, history.map((h, i) => (i === idx ? { ...h, synced: true } : h)));
       }
     }
   } catch (err) {
