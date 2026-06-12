@@ -158,6 +158,14 @@
   padding: var(--space-sm);
 }
 
+/* Create/account section: match the details form's vertical rhythm so the
+   heading, buttons/form and note are spaced like "Your Details" above. */
+#online-lobby-create-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
 /* Shared muted hint style (birthdate note, account note) */
 .online-lobby__field-note {
   color: var(--color-text-muted);
@@ -184,7 +192,6 @@
 
 .online-lobby__auth-toggle {
   text-align: center;
-  margin-top: var(--space-sm);
   font-size: 0.85em;
   color: var(--color-text-muted);
 }
