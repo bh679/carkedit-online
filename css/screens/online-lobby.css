@@ -164,6 +164,46 @@
   padding: var(--space-sm);
 }
 
+/* Inline account form shown to signed-out players in the create section */
+.online-lobby__auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 1em;
+  margin: var(--space-sm) 0;
+  color: var(--color-text-muted);
+  font-size: 0.85em;
+}
+
+.online-lobby__auth-divider::before,
+.online-lobby__auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border, #333);
+}
+
+.online-lobby__auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.online-lobby__auth-toggle {
+  text-align: center;
+  margin-top: var(--space-sm);
+  font-size: 0.85em;
+  color: var(--color-text-muted);
+}
+
+.online-lobby__auth-toggle a {
+  color: var(--accent, #4285f4);
+  text-decoration: none;
+}
+
+.online-lobby__auth-toggle a:hover {
+  text-decoration: underline;
+}
+
 /* ── Non-host settings summary ───────────────────────── */
 
 .online-lobby__settings-summary {

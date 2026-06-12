@@ -6,7 +6,7 @@ import { preloadCards } from './preloader.js';
 import { render as renderMenu } from './screens/menu.js';
 import { render as renderModeSelect } from './screens/mode-select.js';
 import { render as renderLobby, renderAdvancedPanel } from './screens/lobby.js';
-import { render as renderOnlineLobby, renderSettingsSummary, renderEditDrawerBody, refreshEditDrawerPackTabLabel } from './screens/online-lobby.js';
+import { render as renderOnlineLobby, renderSettingsSummary, renderEditDrawerBody, refreshEditDrawerPackTabLabel, refreshCreateSection } from './screens/online-lobby.js';
 import { render as renderJoinGame } from './screens/join-game.js';
 import { render as renderPhase1 } from './screens/phase1.js';
 import { render as renderPhase23 } from './screens/phase2-3.js';
@@ -831,6 +831,12 @@ window.game = {
   },
   async signInWithGoogle() {
     await signInWithGoogle();
+    // Surface popup errors wherever the auth UI lives (modal or inline
+    // lobby form) — success re-renders via the auth state change instead.
+    if (getState().loginError) {
+      renderLoginModalOverlay();
+      refreshCreateSection(getState());
+    }
   },
   async submitEmailAuth(event) {
     event.preventDefault();
@@ -845,6 +851,28 @@ window.game = {
     }
     // Re-render modal if there's an error (auth state change will close it on success)
     if (getState().loginError) renderLoginModalOverlay();
+  },
+  // Inline auth form on the online-lobby create section (no popup —
+  // signed-out players need an account to host, so the form lives in-page).
+  async submitLobbyAuth(event) {
+    event.preventDefault();
+    const form = event.target;
+    const email = form.email.value.trim();
+    const password = form.password.value;
+    // Keep the typed email across the partial re-render below
+    setState({ lobbyAuthEmail: email });
+    if (getState().lobbyAuthMode === 'signin') {
+      await signInWithEmail(email, password);
+    } else {
+      await signUpWithEmail(email, password);
+    }
+    // On success the auth state change re-renders the screen; on failure
+    // refresh just the form so the error shows without losing the email.
+    if (getState().loginError) refreshCreateSection(getState());
+  },
+  setLobbyAuthMode(mode) {
+    setState({ lobbyAuthMode: mode, loginError: null });
+    refreshCreateSection(getState());
   },
   async logOut() {
     setState({ showUserMenu: false });

@@ -137,6 +137,8 @@ let _state = {
   showLoginModal: false,             // Show login/signup modal
   loginMode: 'signin',              // 'signin' | 'signup'
   loginError: null,                  // Auth error message
+  lobbyAuthMode: 'signup',           // Inline lobby auth form mode: 'signup' | 'signin'
+  lobbyAuthEmail: '',                // Preserves typed email across inline form re-renders
 };
 
 export function getState() {

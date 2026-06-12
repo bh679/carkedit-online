@@ -88,10 +88,19 @@ function renderJoinCreate(state, connecting, error) {
 
 /**
  * Hosting requires a signed-up account (enforced server-side in
- * GameRoom.onCreate); joining a game does not. Signed-out users get a
- * sign-up prompt here instead of the create button.
+ * GameRoom.onCreate); joining a game does not. Signed-out users get the
+ * account form inline here — no popup — since an account is the only way
+ * to continue.
  */
 function renderCreateSection(state, connecting) {
+  return `
+    <div id="online-lobby-create-section">
+      ${renderCreateSectionInner(state, connecting)}
+    </div>
+  `;
+}
+
+function renderCreateSectionInner(state, connecting) {
   const heading = '<h2 class="online-lobby__heading">Create a Room</h2>';
 
   if (state.authLoading) {
@@ -104,17 +113,49 @@ function renderCreateSection(state, connecting) {
   }
 
   if (!state.authUser) {
+    const isSignUp = (state.lobbyAuthMode || 'signup') === 'signup';
+    const submitLabel = isSignUp ? 'Create Account' : 'Sign In';
+    const toggleHtml = isSignUp
+      ? `Already have an account? <a href="#" onclick="window.game.setLobbyAuthMode('signin'); return false;">Sign In</a>`
+      : `Don't have an account? <a href="#" onclick="window.game.setLobbyAuthMode('signup'); return false;">Sign Up</a>`;
+    const errorHtml = state.loginError
+      ? `<p class="online-lobby__error">${escapeHtml(state.loginError)}</p>`
+      : '';
+
     return `
       ${heading}
       <p class="online-lobby__signup-note">
         Hosting needs a free account — joining a game doesn't.
       </p>
-      <button
-        class="btn btn--primary online-lobby__action-btn"
-        onclick="window.game.showLogin('signup')"
-      >
-        Sign Up to Host
+      <button class="btn btn--google" onclick="window.game.signInWithGoogle()">
+        Sign in with Google
       </button>
+      <div class="online-lobby__auth-divider"><span>or</span></div>
+      <form class="online-lobby__auth-form" onsubmit="window.game.submitLobbyAuth(event)">
+        <input
+          type="email"
+          name="email"
+          class="input"
+          placeholder="Email"
+          required
+          autocomplete="email"
+          value="${escapeHtml(state.lobbyAuthEmail || '')}"
+        >
+        <input
+          type="password"
+          name="password"
+          class="input"
+          placeholder="Password"
+          required
+          minlength="6"
+          autocomplete="${isSignUp ? 'new-password' : 'current-password'}"
+        >
+        ${errorHtml}
+        <button type="submit" class="btn btn--primary online-lobby__action-btn">
+          ${submitLabel}
+        </button>
+      </form>
+      <p class="online-lobby__auth-toggle">${toggleHtml}</p>
     `;
   }
 
@@ -128,6 +169,17 @@ function renderCreateSection(state, connecting) {
       ${connecting ? 'Creating...' : 'Create Private Room'}
     </button>
   `;
+}
+
+/**
+ * Partial update of just the create/auth section so inline-form errors and
+ * mode toggles don't re-render the whole screen (which would drop focus and
+ * typed values). Mirrors the refreshEditDrawerPackTabLabel pattern.
+ */
+export function refreshCreateSection(state) {
+  const el = document.getElementById('online-lobby-create-section');
+  if (!el) return;
+  el.innerHTML = renderCreateSectionInner(state, state.connectionStatus === 'connecting');
 }
 
 function renderConnectedLobby(state) {
