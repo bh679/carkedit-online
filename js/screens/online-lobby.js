@@ -448,7 +448,7 @@ function renderModeTab(state) {
   return `
     <div class="lobby__mode-toggle">
       <button class="btn lobby__mode-btn ${isQuick ? 'btn--primary' : 'btn--secondary'}"
-        onclick="window.game.setGameMode('quick')">Quick</button>
+        onclick="window.game.setGameMode('quick')">Normal</button>
       <button class="btn lobby__mode-btn ${isNormal ? 'btn--primary' : 'btn--secondary'}"
         onclick="window.game.setGameMode('normal')">Classic</button>
       ${pc > 6 ? `<button class="btn lobby__mode-btn ${isBigGroup ? 'btn--primary' : 'btn--secondary'}"
@@ -478,7 +478,7 @@ const DEFAULTS = {
 };
 
 const MODE_PRESETS = {
-  Quick:        { rounds: 1, ultraQuickMode: false, optionalCardPlay: false },
+  Normal:       { rounds: 1, ultraQuickMode: false, optionalCardPlay: false },
   Classic:      { rounds: 2, ultraQuickMode: false, optionalCardPlay: false },
   'Big Group':  { rounds: 1, ultraQuickMode: false, optionalCardPlay: true },
   'Ultra Quick':{ rounds: 1, ultraQuickMode: true,  optionalCardPlay: false },
@@ -494,7 +494,7 @@ export function renderSettingsSummary(state) {
   const isBigGroup   = !gs.ultraQuickMode && gs.rounds === 1 &&  gs.optionalCardPlay;
   const isUltraQuick =  gs.ultraQuickMode &&                    !gs.optionalCardPlay;
   const isHugeGroup  =  gs.ultraQuickMode &&                     gs.optionalCardPlay;
-  const modeName = isQuick ? 'Quick' : isNormal ? 'Classic'
+  const modeName = isQuick ? 'Normal' : isNormal ? 'Classic'
     : isBigGroup ? 'Big Group' : isUltraQuick ? 'Ultra Quick'
     : isHugeGroup ? 'Huge Group' : null;
 
@@ -503,8 +503,8 @@ export function renderSettingsSummary(state) {
 
   const cards = [];
 
-  // Show mode chip if not Classic (no label prefix, just the mode name)
-  if (modeName && modeName !== 'Classic') cards.push([null, modeName]);
+  // Show mode chip unless it's Normal — the default (no label prefix, just the mode name)
+  if (modeName && modeName !== 'Normal') cards.push([null, modeName]);
 
   // Only show settings that differ from the effective defaults
   if (gs.rounds !== d.rounds) cards.push(['Rounds', gs.rounds]);

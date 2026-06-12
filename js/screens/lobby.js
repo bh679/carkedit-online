@@ -302,7 +302,7 @@ export function render(state) {
         return `
           <div id="lobby-mode-toggle" class="lobby__mode-toggle">
             <button class="btn lobby__mode-btn ${isQuick ? 'btn--primary' : 'btn--secondary'}"
-              onclick="window.game.setGameMode('quick')">Quick</button>
+              onclick="window.game.setGameMode('quick')">Normal</button>
             <button class="btn lobby__mode-btn ${isNormal ? 'btn--primary' : 'btn--secondary'}"
               onclick="window.game.setGameMode('normal')">Classic</button>
             ${pc > 6 ? `<button class="btn lobby__mode-btn ${isBigGroup ? 'btn--primary' : 'btn--secondary'}"
