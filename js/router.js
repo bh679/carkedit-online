@@ -30,7 +30,7 @@ import {
 } from './network/client.js';
 import { loadSession, clearSession } from './managers/session-recovery.js';
 import { onTimerUpdate } from './managers/online-timer.js';
-import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, logOut, updateUserProfile } from './managers/auth-manager.js';
+import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, logOut, updateUserProfile, getAuthToken } from './managers/auth-manager.js';
 import { fetchMyPacks, fetchPublicPacks, fetchFavoritePacks, setPackFavorite, getPack } from './card-designer/pack-manager.js';
 import { render as renderCardFace } from './components/card.js';
 import { buildCard } from './data/card.js';
@@ -816,8 +816,8 @@ window.game = {
     return false;
   },
   // Auth actions
-  showLogin() {
-    setState({ showLoginModal: true, loginMode: 'signin', loginError: null });
+  showLogin(mode = 'signin') {
+    setState({ showLoginModal: true, loginMode: mode, loginError: null });
     renderLoginModalOverlay();
   },
   hideLogin() {
@@ -874,6 +874,15 @@ window.game = {
   },
   // Online multiplayer actions
   async createRoom(event) {
+    // Hosting requires a signed-up account (enforced server-side too).
+    // The lobby hides the create button when signed out — this guard covers
+    // direct calls and stale screens.
+    if (!getState().authUser) {
+      setState({ onlineError: 'Please sign in to host a game' });
+      showScreen('online-lobby');
+      window.game.showLogin('signup');
+      return;
+    }
     let name = document.getElementById('online-player-name')?.value?.trim();
     let birthMonth = parseInt(document.getElementById('online-birth-month')?.value ?? '', 10) || 0;
     let birthDay = parseInt(document.getElementById('online-birth-day')?.value ?? '', 10) || 0;
@@ -909,9 +918,12 @@ window.game = {
     if (userId && !isDevName) {
       updateUserProfile({ display_name: name, birth_month: birthMonth, birth_day: birthDay });
     }
+    // Fresh Firebase ID token (stored tokens expire after an hour) — the
+    // server verifies it before allowing the room to be created.
+    const authToken = await getAuthToken();
     try {
       await networkCreateRoom(
-        { name, birthMonth, birthDay, isPrivate: true, isDevName, devMode, userId },
+        { name, birthMonth, birthDay, isPrivate: true, isDevName, devMode, userId, authToken },
         () => { refreshOnlineLobbyAfterPackChange(); },
       );
       showScreen('online-lobby');

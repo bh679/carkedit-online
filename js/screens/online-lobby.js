@@ -65,14 +65,7 @@ function renderJoinCreate(state, connecting, error) {
 
       <div class="online-lobby__divider"></div>
 
-      <h2 class="online-lobby__heading">Create a Room</h2>
-      <button
-        class="btn btn--primary online-lobby__action-btn"
-        onclick="window.game.createRoom(event)"
-        ${connecting ? 'disabled' : ''}
-      >
-        ${connecting ? 'Creating...' : 'Create Private Room'}
-      </button>
+      ${renderCreateSection(state, connecting)}
 
       ${errorHtml}
     </div>
@@ -90,6 +83,50 @@ function renderJoinCreate(state, connecting, error) {
         </button>
       </div>
     </div>
+  `;
+}
+
+/**
+ * Hosting requires a signed-up account (enforced server-side in
+ * GameRoom.onCreate); joining a game does not. Signed-out users get a
+ * sign-up prompt here instead of the create button.
+ */
+function renderCreateSection(state, connecting) {
+  const heading = '<h2 class="online-lobby__heading">Create a Room</h2>';
+
+  if (state.authLoading) {
+    return `
+      ${heading}
+      <button class="btn btn--primary online-lobby__action-btn" disabled>
+        Checking sign-in...
+      </button>
+    `;
+  }
+
+  if (!state.authUser) {
+    return `
+      ${heading}
+      <p class="online-lobby__signup-note">
+        Hosting needs a free account — joining a game doesn't.
+      </p>
+      <button
+        class="btn btn--primary online-lobby__action-btn"
+        onclick="window.game.showLogin('signup')"
+      >
+        Sign Up to Host
+      </button>
+    `;
+  }
+
+  return `
+    ${heading}
+    <button
+      class="btn btn--primary online-lobby__action-btn"
+      onclick="window.game.createRoom(event)"
+      ${connecting ? 'disabled' : ''}
+    >
+      ${connecting ? 'Creating...' : 'Create Private Room'}
+    </button>
   `;
 }
 

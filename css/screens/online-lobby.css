@@ -158,6 +158,12 @@
   padding: var(--space-sm);
 }
 
+.online-lobby__signup-note {
+  color: var(--color-text-muted);
+  text-align: center;
+  padding: var(--space-sm);
+}
+
 /* ── Non-host settings summary ───────────────────────── */
 
 .online-lobby__settings-summary {
