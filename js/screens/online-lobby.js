@@ -141,9 +141,6 @@ function renderCreateSectionInner(state, connecting) {
   if (!state.authUser) {
     return `
       ${heading}
-      <p class="online-lobby__field-note">
-        Hosting needs a free account —<br>joining a game doesn't.
-      </p>
       <div class="online-lobby__auth-choice-row">
         <button class="btn btn--google" onclick="window.game.lobbyGoogleAuth()">
           Google
@@ -152,6 +149,9 @@ function renderCreateSectionInner(state, connecting) {
           Email
         </button>
       </div>
+      <p class="online-lobby__field-note">
+        Hosting needs a free account —<br>joining a game doesn't.
+      </p>
     `;
   }
 
@@ -184,9 +184,6 @@ function renderEmailAuthInner(state) {
 
   return `
     <h2 class="online-lobby__heading">${title}</h2>
-    <p class="online-lobby__field-note">
-      Hosting needs a free account —<br>joining a game doesn't.
-    </p>
     <form class="online-lobby__auth-form" onsubmit="window.game.submitLobbyAuth(event)">
       <input
         type="email"
