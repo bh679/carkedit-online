@@ -2,14 +2,17 @@
 // Standalone informational page with two tabs:
 //   1) Set Up a Game  (3-step remote setup)
 //   2) How It Works   (the rules)
+//
+// Pure render/logic functions are exported and import-safe (no DOM at load time)
+// so they can be unit tested; the DOM bootstrap at the bottom is guarded.
 'use strict';
 
-const TABS = ['setup', 'play'];
-const DEFAULT_TAB = 'setup';
+export const TABS = ['setup', 'play'];
+export const DEFAULT_TAB = 'setup';
 
 // ── Content data ──────────────────────────────────────────
 
-const SETUP_STEPS = [
+export const SETUP_STEPS = [
   {
     n: 1,
     title: 'Host a Game',
@@ -27,13 +30,13 @@ const SETUP_STEPS = [
   },
 ];
 
-const DECKS = [
+export const DECKS = [
   { key: 'die', name: 'Die', img: 'assets/card-backs/die-back.jpg', count: 48, desc: 'How you cark it.' },
   { key: 'live', name: 'Live', img: 'assets/card-backs/live-back.jpg', count: 68, desc: 'Things to do before you die.' },
   { key: 'bye', name: 'Bye', img: 'assets/card-backs/bye-back.jpg', count: 68, desc: 'What happens after you’re gone.' },
 ];
 
-const PHASES = [
+export const PHASES = [
   {
     n: 1,
     key: 'die',
@@ -60,9 +63,19 @@ const PHASES = [
   },
 ];
 
-// ── Rendering ─────────────────────────────────────────────
+// ── Pure tab logic ────────────────────────────────────────
 
-function renderHeader() {
+export function normaliseTab(value) {
+  return TABS.includes(value) ? value : DEFAULT_TAB;
+}
+
+export function isTabActive(active, id) {
+  return normaliseTab(active) === id;
+}
+
+// ── Rendering (pure: returns HTML strings) ────────────────
+
+export function renderHeader() {
   return `
     <header class="htp-header">
       <a class="htp-back" href="/" aria-label="Back to menu">&larr; Menu</a>
@@ -78,12 +91,12 @@ function renderHeader() {
   `;
 }
 
-function renderTabs(active) {
+export function renderTabs(active) {
   const tab = (id, label) => `
     <button
-      class="htp-tab${active === id ? ' htp-tab--active' : ''}"
+      class="htp-tab${isTabActive(active, id) ? ' htp-tab--active' : ''}"
       role="tab"
-      aria-selected="${active === id}"
+      aria-selected="${isTabActive(active, id)}"
       data-tab="${id}"
       onclick="window.howToPlay.selectTab('${id}')"
     >${label}</button>
@@ -96,7 +109,8 @@ function renderTabs(active) {
   `;
 }
 
-function renderSetupPanel(active) {
+export function renderSetupPanel(active) {
+  const on = isTabActive(active, 'setup');
   const steps = SETUP_STEPS.map(s => `
     <li class="htp-step">
       <span class="htp-step__num">${s.n}</span>
@@ -109,10 +123,10 @@ function renderSetupPanel(active) {
 
   return `
     <section
-      class="htp-panel${active === 'setup' ? ' htp-panel--active' : ''}"
+      class="htp-panel${on ? ' htp-panel--active' : ''}"
       id="htp-panel-setup"
       role="tabpanel"
-      ${active === 'setup' ? '' : 'hidden'}
+      ${on ? '' : 'hidden'}
     >
       <p class="htp-intro">Carked It! Online plays across everyone’s phones. Get a game going in three steps:</p>
       <ol class="htp-steps">${steps}</ol>
@@ -129,7 +143,8 @@ function renderSetupPanel(active) {
   `;
 }
 
-function renderPlayPanel(active) {
+export function renderPlayPanel(active) {
+  const on = isTabActive(active, 'play');
   const decks = DECKS.map(d => `
     <li class="htp-deck htp-deck--${d.key}">
       <img class="htp-deck__img" src="${d.img}" alt="${d.name} deck card back"
@@ -154,10 +169,10 @@ function renderPlayPanel(active) {
 
   return `
     <section
-      class="htp-panel${active === 'play' ? ' htp-panel--active' : ''}"
+      class="htp-panel${on ? ' htp-panel--active' : ''}"
       id="htp-panel-play"
       role="tabpanel"
-      ${active === 'play' ? '' : 'hidden'}
+      ${on ? '' : 'hidden'}
     >
       <div class="htp-goal">
         <h2 class="htp-section-title">The Goal</h2>
@@ -184,7 +199,7 @@ function renderPlayPanel(active) {
   `;
 }
 
-function render(active) {
+export function render(active) {
   return `
     <div class="htp">
       ${renderHeader()}
@@ -195,11 +210,7 @@ function render(active) {
   `;
 }
 
-// ── Tab behaviour ─────────────────────────────────────────
-
-function normaliseTab(value) {
-  return TABS.includes(value) ? value : DEFAULT_TAB;
-}
+// ── DOM behaviour (browser only) ──────────────────────────
 
 function tabFromHash() {
   return normaliseTab((window.location.hash || '').replace('#', ''));
@@ -231,20 +242,18 @@ function selectTab(tab) {
   showTab(active);
 }
 
-// ── Mount ─────────────────────────────────────────────────
-
 function mount() {
   const app = document.getElementById('app');
   if (!app) return;
-  const active = tabFromHash();
-  app.innerHTML = render(active);
+  app.innerHTML = render(tabFromHash());
   window.addEventListener('hashchange', () => showTab(tabFromHash()));
 }
 
-window.howToPlay = { selectTab };
-
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', mount);
-} else {
-  mount();
+if (typeof document !== 'undefined') {
+  window.howToPlay = { selectTab };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', mount);
+  } else {
+    mount();
+  }
 }
