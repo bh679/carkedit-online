@@ -1,0 +1,316 @@
+/* CarkedIt Online — How to Play page
+ * Colours: only var(--color-*) tokens (see css/colors.css). No hardcoded values.
+ */
+
+/* ── Scrolling override ───────────────────────────────────
+ * Game screens lock the body to no-scroll; this informational page scrolls,
+ * mirroring css/screens/marketplace.css (body.page--marketplace).            */
+body.page--how-to-play {
+  overflow-y: auto;
+  height: auto;
+  min-height: 100dvh;
+}
+
+body.page--how-to-play #app {
+  overflow: visible;
+  height: auto;
+  min-height: 100dvh;
+}
+
+/* ── Layout ───────────────────────────────────────────── */
+.htp {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  width: 100%;
+  padding: var(--space-md) var(--space-md) var(--space-xl);
+}
+
+/* ── Header ───────────────────────────────────────────── */
+.htp-header {
+  position: relative;
+  text-align: center;
+  padding-top: var(--space-lg);
+}
+
+.htp-back {
+  position: absolute;
+  top: 0;
+  left: 0;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: var(--space-xs) 0;
+}
+
+.htp-back:hover {
+  color: var(--color-text);
+}
+
+.htp-header__logo {
+  width: min(120px, 28vw);
+  display: block;
+  margin: 0 auto var(--space-sm);
+}
+
+.htp-header__title {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--color-primary);
+  letter-spacing: -0.5px;
+}
+
+.htp-header__subtitle {
+  font-size: 1rem;
+  color: var(--color-text-muted);
+  margin-top: var(--space-xs);
+}
+
+/* ── Tabs ─────────────────────────────────────────────── */
+.htp-tabs {
+  display: flex;
+  gap: var(--space-xs);
+  background: var(--color-secondary);
+  border-radius: var(--radius-md);
+  padding: var(--space-xs);
+}
+
+.htp-tab {
+  flex: 1;
+  padding: 0.6rem 0.5rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.htp-tab--active {
+  background: var(--color-primary);
+  color: var(--color-white);
+}
+
+/* ── Panels ───────────────────────────────────────────── */
+.htp-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.htp-panel[hidden] {
+  display: none;
+}
+
+.htp-intro {
+  color: var(--color-text-90);
+  line-height: 1.5;
+}
+
+/* ── Setup steps ──────────────────────────────────────── */
+.htp-steps {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.htp-step {
+  display: flex;
+  gap: var(--space-md);
+  align-items: flex-start;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+}
+
+.htp-step__num {
+  flex: 0 0 auto;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: var(--color-white);
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.htp-step__title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: var(--space-xs);
+}
+
+.htp-step__body {
+  color: var(--color-text-90);
+  line-height: 1.45;
+  font-size: 0.95rem;
+}
+
+.htp-step__body strong {
+  color: var(--color-highlight);
+}
+
+/* ── Video-call callout ───────────────────────────────── */
+.htp-callout {
+  display: flex;
+  gap: var(--space-md);
+  align-items: flex-start;
+  background: var(--color-primary-subtle);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+}
+
+.htp-callout__icon {
+  font-size: 1.5rem;
+  line-height: 1;
+  flex: 0 0 auto;
+}
+
+.htp-callout__text {
+  color: var(--color-text-90);
+  line-height: 1.5;
+  font-size: 0.95rem;
+}
+
+.htp-callout__text strong {
+  color: var(--color-text);
+}
+
+/* ── CTA ──────────────────────────────────────────────── */
+.htp-cta {
+  text-decoration: none;
+  text-align: center;
+  margin-top: var(--space-sm);
+}
+
+/* ── Section titles ───────────────────────────────────── */
+.htp-section-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--color-text);
+  margin-bottom: var(--space-xs);
+}
+
+.htp-goal p,
+.htp-winning p {
+  color: var(--color-text-90);
+  line-height: 1.5;
+}
+
+.htp-goal strong,
+.htp-winning strong {
+  color: var(--color-highlight);
+}
+
+/* ── Decks ────────────────────────────────────────────── */
+.htp-decks {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.htp-deck {
+  display: flex;
+  gap: var(--space-md);
+  align-items: center;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+  border-left: 4px solid var(--color-border);
+}
+
+.htp-deck--die  { border-left-color: var(--color-die); }
+.htp-deck--live { border-left-color: var(--color-live); }
+.htp-deck--bye  { border-left-color: var(--color-bye); }
+
+.htp-deck__img {
+  width: 46px;
+  aspect-ratio: var(--card-aspect);
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  flex: 0 0 auto;
+}
+
+.htp-deck__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.htp-deck__name {
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.htp-deck--die  .htp-deck__name { color: var(--color-die); }
+.htp-deck--live .htp-deck__name { color: var(--color-live); }
+.htp-deck--bye  .htp-deck__name { color: var(--color-bye); }
+
+.htp-deck__count {
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.htp-deck__desc {
+  color: var(--color-text-90);
+  font-size: 0.9rem;
+}
+
+/* ── Phases ───────────────────────────────────────────── */
+.htp-phases {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.htp-phase {
+  display: flex;
+  gap: var(--space-md);
+  align-items: flex-start;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+}
+
+.htp-phase__num {
+  flex: 0 0 auto;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--color-secondary);
+  color: var(--color-white);
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.htp-phase--die      .htp-phase__num { background: var(--color-die);       color: var(--color-bg); }
+.htp-phase--live     .htp-phase__num { background: var(--color-live);      color: var(--color-white); }
+.htp-phase--bye      .htp-phase__num { background: var(--color-bye);       color: var(--color-white); }
+.htp-phase--wildcard .htp-phase__num { background: var(--color-highlight); color: var(--color-bg); }
+
+.htp-phase__title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: var(--space-xs);
+}
+
+.htp-phase__body {
+  color: var(--color-text-90);
+  line-height: 1.45;
+  font-size: 0.95rem;
+}

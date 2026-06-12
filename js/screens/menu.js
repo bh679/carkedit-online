@@ -29,6 +29,9 @@ export function render(state) {
         <button class="btn btn--secondary" onclick="window.game.showScreen('join-game')">
           Join Game
         </button>
+        <a class="btn btn--secondary menu__site-link" href="how-to-play">
+          How to Play
+        </a>
         <a class="btn btn--secondary menu__site-link" href="expansions">
           Expansions
         </a>
