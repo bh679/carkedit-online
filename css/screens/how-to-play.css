@@ -147,6 +147,21 @@ body.page--how-to-play #app {
   margin-bottom: var(--space-xs);
 }
 
+.htp-step__badge {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-bg);
+  background: var(--color-highlight);
+  border-radius: var(--radius-sm);
+  padding: 0.12rem 0.4rem;
+  margin-left: var(--space-xs);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
 .htp-step__body {
   color: var(--color-text-90);
   line-height: 1.45;

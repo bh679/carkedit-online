@@ -89,6 +89,17 @@ test('renderSetupPanel: includes the video-call tip with named platforms', () =>
   }
 });
 
+test('renderSetupPanel: step 1 shows the "Free Account Required" badge', () => {
+  assert.equal(SETUP_STEPS[0].badge, 'Free Account Required');
+  const html = renderSetupPanel('setup');
+  assert.ok(html.includes('Free Account Required'), 'expected the account-required badge on step 1');
+});
+
+test('renderSetupPanel: "Start a Game" CTA deep-links into the create-room screen', () => {
+  const html = renderSetupPanel('setup');
+  assert.ok(html.includes('href="/?host=1"'), 'expected the CTA to deep-link to /?host=1');
+});
+
 // ── Play panel content contract ───────────────────────────
 
 test('renderPlayPanel: includes every deck name and its card-back image', () => {

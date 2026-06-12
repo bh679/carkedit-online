@@ -16,6 +16,7 @@ export const SETUP_STEPS = [
   {
     n: 1,
     title: 'Host a Game',
+    badge: 'Free Account Required',
     body: 'Tap <strong>Start Game → Online → Create Private Room</strong>. You’re now the Funeral Director (the host).',
   },
   {
@@ -115,7 +116,7 @@ export function renderSetupPanel(active) {
     <li class="htp-step">
       <span class="htp-step__num">${s.n}</span>
       <div class="htp-step__text">
-        <h3 class="htp-step__title">${s.title}</h3>
+        <h3 class="htp-step__title">${s.title}${s.badge ? ` <span class="htp-step__badge">${s.badge}</span>` : ''}</h3>
         <p class="htp-step__body">${s.body}</p>
       </div>
     </li>
@@ -138,7 +139,7 @@ export function renderSetupPanel(active) {
           similar and play with your phones in hand.
         </p>
       </div>
-      <a class="btn btn--primary htp-cta" href="/">Start a Game &rarr;</a>
+      <a class="btn btn--primary htp-cta" href="/?host=1">Start a Game &rarr;</a>
     </section>
   `;
 }
@@ -194,7 +195,7 @@ export function renderPlayPanel(active) {
         card each instead of 2.</p>
       </div>
 
-      <a class="btn btn--primary htp-cta" href="/">Start a Game &rarr;</a>
+      <a class="btn btn--primary htp-cta" href="/?host=1">Start a Game &rarr;</a>
     </section>
   `;
 }
