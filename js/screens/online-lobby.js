@@ -448,9 +448,9 @@ function renderModeTab(state) {
   return `
     <div class="lobby__mode-toggle">
       <button class="btn lobby__mode-btn ${isQuick ? 'btn--primary' : 'btn--secondary'}"
-        onclick="window.game.setGameMode('quick')">Quick</button>
+        onclick="window.game.setGameMode('quick')">Normal</button>
       <button class="btn lobby__mode-btn ${isNormal ? 'btn--primary' : 'btn--secondary'}"
-        onclick="window.game.setGameMode('normal')">Normal</button>
+        onclick="window.game.setGameMode('normal')">Classic</button>
       ${pc > 6 ? `<button class="btn lobby__mode-btn ${isBigGroup ? 'btn--primary' : 'btn--secondary'}"
         onclick="window.game.setGameMode('big-group')">Big Group</button>` : ''}
       ${pc > 9 ? `<button class="btn lobby__mode-btn ${isHugeGroup ? 'btn--primary' : 'btn--secondary'}"
@@ -471,15 +471,15 @@ const REDRAW_LABELS = {
 };
 
 const DEFAULTS = {
-  rounds: 2, handSize: 5, enableLive: true, enableBye: true, enableEulogy: true,
+  rounds: 1, handSize: 5, enableLive: true, enableBye: true, enableEulogy: true,
   forceWildcards: 'atLeastOne', playableWildcards: true, wildcardCount: 2, eulogistCount: 2,
   handRedraws: 'once_per_phase', timerEnabled: false, ultraQuickMode: false,
   optionalCardPlay: false,
 };
 
 const MODE_PRESETS = {
-  Quick:        { rounds: 1, ultraQuickMode: false, optionalCardPlay: false },
-  Normal:       { rounds: 2, ultraQuickMode: false, optionalCardPlay: false },
+  Normal:       { rounds: 1, ultraQuickMode: false, optionalCardPlay: false },
+  Classic:      { rounds: 2, ultraQuickMode: false, optionalCardPlay: false },
   'Big Group':  { rounds: 1, ultraQuickMode: false, optionalCardPlay: true },
   'Ultra Quick':{ rounds: 1, ultraQuickMode: true,  optionalCardPlay: false },
   'Huge Group': { rounds: 1, ultraQuickMode: true,  optionalCardPlay: true },
@@ -494,7 +494,7 @@ export function renderSettingsSummary(state) {
   const isBigGroup   = !gs.ultraQuickMode && gs.rounds === 1 &&  gs.optionalCardPlay;
   const isUltraQuick =  gs.ultraQuickMode &&                    !gs.optionalCardPlay;
   const isHugeGroup  =  gs.ultraQuickMode &&                     gs.optionalCardPlay;
-  const modeName = isQuick ? 'Quick' : isNormal ? 'Normal'
+  const modeName = isQuick ? 'Normal' : isNormal ? 'Classic'
     : isBigGroup ? 'Big Group' : isUltraQuick ? 'Ultra Quick'
     : isHugeGroup ? 'Huge Group' : null;
 
@@ -503,7 +503,7 @@ export function renderSettingsSummary(state) {
 
   const cards = [];
 
-  // Show mode chip if not Normal (no label prefix, just the mode name)
+  // Show mode chip unless it's Normal — the default (no label prefix, just the mode name)
   if (modeName && modeName !== 'Normal') cards.push([null, modeName]);
 
   // Only show settings that differ from the effective defaults

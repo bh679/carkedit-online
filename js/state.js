@@ -46,7 +46,7 @@ let _state = {
   },
 
   gameSettings: {
-    rounds: 2,
+    rounds: 1,
     handSize: 5,
     enableDie: true,
     enableLive: true,
@@ -75,7 +75,7 @@ let _state = {
   lobbyEditTab: 'mode', // 'mode' | 'rules' | 'packs'
 
   // Phase 2/3 state
-  totalRounds: 2,
+  totalRounds: 1,
   livingDeadIndex: 0,
   phase23Round: 0,
   playerHands: {},
