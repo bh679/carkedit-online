@@ -54,13 +54,18 @@ export async function initAuth(onUserChanged) {
       if (firebaseUser) {
         const token = await firebaseUser.getIdToken();
         const localUser = await linkOrFetchUser(firebaseUser, token);
+        // Firebase sign-in succeeded but the account service returned no
+        // user — surface it instead of silently appearing signed out.
+        const accountError = localUser
+          ? null
+          : "Signed in, but couldn't reach the account service — please try again.";
         _setState({
           authUser: localUser,
           firebaseUser: { displayName: firebaseUser.displayName, photoURL: firebaseUser.photoURL, email: firebaseUser.email },
           authToken: token,
           authLoading: false,
-          loginError: null,
-          showLoginModal: false,
+          loginError: accountError,
+          showLoginModal: accountError ? _getState().showLoginModal : false,
         });
         if (onUserChanged) onUserChanged();
       } else {
@@ -180,7 +185,9 @@ async function linkOrFetchUser(firebaseUser, token) {
       method: 'POST',
       headers,
       body: JSON.stringify({
-        display_name: firebaseUser.displayName || 'User',
+        // New accounts start nameless — the player provides their name when
+        // creating a room. Google sign-in keeps its displayName.
+        display_name: firebaseUser.displayName || '',
         firebase_uid: firebaseUser.uid,
         email: firebaseUser.email,
         avatar_url: firebaseUser.photoURL,
@@ -206,6 +213,7 @@ function friendlyError(code) {
     'auth/weak-password': 'Password must be at least 6 characters',
     'auth/invalid-credential': 'Invalid email or password',
     'auth/too-many-requests': 'Too many attempts. Try again later',
+    'auth/operation-not-allowed': "Email sign-up isn't enabled for this environment",
   };
   return map[code] || 'Authentication failed';
 }

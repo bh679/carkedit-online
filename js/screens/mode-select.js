@@ -19,7 +19,7 @@ export function render(state) {
         <p class="menu__subtitle">How do you want to play?</p>
       </div>
       <div class="menu__actions">
-        <button class="btn btn--primary" onclick="window.game.showScreen('online-lobby')">
+        <button class="btn btn--primary" onclick="window.game.openOnlineLobby()">
           Online
         </button>
         <button class="btn btn--secondary" onclick="window.game.showScreen('lobby')">
