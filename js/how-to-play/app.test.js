@@ -95,6 +95,14 @@ test('renderSetupPanel: step 1 shows the "Free Account Required" badge', () => {
   assert.ok(html.includes('Free Account Required'), 'expected the account-required badge on step 1');
 });
 
+test('renderSetupPanel: step 3 shows the "No Account Required" badge (green variant)', () => {
+  assert.equal(SETUP_STEPS[2].badge, 'No Account Required');
+  assert.equal(SETUP_STEPS[2].badgeVariant, 'ok');
+  const html = renderSetupPanel('setup');
+  assert.ok(html.includes('No Account Required'), 'expected the no-account badge on step 3');
+  assert.ok(html.includes('htp-step__badge--ok'), 'expected the green badge variant class');
+});
+
 test('renderSetupPanel: "Start a Game" CTA deep-links into the create-room screen', () => {
   const html = renderSetupPanel('setup');
   assert.ok(html.includes('href="/?host=1"'), 'expected the CTA to deep-link to /?host=1');

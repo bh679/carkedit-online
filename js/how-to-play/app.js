@@ -27,6 +27,8 @@ export const SETUP_STEPS = [
   {
     n: 3,
     title: 'Join & Start',
+    badge: 'No Account Required',
+    badgeVariant: 'ok',
     body: 'Your friends open the link to jump straight in. Once everyone has joined, tap <strong>Start Game</strong>.',
   },
 ];
@@ -116,7 +118,7 @@ export function renderSetupPanel(active) {
     <li class="htp-step">
       <span class="htp-step__num">${s.n}</span>
       <div class="htp-step__text">
-        <h3 class="htp-step__title">${s.title}${s.badge ? ` <span class="htp-step__badge">${s.badge}</span>` : ''}</h3>
+        <h3 class="htp-step__title">${s.title}${s.badge ? ` <span class="htp-step__badge${s.badgeVariant ? ` htp-step__badge--${s.badgeVariant}` : ''}">${s.badge}</span>` : ''}</h3>
         <p class="htp-step__body">${s.body}</p>
       </div>
     </li>

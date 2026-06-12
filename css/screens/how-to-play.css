@@ -162,6 +162,11 @@ body.page--how-to-play #app {
   white-space: nowrap;
 }
 
+/* "No Account Required" — green = no barrier (keeps the dark text for contrast). */
+.htp-step__badge--ok {
+  background: var(--color-live);
+}
+
 .htp-step__body {
   color: var(--color-text-90);
   line-height: 1.45;
