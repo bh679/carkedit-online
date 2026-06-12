@@ -164,24 +164,25 @@
   padding: var(--space-sm);
 }
 
-/* Inline account form shown to signed-out players in the create section */
-.online-lobby__auth-divider {
-  display: flex;
-  align-items: center;
-  gap: 1em;
-  margin: var(--space-sm) 0;
+/* Birthdate hint under the details inputs */
+.online-lobby__field-note {
   color: var(--color-text-muted);
   font-size: 0.85em;
+  text-align: center;
+  margin-top: calc(var(--space-sm) * -0.5);
 }
 
-.online-lobby__auth-divider::before,
-.online-lobby__auth-divider::after {
-  content: '';
+/* Side-by-side account method buttons (Google | Email) */
+.online-lobby__auth-choice-row {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.online-lobby__auth-choice-row .btn {
   flex: 1;
-  height: 1px;
-  background: var(--border, #333);
 }
 
+/* In-page account form (email step) */
 .online-lobby__auth-form {
   display: flex;
   flex-direction: column;

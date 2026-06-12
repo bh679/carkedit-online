@@ -30,15 +30,44 @@ export function render(state) {
 }
 
 function renderJoinCreate(state, connecting, error) {
+  // Two-step flow while unconnected: details first, then (if signed out and
+  // the player picked Email) an in-page account screen. A successful sign-in
+  // resolves back to details automatically.
+  const step = (!state.authUser && state.lobbyStep === 'email-auth') ? 'email-auth' : 'details';
+
+  const boardContent = step === 'email-auth'
+    ? renderEmailAuthStep(state)
+    : renderDetailsStep(state, connecting, error);
+
+  const headerHtml = renderPhaseHeader({ phase: 'online', label: 'Online' });
+  const backBtn = step === 'email-auth'
+    ? `<button class="btn mode-select__back-btn" onclick="window.game.lobbyBackToDetails()">&larr; Back</button>`
+    : `<button class="btn mode-select__back-btn" onclick="window.game.showScreen('mode-select')">&larr; Back</button>`;
+
+  return `
+    <div class="screen screen--online-lobby">
+      ${headerHtml}
+      ${renderGameboard(boardContent)}
+      <div class="online-lobby__actions">
+        ${backBtn}
+      </div>
+    </div>
+  `;
+}
+
+function renderDetailsStep(state, connecting, error) {
   const errorHtml = error
     ? `<p class="online-lobby__error">${escapeHtml(error)}</p>`
     : '';
 
-  const prefillName = state.authUser?.display_name || '';
-  const prefillBM = state.authUser?.birth_month || 0;
-  const prefillBD = state.authUser?.birth_day || 0;
+  // Typed values survive step changes and the post-sign-in re-render;
+  // fall back to the account profile for returning players.
+  const typed = state.lobbyDetails || {};
+  const prefillName = typed.name || state.authUser?.display_name || '';
+  const prefillBM = typed.birthMonth || state.authUser?.birth_month || 0;
+  const prefillBD = typed.birthDay || state.authUser?.birth_day || 0;
 
-  const boardContent = `
+  return `
     <div class="online-lobby__forms">
       <h2 class="online-lobby__heading">Your Details</h2>
       <input
@@ -62,6 +91,7 @@ function renderJoinCreate(state, connecting, error) {
             .map((m, i) => `<option value="${i + 1}"${prefillBM === i + 1 ? ' selected' : ''}>${m}</option>`).join('')}
         </select>
       </div>
+      <p class="online-lobby__field-note">Your birthdate is used in the game, recommended but optional</p>
 
       <div class="online-lobby__divider"></div>
 
@@ -70,17 +100,13 @@ function renderJoinCreate(state, connecting, error) {
       ${errorHtml}
     </div>
   `;
+}
 
-  const headerHtml = renderPhaseHeader({ phase: 'online', label: 'Online' });
-
+function renderEmailAuthStep(state) {
   return `
-    <div class="screen screen--online-lobby">
-      ${headerHtml}
-      ${renderGameboard(boardContent)}
-      <div class="online-lobby__actions">
-        <button class="btn mode-select__back-btn" onclick="window.game.showScreen('mode-select')">
-          &larr; Back
-        </button>
+    <div class="online-lobby__forms">
+      <div id="online-lobby-create-section">
+        ${renderEmailAuthInner(state)}
       </div>
     </div>
   `;
@@ -113,49 +139,19 @@ function renderCreateSectionInner(state, connecting) {
   }
 
   if (!state.authUser) {
-    const isSignUp = (state.lobbyAuthMode || 'signup') === 'signup';
-    const submitLabel = isSignUp ? 'Create Account' : 'Sign In';
-    const toggleHtml = isSignUp
-      ? `Already have an account? <a href="#" onclick="window.game.setLobbyAuthMode('signin'); return false;">Sign In</a>`
-      : `Don't have an account? <a href="#" onclick="window.game.setLobbyAuthMode('signup'); return false;">Sign Up</a>`;
-    const errorHtml = state.loginError
-      ? `<p class="online-lobby__error">${escapeHtml(state.loginError)}</p>`
-      : '';
-
     return `
       ${heading}
       <p class="online-lobby__signup-note">
         Hosting needs a free account — joining a game doesn't.
       </p>
-      <button class="btn btn--google" onclick="window.game.signInWithGoogle()">
-        Sign in with Google
-      </button>
-      <div class="online-lobby__auth-divider"><span>or</span></div>
-      <form class="online-lobby__auth-form" onsubmit="window.game.submitLobbyAuth(event)">
-        <input
-          type="email"
-          name="email"
-          class="input"
-          placeholder="Email"
-          required
-          autocomplete="email"
-          value="${escapeHtml(state.lobbyAuthEmail || '')}"
-        >
-        <input
-          type="password"
-          name="password"
-          class="input"
-          placeholder="Password"
-          required
-          minlength="6"
-          autocomplete="${isSignUp ? 'new-password' : 'current-password'}"
-        >
-        ${errorHtml}
-        <button type="submit" class="btn btn--primary online-lobby__action-btn">
-          ${submitLabel}
+      <div class="online-lobby__auth-choice-row">
+        <button class="btn btn--google" onclick="window.game.lobbyGoogleAuth()">
+          Google
         </button>
-      </form>
-      <p class="online-lobby__auth-toggle">${toggleHtml}</p>
+        <button class="btn btn--primary" onclick="window.game.lobbyEmailAuth()">
+          Email
+        </button>
+      </div>
     `;
   }
 
@@ -172,6 +168,54 @@ function renderCreateSectionInner(state, connecting) {
 }
 
 /**
+ * The email account screen (step 2): create an account or sign in without
+ * leaving the page. Lives inside the refreshable container so errors and
+ * mode toggles update in place, keeping the typed email.
+ */
+function renderEmailAuthInner(state) {
+  const isSignUp = (state.lobbyAuthMode || 'signup') === 'signup';
+  const title = isSignUp ? 'Create Account' : 'Sign In';
+  const toggleHtml = isSignUp
+    ? `Already have an account? <a href="#" onclick="window.game.setLobbyAuthMode('signin'); return false;">Sign In</a>`
+    : `Don't have an account? <a href="#" onclick="window.game.setLobbyAuthMode('signup'); return false;">Sign Up</a>`;
+  const errorHtml = state.loginError
+    ? `<p class="online-lobby__error">${escapeHtml(state.loginError)}</p>`
+    : '';
+
+  return `
+    <h2 class="online-lobby__heading">${title}</h2>
+    <p class="online-lobby__signup-note">
+      Hosting needs a free account — joining a game doesn't.
+    </p>
+    <form class="online-lobby__auth-form" onsubmit="window.game.submitLobbyAuth(event)">
+      <input
+        type="email"
+        name="email"
+        class="input"
+        placeholder="Email"
+        required
+        autocomplete="email"
+        value="${escapeHtml(state.lobbyAuthEmail || '')}"
+      >
+      <input
+        type="password"
+        name="password"
+        class="input"
+        placeholder="Password"
+        required
+        minlength="6"
+        autocomplete="${isSignUp ? 'new-password' : 'current-password'}"
+      >
+      ${errorHtml}
+      <button type="submit" class="btn btn--primary online-lobby__action-btn">
+        ${title}
+      </button>
+    </form>
+    <p class="online-lobby__auth-toggle">${toggleHtml}</p>
+  `;
+}
+
+/**
  * Partial update of just the create/auth section so inline-form errors and
  * mode toggles don't re-render the whole screen (which would drop focus and
  * typed values). Mirrors the refreshEditDrawerPackTabLabel pattern.
@@ -179,7 +223,10 @@ function renderCreateSectionInner(state, connecting) {
 export function refreshCreateSection(state) {
   const el = document.getElementById('online-lobby-create-section');
   if (!el) return;
-  el.innerHTML = renderCreateSectionInner(state, state.connectionStatus === 'connecting');
+  const step = (!state.authUser && state.lobbyStep === 'email-auth') ? 'email-auth' : 'details';
+  el.innerHTML = step === 'email-auth'
+    ? renderEmailAuthInner(state)
+    : renderCreateSectionInner(state, state.connectionStatus === 'connecting');
 }
 
 function renderConnectedLobby(state) {

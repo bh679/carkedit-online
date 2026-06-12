@@ -874,8 +874,28 @@ window.game = {
     setState({ lobbyAuthMode: mode, loginError: null });
     refreshCreateSection(getState());
   },
+  // Two-step unconnected lobby: details first, then the chosen account flow.
+  openOnlineLobby() {
+    setState({ lobbyStep: 'details' });
+    showScreen('online-lobby');
+  },
+  lobbyEmailAuth() {
+    captureLobbyDetails();
+    setState({ lobbyStep: 'email-auth', loginError: null });
+    showScreen('online-lobby');
+  },
+  lobbyBackToDetails() {
+    setState({ lobbyStep: 'details', loginError: null });
+    showScreen('online-lobby');
+  },
+  async lobbyGoogleAuth() {
+    // Keep typed details — the post-sign-in re-render rebuilds the screen.
+    captureLobbyDetails();
+    await signInWithGoogle();
+    if (getState().loginError) refreshCreateSection(getState());
+  },
   async logOut() {
-    setState({ showUserMenu: false });
+    setState({ showUserMenu: false, lobbyStep: 'details' });
     await logOut();
     // Re-render current screen to update auth button
     showScreen(getState().screen);
@@ -1079,6 +1099,17 @@ window.game = {
 function renderLoginModalOverlay() {
   const root = document.getElementById('login-modal-root');
   if (root) root.innerHTML = renderLoginModal(getState());
+}
+
+/**
+ * Snapshot the details-step inputs into state so they survive the re-render
+ * caused by switching lobby steps or completing a sign-in.
+ */
+function captureLobbyDetails() {
+  const name = document.getElementById('online-player-name')?.value?.trim() || '';
+  const birthMonth = parseInt(document.getElementById('online-birth-month')?.value ?? '', 10) || 0;
+  const birthDay = parseInt(document.getElementById('online-birth-day')?.value ?? '', 10) || 0;
+  setState({ lobbyDetails: { name, birthMonth, birthDay } });
 }
 
 document.addEventListener('DOMContentLoaded', () => {

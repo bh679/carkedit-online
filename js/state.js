@@ -139,6 +139,8 @@ let _state = {
   loginError: null,                  // Auth error message
   lobbyAuthMode: 'signup',           // Inline lobby auth form mode: 'signup' | 'signin'
   lobbyAuthEmail: '',                // Preserves typed email across inline form re-renders
+  lobbyStep: 'details',              // Unconnected lobby sub-step: 'details' | 'email-auth'
+  lobbyDetails: { name: '', birthMonth: 0, birthDay: 0 }, // Typed details kept across step/auth re-renders
 };
 
 export function getState() {
