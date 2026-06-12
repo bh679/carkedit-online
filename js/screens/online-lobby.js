@@ -1,8 +1,8 @@
 // CarkedIt Online — Online Lobby Screen
 'use strict';
 
-import { render as renderPhaseHeader } from '../components/phase-header.js';
 import { render as renderGameboard } from '../components/gameboard.js';
+import { renderAuthButton } from '../components/auth-button.js';
 import { PERSON_ICON, STAR_ICON, formatBirthday } from '../components/player-list.js';
 import { renderAdvancedPanel, renderToggle } from './lobby.js';
 import { render as renderPackSelector } from '../components/pack-selector.js';
@@ -11,6 +11,11 @@ const LINK_ICON = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" x
   <path d="M6.5 9.5L9.5 6.5" stroke="#374151" stroke-width="1.5" stroke-linecap="round"/>
   <path d="M9 10L10.5 8.5C11.9 7.1 11.9 4.9 10.5 3.5C9.1 2.1 6.9 2.1 5.5 3.5L4 5" stroke="#374151" stroke-width="1.5" stroke-linecap="round"/>
   <path d="M7 6L5.5 7.5C4.1 8.9 4.1 11.1 5.5 12.5C6.9 13.9 9.1 13.9 10.5 12.5L12 11" stroke="#374151" stroke-width="1.5" stroke-linecap="round"/>
+</svg>`;
+
+const FLAG_ICON = `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <path d="M3 2v12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M3 2h8l-2 3 2 3H3" fill="currentColor"/>
 </svg>`;
 
 /**
@@ -39,7 +44,22 @@ function renderJoinCreate(state, connecting, error) {
     ? renderEmailAuthStep(state)
     : renderDetailsStep(state, connecting, error);
 
-  const headerHtml = renderPhaseHeader({ phase: 'online', label: 'Online' });
+  // Inline header so the right side carries the profile/auth button (like the
+  // main menu) instead of the shared phase-header's inert settings button.
+  const headerHtml = `
+    <header class="phase-header" data-phase="online">
+      <div class="phase-header__left">
+        <span class="phase-header__app-name">CarkedIt</span>
+        <span class="phase-header__phase-label">Online</span>
+      </div>
+      <div class="phase-header__right">
+        <button class="phase-header__flag-btn" aria-label="Report issue" onclick="window.game.openIssueReport()">
+          ${FLAG_ICON}
+        </button>
+        ${renderAuthButton(state)}
+      </div>
+    </header>
+  `;
   const backBtn = step === 'email-auth'
     ? `<button class="btn mode-select__back-btn" onclick="window.game.lobbyBackToDetails()">&larr; Back</button>`
     : `<button class="btn mode-select__back-btn" onclick="window.game.showScreen('menu')">&larr; Back</button>`;
@@ -150,7 +170,7 @@ function renderCreateSectionInner(state, connecting) {
         </button>
       </div>
       <p class="online-lobby__field-note">
-        Hosting needs a free account —<br>joining a game doesn't.
+        Hosting a game needs a free account.<br>Joining a game doesn't.
       </p>
     `;
   }
