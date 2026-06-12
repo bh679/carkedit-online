@@ -158,18 +158,11 @@
   padding: var(--space-sm);
 }
 
-.online-lobby__signup-note {
-  color: var(--color-text-muted);
-  text-align: center;
-  padding: var(--space-sm);
-}
-
-/* Birthdate hint under the details inputs */
+/* Shared muted hint style (birthdate note, account note) */
 .online-lobby__field-note {
   color: var(--color-text-muted);
   font-size: 0.85em;
   text-align: center;
-  margin-top: calc(var(--space-sm) * -0.5);
 }
 
 /* Side-by-side account method buttons (Google | Email) */

@@ -42,7 +42,7 @@ function renderJoinCreate(state, connecting, error) {
   const headerHtml = renderPhaseHeader({ phase: 'online', label: 'Online' });
   const backBtn = step === 'email-auth'
     ? `<button class="btn mode-select__back-btn" onclick="window.game.lobbyBackToDetails()">&larr; Back</button>`
-    : `<button class="btn mode-select__back-btn" onclick="window.game.showScreen('mode-select')">&larr; Back</button>`;
+    : `<button class="btn mode-select__back-btn" onclick="window.game.showScreen('menu')">&larr; Back</button>`;
 
   return `
     <div class="screen screen--online-lobby">
@@ -141,8 +141,8 @@ function renderCreateSectionInner(state, connecting) {
   if (!state.authUser) {
     return `
       ${heading}
-      <p class="online-lobby__signup-note">
-        Hosting needs a free account — joining a game doesn't.
+      <p class="online-lobby__field-note">
+        Hosting needs a free account —<br>joining a game doesn't.
       </p>
       <div class="online-lobby__auth-choice-row">
         <button class="btn btn--google" onclick="window.game.lobbyGoogleAuth()">
@@ -184,8 +184,8 @@ function renderEmailAuthInner(state) {
 
   return `
     <h2 class="online-lobby__heading">${title}</h2>
-    <p class="online-lobby__signup-note">
-      Hosting needs a free account — joining a game doesn't.
+    <p class="online-lobby__field-note">
+      Hosting needs a free account —<br>joining a game doesn't.
     </p>
     <form class="online-lobby__auth-form" onsubmit="window.game.submitLobbyAuth(event)">
       <input
