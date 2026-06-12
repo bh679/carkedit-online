@@ -1175,6 +1175,11 @@ document.addEventListener('DOMContentLoaded', () => {
       const codeInput = document.getElementById('online-room-code');
       if (codeInput) codeInput.value = joinCode.toUpperCase();
     });
+  } else if (params.has('host')) {
+    // Deep-link from the How to Play page — straight to "Your Details / Create a Room"
+    // (mirrors window.game.openOnlineLobby()).
+    setState({ lobbyStep: 'details' });
+    showScreen('online-lobby');
   } else {
     showScreen('menu');
   }
