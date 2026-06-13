@@ -30,7 +30,7 @@ import {
 } from './network/client.js';
 import { loadSession, clearSession } from './managers/session-recovery.js';
 import { onTimerUpdate } from './managers/online-timer.js';
-import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, logOut, updateUserProfile, getAuthToken } from './managers/auth-manager.js';
+import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, sendPasswordReset, logOut, updateUserProfile, getAuthToken } from './managers/auth-manager.js';
 import { fetchMyPacks, fetchPublicPacks, fetchFavoritePacks, setPackFavorite, getPack } from './card-designer/pack-manager.js';
 import { render as renderCardFace } from './components/card.js';
 import { buildCard } from './data/card.js';
@@ -817,16 +817,16 @@ window.game = {
   },
   // Auth actions
   showLogin(mode = 'signin') {
-    setState({ showLoginModal: true, loginMode: mode, loginError: null });
+    setState({ showLoginModal: true, loginMode: mode, loginError: null, loginNotice: null });
     renderLoginModalOverlay();
   },
   hideLogin() {
-    setState({ showLoginModal: false, loginError: null });
+    setState({ showLoginModal: false, loginError: null, loginNotice: null });
     const root = document.getElementById('login-modal-root');
     if (root) root.innerHTML = '';
   },
   setLoginMode(mode) {
-    setState({ loginMode: mode, loginError: null });
+    setState({ loginMode: mode, loginError: null, loginNotice: null });
     renderLoginModalOverlay();
   },
   async signInWithGoogle() {
@@ -852,6 +852,17 @@ window.game = {
     // Re-render modal if there's an error (auth state change will close it on success)
     if (getState().loginError) renderLoginModalOverlay();
   },
+  // Send a Firebase password-reset email from the login modal's sign-in form.
+  async modalForgotPassword() {
+    const form = document.querySelector('.login-modal__form');
+    const email = form?.email?.value?.trim() || '';
+    if (!email) {
+      setState({ loginError: 'Please enter your email address', loginNotice: null });
+    } else {
+      await sendPasswordReset(email);
+    }
+    renderLoginModalOverlay();
+  },
   // Inline auth form on the online-lobby create section (no popup —
   // signed-out players need an account to host, so the form lives in-page).
   async submitLobbyAuth(event) {
@@ -870,8 +881,21 @@ window.game = {
     // refresh just the form so the error shows without losing the email.
     if (getState().loginError) refreshCreateSection(getState());
   },
+  // Send a Firebase password-reset email from the inline lobby sign-in form.
+  async lobbyForgotPassword() {
+    const form = document.querySelector('.online-lobby__auth-form');
+    const email = form?.email?.value?.trim() || '';
+    if (!email) {
+      setState({ loginError: 'Please enter your email address', loginNotice: null });
+    } else {
+      // Preserve the typed email across the partial re-render (mirrors submitLobbyAuth).
+      setState({ lobbyAuthEmail: email });
+      await sendPasswordReset(email);
+    }
+    refreshCreateSection(getState());
+  },
   setLobbyAuthMode(mode) {
-    setState({ lobbyAuthMode: mode, loginError: null });
+    setState({ lobbyAuthMode: mode, loginError: null, loginNotice: null });
     refreshCreateSection(getState());
   },
   // Two-step unconnected lobby: details first, then the chosen account flow.
@@ -881,11 +905,11 @@ window.game = {
   },
   lobbyEmailAuth() {
     captureLobbyDetails();
-    setState({ lobbyStep: 'email-auth', loginError: null });
+    setState({ lobbyStep: 'email-auth', loginError: null, loginNotice: null });
     showScreen('online-lobby');
   },
   lobbyBackToDetails() {
-    setState({ lobbyStep: 'details', loginError: null });
+    setState({ lobbyStep: 'details', loginError: null, loginNotice: null });
     showScreen('online-lobby');
   },
   async lobbyGoogleAuth() {

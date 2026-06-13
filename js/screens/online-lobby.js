@@ -201,6 +201,13 @@ function renderEmailAuthInner(state) {
   const errorHtml = state.loginError
     ? `<p class="online-lobby__error">${escapeHtml(state.loginError)}</p>`
     : '';
+  const noticeHtml = state.loginNotice
+    ? `<p class="online-lobby__notice">${escapeHtml(state.loginNotice)}</p>`
+    : '';
+  // Password reset only applies when signing in (sign-up has no password yet).
+  const forgotHtml = isSignUp
+    ? ''
+    : `<button type="button" class="online-lobby__forgot-link" onclick="window.game.lobbyForgotPassword()">Forgot password?</button>`;
 
   return `
     <h2 class="online-lobby__heading">${title}</h2>
@@ -223,7 +230,9 @@ function renderEmailAuthInner(state) {
         minlength="6"
         autocomplete="${isSignUp ? 'new-password' : 'current-password'}"
       >
+      ${forgotHtml}
       ${errorHtml}
+      ${noticeHtml}
       <button type="submit" class="btn btn--primary online-lobby__action-btn">
         ${title}
       </button>

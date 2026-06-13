@@ -87,7 +87,7 @@ export async function initAuth(onUserChanged) {
 
 export async function signInWithGoogle() {
   try {
-    _setState({ loginError: null });
+    _setState({ loginError: null, loginNotice: null });
     const { auth: authMod } = await loadFirebase();
     const provider = new authMod.GoogleAuthProvider();
     if (isMobile()) {
@@ -103,7 +103,7 @@ export async function signInWithGoogle() {
 
 export async function signInWithEmail(email, password) {
   try {
-    _setState({ loginError: null });
+    _setState({ loginError: null, loginNotice: null });
     const { auth: authMod } = await loadFirebase();
     await authMod.signInWithEmailAndPassword(firebaseAuth, email, password);
   } catch (err) {
@@ -114,11 +114,23 @@ export async function signInWithEmail(email, password) {
 
 export async function signUpWithEmail(email, password) {
   try {
-    _setState({ loginError: null });
+    _setState({ loginError: null, loginNotice: null });
     const { auth: authMod } = await loadFirebase();
     await authMod.createUserWithEmailAndPassword(firebaseAuth, email, password);
   } catch (err) {
     console.error('[CarkedIt Auth] Sign-up error:', err);
+    _setState({ loginError: friendlyError(err.code) });
+  }
+}
+
+export async function sendPasswordReset(email) {
+  try {
+    _setState({ loginError: null, loginNotice: null });
+    const { auth: authMod } = await loadFirebase();
+    await authMod.sendPasswordResetEmail(firebaseAuth, email);
+    _setState({ loginNotice: 'Reset email sent — check your inbox' });
+  } catch (err) {
+    console.error('[CarkedIt Auth] Password reset error:', err);
     _setState({ loginError: friendlyError(err.code) });
   }
 }
@@ -213,6 +225,7 @@ function friendlyError(code) {
     'auth/weak-password': 'Password must be at least 6 characters',
     'auth/invalid-credential': 'Invalid email or password',
     'auth/too-many-requests': 'Too many attempts. Try again later',
+    'auth/missing-email': 'Please enter your email address',
     'auth/operation-not-allowed': "Email sign-up isn't enabled for this environment",
   };
   return map[code] || 'Authentication failed';
