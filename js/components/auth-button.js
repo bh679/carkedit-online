@@ -57,6 +57,9 @@ export function renderLoginModal(state) {
     ? 'Already have an account? <a href="#" onclick="window.game.setLoginMode(\'signin\'); return false;">Sign In</a>'
     : 'Don\'t have an account? <a href="#" onclick="window.game.setLoginMode(\'signup\'); return false;">Sign Up</a>';
   const error = state.loginError ? `<div class="login-modal__error">${state.loginError}</div>` : '';
+  const notice = state.loginNotice ? `<div class="login-modal__notice">${state.loginNotice}</div>` : '';
+  // Password reset only applies when signing in (sign-up has no password yet).
+  const forgot = isSignUp ? '' : `<button type="button" class="login-modal__forgot" onclick="window.game.modalForgotPassword()">Forgot password?</button>`;
 
   return `
     <div class="login-modal__overlay" onclick="window.game.hideLogin()">
@@ -73,7 +76,9 @@ export function renderLoginModal(state) {
         <form class="login-modal__form" onsubmit="window.game.submitEmailAuth(event)">
           <input type="email" name="email" class="login-modal__input" placeholder="Email" required />
           <input type="password" name="password" class="login-modal__input" placeholder="Password" required minlength="6" />
+          ${forgot}
           ${error}
+          ${notice}
           <button type="submit" class="btn btn--primary login-modal__submit">${submitLabel}</button>
         </form>
 

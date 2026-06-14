@@ -23,12 +23,15 @@ export function render(state) {
         <p class="menu__subtitle">Online</p>
       </div>
       <div class="menu__actions">
-        <button class="btn btn--primary" onclick="window.game.showScreen('mode-select')">
+        <button class="btn btn--primary" onclick="window.game.openOnlineLobby()">
           Start Game
         </button>
         <button class="btn btn--secondary" onclick="window.game.showScreen('join-game')">
           Join Game
         </button>
+        <a class="btn btn--secondary menu__site-link" href="how-to-play">
+          How to Play
+        </a>
         <a class="btn btn--secondary menu__site-link" href="expansions">
           Expansions
         </a>

@@ -67,6 +67,31 @@
   border-radius: var(--radius-sm);
 }
 
+.online-lobby__notice {
+  color: var(--color-live);
+  font-size: 0.875rem;
+  text-align: center;
+  padding: var(--space-sm);
+  background: rgba(77, 158, 77, 0.1);
+  border-radius: var(--radius-sm);
+}
+
+/* Link-styled button — sits inside the flex-column auth form, right-aligned. */
+.online-lobby__forgot-link {
+  align-self: flex-end;
+  margin-top: calc(-1 * var(--space-xs));
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-primary);
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.online-lobby__forgot-link:hover {
+  text-decoration: underline;
+}
+
 /* ── Gameboard scrolling (match shared-device lobby behavior) ── */
 
 .screen--online-lobby .gameboard {
@@ -156,6 +181,53 @@
   text-align: center;
   font-style: italic;
   padding: var(--space-sm);
+}
+
+/* Create/account section: match the details form's vertical rhythm so the
+   heading, buttons/form and note are spaced like "Your Details" above. */
+#online-lobby-create-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+/* Shared muted hint style (birthdate note, account note) */
+.online-lobby__field-note {
+  color: var(--color-text-muted);
+  font-size: 0.85em;
+  text-align: center;
+}
+
+/* Side-by-side account method buttons (Google | Email) */
+.online-lobby__auth-choice-row {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.online-lobby__auth-choice-row .btn {
+  flex: 1;
+}
+
+/* In-page account form (email step) */
+.online-lobby__auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.online-lobby__auth-toggle {
+  text-align: center;
+  font-size: 0.85em;
+  color: var(--color-text-muted);
+}
+
+.online-lobby__auth-toggle a {
+  color: var(--accent, #4285f4);
+  text-decoration: none;
+}
+
+.online-lobby__auth-toggle a:hover {
+  text-decoration: underline;
 }
 
 /* ── Non-host settings summary ───────────────────────── */

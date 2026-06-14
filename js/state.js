@@ -46,7 +46,7 @@ let _state = {
   },
 
   gameSettings: {
-    rounds: 2,
+    rounds: 1,
     handSize: 5,
     enableDie: true,
     enableLive: true,
@@ -75,7 +75,7 @@ let _state = {
   lobbyEditTab: 'mode', // 'mode' | 'rules' | 'packs'
 
   // Phase 2/3 state
-  totalRounds: 2,
+  totalRounds: 1,
   livingDeadIndex: 0,
   phase23Round: 0,
   playerHands: {},
@@ -137,6 +137,11 @@ let _state = {
   showLoginModal: false,             // Show login/signup modal
   loginMode: 'signin',              // 'signin' | 'signup'
   loginError: null,                  // Auth error message
+  loginNotice: null,                 // Auth success/notice message (e.g. password-reset sent)
+  lobbyAuthMode: 'signup',           // Inline lobby auth form mode: 'signup' | 'signin'
+  lobbyAuthEmail: '',                // Preserves typed email across inline form re-renders
+  lobbyStep: 'details',              // Unconnected lobby sub-step: 'details' | 'email-auth'
+  lobbyDetails: { name: '', birthMonth: 0, birthDay: 0 }, // Typed details kept across step/auth re-renders
 };
 
 export function getState() {

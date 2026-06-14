@@ -54,13 +54,18 @@ export async function initAuth(onUserChanged) {
       if (firebaseUser) {
         const token = await firebaseUser.getIdToken();
         const localUser = await linkOrFetchUser(firebaseUser, token);
+        // Firebase sign-in succeeded but the account service returned no
+        // user — surface it instead of silently appearing signed out.
+        const accountError = localUser
+          ? null
+          : "Signed in, but couldn't reach the account service — please try again.";
         _setState({
           authUser: localUser,
           firebaseUser: { displayName: firebaseUser.displayName, photoURL: firebaseUser.photoURL, email: firebaseUser.email },
           authToken: token,
           authLoading: false,
-          loginError: null,
-          showLoginModal: false,
+          loginError: accountError,
+          showLoginModal: accountError ? _getState().showLoginModal : false,
         });
         if (onUserChanged) onUserChanged();
       } else {
@@ -82,7 +87,7 @@ export async function initAuth(onUserChanged) {
 
 export async function signInWithGoogle() {
   try {
-    _setState({ loginError: null });
+    _setState({ loginError: null, loginNotice: null });
     const { auth: authMod } = await loadFirebase();
     const provider = new authMod.GoogleAuthProvider();
     if (isMobile()) {
@@ -98,7 +103,7 @@ export async function signInWithGoogle() {
 
 export async function signInWithEmail(email, password) {
   try {
-    _setState({ loginError: null });
+    _setState({ loginError: null, loginNotice: null });
     const { auth: authMod } = await loadFirebase();
     await authMod.signInWithEmailAndPassword(firebaseAuth, email, password);
   } catch (err) {
@@ -109,11 +114,23 @@ export async function signInWithEmail(email, password) {
 
 export async function signUpWithEmail(email, password) {
   try {
-    _setState({ loginError: null });
+    _setState({ loginError: null, loginNotice: null });
     const { auth: authMod } = await loadFirebase();
     await authMod.createUserWithEmailAndPassword(firebaseAuth, email, password);
   } catch (err) {
     console.error('[CarkedIt Auth] Sign-up error:', err);
+    _setState({ loginError: friendlyError(err.code) });
+  }
+}
+
+export async function sendPasswordReset(email) {
+  try {
+    _setState({ loginError: null, loginNotice: null });
+    const { auth: authMod } = await loadFirebase();
+    await authMod.sendPasswordResetEmail(firebaseAuth, email);
+    _setState({ loginNotice: 'Reset email sent — check your inbox' });
+  } catch (err) {
+    console.error('[CarkedIt Auth] Password reset error:', err);
     _setState({ loginError: friendlyError(err.code) });
   }
 }
@@ -180,7 +197,9 @@ async function linkOrFetchUser(firebaseUser, token) {
       method: 'POST',
       headers,
       body: JSON.stringify({
-        display_name: firebaseUser.displayName || 'User',
+        // New accounts start nameless — the player provides their name when
+        // creating a room. Google sign-in keeps its displayName.
+        display_name: firebaseUser.displayName || '',
         firebase_uid: firebaseUser.uid,
         email: firebaseUser.email,
         avatar_url: firebaseUser.photoURL,
@@ -206,6 +225,8 @@ function friendlyError(code) {
     'auth/weak-password': 'Password must be at least 6 characters',
     'auth/invalid-credential': 'Invalid email or password',
     'auth/too-many-requests': 'Too many attempts. Try again later',
+    'auth/missing-email': 'Please enter your email address',
+    'auth/operation-not-allowed': "Email sign-up isn't enabled for this environment",
   };
   return map[code] || 'Authentication failed';
 }
