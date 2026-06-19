@@ -107,6 +107,7 @@ let _state = {
   wildcardPlayers: [],
   currentWildcardIndex: 0,
   selectedEulogists: [],
+  selectedEulogistList: [],         // [{ sessionId, name }] for the online judge UI
   currentEulogistIndex: 0,
   bestEulogist: null,
 

@@ -361,6 +361,12 @@ function syncEulogyPhaseState(room) {
     return p?.name ?? id;
   });
   const onlineEulogistNames = selectedEulogists;
+  // Pair each eulogist's session ID with their name so the judge UI can send the
+  // authoritative session ID instead of re-deriving it from a (non-unique) name.
+  const selectedEulogistList = eulogistIds.map(id => {
+    const p = room.state.players.get(id);
+    return { sessionId: id, name: p?.name ?? id };
+  });
 
   // Current eulogist
   const currentEulogistIndex = room.state.currentEulogistIndex ?? 0;
@@ -383,6 +389,7 @@ function syncEulogyPhaseState(room) {
     wildcardPlayers,
     currentWildcardIndex: room.state.currentWildcardIndex ?? 0,
     selectedEulogists,
+    selectedEulogistList,
     currentEulogistIndex,
     bestEulogist,
     currentCard,
