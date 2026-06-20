@@ -270,11 +270,12 @@ function renderOnlineJudge(state) {
     `);
   }
 
-  // Wildcard holder picks the best (sends session ID to server)
-  const eulogistButtons = eulogists.map(name => {
-    // Find the session ID for this eulogist name
-    const player = state.players.find(p => p.name === name);
-    const escapedSid = (player?.sessionId ?? '').replace(/'/g, "\\'");
+  // Wildcard holder picks the best (sends the authoritative session ID to the server).
+  // Use the session ID carried straight from the server — never re-derive it from the
+  // display name, which is not unique (duplicate-named players would collide).
+  const eulogistList = state.selectedEulogistList ?? [];
+  const eulogistButtons = eulogistList.map(({ sessionId, name }) => {
+    const escapedSid = (sessionId ?? '').replace(/'/g, "\\'");
     return `
       <button class="phase4__judge-btn" onclick="window.game.pickBestEulogy('${escapedSid}')">
         <span class="phase4__judge-btn-name">${name}</span>
