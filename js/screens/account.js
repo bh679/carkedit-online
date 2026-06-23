@@ -2,6 +2,11 @@
 'use strict';
 
 import { renderPackGrid } from '../components/pack-card.js';
+import { ROLE_LABELS } from '../config/brand-labels.js';
+
+// Configurable partner-brand role label (e.g. "Death Evangelist") — never
+// hardcode the display name; it lives in brand-labels.js.
+const EVANGELIST = ROLE_LABELS.evangelist.singular;
 
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({
@@ -88,8 +93,51 @@ export function render(state) {
         <h2 class="account__section-title">My Expansion Packs</h2>
         <div id="account-packs-mount"><p class="marketplace__empty">Loading…</p></div>
       </section>
+
+      <section class="account__section">
+        <h2 class="account__section-title">Become a ${esc(EVANGELIST)}</h2>
+        <p class="account__hint">Run co-branded games at your own URL (<code>carkedit.com/your-url</code>).
+          Submit a request and an admin will review it.</p>
+        <div id="account-brands-mount"></div>
+        <form id="brand-request-form" class="account__form" onsubmit="return window.game.submitBrandRequest(event)">
+          <label class="account__field">
+            <span>Brand name</span>
+            <input type="text" id="brand-request-name" maxlength="80" required placeholder="Acme Funeral Co." />
+          </label>
+          <label class="account__field">
+            <span>Desired URL</span>
+            <input type="text" id="brand-request-slug" maxlength="40" required placeholder="acme"
+              oninput="window.game.checkBrandSlug()" />
+          </label>
+          <p class="account__slug-hint" id="brand-slug-hint">carkedit.com/&lt;your-url&gt;</p>
+          <label class="account__field">
+            <span>Logo (optional)</span>
+            <input type="file" id="brand-request-logo" accept="image/*" />
+          </label>
+          <div class="account__form-actions">
+            <button type="submit" class="btn btn--primary">Submit request</button>
+            <span id="brand-request-status" class="account__status"></span>
+          </div>
+        </form>
+      </section>
     </div>
   `;
+}
+
+/** Render the user's existing brand requests with their review status. */
+export function renderMyBrands(brands) {
+  if (!brands || brands.length === 0) return '';
+  const items = brands.map((b) => `
+    <li class="account__brand">
+      <span class="account__brand-slug">carkedit.com/${esc(b.slug)}</span>
+      <span class="account__brand-name">${esc(b.name)}</span>
+      <span class="account__brand-status account__brand-status--${esc(b.status)}">${esc(b.status)}</span>
+    </li>
+  `).join('');
+  return `<div class="account__brands">
+    <h3 class="account__brands-title">Your requests</h3>
+    <ul class="account__brands-list">${items}</ul>
+  </div>`;
 }
 
 export function renderGamesList(games) {

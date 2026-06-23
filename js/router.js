@@ -14,7 +14,8 @@ import { render as renderJoinGame } from './screens/join-game.js';
 import { render as renderPhase1 } from './screens/phase1.js';
 import { render as renderPhase23, formatTime } from './screens/phase2-3.js';
 import { render as renderPhase4 } from './screens/phase4.js';
-import { render as renderAccount, renderGamesList, renderMyPacks } from './screens/account.js';
+import { render as renderAccount, renderGamesList, renderMyPacks, renderMyBrands } from './screens/account.js';
+import { submitBrandRequest as apiSubmitBrandRequest, fetchMyBrands, checkSlugAvailable } from './managers/brand-manager.js';
 import { saveGameToHistory, getGameHistory, syncWithServer } from './managers/game-history.js';
 import { shuffle } from './utils/shuffle.js';
 import { escapeHtml } from './utils/escape.js';
@@ -132,10 +133,17 @@ export function showScreen(name, updates = {}) {
       const m = document.getElementById('account-packs-mount');
       if (m) m.innerHTML = renderMyPacks([]);
     });
+
+    // Show the user's existing brand requests + their review status.
+    fetchMyBrands().then((brands) => {
+      const m = document.getElementById('account-brands-mount');
+      if (m) m.innerHTML = renderMyBrands(brands || []);
+    }).catch(() => {});
   }
 }
 
 let _packsLoadedForLobby = false;
+let _brandSlugTimer = null;
 
 function refreshAdvancedPanel() {
   const state = getState();
@@ -817,6 +825,67 @@ window.game = {
       if (status) { status.textContent = 'Save failed'; status.className = 'account__status account__status--err'; }
     }
     return false;
+  },
+  // Submit a partner-brand ("Evangelist") request from the account screen.
+  async submitBrandRequest(event) {
+    if (event) event.preventDefault();
+    const nameEl = document.getElementById('brand-request-name');
+    const slugEl = document.getElementById('brand-request-slug');
+    const logoEl = document.getElementById('brand-request-logo');
+    const status = document.getElementById('brand-request-status');
+    if (!nameEl || !slugEl) return false;
+    const name = nameEl.value.trim();
+    const slug = slugEl.value.trim().toLowerCase();
+    if (!name || !slug) {
+      if (status) { status.textContent = 'Name and URL are required'; status.className = 'account__status account__status--err'; }
+      return false;
+    }
+    if (status) { status.textContent = 'Submitting…'; status.className = 'account__status'; }
+    const result = await apiSubmitBrandRequest({ name, slug, logoFile: logoEl?.files?.[0] || null });
+    if (result.ok) {
+      if (status) { status.textContent = 'Request submitted — pending review'; status.className = 'account__status account__status--ok'; }
+      nameEl.value = '';
+      slugEl.value = '';
+      if (logoEl) logoEl.value = '';
+      const hint = document.getElementById('brand-slug-hint');
+      if (hint) { hint.textContent = 'carkedit.com/<your-url>'; hint.className = 'account__slug-hint'; }
+      // Refresh the request list so the new pending request shows immediately.
+      fetchMyBrands().then((brands) => {
+        const m = document.getElementById('account-brands-mount');
+        if (m) m.innerHTML = renderMyBrands(brands || []);
+      }).catch(() => {});
+    } else if (status) {
+      status.textContent = result.error || 'Request failed';
+      status.className = 'account__status account__status--err';
+    }
+    return false;
+  },
+  // Debounced live slug-availability hint for the brand-request form.
+  checkBrandSlug() {
+    const slugEl = document.getElementById('brand-request-slug');
+    const hint = document.getElementById('brand-slug-hint');
+    if (!slugEl || !hint) return;
+    const slug = slugEl.value.trim().toLowerCase();
+    clearTimeout(_brandSlugTimer);
+    if (!slug) {
+      hint.textContent = 'carkedit.com/<your-url>';
+      hint.className = 'account__slug-hint';
+      return;
+    }
+    hint.textContent = `carkedit.com/${slug} — checking…`;
+    hint.className = 'account__slug-hint';
+    _brandSlugTimer = setTimeout(async () => {
+      const res = await checkSlugAvailable(slug);
+      // Ignore if the input changed while the request was in flight.
+      if (slugEl.value.trim().toLowerCase() !== slug) return;
+      if (res.available) {
+        hint.textContent = `carkedit.com/${slug} — available`;
+        hint.className = 'account__slug-hint account__slug-hint--ok';
+      } else {
+        hint.textContent = res.reason || `carkedit.com/${slug} — unavailable`;
+        hint.className = 'account__slug-hint account__slug-hint--err';
+      }
+    }, 400);
   },
   // Auth actions
   showLogin(mode = 'signin') {
