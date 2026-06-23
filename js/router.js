@@ -1,6 +1,9 @@
 // CarkedIt Online — Screen Router
 'use strict';
 
+// First import: hydrates window.brand from the API-injected window.__BRAND__
+// before any screen renders, so partner co-branding is ready on first paint.
+import './config/brand-config.js';
 import { getState, setState, registerPackBrandsFromList } from './state.js';
 import { preloadCards } from './preloader.js';
 import { render as renderMenu } from './screens/menu.js';
