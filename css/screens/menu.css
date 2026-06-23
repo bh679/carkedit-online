@@ -34,6 +34,34 @@
   margin-top: var(--space-xs);
 }
 
+/* Partner co-brand lockup — shown ADDITIONALLY on a brand vanity URL.
+   CarkedIt's own logo/title above are never swapped. */
+.menu__cobrand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-top: var(--space-md);
+}
+
+.menu__cobrand-logo {
+  max-height: 56px;
+  max-width: min(220px, 60vw);
+  width: auto;
+  object-fit: contain;
+}
+
+.menu__cobrand-text {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  letter-spacing: 0.2px;
+}
+
+.menu__cobrand-name {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
 .menu__actions {
   display: flex;
   flex-direction: column;
