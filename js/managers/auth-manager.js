@@ -172,6 +172,9 @@ export async function updateUserProfile({ display_name, birth_month, birth_day }
 async function linkOrFetchUser(firebaseUser, token) {
   const API_BASE = `${window.location.origin}/api/carkedit`;
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+  // Partner-brand attribution: when signing up on a brand vanity URL, tag the
+  // new account with the brand (server validates + writes it once, at creation).
+  const brandId = (typeof window !== 'undefined' && window.brand) ? window.brand.id : undefined;
 
   const anonymousId = localStorage.getItem('carkedit-user-id');
   if (anonymousId) {
@@ -179,7 +182,7 @@ async function linkOrFetchUser(firebaseUser, token) {
       const res = await fetch(`${API_BASE}/users/link`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ anonymous_user_id: anonymousId }),
+        body: JSON.stringify({ anonymous_user_id: anonymousId, brand_id: brandId }),
       });
       if (res.ok) {
         const user = await res.json();
@@ -203,6 +206,7 @@ async function linkOrFetchUser(firebaseUser, token) {
         firebase_uid: firebaseUser.uid,
         email: firebaseUser.email,
         avatar_url: firebaseUser.photoURL,
+        brand_id: brandId,
       }),
     });
     if (res.ok) {
