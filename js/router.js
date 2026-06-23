@@ -9,7 +9,7 @@ import { render as renderLobby, renderAdvancedPanel } from './screens/lobby.js';
 import { render as renderOnlineLobby, renderSettingsSummary, renderEditDrawerBody, refreshEditDrawerPackTabLabel, refreshCreateSection } from './screens/online-lobby.js';
 import { render as renderJoinGame } from './screens/join-game.js';
 import { render as renderPhase1 } from './screens/phase1.js';
-import { render as renderPhase23 } from './screens/phase2-3.js';
+import { render as renderPhase23, formatTime } from './screens/phase2-3.js';
 import { render as renderPhase4 } from './screens/phase4.js';
 import { render as renderAccount, renderGamesList, renderMyPacks } from './screens/account.js';
 import { saveGameToHistory, getGameHistory, syncWithServer } from './managers/game-history.js';
@@ -1158,11 +1158,29 @@ document.addEventListener('DOMContentLoaded', () => {
     refreshAdvancedPanel();
   });
 
-  // Register timer update callback — re-render current screen when timer ticks
+  // Register timer update callback — update ONLY the timer display each tick.
+  // A full re-render here would recreate the [data-pitch-reveal] card every second,
+  // re-triggering its flip animation (the "card keeps flipping" bug). Phase changes
+  // are driven separately by the Colyseus phase listener → onScreenChange → showScreen.
   onTimerUpdate(() => {
     const state = getState();
-    if (state.gameMode === 'online' && (state.screen === 'phase2' || state.screen === 'phase3')) {
-      showScreen(state.screen);
+    if (state.gameMode !== 'online') return;
+    if (state.screen !== 'phase2' && state.screen !== 'phase3') return;
+
+    const timeEl = document.querySelector('.pitch-timer__time');
+    if (!timeEl) return; // timer hidden — nothing to update, no re-render needed
+
+    const seconds = state.onlinePhase === 'submit'
+      ? state.playCardTimerSeconds
+      : state.pitchTimerSeconds;
+    if (seconds == null) return;
+
+    timeEl.textContent = formatTime(seconds);
+
+    const wrapper = timeEl.closest('.pitch-timer');
+    if (wrapper) {
+      const countUp = state.gameSettings?.timerCountUp ?? false;
+      wrapper.classList.toggle('pitch-timer--warning', !countUp && seconds < 30);
     }
   });
 
