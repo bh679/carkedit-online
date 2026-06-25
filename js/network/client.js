@@ -471,12 +471,39 @@ export function resyncFromRoomState() {
   }
 }
 
-// Resync when the tab becomes visible again
+// When the tab returns to the foreground, make sure we're still connected.
+// iOS/iPadOS suspends backgrounded tabs and tears down the WebSocket, but the
+// page's JS is frozen so the reconnect logic in onLeave() can't run until the
+// tab unfreezes. On foreground: if we still hold a live room, just resync the
+// screen; otherwise re-establish the connection (token reconnect → fresh-join
+// fallback). Guarded so it never fights an in-flight recovery.
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && _room) {
+  if (document.hidden) return;
+
+  if (_room) {
     console.log('[client] Tab became visible — resyncing from room state');
     resyncFromRoomState();
+    return;
   }
+
+  // No live room. Let any in-flight recovery (e.g. onLeave's reconnect) finish.
+  if (_recoverPromise || _reconnecting) return;
+
+  // Only retry for an online session that actually dropped — a saved session
+  // must still exist (per-tab) so we don't fight an intentional leave.
+  const status = getState().connectionStatus;
+  if (status !== 'disconnected' && status !== 'reconnecting') return;
+  if (!loadSession()) return;
+
+  console.log('[client] Tab became visible while disconnected — attempting recovery');
+  setState({ connectionStatus: 'reconnecting', onlineError: null });
+  attemptRecover(_lastOnUpdate)
+    .then(() => resyncFromRoomState())
+    .catch((err) => {
+      console.log(`[client] Foreground recovery failed: ${err?.message ?? err}`);
+      clearSession();
+      setState({ connectionStatus: 'disconnected', onlineError: 'Disconnected — could not reconnect' });
+    });
 });
 
 function setupRoomListeners(room, onUpdate) {
@@ -855,9 +882,26 @@ function setupRoomListeners(room, onUpdate) {
       resyncFromRoomState();
       console.log('[client] Reconnected successfully');
     } catch (err) {
-      console.log(`[client] Reconnection failed: ${err.message}`);
+      console.log(`[client] Token reconnect failed: ${err.message}; trying fresh re-join`);
       _reconnecting = false;
       _room = null;
+
+      // The reconnection token likely expired (e.g. a long iOS tab suspension
+      // beyond the server's window). Fall back to a fresh join by room code
+      // using the saved identity — the player keeps their server-side score and
+      // is re-seated into the live game rather than dropped entirely.
+      const saved = loadSession();
+      if (saved?.roomCode && saved?.identity?.name) {
+        try {
+          await joinRoom(saved.roomCode, saved.identity, _lastOnUpdate);
+          resyncFromRoomState();
+          console.log('[client] Re-joined after token reconnect failure');
+          return;
+        } catch (joinErr) {
+          console.log(`[client] Fresh re-join failed: ${joinErr.message}`);
+        }
+      }
+
       clearSession();
       setState({
         connectionStatus: 'disconnected',
