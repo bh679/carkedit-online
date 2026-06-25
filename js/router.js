@@ -18,7 +18,7 @@ import { render as renderAccount, renderGamesList, renderMyPacks } from './scree
 import { saveGameToHistory, getGameHistory, syncWithServer } from './managers/game-history.js';
 import { shuffle } from './utils/shuffle.js';
 import { escapeHtml } from './utils/escape.js';
-import { initErrorLogger } from './utils/error-logger.js';
+import { initErrorLogger, markErrorContext } from './utils/error-logger.js';
 import { render as renderIssueReport, submit as submitIssueReport } from './components/issue-report.js';
 import {
   createRoom as networkCreateRoom,
@@ -66,6 +66,10 @@ const SCREENS = {
 };
 
 export function showScreen(name, updates = {}) {
+  // A game starts when phase 1 opens (both local startPhase1() and the online
+  // flow route through here). Mark it as the error-relevance boundary so a later
+  // issue report can separate this game's errors from stale earlier ones.
+  if (name === 'phase1') markErrorContext();
   setState({ screen: name, ...updates });
   const state = getState();
   const app = document.getElementById('app');

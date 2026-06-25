@@ -923,6 +923,19 @@ body {
   opacity: 0.7;
 }
 
+/* Stale errors: captured before the reported game began — likely unrelated, so
+   de-emphasised (muted, not danger-red) and collapsed by default. */
+.detail__error-log--stale {
+  margin-top: var(--space-sm);
+  border-left-color: var(--color-border, #3a3a4a);
+  opacity: 0.7;
+}
+
+.detail__error-log--stale .detail__error-log-title,
+.detail__error-log--stale .detail__error-type {
+  color: var(--color-text-muted);
+}
+
 /* Debug (row 3) */
 .detail__row--debug {
   opacity: 0.6;
