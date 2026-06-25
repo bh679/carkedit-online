@@ -9,6 +9,7 @@ import { mountPlayerStats } from './components/player-stats.js';
 import { mountPackStats } from './components/packs-stats-viewer.js';
 import { mountGamesStats } from './components/games-stats-viewer.js';
 import { mountSurveyResponses } from './components/survey-responses-viewer.js';
+import { mountCardStats } from './components/cards-stats-viewer.js';
 import {
   renderGameFilters,
   renderStatusChips,
@@ -1090,16 +1091,13 @@ let cardDevFilter = 'nodev'; // 'all' | 'dev' | 'nodev'
 let cardPackFilter = 'all'; // 'all' | 'base' | pack_id string
 let cardAuthorFilter = 'all'; // 'all' | creator_name string
 
-async function fetchCardStats() {
-  try {
-    const params = cardDevFilter !== 'all' ? `?dev=${cardDevFilter}` : '';
-    const res = await authFetch(`${apiBase()}/api/carkedit/cards/stats${params}`);
-    if (!res.ok) return;
-    cardStats = await res.json();
-  } catch (err) {
-    console.warn('[dashboard] Failed to fetch card stats:', err);
-  }
-}
+// Card analytics render via the shared mountCardStats() module so the Stats page
+// and the brand-admin page use ONE code path. fetchCardStats is now a no-op (the
+// module fetches /cards/stats internally on mount/refresh); kept so existing
+// Promise.all() call sites (boot + every refresh tick) stay valid without edits
+// and don't issue a duplicate request. Mirrors fetchPackStats. (loadCardData is
+// intentionally left live — its one-time boot fan-out is an accepted double-fetch.)
+async function fetchCardStats() {}
 
 function filterCards(cards) {
   let result = cards;
@@ -1231,76 +1229,29 @@ function getActiveCards() {
   return cards;
 }
 
+// Card analytics now renders via the shared mountCardStats() module (one code
+// path with the brand-admin page). Mount-once/refresh like renderGameList /
+// renderPackStats: a fresh #card-analytics (renderPage rebuild or data-source
+// switch) re-mounts with the current apiBase. The module registers its filter +
+// preview handlers on window.dash (ns:'dash') so game-detail mini-cards keep
+// calling window.dash.previewCard. Pack metadata stays GLOBAL (packsMetaBase).
+// The old inline card functions above remain as dead code (referenced by the
+// window.dash literal) but are superseded by the module's handlers at mount.
+let cardStatsHandle = null;
 function renderCardAnalytics() {
   const el = document.getElementById('card-analytics');
   if (!el) return;
-
-  const deckLabels = { all: 'All Decks', die: 'Die', living: 'Live', bye: 'Bye' };
-  const deckActive = cardDeckFilter !== 'all' ? 'dashboard__filter-btn--active' : '';
-
-  const sortOption = (value, label) =>
-    `<option value="${value}" ${cardSortMode === value ? 'selected' : ''}>${label}</option>`;
-
-  const dirArrow = cardSortAsc ? '&#x25B2;' : '&#x25BC;';
-  const dirLabel = cardSortAsc ? 'Asc' : 'Desc';
-
-  const filtered = filterCards(getActiveCards());
-  const cardsHtml = filtered.length > 0
-    ? renderCardList(filtered.map((c) => fromStatRow(c)), {
-        size: 'md',
-        showStats: true,
-        scrollArrows: true,
-        legacy: true,
-        id: 'card-scroll-row',
-        buildOnClick: buildStatCardOnClick,
-        highlightStat: cardSortMode,
-      })
-    : '<p class="dashboard__card-row-empty">No data yet</p>';
-
-  const cardDevLabels = { all: 'With Dev', nodev: 'No Dev', dev: 'Only Dev' };
-  const cardDevActive = cardDevFilter !== 'all' ? 'dashboard__filter-btn--active' : '';
-
-  const truncateLabel = (str, max = 28) => {
-    const s = String(str ?? '');
-    return s.length > max ? s.slice(0, max - 1) + '…' : s;
-  };
-
-  const packOption = (value, label) =>
-    `<option value="${value}" ${cardPackFilter === value ? 'selected' : ''}>${label}</option>`;
-
-  const authorOption = (value, label) =>
-    `<option value="${value}" ${cardAuthorFilter === value ? 'selected' : ''}>${label}</option>`;
-
-  el.innerHTML = `
-    <div class="dashboard__card-analytics-header">
-      <div class="dashboard__sort-bar">
-        <select class="dashboard__sort-select" onchange="window.dash.setCardSort(this.value)">
-          ${sortOption('play_rate', 'Play Rate')}
-          ${sortOption('play_count', 'Play Count')}
-          ${sortOption('win_rate', 'Win Rate')}
-          ${sortOption('draw_count', 'Draw Count')}
-        </select>
-        <button class="dashboard__filter-btn" onclick="window.dash.toggleCardSortDir()" title="${dirLabel}">${dirArrow}</button>
-      </div>
-      <div class="dashboard__filter-bar">
-        <select class="dashboard__sort-select" onchange="window.dash.setPackFilter(this.value)">
-          ${packOption('all', 'All Packs')}
-          ${cardAuthorFilter === 'all' ? packOption('base', 'Base Game') : ''}
-          ${packList.filter(p => cardAuthorFilter === 'all' || packCreatorMap[p.id] === cardAuthorFilter).map(p => packOption(p.id, truncateLabel(p.title))).join('')}
-        </select>
-        <select class="dashboard__sort-select" onchange="window.dash.setAuthorFilter(this.value)">
-          ${authorOption('all', 'All Authors')}
-          ${authorList.map(a => authorOption(a, a)).join('')}
-        </select>
-        <button class="dashboard__filter-btn ${deckActive}" onclick="window.dash.cycleDeckFilter()">${deckLabels[cardDeckFilter]}</button>
-        <button class="dashboard__filter-btn ${cardDevActive}" onclick="window.dash.cycleCardDev()">${cardDevLabels[cardDevFilter]}</button>
-      </div>
-    </div>
-    ${cardsHtml}
-  `;
-
-  // Bind shared scroll-arrow visibility helper
-  requestAnimationFrame(() => bindScrollArrows('card-scroll-row'));
+  if (el.dataset.cvMounted !== '1') {
+    el.dataset.cvMounted = '1';
+    cardStatsHandle = mountCardStats(el, {
+      authFetch,
+      cardsStatsUrl: `${apiBase()}/api/carkedit/cards/stats`,
+      packsMetaBase: `${apiBase()}/api/carkedit`,
+      ns: 'dash',
+    });
+  } else if (cardStatsHandle) {
+    cardStatsHandle.refresh();
+  }
 }
 
 // Back-compat: some legacy markup or external callers may still reference
