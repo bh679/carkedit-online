@@ -1,6 +1,6 @@
 {
   "name": "carkedit-online",
-  "version": "1.09.0018",
+  "version": "1.09.0019",
   "description": "CarkedIt Online — turn-based card game web app (vanilla HTML/CSS/JS)",
   "requiredApiVersion": "0.03.0007",
   "main": "index.html",
