@@ -17,6 +17,7 @@ export const NAV_LABELS = {
   'stats-surveys':       'Surveys',
   'admin-users':         'Users',
   'admin-roles':         'Roles',
+  'admin-brands':        'Brands',
   'admin-image-gen':     'ImageAI',
   'financial-dashboard': 'Costs',
   'dev-dashboard':       'Dev',
