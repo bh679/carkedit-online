@@ -195,15 +195,25 @@
         patchDevFlag: null,      // read-only
       });
 
-      // Cards: js/components/cards-stats-viewer.js is extracted on a parallel
-      // fork (origin/dev/evangelist-cards-viewer), not yet on this branch.
-      // Placeholder until it lands — do not block on it.
+      // Cards: mounted via dynamic import + graceful fallback, so a missing
+      // module degrades to a placeholder instead of breaking the whole page.
+      // Card stats are brand-scoped via cardsStatsUrl; pack metadata (art/text)
+      // stays GLOBAL via packsMetaBase. Handlers register on window.dash (ns:'dash').
       const cardsEl = document.getElementById('card-analytics');
-      if (cardsEl) cardsEl.innerHTML = '<p class="brand-admin__empty">Card analytics — coming soon.</p>';
-      // TODO(P5-cards): once cards-stats-viewer.js merges into the feature branch, mount it.
-      // Pack metadata stays GLOBAL via packsMetaBase; handlers register on window.dash (ns:'dash'):
-      //   import { mountCardStats } from '/js/components/cards-stats-viewer.js';
-      //   mountCardStats(cardsEl, { authFetch, cardsStatsUrl: `${base}/cards/stats`, packsMetaBase: '/api/carkedit', ns: 'dash', brandId });
+      if (cardsEl) {
+        import('/js/components/cards-stats-viewer.js')
+          .then(({ mountCardStats }) => mountCardStats(cardsEl, {
+            authFetch,
+            cardsStatsUrl: `${base}/cards/stats`,
+            packsMetaBase: '/api/carkedit',
+            ns: 'dash',
+            brandId,
+          }))
+          .catch((err) => {
+            cardsEl.innerHTML = '<p class="brand-admin__empty">Card analytics — coming soon.</p>';
+            console.warn('[brand-admin] cards viewer unavailable:', err);
+          });
+      }
 
       loadSignups(brandId);
     }
