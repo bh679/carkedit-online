@@ -12,7 +12,10 @@ export const PAGES = [
   { path: 'admin-users',          label: 'User Management',       defaultMinRole: 'Admin',  category: 'admin'  },
   { path: 'admin-roles',          label: 'Roles & Permissions',   defaultMinRole: 'Admin',  category: 'admin'  },
   { path: 'admin-brands',         label: 'Brand Requests',        defaultMinRole: 'Admin',  category: 'admin'  },
-  { path: 'brand-admin',          label: 'Brand Admin',           defaultMinRole: 'Host',   category: 'admin'  },
+  // Served by the API resolver at /<slug>/admin (not a top-level page). Kept in
+  // the registry so guardPage('brand-admin') resolves its Host gate, but flagged
+  // `hidden` so it never appears in the admin nav menu.
+  { path: 'brand-admin',          label: 'Brand Admin',           defaultMinRole: 'Host',   category: 'admin', hidden: true },
   { path: 'card-scale-test',      label: 'Card Scale Test',       defaultMinRole: 'QA',     category: 'dev'    },
   { path: 'card-test',            label: 'Card Test',             defaultMinRole: 'QA',     category: 'dev'    },
   { path: 'color-demo',           label: 'Color Demo',            defaultMinRole: 'QA',     category: 'dev'    },

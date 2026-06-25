@@ -51,7 +51,21 @@ test('buildAdminNavLinks: empty input yields an empty list', () => {
 test('renderAdminMenuItems: an Admin sees every admin page, in registry order', () => {
   const html = renderAdminMenuItems(); // default role = Admin
   const labels = [...html.matchAll(/auth-menu__item" href="[^"]+">([^<]+)</g)].map((m) => m[1]);
-  assert.deepEqual(labels, ['ImageAI', 'Users', 'Roles', 'Brands', 'Brand Admin', 'Deploy', 'Dev', 'Costs', 'Stats']);
+  // 'Brand Admin' is intentionally absent — it's a hidden page reached via /<slug>/admin.
+  assert.deepEqual(labels, ['ImageAI', 'Users', 'Roles', 'Brands', 'Deploy', 'Dev', 'Costs', 'Stats']);
+});
+
+test('renderAdminMenuItems: hidden admin pages never appear in the menu', () => {
+  const html = renderAdminMenuItems(); // default role = Admin (sees everything it's allowed to)
+  assert.ok(!html.includes('href="brand-admin"'), 'brand-admin is hidden from the nav');
+});
+
+test('buildAdminNavLinks: excludes pages flagged hidden', () => {
+  const links = buildAdminNavLinks([
+    { path: 'shown',  label: 'Shown',  category: 'admin', currentMinRole: 'QA' },
+    { path: 'secret', label: 'Secret', category: 'admin', currentMinRole: 'QA', hidden: true },
+  ]);
+  assert.deepEqual(links.map((l) => l.path), ['shown']);
 });
 
 test('renderAdminMenuItems: emits anchors carrying the links the old hardcoded list was missing', () => {
