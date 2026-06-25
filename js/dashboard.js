@@ -1891,22 +1891,6 @@ async function signOut() {
   renderAuthGate('Sign in to access the dashboard.');
 }
 
-async function bootstrapAdmin() {
-  try {
-    const res = await authFetch(`${apiBase()}/api/carkedit/admin/bootstrap`, { method: 'POST' });
-    if (res.ok) {
-      authUser = await res.json();
-      bootDashboard();
-    } else {
-      const data = await res.json();
-      renderAuthGate(data.error || 'Bootstrap failed.', false);
-    }
-  } catch (err) {
-    console.warn('[dashboard] Bootstrap failed:', err);
-    renderAuthGate('Bootstrap failed. Please try again.');
-  }
-}
-
 async function checkAdminAndBoot() {
   // Fetch current user profile to check admin flag
   try {
@@ -1917,14 +1901,8 @@ async function checkAdminAndBoot() {
     }
     authUser = await res.json();
     if (!authUser.is_admin) {
-      // Try bootstrap — succeeds only if no admins exist yet
-      const bootstrapRes = await authFetch(`${apiBase()}/api/carkedit/admin/bootstrap`, { method: 'POST' });
-      if (bootstrapRes.ok) {
-        authUser = await bootstrapRes.json();
-        bootDashboard();
-        return;
-      }
-      // Admins exist but this user isn't one — show access denied
+      // Admin status is granted only via the ADMIN_EMAILS allowlist
+      // (server-side, on sign-in) — no in-app self-promotion.
       renderAuthGate('You do not have admin access.', false);
       return;
     }

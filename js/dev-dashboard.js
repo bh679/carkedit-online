@@ -1095,11 +1095,9 @@ function renderAuthGate(msg, showSignIn = false) {
         const res = await fetch('/api/carkedit/users/me', { headers: { Authorization: `Bearer ${token}` } });
         if (!res.ok) { window.location.href = '/'; return; }
         const me = await res.json();
-        if (!me.is_admin) {
-          // Try bootstrap
-          const bRes = await fetch('/api/carkedit/admin/bootstrap', { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
-          if (!bRes.ok) { window.location.href = '/'; return; }
-        }
+        // Admin status is granted only via the ADMIN_EMAILS allowlist
+        // (server-side, on sign-in) — no in-app self-promotion.
+        if (!me.is_admin) { window.location.href = '/'; return; }
       } catch { window.location.href = '/'; return; }
       _fbUserInfo = { displayName: user.displayName, photoURL: user.photoURL, email: user.email };
       await init();

@@ -283,6 +283,17 @@ function _renderErrorLog(errorLogJson) {
   try { errors = JSON.parse(errorLogJson); } catch { return ''; }
   if (!Array.isArray(errors) || errors.length === 0) return '';
 
+  // Reports tag each error `relevant: true|false` relative to when the game began.
+  // Older reports have no flag — treat those as relevant (prior behaviour).
+  const relevant = errors.filter(e => e.relevant !== false);
+  const stale = errors.filter(e => e.relevant === false);
+
+  return _renderErrorSection(relevant, 'Errors', '')
+    + _renderErrorSection(stale, 'Earlier errors — likely unrelated', ' detail__error-log--stale is-collapsed');
+}
+
+function _renderErrorSection(errors, title, extraClass) {
+  if (!errors || errors.length === 0) return '';
   const rows = errors.map(e => {
     const ts = e.timestamp ? new Date(e.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '';
     const type = e.type ? `<span class="detail__error-type">${e.type}</span>` : '';
@@ -291,9 +302,9 @@ function _renderErrorLog(errorLogJson) {
   }).join('');
 
   return `
-    <div class="detail__error-log">
+    <div class="detail__error-log${extraClass}">
       <h5 class="detail__error-log-title" onclick="this.parentElement.classList.toggle('is-collapsed')">
-        Errors (${errors.length}) <span class="detail__toggle-arrow">&#9660;</span>
+        ${title} (${errors.length}) <span class="detail__toggle-arrow">&#9660;</span>
       </h5>
       <div class="detail__error-log-list">${rows}</div>
     </div>`;
