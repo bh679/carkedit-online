@@ -382,3 +382,8 @@ body.page--marketplace #app {
 .account__game-main { display: flex; justify-content: space-between; align-items: baseline; }
 .account__game-score { font-weight: bold; }
 .account__game-meta { font-size: 0.8rem; opacity: 0.7; margin-top: 0.2rem; }
+
+/* Partner-brand ("Evangelist") call-to-action — links to brand-signup.html */
+.account__hint { font-size: 0.85rem; opacity: 0.7; margin: 0 0 0.75rem; }
+.account__hint code { background: rgba(0, 0, 0, 0.35); padding: 0.05em 0.4em; border-radius: 4px; }
+.account__cta { display: inline-block; text-decoration: none; }

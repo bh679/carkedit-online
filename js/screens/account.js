@@ -2,6 +2,11 @@
 'use strict';
 
 import { renderPackGrid } from '../components/pack-card.js';
+import { ROLE_LABELS } from '../config/brand-labels.js';
+
+// Configurable partner-brand role label (e.g. "Death Evangelist") — never
+// hardcode the display name; it lives in brand-labels.js.
+const EVANGELIST = ROLE_LABELS.evangelist.singular;
 
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({
@@ -87,6 +92,13 @@ export function render(state) {
       <section class="account__section">
         <h2 class="account__section-title">My Expansion Packs</h2>
         <div id="account-packs-mount"><p class="marketplace__empty">Loading…</p></div>
+      </section>
+
+      <section class="account__section">
+        <h2 class="account__section-title">Become a ${esc(EVANGELIST)}</h2>
+        <p class="account__hint">Run co-branded games at your own URL (<code>carkedit.com/your-url</code>).
+          Apply for a partner brand — an admin will review your request.</p>
+        <a class="btn btn--primary account__cta" href="brand-signup">Become a ${esc(EVANGELIST)}</a>
       </section>
     </div>
   `;
