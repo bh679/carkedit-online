@@ -483,7 +483,7 @@ const DEFAULTS = {
   rounds: 1, handSize: 5, enableLive: true, enableBye: true, enableEulogy: true,
   forceWildcards: 'atLeastOne', playableWildcards: true, wildcardCount: 2, eulogistCount: 2,
   handRedraws: 'once_per_phase', timerEnabled: false, ultraQuickMode: false,
-  optionalCardPlay: false,
+  optionalCardPlay: false, showCardReveal: false,
 };
 
 const MODE_PRESETS = {
