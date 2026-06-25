@@ -4,22 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CarkedIt — Brand Admin</title>
-    <link rel="stylesheet" href="css/base.css?v=1.06.0193">
-    <link rel="stylesheet" href="css/components/auth.css?v=1.06.0193">
-    <link rel="stylesheet" href="css/components/admin-header.css?v=1.06.0193">
-    <link rel="stylesheet" href="css/dashboard.css?v=1.06.0193">
+    <!-- Base + components the shared stat viewers render with (mirror stats.html). -->
+    <link rel="stylesheet" href="css/base.css?v=1.09.0015">
+    <link rel="stylesheet" href="css/components/card.css?v=1.09.0015">
+    <link rel="stylesheet" href="css/components/card-list.css?v=1.09.0015">
+    <link rel="stylesheet" href="css/components/hand.css?v=1.09.0015">
+    <link rel="stylesheet" href="css/components/auth.css?v=1.09.0015">
+    <link rel="stylesheet" href="css/components/admin-header.css?v=1.09.0015">
+    <!-- dashboard.css MUST load last (it overrides base.css's mobile viewport caps). -->
+    <link rel="stylesheet" href="css/dashboard.css?v=1.09.0015">
     <style>
-        .brand-admin { max-width: 900px; margin: 0 auto; padding: 1.5rem; }
+        .brand-admin { max-width: 1024px; margin: 0 auto; padding: 1.5rem; }
         .brand-admin__header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
         .brand-admin__logo { width: 40px; height: 40px; border-radius: 8px; object-fit: contain; background: #1a1a1a; }
         .brand-admin__title { font-size: 1.4rem; margin: 0; }
         .brand-admin__sub { color: #888; font-size: 0.85rem; margin: 0.15rem 0 0; }
         .brand-admin__section { margin-bottom: 2rem; }
         .brand-admin__section h2 { font-size: 1.1rem; margin: 0 0 1rem; color: #ccc; }
-        .brand-admin__stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.75rem; }
-        .brand-admin__stat { background: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 0.9rem 1rem; display: flex; flex-direction: column; gap: 0.25rem; }
-        .brand-admin__stat-num { font-size: 1.5rem; font-weight: 700; color: #fff; }
-        .brand-admin__stat-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: #888; }
         .brand-admin__table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
         .brand-admin__table th,
         .brand-admin__table td { padding: 0.6rem 0.75rem; text-align: left; border-bottom: 1px solid #333; }
@@ -40,7 +41,17 @@
     import { guardPage } from './js/managers/page-permission-guard.js';
     import { renderAdminHeader, bindAdminHeader, resetAdminHeaderMenu } from './js/components/admin-header.js';
     import { getFirebaseConfig } from './js/firebase-config.js';
-    import { resolveBrandId, renderStatsPanel, renderUsersPanel } from './js/brand-admin.js';
+    import { escapeHtml } from './js/utils/escape.js';
+    import { resolveBrandId, renderUsersPanel } from './js/brand-admin.js';
+    // brand-config.js hydrates window.brand from the injected window.__BRAND__ as
+    // an import side-effect — required for the /<slug>/admin route to resolve the id.
+    import './js/config/brand-config.js';
+    // The DRY core: the same viewers the admin Stats page mounts, brand-scoped here.
+    import { mountGamesStats } from './js/components/games-stats-viewer.js';
+    import { mountPackStats } from './js/components/packs-stats-viewer.js';
+    import { mountSurveyResponses } from './js/components/survey-responses-viewer.js';
+    import { mountPlayerStats } from './js/components/player-stats.js';
+    import { renderGameDetail, init as initGameDetail } from './js/components/game-detail.js';
 
     // Cosmetic client guard (Host+). The real boundary is server-side
     // requireBrandOwner on every /brands/:id/* fetch below.
@@ -85,7 +96,7 @@
         <div class="brand-admin__gate">
           <div>
             <h1>Brand Admin</h1>
-            <p>${msg}</p>
+            <p>${escapeHtml(msg)}</p>
             ${showSignIn ? '<button class="btn btn--google" id="sign-in-btn" style="font-size:1rem;padding:0.75em 1.5em">Sign in with Google</button>' : ''}
           </div>
         </div>`;
@@ -99,12 +110,17 @@
       }
     }
 
-    function renderPanel(brand, stats, users) {
+    // Build the brand dashboard shell, then mount the shared viewers into it.
+    function renderDashboard(brand, brandId) {
       resetAdminHeaderMenu();
       const app = document.getElementById('app');
       const role = currentUser?.role || 'Host';
-      const logo = brand?.logo_url
-        ? `<img class="brand-admin__logo" src="${brand.logo_url}" alt="" onerror="this.style.display='none'" />`
+      // window.brand uses logoUrl; /brands/mine rows use logo_url — accept either.
+      const logoUrl = brand?.logoUrl || brand?.logo_url || '';
+      const name = brand?.name || 'Brand';
+      const slug = brand?.slug || '';
+      const logo = logoUrl
+        ? `<img class="brand-admin__logo" src="${escapeHtml(logoUrl)}" alt="" onerror="this.style.display='none'" />`
         : '';
       app.innerHTML = `
         ${renderAdminHeader({ user: fbUserInfo, role })}
@@ -112,20 +128,93 @@
           <div class="brand-admin__header">
             ${logo}
             <div>
-              <h1 class="brand-admin__title">${brand?.name ? brand.name : 'Brand'} Admin</h1>
-              <p class="brand-admin__sub">${brand?.slug ? 'play.carkedit.com/' + brand.slug : ''}</p>
+              <h1 class="brand-admin__title">${escapeHtml(name)} Admin</h1>
+              <p class="brand-admin__sub">${slug ? 'play.carkedit.com/' + escapeHtml(slug) + '/admin' : ''}</p>
             </div>
           </div>
+          <section class="brand-admin__section"><h2>Games</h2><div id="game-list"></div></section>
+          <section class="brand-admin__section"><h2>Card analytics</h2><div id="card-analytics"></div></section>
+          <section class="brand-admin__section"><h2>Packs</h2><div id="pack-stats"></div></section>
+          <section class="brand-admin__section"><h2>Survey responses</h2><div id="survey-responses"></div></section>
+          <section class="brand-admin__section"><h2>Players</h2><div id="user-stats"></div></section>
           <section class="brand-admin__section">
-            <h2>Game stats</h2>
-            ${renderStatsPanel(stats)}
-          </section>
-          <section class="brand-admin__section">
-            <h2>Signed-up accounts <span class="brand-admin__count">(${Array.isArray(users) ? users.length : 0})</span></h2>
-            ${renderUsersPanel(users)}
+            <h2>Signed-up accounts <span class="brand-admin__count" id="signups-count"></span></h2>
+            <div id="brand-signups"></div>
           </section>
         </div>`;
       bindAdminHeader(app, { user: fbUserInfo, role, onSignOut: doSignOut });
+      mountViewers(brandId);
+    }
+
+    // Mount the five shared viewers brand-scoped + the signed-up-accounts list.
+    function mountViewers(brandId) {
+      const base = `/api/carkedit/brands/${encodeURIComponent(brandId)}`;
+      // games + survey viewers register inline-onclick handlers on window.dash (ns).
+      window.dash = window.dash || {};
+      initGameDetail({ authFetch, apiBase: '' });
+
+      mountGamesStats(document.getElementById('game-list'), {
+        authFetch,
+        gamesBase: base,
+        ns: 'dash',
+        renderGameDetail,
+        gameDetailUrl: (gid) => `${base}/games/${encodeURIComponent(gid)}`,
+        seeAllHref: null,
+        patchDevFlag: null,      // read-only: no DEV toggle in the brand view
+        confirmDevToggle: null,
+      });
+
+      mountPackStats(document.getElementById('pack-stats'), {
+        authFetch,
+        statsUrl: `${base}/packs/stats`,
+        brandId,                 // enables the "Brand packs only" filter toggle
+        onEditCost: null,        // read-only
+        onToggleDev: null,
+      });
+
+      mountSurveyResponses(document.getElementById('survey-responses'), {
+        authFetch,
+        surveyBase: base,
+        ns: 'dash',
+        pageSize: 5,
+        patchDevFlag: null,      // read-only
+        confirmDevToggle: null,
+        seeAllHref: null,
+      });
+
+      mountPlayerStats(document.getElementById('user-stats'), {
+        authFetch,
+        apiBase: '',
+        statsBasePath: base,     // brand-scopes /users/stats + /games?playerName=
+        showSeeAllLink: false,
+        patchDevFlag: null,      // read-only
+      });
+
+      // Cards: js/components/cards-stats-viewer.js is being extracted in a parallel
+      // session. Placeholder until it lands — do not block on it.
+      const cardsEl = document.getElementById('card-analytics');
+      if (cardsEl) cardsEl.innerHTML = '<p class="brand-admin__empty">Card analytics — coming soon.</p>';
+      // TODO(P5-cards): once cards-stats-viewer.js exists, mount it here:
+      //   import { mountCardStats } from './js/components/cards-stats-viewer.js';
+      //   mountCardStats(cardsEl, { authFetch, statsUrl: `${base}/cards/stats`, brandId });
+
+      loadSignups(brandId);
+    }
+
+    // Signed-up accounts attributed to this brand (users.brand_id). Reuses the P3
+    // renderUsersPanel table verbatim.
+    async function loadSignups(brandId) {
+      const el = document.getElementById('brand-signups');
+      const countEl = document.getElementById('signups-count');
+      try {
+        const res = await authFetch(`/api/carkedit/brands/${encodeURIComponent(brandId)}/users`);
+        if (!res.ok) { el.innerHTML = '<p class="brand-admin__empty">Failed to load accounts.</p>'; return; }
+        const users = (await res.json()).users || [];
+        el.innerHTML = renderUsersPanel(users);
+        if (countEl) countEl.textContent = `(${users.length})`;
+      } catch (err) {
+        el.innerHTML = '<p class="brand-admin__empty">Failed to load accounts.</p>';
+      }
     }
 
     async function fetchCurrentUser() {
@@ -139,44 +228,37 @@
       try {
         await fetchCurrentUser();
 
-        // Discover the brand: explicit ?brand=<id> wins, else the user's own.
+        // Resolve the brand id: explicit ?brand=<id> wins (admin inspecting another),
+        // then window.brand.id (injected on /<slug>/admin), then the user's own brand.
         const queryBrand = new URLSearchParams(location.search).get('brand');
-        let myBrands = [];
-        const mineRes = await authFetch('/api/carkedit/brands/mine');
-        if (mineRes.status === 503) { renderGate('Authentication service unavailable.', false); return; }
-        if (mineRes.status === 401) { renderGate('Sign in to view your brand admin panel.', true); return; }
-        if (mineRes.ok) {
-          const data = await mineRes.json();
-          myBrands = data.brands || [];
-        }
+        let brandId = queryBrand ? String(queryBrand) : (window.brand?.id || null);
+        let brand = (window.brand && window.brand.id === brandId) ? window.brand : null;
 
-        const brandId = resolveBrandId(queryBrand, myBrands);
         if (!brandId) {
-          renderGate('No brand is linked to your account yet. Request one to become an Evangelist.', false);
-          return;
+          const mineRes = await authFetch('/api/carkedit/brands/mine');
+          if (mineRes.status === 503) { renderGate('Authentication service unavailable.'); return; }
+          if (mineRes.status === 401) { renderGate('Sign in to view your brand admin panel.', true); return; }
+          let myBrands = [];
+          if (mineRes.ok) myBrands = (await mineRes.json()).brands || [];
+          brandId = resolveBrandId(null, myBrands);
+          brand = myBrands.find((b) => b.id === brandId) || null;
+          if (!brandId) {
+            renderGate('No brand is linked to your account yet. Request one to become an Evangelist.');
+            return;
+          }
         }
 
-        const [statsRes, usersRes] = await Promise.all([
-          authFetch(`/api/carkedit/brands/${encodeURIComponent(brandId)}/stats`),
-          authFetch(`/api/carkedit/brands/${encodeURIComponent(brandId)}/users`),
-        ]);
+        // Access probe / gate. The viewers each fetch their own data, but probing
+        // once gives a clean gate instead of five viewers all erroring identically.
+        const probe = await authFetch(`/api/carkedit/brands/${encodeURIComponent(brandId)}/stats`);
+        if (probe.status === 403) { renderGate("You don't have access to this brand."); return; }
+        if (probe.status === 404) { renderGate('Brand not found.'); return; }
+        if (probe.status === 503) { renderGate('Authentication service unavailable.'); return; }
+        if (!probe.ok) { renderGate('Failed to load brand data.'); return; }
 
-        if (statsRes.status === 403 || usersRes.status === 403) {
-          renderGate("You don't have access to this brand.", false);
-          return;
-        }
-        if (statsRes.status === 404) { renderGate('Brand not found.', false); return; }
-        if (statsRes.status === 503 || usersRes.status === 503) {
-          renderGate('Authentication service unavailable.', false); return;
-        }
-        if (!statsRes.ok || !usersRes.ok) { renderGate('Failed to load brand data.', false); return; }
-
-        const statsData = await statsRes.json();
-        const usersData = await usersRes.json();
-        const brand = myBrands.find((b) => b.id === brandId) || null;
-        renderPanel(brand, statsData.stats, usersData.users);
+        renderDashboard(brand, brandId);
       } catch (err) {
-        renderGate('Failed to load brand admin panel.', false);
+        renderGate('Failed to load brand admin panel.');
       }
     }
 
