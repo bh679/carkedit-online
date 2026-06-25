@@ -7,6 +7,7 @@ import { render as renderCard } from './components/card.js';
 import { renderAdminHeader, bindAdminHeader, resetAdminHeaderMenu } from './components/admin-header.js';
 import { mountPlayerStats } from './components/player-stats.js';
 import { mountPackStats } from './components/packs-stats-viewer.js';
+import { mountGamesStats } from './components/games-stats-viewer.js';
 import {
   renderGameFilters,
   renderStatusChips,
@@ -1091,39 +1092,30 @@ function buildGamesSeeAllHref() {
   return qs ? `stats-games.html?${qs}` : 'stats-games.html';
 }
 
+// Games list now renders via the shared mountGamesStats() module (one code path
+// with the brand-admin page). Mount-once/refresh like renderUserStats: a fresh
+// #game-list (renderPage rebuild or data-source switch) re-mounts with the
+// current apiBase. The module registers its filter/card handlers on window.dash.
+let gamesStatsHandle = null;
 function renderGameList() {
   const el = document.getElementById('game-list');
   if (!el) return;
-
-  const hasMore = games.length < gamesTotalCount;
-  const loadMoreBtn = hasMore
-    ? `<button class="dashboard__load-more" onclick="window.dash.loadMoreGames()">Load more (${games.length} of ${gamesTotalCount})</button>`
-    : '';
-  const seeAllBtn = `<a class="dashboard__see-all" href="${buildGamesSeeAllHref()}">See all</a>`;
-  const actionsClass = hasMore ? 'dashboard__list-actions' : 'dashboard__list-actions dashboard__list-actions--solo';
-  const actions = `<div class="${actionsClass}">${loadMoreBtn}${seeAllBtn}</div>`;
-
-  el.innerHTML = `
-    ${renderGameFilters(getGameFilterState(), 'dash')}
-    ${renderStatusChips(getGameFilterState(), 'dash')}
-    ${renderDurationChips(getGameFilterState(), 'dash')}
-    ${renderPlayerChips(getGameFilterState(), 'dash')}
-    ${games.length === 0 ? '<p class="dashboard__empty">No games match filters.</p>' : `
-      <div class="dashboard__list-header">
-        <span class="dashboard__cell dashboard__cell--date">Date/Time</span>
-        <span class="dashboard__cell dashboard__cell--host">Host</span>
-        <span class="dashboard__cell dashboard__cell--players">Players</span>
-        <span class="dashboard__cell dashboard__cell--time">Play Time</span>
-        <span class="dashboard__cell dashboard__cell--status">Status</span>
-        <span class="dashboard__cell dashboard__cell--live"></span>
-        <span class="dashboard__cell dashboard__cell--dev"></span>
-        <span class="dashboard__cell dashboard__cell--error"></span>
-        <span class="dashboard__cell dashboard__cell--issue"></span>
-      </div>
-      ${games.map(renderGameCard).join('')}
-      ${actions}
-    `}
-  `;
+  if (el.dataset.gvMounted !== '1') {
+    el.dataset.gvMounted = '1';
+    gamesStatsHandle = mountGamesStats(el, {
+      authFetch,
+      gamesBase: `${apiBase()}/api/carkedit`,
+      ns: 'dash',
+      renderGameDetail,
+      gameDetailUrl: (id) => `${apiBase()}/api/carkedit/games/${id}`,
+      seeAllHref: buildGamesSeeAllHref,
+      pageSize: gamesPageSize,
+      patchDevFlag: dataSource === 'prod' ? null : patchDevFlag,
+      confirmDevToggle,
+    });
+  } else if (gamesStatsHandle) {
+    gamesStatsHandle.refresh();
+  }
 }
 
 // ── Card Analytics ────────────────────────────────
