@@ -3,6 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Served at /<slug>/admin (a subpath), so relative URLs would resolve
+         against /<slug>/ and 404. Anchor every relative URL — stylesheets,
+         scripts, ES-module imports, and the admin-header's nav links — to the
+         site root. -->
+    <base href="/">
     <title>CarkedIt — Brand Admin</title>
     <!-- Base + components the shared stat viewers render with (mirror stats.html). -->
     <link rel="stylesheet" href="css/base.css?v=1.09.0015">
@@ -38,20 +43,20 @@
     <script type="module">
     'use strict';
 
-    import { guardPage } from './js/managers/page-permission-guard.js';
-    import { renderAdminHeader, bindAdminHeader, resetAdminHeaderMenu } from './js/components/admin-header.js';
-    import { getFirebaseConfig } from './js/firebase-config.js';
-    import { escapeHtml } from './js/utils/escape.js';
-    import { resolveBrandId, renderUsersPanel } from './js/brand-admin.js';
+    import { guardPage } from '/js/managers/page-permission-guard.js';
+    import { renderAdminHeader, bindAdminHeader, resetAdminHeaderMenu } from '/js/components/admin-header.js';
+    import { getFirebaseConfig } from '/js/firebase-config.js';
+    import { escapeHtml } from '/js/utils/escape.js';
+    import { resolveBrandId, renderUsersPanel } from '/js/brand-admin.js';
     // brand-config.js hydrates window.brand from the injected window.__BRAND__ as
     // an import side-effect — required for the /<slug>/admin route to resolve the id.
-    import './js/config/brand-config.js';
+    import '/js/config/brand-config.js';
     // The DRY core: the same viewers the admin Stats page mounts, brand-scoped here.
-    import { mountGamesStats } from './js/components/games-stats-viewer.js';
-    import { mountPackStats } from './js/components/packs-stats-viewer.js';
-    import { mountSurveyResponses } from './js/components/survey-responses-viewer.js';
-    import { mountPlayerStats } from './js/components/player-stats.js';
-    import { renderGameDetail, init as initGameDetail } from './js/components/game-detail.js';
+    import { mountGamesStats } from '/js/components/games-stats-viewer.js';
+    import { mountPackStats } from '/js/components/packs-stats-viewer.js';
+    import { mountSurveyResponses } from '/js/components/survey-responses-viewer.js';
+    import { mountPlayerStats } from '/js/components/player-stats.js';
+    import { renderGameDetail, init as initGameDetail } from '/js/components/game-detail.js';
 
     // Cosmetic client guard (Host+). The real boundary is server-side
     // requireBrandOwner on every /brands/:id/* fetch below.
@@ -190,13 +195,25 @@
         patchDevFlag: null,      // read-only
       });
 
-      // Cards: js/components/cards-stats-viewer.js is being extracted in a parallel
-      // session. Placeholder until it lands — do not block on it.
+      // Cards: mounted via dynamic import + graceful fallback, so a missing
+      // module degrades to a placeholder instead of breaking the whole page.
+      // Card stats are brand-scoped via cardsStatsUrl; pack metadata (art/text)
+      // stays GLOBAL via packsMetaBase. Handlers register on window.dash (ns:'dash').
       const cardsEl = document.getElementById('card-analytics');
-      if (cardsEl) cardsEl.innerHTML = '<p class="brand-admin__empty">Card analytics — coming soon.</p>';
-      // TODO(P5-cards): once cards-stats-viewer.js exists, mount it here:
-      //   import { mountCardStats } from './js/components/cards-stats-viewer.js';
-      //   mountCardStats(cardsEl, { authFetch, statsUrl: `${base}/cards/stats`, brandId });
+      if (cardsEl) {
+        import('/js/components/cards-stats-viewer.js')
+          .then(({ mountCardStats }) => mountCardStats(cardsEl, {
+            authFetch,
+            cardsStatsUrl: `${base}/cards/stats`,
+            packsMetaBase: '/api/carkedit',
+            ns: 'dash',
+            brandId,
+          }))
+          .catch((err) => {
+            cardsEl.innerHTML = '<p class="brand-admin__empty">Card analytics — coming soon.</p>';
+            console.warn('[brand-admin] cards viewer unavailable:', err);
+          });
+      }
 
       loadSignups(brandId);
     }
