@@ -441,8 +441,11 @@ export function resyncFromRoomState() {
       startPlayCardTimer();
     } else if (lbState.onlinePhase === 'reveal') {
       clearAllTimers();
-      // Start reveal animation after DOM renders
-      requestAnimationFrame(() => startRevealSequence());
+      if (getState().gameSettings?.showCardReveal) {
+        requestAnimationFrame(() => startRevealSequence());
+      } else {
+        sendMessage('reveal_complete');
+      }
     } else if (lbState.onlinePhase === 'convince') {
       clearPlayCardTimer();
       clearRevealTimer();
@@ -499,7 +502,7 @@ function setupRoomListeners(room, onUpdate) {
     'forceWildcards', 'playableWildcards', 'wildcardCount', 'eulogistCount',
     'handRedraws', 'timerEnabled', 'pitchTimerEnabled', 'playCardTimerEnabled',
     'timerCountUp', 'pitchDuration', 'timerVisible', 'timerAutoAdvance',
-    'ultraQuickMode', 'optionalCardPlay',
+    'ultraQuickMode', 'optionalCardPlay', 'showCardReveal',
   ];
   for (const key of settingKeys) {
     $(room.state).listen(key, (value) => {
@@ -561,9 +564,12 @@ function setupRoomListeners(room, onUpdate) {
         startPlayCardTimer();
       } else if (lbState.onlinePhase === 'reveal') {
         clearAllTimers();
-        // Start reveal animation after DOM renders
         if (_onScreenChange) _onScreenChange(lbState.screenName);
-        requestAnimationFrame(() => startRevealSequence());
+        if (getState().gameSettings?.showCardReveal) {
+          requestAnimationFrame(() => startRevealSequence());
+        } else {
+          sendMessage('reveal_complete');
+        }
         return;
       } else if (lbState.onlinePhase === 'convince') {
         clearPlayCardTimer();
@@ -897,7 +903,7 @@ function syncGameSettingsFromRoom(room) {
     'forceWildcards', 'playableWildcards', 'wildcardCount', 'eulogistCount',
     'handRedraws', 'timerEnabled', 'pitchTimerEnabled', 'playCardTimerEnabled',
     'timerCountUp', 'pitchDuration', 'timerVisible', 'timerAutoAdvance',
-    'ultraQuickMode', 'optionalCardPlay',
+    'ultraQuickMode', 'optionalCardPlay', 'showCardReveal',
   ];
   const settings = {};
   for (const key of keys) {
