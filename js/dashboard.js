@@ -8,6 +8,7 @@ import { renderAdminHeader, bindAdminHeader, resetAdminHeaderMenu } from './comp
 import { mountPlayerStats } from './components/player-stats.js';
 import { mountPackStats } from './components/packs-stats-viewer.js';
 import { mountGamesStats } from './components/games-stats-viewer.js';
+import { mountSurveyResponses } from './components/survey-responses-viewer.js';
 import {
   renderGameFilters,
   renderStatusChips,
@@ -755,65 +756,27 @@ function buildSurveysSeeAllHref() {
   return qs ? `stats-surveys.html?${qs}` : 'stats-surveys.html';
 }
 
+// Survey responses now render via the shared mountSurveyResponses() module (the
+// NPS summary cards stay in the stats bar). Mount-once/refresh; dev-toggle reused
+// via callback (read-only in prod preview). Handlers register on window.dash.
+let surveyResponsesHandle = null;
 function renderSurveyResponses() {
   const el = document.getElementById('survey-responses');
   if (!el) return;
-
-  const devLabels = { all: 'With Dev', nodev: 'No Dev', dev: 'Only Dev' };
-  const devActive = surveyDevFilter !== 'all' ? 'dashboard__filter-btn--active' : '';
-  const filterBar = `
-    <div class="dashboard__filter-bar">
-      <button class="dashboard__filter-btn ${devActive}" onclick="window.dash.cycleSurveyDev()">${devLabels[surveyDevFilter]}</button>
-    </div>
-  `;
-
-  const seeAllBtn = `<a class="dashboard__see-all" href="${buildSurveysSeeAllHref()}">See all</a>`;
-
-  if (surveyResponses.length === 0) {
-    el.innerHTML = `${filterBar}<p class="dashboard__empty">No survey responses yet.</p>`;
-    return;
+  if (el.dataset.svMounted !== '1') {
+    el.dataset.svMounted = '1';
+    surveyResponsesHandle = mountSurveyResponses(el, {
+      authFetch,
+      surveyBase: `${apiBase()}/api/carkedit`,
+      ns: 'dash',
+      pageSize: surveyPageSize,
+      patchDevFlag: dataSource === 'prod' ? null : patchDevFlag,
+      confirmDevToggle,
+      seeAllHref: buildSurveysSeeAllHref,
+    });
+  } else if (surveyResponsesHandle) {
+    surveyResponsesHandle.refresh();
   }
-
-  const rows = surveyResponses.map(r => {
-    const date = new Date(r.created_at).toLocaleString();
-    const bucket = npsBucketClass(r.nps_score);
-    const player = r.player_name || '(anonymous)';
-    const rawComment = r.comment || '';
-    const rawImprovement = r.improvement || '';
-    const comment = escapeHtml(rawComment);
-    const improvement = escapeHtml(rawImprovement);
-    const sid = escAttr(String(r.id));
-    return `
-      <div class="survey-response">
-        <div class="survey-response__header">
-          <span class="nps-chip ${bucket}">${r.nps_score}</span>
-          <span class="survey-response__player">${escapeHtml(player)}</span>
-          <span class="survey-response__date">${date}</span>
-          ${dataSource === 'prod'
-            ? `<span class="dashboard__dev-toggle ${r.is_dev ? 'is-on' : ''}" title="Read-only in prod preview" style="opacity:0.4;cursor:not-allowed">DEV</span>`
-            : `<button class="dashboard__dev-toggle ${r.is_dev ? 'is-on' : ''}" title="Toggle dev" onclick="window.dash.toggleSurveyDev('${sid}', ${!r.is_dev})">DEV</button>`}
-        </div>
-        ${comment ? `<div class="${surveyFieldClass(rawComment)}"${surveyFieldOnclick(rawComment)}><strong>Comment:</strong> ${comment}</div>` : ''}
-        ${improvement ? `<div class="${surveyFieldClass(rawImprovement)}"${surveyFieldOnclick(rawImprovement)}><strong>Improve:</strong> ${improvement}</div>` : ''}
-      </div>
-    `;
-  }).join('');
-
-  const hasMore = surveyResponses.length < surveyTotal;
-  const loadMoreBtn = hasMore
-    ? `<button class="dashboard__load-more" onclick="window.dash.loadMoreSurveys()">Load more (${surveyResponses.length} of ${surveyTotal})</button>`
-    : '';
-  const actionsClass = hasMore ? 'dashboard__list-actions' : 'dashboard__list-actions dashboard__list-actions--solo';
-  const actions = `<div class="${actionsClass}">${loadMoreBtn}${seeAllBtn}</div>`;
-
-  el.innerHTML = `
-    ${filterBar}
-    <div class="survey-responses__summary">
-      Showing ${surveyResponses.length} of ${surveyTotal} responses
-    </div>
-    <div class="survey-responses__list">${rows}</div>
-    ${actions}
-  `;
 }
 
 const SURVEY_TRUNCATE_CHAR_THRESHOLD = 280;
