@@ -6,6 +6,7 @@ import { render as renderCardList, fromStatRow, bindScrollArrows } from './compo
 import { render as renderCard } from './components/card.js';
 import { renderAdminHeader, bindAdminHeader, resetAdminHeaderMenu } from './components/admin-header.js';
 import { mountPlayerStats } from './components/player-stats.js';
+import { mountPackStats } from './components/packs-stats-viewer.js';
 import {
   renderGameFilters,
   renderStatusChips,
@@ -1356,128 +1357,32 @@ function scrollCards(direction) {
 }
 
 // ── Expansion Pack Usage ─────────────────────────────
-let packStats = { packs: [] };
-let packSortMode = 'usage_count'; // 'usage_count' | 'total_plays' | 'total_wins' | 'win_rate' | 'favorite_count' | 'card_count' | 'title'
-let packSortAsc = false;
-const PACK_INITIAL_LIMIT = 7;
-let packExpanded = false;
+let packStatsHandle = null;
 
-async function fetchPackStats() {
-  try {
-    const res = await authFetch(`${apiBase()}/api/carkedit/packs/stats`);
-    if (!res.ok) return;
-    packStats = await res.json();
-  } catch (err) {
-    console.warn('[dashboard] Failed to fetch pack stats:', err);
-  }
-}
+// Pack stats render via the shared mountPackStats() module so the Stats page and
+// the brand-admin page use ONE code path. fetchPackStats is now a no-op (the
+// module fetches internally on mount/refresh); kept so existing Promise.all()
+// call sites stay valid without edits.
+async function fetchPackStats() {}
 
-function setPackSort(mode) {
-  if (packSortMode === mode) {
-    packSortAsc = !packSortAsc;
-  } else {
-    packSortMode = mode;
-    packSortAsc = false;
-  }
-  renderPackStats();
-}
-
-function togglePackExpanded() {
-  packExpanded = !packExpanded;
-  renderPackStats();
-}
-
-function getSortedPacks() {
-  const packs = [...(packStats.packs || [])];
-  const dir = packSortAsc ? 1 : -1;
-  packs.sort((a, b) => {
-    let av, bv;
-    if (packSortMode === 'total_cost_usd') {
-      av = (a.base_cost_usd || 0) + (a.total_cost_usd || 0);
-      bv = (b.base_cost_usd || 0) + (b.total_cost_usd || 0);
-    } else {
-      av = a[packSortMode];
-      bv = b[packSortMode];
-    }
-    if (typeof av === 'string' || typeof bv === 'string') {
-      return dir * String(av || '').localeCompare(String(bv || ''));
-    }
-    return dir * ((av || 0) - (bv || 0));
-  });
-  return packs;
-}
-
-function packSortHeader(label, mode) {
-  const active = packSortMode === mode;
-  const arrow = active ? (packSortAsc ? ' &#x25B2;' : ' &#x25BC;') : '';
-  const cls = active ? 'dashboard__pack-th dashboard__pack-th--active' : 'dashboard__pack-th';
-  return `<th class="${cls}" onclick="window.dash.setPackSort('${mode}')">${label}${arrow}</th>`;
-}
-
+// Mount-once / refresh, mirroring renderUserStats: renderPage() rebuilds #app, so
+// a fresh #pack-stats (no dataset flag) triggers a re-mount — which also re-reads
+// apiBase() for a data-source switch. onEditCost/onToggleDev are null in prod
+// preview (read-only) and the modal/PATCH flow is reused via callbacks.
 function renderPackStats() {
   const el = document.getElementById('pack-stats');
   if (!el) return;
-
-  const allPacks = getSortedPacks();
-
-  if (allPacks.length === 0) {
-    el.innerHTML = '<p class="dashboard__empty">No expansion packs yet.</p>';
-    return;
+  if (el.dataset.pkMounted !== '1') {
+    el.dataset.pkMounted = '1';
+    packStatsHandle = mountPackStats(el, {
+      authFetch,
+      statsUrl: `${apiBase()}/api/carkedit/packs/stats`,
+      onEditCost: dataSource === 'prod' ? null : (p) => openBaseCostModal(p.id, p.base_cost_usd || 0, p.total_cost_usd || 0),
+      onToggleDev: dataSource === 'prod' ? null : togglePackDev,
+    });
+  } else if (packStatsHandle) {
+    packStatsHandle.refresh();
   }
-
-  const hasMore = allPacks.length > PACK_INITIAL_LIMIT;
-  const packs = (hasMore && !packExpanded) ? allPacks.slice(0, PACK_INITIAL_LIMIT) : allPacks;
-  const hidden = allPacks.length - packs.length;
-
-  const rows = packs.map((p) => {
-    const winRatePct = ((p.win_rate || 0) * 100).toFixed(0);
-    const officialBadge = p.is_official ? ' <span class="dashboard__pack-badge dashboard__pack-badge--official">OFFICIAL</span>' : '';
-    const devBadge = dataSource === 'prod'
-      ? ` <span class="dashboard__dev-toggle ${p.is_dev ? 'is-on' : ''}" title="Read-only in prod preview" style="opacity:0.4;cursor:not-allowed">DEV</span>`
-      : ` <button class="dashboard__dev-toggle ${p.is_dev ? 'is-on' : ''}" title="Toggle dev" onclick="window.dash.togglePackDev('${escAttr(p.id)}', ${!p.is_dev})">DEV</button>`;
-    const statusKey = (p.status || 'draft').toLowerCase();
-    const statusBadge = ` <span class="dashboard__pack-badge dashboard__pack-badge--status dashboard__pack-badge--${statusKey}">${statusKey.toUpperCase()}</span>`;
-    const titleEsc = escAttr(p.title || '(untitled)');
-    const creatorEsc = escAttr(p.creator_name || '—');
-    return `
-      <tr class="dashboard__pack-row">
-        <td class="dashboard__pack-cell dashboard__pack-cell--title">
-          <a href="expansions.html?pack=${encodeURIComponent(p.id)}" target="_blank" rel="noopener">${titleEsc}</a>${statusBadge}${officialBadge}${devBadge}
-        </td>
-        <td class="dashboard__pack-cell">${creatorEsc}</td>
-        <td class="dashboard__pack-cell dashboard__pack-cell--num">${p.card_count || 0}</td>
-        <td class="dashboard__pack-cell dashboard__pack-cell--num">${p.usage_count || 0}</td>
-        <td class="dashboard__pack-cell dashboard__pack-cell--num">${p.total_plays || 0}</td>
-        <td class="dashboard__pack-cell dashboard__pack-cell--num">${p.total_wins || 0}</td>
-        <td class="dashboard__pack-cell dashboard__pack-cell--num">${winRatePct}%</td>
-        <td class="dashboard__pack-cell dashboard__pack-cell--num">${p.favorite_count || 0}</td>
-        <td class="dashboard__pack-cell dashboard__pack-cell--num dashboard__pack-cell--cost" onclick="window.dash.openBaseCostModal('${escAttr(p.id)}', ${p.base_cost_usd || 0}, ${p.total_cost_usd || 0})" title="Click to set base cost">$${((p.base_cost_usd || 0) + (p.total_cost_usd || 0)).toFixed(2)}</td>
-      </tr>`;
-  }).join('');
-
-  el.innerHTML = `
-    <div class="dashboard__pack-stats-wrap">
-      <table class="dashboard__pack-table">
-        <thead>
-          <tr>
-            ${packSortHeader('Pack', 'title')}
-            <th class="dashboard__pack-th">Creator</th>
-            ${packSortHeader('Cards', 'card_count')}
-            ${packSortHeader('Games Used', 'usage_count')}
-            ${packSortHeader('Plays', 'total_plays')}
-            ${packSortHeader('Wins', 'total_wins')}
-            ${packSortHeader('Win Rate', 'win_rate')}
-            ${packSortHeader('Favorites', 'favorite_count')}
-            ${packSortHeader('Cost', 'total_cost_usd')}
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-      ${hasMore ? `
-        <button class="dashboard__load-more" onclick="window.dash.togglePackExpanded()">
-          ${packExpanded ? 'Show less' : `See more (${hidden} more)`}
-        </button>` : ''}
-    </div>`;
 }
 
 // ── Graphs ───────────────────────────────────────────
@@ -1766,16 +1671,13 @@ async function toggleSurveyDev(id, next) {
   } catch (e) { console.error(e); alert('Failed to toggle dev: ' + e.message); }
 }
 
-async function togglePackDev(id, next) {
+async function togglePackDev(pack, next) {
   if (dataSource === 'prod') return; // read-only in prod-preview mode
-  const p = packStats.packs.find(x => x.id === id);
-  const label = p ? (p.title || '(untitled)') : id;
+  const label = pack ? (pack.title || '(untitled)') : '';
   if (!await confirmDevToggle('Pack', label, next)) return;
   try {
-    const updated = await patchDevFlag('packs', id, next);
-    const i = packStats.packs.findIndex(x => x.id === id);
-    if (i >= 0) packStats.packs[i] = { ...packStats.packs[i], is_dev: !!updated.is_dev };
-    renderPackStats();
+    await patchDevFlag('packs', pack.id, next);
+    if (packStatsHandle) packStatsHandle.refresh();
   } catch (e) { console.error(e); alert('Failed to toggle dev: ' + e.message); }
 }
 
@@ -1838,10 +1740,8 @@ async function saveBaseCost(packId) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ base_cost_usd: val }),
     });
-    const i = packStats.packs.findIndex(x => x.id === packId);
-    if (i >= 0) packStats.packs[i].base_cost_usd = val;
     closeBaseCostModal();
-    renderPackStats();
+    if (packStatsHandle) packStatsHandle.refresh();
   } catch (e) {
     console.error(e);
     document.getElementById('base-cost-status').textContent = 'Failed to save: ' + e.message;
@@ -1849,7 +1749,7 @@ async function saveBaseCost(packId) {
   }
 }
 
-window.dash = { cyclePlayTime, cycleGamesCount, cyclePlayersCount, toggleGame, cycleDeckFilter, setCardSort, toggleCardSortDir, cycleCardDev, setPackFilter, setAuthorFilter, setPackSort, togglePackExpanded, cycleSurveyDev, previewCard, closePreview, prevPreviewCard, nextPreviewCard, scrollCards, loadMoreGames, loadMoreSurveys, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange, toggleHideGroup, toggleHideRaw, toggleHideDuration, toggleHidePlayers, toggleExpandGroup, signInWithGoogle, signOut, toggleGameDev, toggleSurveyDev, togglePackDev, openBaseCostModal, closeBaseCostModal, saveBaseCost, cycleDataSource };
+window.dash = { cyclePlayTime, cycleGamesCount, cyclePlayersCount, toggleGame, cycleDeckFilter, setCardSort, toggleCardSortDir, cycleCardDev, setPackFilter, setAuthorFilter, cycleSurveyDev, previewCard, closePreview, prevPreviewCard, nextPreviewCard, scrollCards, loadMoreGames, loadMoreSurveys, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange, toggleHideGroup, toggleHideRaw, toggleHideDuration, toggleHidePlayers, toggleExpandGroup, signInWithGoogle, signOut, toggleGameDev, toggleSurveyDev, openBaseCostModal, closeBaseCostModal, saveBaseCost, cycleDataSource };
 
 // ── Auth Gate UI ─────────────────────────────────────
 function renderAuthGate(message, showSignIn = true) {

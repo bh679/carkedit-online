@@ -22,6 +22,31 @@ function escAttr(str) {
 const PACK_INITIAL_LIMIT = 7;
 const SORTS = ['usage_count', 'total_plays', 'total_wins', 'win_rate', 'favorite_count', 'card_count', 'title', 'total_cost_usd'];
 
+/**
+ * Pure filter + sort for pack rows. Exported for unit testing. When brandOnly
+ * (and a brandId) is set, keeps only packs whose creator belongs to that brand.
+ */
+export function selectPacks(packs, { sortMode = 'usage_count', sortAsc = false, brandOnly = false, brandId = null } = {}) {
+  let out = [...(packs || [])];
+  if (brandId && brandOnly) out = out.filter((p) => p.creator_brand_id === brandId);
+  const dir = sortAsc ? 1 : -1;
+  out.sort((a, b) => {
+    let av, bv;
+    if (sortMode === 'total_cost_usd') {
+      av = (a.base_cost_usd || 0) + (a.total_cost_usd || 0);
+      bv = (b.base_cost_usd || 0) + (b.total_cost_usd || 0);
+    } else {
+      av = a[sortMode];
+      bv = b[sortMode];
+    }
+    if (typeof av === 'string' || typeof bv === 'string') {
+      return dir * String(av || '').localeCompare(String(bv || ''));
+    }
+    return dir * ((av || 0) - (bv || 0));
+  });
+  return out;
+}
+
 export function mountPackStats(rootEl, opts = {}) {
   const { authFetch, statsUrl, brandId = null, onEditCost = null, onToggleDev = null } = opts;
   const state = {
@@ -34,24 +59,7 @@ export function mountPackStats(rootEl, opts = {}) {
   };
 
   function visiblePacks() {
-    let packs = [...state.packs];
-    if (brandId && state.brandOnly) packs = packs.filter((p) => p.creator_brand_id === brandId);
-    const dir = state.sortAsc ? 1 : -1;
-    packs.sort((a, b) => {
-      let av, bv;
-      if (state.sortMode === 'total_cost_usd') {
-        av = (a.base_cost_usd || 0) + (a.total_cost_usd || 0);
-        bv = (b.base_cost_usd || 0) + (b.total_cost_usd || 0);
-      } else {
-        av = a[state.sortMode];
-        bv = b[state.sortMode];
-      }
-      if (typeof av === 'string' || typeof bv === 'string') {
-        return dir * String(av || '').localeCompare(String(bv || ''));
-      }
-      return dir * ((av || 0) - (bv || 0));
-    });
-    return packs;
+    return selectPacks(state.packs, { sortMode: state.sortMode, sortAsc: state.sortAsc, brandOnly: state.brandOnly, brandId });
   }
 
   function sortHeader(label, mode) {
@@ -155,7 +163,8 @@ export function mountPackStats(rootEl, opts = {}) {
     }
     if (onToggleDev) {
       rootEl.querySelectorAll('[data-pk-dev]').forEach((btn) => btn.addEventListener('click', () => {
-        onToggleDev(btn.getAttribute('data-pk-dev'), btn.getAttribute('data-pk-dev-next') === '1');
+        const p = state.packs.find((x) => x.id === btn.getAttribute('data-pk-dev'));
+        if (p) onToggleDev(p, btn.getAttribute('data-pk-dev-next') === '1');
       }));
     }
   }
