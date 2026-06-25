@@ -190,13 +190,15 @@
         patchDevFlag: null,      // read-only
       });
 
-      // Cards: js/components/cards-stats-viewer.js is being extracted in a parallel
-      // session. Placeholder until it lands — do not block on it.
+      // Cards: js/components/cards-stats-viewer.js is extracted on a parallel
+      // fork (origin/dev/evangelist-cards-viewer), not yet on this branch.
+      // Placeholder until it lands — do not block on it.
       const cardsEl = document.getElementById('card-analytics');
       if (cardsEl) cardsEl.innerHTML = '<p class="brand-admin__empty">Card analytics — coming soon.</p>';
-      // TODO(P5-cards): once cards-stats-viewer.js exists, mount it here:
+      // TODO(P5-cards): once cards-stats-viewer.js merges into the feature branch, mount it.
+      // Pack metadata stays GLOBAL via packsMetaBase; handlers register on window.dash (ns:'dash'):
       //   import { mountCardStats } from './js/components/cards-stats-viewer.js';
-      //   mountCardStats(cardsEl, { authFetch, statsUrl: `${base}/cards/stats`, brandId });
+      //   mountCardStats(cardsEl, { authFetch, cardsStatsUrl: `${base}/cards/stats`, packsMetaBase: '/api/carkedit', ns: 'dash', brandId });
 
       loadSignups(brandId);
     }
