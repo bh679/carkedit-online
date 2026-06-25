@@ -188,6 +188,10 @@ export function mountPlayerStats(rootEl, opts) {
   const {
     authFetch,
     apiBase = '',
+    // Path segment between apiBase and the resource. Default keeps the global
+    // admin routes (Stats page, admin-users.html). Pass '/api/carkedit/brands/<id>'
+    // to brand-scope the Users viewer (hits /brands/:id/users/stats + /brands/:id/games).
+    statsBasePath = '/api/carkedit',
     showSeeAllLink = false,
     expansionSteps = DEFAULT_EXPANSION_STEPS,
     patchDevFlag = null,
@@ -215,7 +219,7 @@ export function mountPlayerStats(rootEl, opts) {
   async function fetchData() {
     state.loading = true;
     try {
-      const res = await authFetch(`${apiBase}/api/carkedit/users/stats?dev=${state.devFilter}&limit=${FETCH_LIMIT}`);
+      const res = await authFetch(`${apiBase}${statsBasePath}/users/stats?dev=${state.devFilter}&limit=${FETCH_LIMIT}`);
       if (res.ok) {
         state.data = await res.json();
         state.error = null;
@@ -232,7 +236,7 @@ export function mountPlayerStats(rootEl, opts) {
 
   async function fetchPlayerGames(nameKey) {
     try {
-      const res = await authFetch(`${apiBase}/api/carkedit/games?playerName=${encodeURIComponent(nameKey)}&dev=all&limit=${PLAYER_GAMES_LIMIT}`);
+      const res = await authFetch(`${apiBase}${statsBasePath}/games?playerName=${encodeURIComponent(nameKey)}&dev=all&limit=${PLAYER_GAMES_LIMIT}`);
       if (res.ok) {
         const data = await res.json();
         state.playerGamesCache[nameKey] = data.games || [];

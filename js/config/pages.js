@@ -12,6 +12,7 @@ export const PAGES = [
   { path: 'admin-users',          label: 'User Management',       defaultMinRole: 'Admin',  category: 'admin'  },
   { path: 'admin-roles',          label: 'Roles & Permissions',   defaultMinRole: 'Admin',  category: 'admin'  },
   { path: 'admin-brands',         label: 'Brand Requests',        defaultMinRole: 'Admin',  category: 'admin'  },
+  { path: 'brand-admin',          label: 'Brand Admin',           defaultMinRole: 'Host',   category: 'admin'  },
   { path: 'card-scale-test',      label: 'Card Scale Test',       defaultMinRole: 'QA',     category: 'dev'    },
   { path: 'card-test',            label: 'Card Test',             defaultMinRole: 'QA',     category: 'dev'    },
   { path: 'color-demo',           label: 'Color Demo',            defaultMinRole: 'QA',     category: 'dev'    },

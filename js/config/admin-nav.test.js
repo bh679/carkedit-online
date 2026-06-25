@@ -51,7 +51,7 @@ test('buildAdminNavLinks: empty input yields an empty list', () => {
 test('renderAdminMenuItems: an Admin sees every admin page, in registry order', () => {
   const html = renderAdminMenuItems(); // default role = Admin
   const labels = [...html.matchAll(/auth-menu__item" href="[^"]+">([^<]+)</g)].map((m) => m[1]);
-  assert.deepEqual(labels, ['ImageAI', 'Users', 'Roles', 'Brands', 'Deploy', 'Dev', 'Costs', 'Stats']);
+  assert.deepEqual(labels, ['ImageAI', 'Users', 'Roles', 'Brands', 'Brand Admin', 'Deploy', 'Dev', 'Costs', 'Stats']);
 });
 
 test('renderAdminMenuItems: emits anchors carrying the links the old hardcoded list was missing', () => {
