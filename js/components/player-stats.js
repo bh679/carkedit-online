@@ -55,6 +55,27 @@ function formatBirth(month, day) {
   return `${String(month).padStart(2, '0')}/${String(day).padStart(2, '0')}`;
 }
 
+// "Signed up" cell: which brand URL the matched account was created under.
+// Brand name when signed up under a partner; "Root" for an account created on
+// the main site (no brand); "—" for an anonymous player with no account.
+function renderSignupCell(p) {
+  let label, title;
+  if (!p.matched_user_id) {
+    label = '—';
+    title = 'Anonymous player — no registered account';
+  } else if (p.signup_brand_name) {
+    label = p.signup_brand_name;
+    title = `Signed up on ${p.signup_brand_name}`;
+  } else {
+    label = 'Root';
+    title = 'Signed up on the main site (no brand)';
+  }
+  return `<div class="user-stats__metric">
+    <span class="user-stats__metric-value user-stats__signup" title="${escAttr(title)}">${escapeHtml(label)}</span>
+    <span class="user-stats__metric-label">signed up</span>
+  </div>`;
+}
+
 function renderPlayerGames(nameKey, games, canToggleDev, canExpandGame, expandedGameId, gameDetailCache, renderGameDetailFn) {
   if (games === undefined) {
     return `<div class="user-stats__games user-stats__games--loading" data-ps-stop>Loading games…</div>`;
@@ -148,6 +169,7 @@ function renderRow(p, expandedKey, playerGamesCache, canToggleDev, canExpandGame
       <div class="user-stats__metric"><span class="user-stats__metric-value">${formatDuration(p.total_seconds)}</span><span class="user-stats__metric-label">play time</span></div>
       <div class="user-stats__metric"><span class="user-stats__metric-value">${formatDate(p.first_game_at)}</span><span class="user-stats__metric-label">first</span></div>
       <div class="user-stats__metric"><span class="user-stats__metric-value">${formatDate(p.last_game_at)}</span><span class="user-stats__metric-label">last</span></div>
+      ${renderSignupCell(p)}
       ${detail}
     </div>
   `;
