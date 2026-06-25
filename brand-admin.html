@@ -151,14 +151,62 @@
       mountViewers(brandId);
     }
 
+    // ── Live auto-refresh (mirrors the global Stats dashboard) ──────────────
+    // The viewers each render once on mount; without this, a game in progress
+    // never appears/updates on the brand panel. Poll fast while any game is
+    // live, slowly otherwise, and refresh immediately when the tab regains focus.
+    const REFRESH_LIVE_MS = 15000;
+    const REFRESH_IDLE_MS = 60000;
+    let viewerHandles = [];
+    let currentBrandId = null;
+    let refreshTimer = null;
+    let visibilityHooked = false;
+
+    function anyGameLive() {
+      try {
+        const gh = viewerHandles.find((h) => h && h.kind === 'games');
+        const games = gh && gh.handle && gh.handle.getState ? (gh.handle.getState().games || []) : [];
+        return games.some((g) => g && g.live_status === 'live');
+      } catch { return false; }
+    }
+
+    async function refreshViewers() {
+      for (const h of viewerHandles) {
+        try { if (h && h.handle && h.handle.refresh) h.handle.refresh(); }
+        catch (err) { console.warn('[brand-admin] viewer refresh failed:', err); }
+      }
+      if (currentBrandId) loadSignups(currentBrandId);
+    }
+
+    function scheduleRefresh() {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      const delay = anyGameLive() ? REFRESH_LIVE_MS : REFRESH_IDLE_MS;
+      refreshTimer = setTimeout(async () => {
+        if (document.visibilityState === 'visible') await refreshViewers();
+        scheduleRefresh();
+      }, delay);
+    }
+
+    function startAutoRefresh(brandId) {
+      currentBrandId = brandId;
+      scheduleRefresh();
+      if (!visibilityHooked) {
+        visibilityHooked = true;
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') { refreshViewers(); scheduleRefresh(); }
+        });
+      }
+    }
+
     // Mount the five shared viewers brand-scoped + the signed-up-accounts list.
     function mountViewers(brandId) {
       const base = `/api/carkedit/brands/${encodeURIComponent(brandId)}`;
       // games + survey viewers register inline-onclick handlers on window.dash (ns).
       window.dash = window.dash || {};
       initGameDetail({ authFetch, apiBase: '' });
+      viewerHandles = [];
 
-      mountGamesStats(document.getElementById('game-list'), {
+      const gamesHandle = mountGamesStats(document.getElementById('game-list'), {
         authFetch,
         gamesBase: base,
         ns: 'dash',
@@ -169,7 +217,7 @@
         confirmDevToggle: null,
       });
 
-      mountPackStats(document.getElementById('pack-stats'), {
+      const packHandle = mountPackStats(document.getElementById('pack-stats'), {
         authFetch,
         statsUrl: `${base}/packs/stats`,
         brandId,                 // enables the "Brand packs only" filter toggle
@@ -177,7 +225,7 @@
         onToggleDev: null,
       });
 
-      mountSurveyResponses(document.getElementById('survey-responses'), {
+      const surveyHandle = mountSurveyResponses(document.getElementById('survey-responses'), {
         authFetch,
         surveyBase: base,
         ns: 'dash',
@@ -187,13 +235,22 @@
         seeAllHref: null,
       });
 
-      mountPlayerStats(document.getElementById('user-stats'), {
+      const playerHandle = mountPlayerStats(document.getElementById('user-stats'), {
         authFetch,
         apiBase: '',
         statsBasePath: base,     // brand-scopes /users/stats + /games?playerName=
         showSeeAllLink: false,
         patchDevFlag: null,      // read-only
       });
+
+      // Collect handles for the live auto-refresh loop (cards handle pushed
+      // asynchronously below once its module resolves).
+      viewerHandles = [
+        { kind: 'games', handle: gamesHandle },
+        { kind: 'packs', handle: packHandle },
+        { kind: 'survey', handle: surveyHandle },
+        { kind: 'players', handle: playerHandle },
+      ];
 
       // Cards: mounted via dynamic import + graceful fallback, so a missing
       // module degrades to a placeholder instead of breaking the whole page.
@@ -202,13 +259,16 @@
       const cardsEl = document.getElementById('card-analytics');
       if (cardsEl) {
         import('/js/components/cards-stats-viewer.js')
-          .then(({ mountCardStats }) => mountCardStats(cardsEl, {
-            authFetch,
-            cardsStatsUrl: `${base}/cards/stats`,
-            packsMetaBase: '/api/carkedit',
-            ns: 'dash',
-            brandId,
-          }))
+          .then(({ mountCardStats }) => {
+            const cardsHandle = mountCardStats(cardsEl, {
+              authFetch,
+              cardsStatsUrl: `${base}/cards/stats`,
+              packsMetaBase: '/api/carkedit',
+              ns: 'dash',
+              brandId,
+            });
+            viewerHandles.push({ kind: 'cards', handle: cardsHandle });
+          })
           .catch((err) => {
             cardsEl.innerHTML = '<p class="brand-admin__empty">Card analytics — coming soon.</p>';
             console.warn('[brand-admin] cards viewer unavailable:', err);
@@ -216,6 +276,7 @@
       }
 
       loadSignups(brandId);
+      startAutoRefresh(brandId);   // begin live polling (fast while a game is in progress)
     }
 
     // Signed-up accounts attributed to this brand (users.brand_id). Reuses the P3
