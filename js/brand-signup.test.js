@@ -1,6 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { renderRequestForm, renderMyBrands } from './brand-signup.js';
+import {
+  renderRequestForm,
+  renderMyBrands,
+  renderSelectedPlan,
+  normalisePlan,
+  PLAN_LABELS,
+} from './brand-signup.js';
 
 test('renderRequestForm includes name, slug, logo inputs and a submit button', () => {
   const html = renderRequestForm('Death Evangelist');
@@ -51,4 +57,32 @@ test('renderMyBrands escapes brand name + slug', () => {
   const html = renderMyBrands([{ slug: 'x', name: '<b>evil</b>', status: 'pending' }]);
   assert.doesNotMatch(html, /<b>evil<\/b>/);
   assert.match(html, /&lt;b&gt;evil/);
+});
+
+// ── plan selection tracking ───────────────────────────────
+
+test('normalisePlan: accepts known keys (case-insensitive), rejects junk', () => {
+  assert.equal(normalisePlan('basic'), 'basic');
+  assert.equal(normalisePlan('PRO'), 'pro');
+  assert.equal(normalisePlan(' Ultimate '), 'ultimate');
+  assert.equal(normalisePlan('enterprise'), null);
+  assert.equal(normalisePlan(''), null);
+  assert.equal(normalisePlan(undefined), null);
+});
+
+test('PLAN_LABELS: covers the three tier keys', () => {
+  assert.deepEqual(Object.keys(PLAN_LABELS), ['basic', 'pro', 'ultimate']);
+});
+
+test('renderSelectedPlan: shows the chosen plan label, empty when none/unknown', () => {
+  assert.match(renderSelectedPlan('pro'), /Selected plan/);
+  assert.match(renderSelectedPlan('pro'), /Pro/);
+  assert.equal(renderSelectedPlan(null), '');
+  assert.equal(renderSelectedPlan('bogus'), '');
+});
+
+test('renderRequestForm: shows the selected plan when given one, omits it otherwise', () => {
+  assert.match(renderRequestForm('Evangelist', 'ultimate'), /Selected plan/);
+  assert.match(renderRequestForm('Evangelist', 'ultimate'), /Ultimate/);
+  assert.doesNotMatch(renderRequestForm('Evangelist'), /Selected plan/);
 });

@@ -4,9 +4,14 @@ import {
   TIERS,
   SIGNUP_HREF,
   WHITELABEL_EMAIL,
+  PLAN_KEYS,
+  DEFAULT_PLAN,
+  isSelected,
+  signupUrl,
   renderHeader,
   renderTier,
   renderTiers,
+  renderActions,
   renderWhiteLabel,
   render,
 } from './app.js';
@@ -50,51 +55,87 @@ test('renderHeader: escapes the injected term', () => {
   assert.match(html, /&lt;script&gt;/);
 });
 
-// ── renderTier ────────────────────────────────────────────
+// ── Selection logic ───────────────────────────────────────
 
-test('renderTier: shows name, price, period and a signup CTA', () => {
-  const html = renderTier(TIERS[0], 'Evangelist');
+test('PLAN_KEYS / DEFAULT_PLAN: keys match tiers; default is the featured tier', () => {
+  assert.deepEqual(PLAN_KEYS, ['basic', 'pro', 'ultimate']);
+  assert.equal(DEFAULT_PLAN, 'pro');
+});
+
+test('isSelected: true only for the matching key', () => {
+  assert.equal(isSelected('pro', 'pro'), true);
+  assert.equal(isSelected('pro', 'basic'), false);
+});
+
+test('signupUrl: carries a valid plan; falls back to bare signup for junk', () => {
+  assert.equal(signupUrl('ultimate'), `${SIGNUP_HREF}?plan=ultimate`);
+  assert.equal(signupUrl('bogus'), SIGNUP_HREF);
+});
+
+// ── renderTier (now a selectable radio, no per-tier link) ──
+
+test('renderTier: is a radio option with no per-tier link', () => {
+  const html = renderTier(TIERS[0], 'basic');
   assert.match(html, /Basic/);
   assert.match(html, /\$150/);
-  assert.match(html, /\/ year/);
-  assert.match(html, new RegExp(`href="${SIGNUP_HREF}"`));
+  assert.match(html, /role="radio"/);
+  assert.match(html, /data-plan="basic"/);
+  assert.ok(!html.includes('href='), 'tier should not contain its own link');
+});
+
+test('renderTier: marks the selected tier with aria-checked=true', () => {
+  assert.match(renderTier(TIERS[1], 'pro'), /aria-checked="true"/);
+  assert.match(renderTier(TIERS[1], 'basic'), /aria-checked="false"/);
 });
 
 test('renderTier: featured tier renders the "Most popular" badge', () => {
   const pro = TIERS.find((t) => t.key === 'pro');
   const basic = TIERS.find((t) => t.key === 'basic');
-  assert.match(renderTier(pro), /Most popular/);
-  assert.ok(!renderTier(basic).includes('Most popular'));
+  assert.match(renderTier(pro, 'pro'), /Most popular/);
+  assert.ok(!renderTier(basic, 'basic').includes('Most popular'));
 });
 
 test('renderTier: renders each feature string', () => {
-  const html = renderTier(TIERS[2]); // Ultimate
+  const html = renderTier(TIERS[2], 'ultimate');
   assert.match(html, /Unlimited Games/);
   assert.match(html, /Up to 200 Custom Cards/);
   assert.match(html, /Clients can make 10 custom cards each/);
   assert.match(html, /Everything in Pro/);
 });
 
-// ── renderTiers / render ──────────────────────────────────
+// ── renderTiers / renderActions / render ──────────────────
 
-test('renderTiers: every tier CTA points to the signup page', () => {
-  const html = renderTiers(TIERS, 'Evangelist');
-  const ctas = html.match(new RegExp(`href="${SIGNUP_HREF}"`, 'g')) || [];
-  assert.equal(ctas.length, TIERS.length);
+test('renderTiers: is a radiogroup with exactly one checked option', () => {
+  const html = renderTiers(TIERS, 'pro');
+  assert.match(html, /role="radiogroup"/);
+  const checked = html.match(/aria-checked="true"/g) || [];
+  assert.equal(checked.length, 1);
 });
 
-test('render: includes all tier names and the evangelist term', () => {
+test('renderActions: a single signup button, no per-tier links', () => {
+  const html = renderActions('Death Evangelist', 'pro');
+  const buttons = html.match(/<button/g) || [];
+  assert.equal(buttons.length, 1);
+  assert.match(html, /goToSignup\(\)/);
+  assert.match(html, /Become a Death Evangelist/);
+});
+
+test('render: includes all tier names, the evangelist term, and one button', () => {
   const html = render('Death Evangelist');
   ['Basic', 'Pro', 'Ultimate'].forEach((n) => assert.match(html, new RegExp(n)));
   assert.match(html, /Death Evangelist/);
+  const buttons = html.match(/<button/g) || [];
+  assert.equal(buttons.length, 1, 'page should have exactly one button');
 });
 
-// ── renderWhiteLabel ──────────────────────────────────────
+// ── renderWhiteLabel (inline link, not a button) ──────────
 
-test('renderWhiteLabel: offers a corporate white label with a mailto link', () => {
+test('renderWhiteLabel: offers a white label via an inline mailto link (no button)', () => {
   const html = renderWhiteLabel();
   assert.match(html, /white label/i);
   assert.match(html, new RegExp(`href="mailto:${WHITELABEL_EMAIL}"`));
+  assert.ok(!html.includes('<button'), 'white-label should not be a button');
+  assert.ok(!html.includes('btn'), 'white-label should not use the btn class');
 });
 
 test('render: includes the white-label contact email', () => {

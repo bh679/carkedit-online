@@ -15,11 +15,41 @@ const STATUS_LABEL = {
   suspended: 'Suspended',
 };
 
-/** The request form. `evangelist` is the configurable role label for copy. */
-export function renderRequestForm(evangelist = 'Evangelist') {
+// Plan tiers a request can be tagged with (chosen on the pricing page and passed
+// in via ?plan=). Keep in sync with the Evangelist pricing page's TIERS keys and
+// the API's allowed plan enum.
+export const PLAN_LABELS = {
+  basic: 'Basic',
+  pro: 'Pro',
+  ultimate: 'Ultimate',
+};
+
+/** Normalise an incoming ?plan= value to a known key, or null if unknown. */
+export function normalisePlan(value) {
+  const key = typeof value === 'string' ? value.trim().toLowerCase() : '';
+  return Object.prototype.hasOwnProperty.call(PLAN_LABELS, key) ? key : null;
+}
+
+/** A read-only summary of the plan chosen on the pricing page (or '' if none). */
+export function renderSelectedPlan(plan) {
+  const key = normalisePlan(plan);
+  if (!key) return '';
+  return `
+    <div class="brand-signup__field brand-signup__plan">
+      <span>Selected plan</span>
+      <p class="brand-signup__plan-value" id="brand-request-plan">${escapeHtml(PLAN_LABELS[key])}</p>
+    </div>`;
+}
+
+/**
+ * The request form. `evangelist` is the configurable role label for copy;
+ * `plan` (optional) is the tier chosen on the pricing page, shown read-only.
+ */
+export function renderRequestForm(evangelist = 'Evangelist', plan = null) {
   const who = escapeHtml(evangelist);
   return `
     <form id="brand-request-form" class="brand-signup__form" onsubmit="return window.brandSignup.submit(event)">
+      ${renderSelectedPlan(plan)}
       <label class="brand-signup__field">
         <span>Brand name</span>
         <input type="text" id="brand-request-name" maxlength="80" required placeholder="Acme Funeral Co." />

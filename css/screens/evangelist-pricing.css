@@ -92,7 +92,7 @@ body.page--evangelist-pricing #app {
   gap: var(--space-md);
 }
 
-/* ── Tier row (full-width stacked card) ───────────────── */
+/* ── Tier row (full-width selectable card) ────────────── */
 .evp-tier {
   position: relative;
   display: flex;
@@ -102,19 +102,58 @@ body.page--evangelist-pricing #app {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   padding: var(--space-lg) var(--space-md) var(--space-md);
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+
+.evp-tier:hover {
+  border-color: var(--color-primary);
+}
+
+.evp-tier:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 .evp-tier--featured {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 1px var(--color-primary);
+}
+
+/* Selected = the plan that the single bottom button will submit. */
+.evp-tier--selected {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary);
+  background: var(--color-primary-subtle);
+}
+
+/* Radio indicator (visual only; the <li> carries role=radio). */
+.evp-tier__radio {
+  flex: 0 0 auto;
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 50%;
+  border: 2px solid var(--color-text-muted);
+  position: relative;
+}
+
+.evp-tier--selected .evp-tier__radio {
+  border-color: var(--color-primary);
+}
+
+.evp-tier--selected .evp-tier__radio::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: var(--color-primary);
 }
 
 /* Name + price header of each row. */
 .evp-tier__head {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-xs) var(--space-md);
+  align-items: center;
+  gap: var(--space-xs) var(--space-sm);
 }
 
 .evp-tier__badge {
@@ -199,39 +238,33 @@ body.page--evangelist-pricing #app {
   color: var(--color-text-muted);
 }
 
-/* ── CTA ──────────────────────────────────────────────── */
-.evp-tier__cta {
-  text-decoration: none;
-  text-align: center;
-  margin-top: var(--space-sm);
+/* ── Single signup action ─────────────────────────────── */
+.evp-actions {
+  display: flex;
 }
 
-/* ── White-label callout ──────────────────────────────── */
+.evp-actions__cta {
+  flex: 1 1 auto;
+  text-align: center;
+}
+
+/* ── White-label (inline note, one link — not a button) ─ */
 .evp-whitelabel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-  background: var(--color-primary-subtle);
-  border: 1px solid var(--color-primary);
-  border-radius: var(--radius-md);
-  padding: var(--space-md);
+  color: var(--color-text-90);
+  line-height: 1.5;
+  font-size: 0.95rem;
+  text-align: center;
 }
 
 .evp-whitelabel__title {
-  font-size: 1.15rem;
-  font-weight: 800;
+  display: block;
   color: var(--color-text);
+  font-size: 1.05rem;
+  margin-bottom: var(--space-xs);
 }
 
-.evp-whitelabel__body {
-  color: var(--color-text-90);
-  line-height: 1.45;
-  font-size: 0.95rem;
-  margin-top: var(--space-xs);
-}
-
-.evp-whitelabel__cta {
-  text-decoration: none;
-  text-align: center;
-  align-self: flex-start;
+.evp-whitelabel__link {
+  color: var(--color-highlight);
+  font-weight: 600;
+  word-break: break-word;
 }
