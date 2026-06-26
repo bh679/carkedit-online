@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CarkedIt — Brand Requests</title>
-    <link rel="stylesheet" href="css/base.css?v=1.09.0008">
-    <link rel="stylesheet" href="css/components/auth.css?v=1.09.0008">
-    <link rel="stylesheet" href="css/components/admin-header.css?v=1.09.0008">
-    <link rel="stylesheet" href="css/dashboard.css?v=1.09.0008">
+    <link rel="stylesheet" href="css/base.css?v=1.10.0002">
+    <link rel="stylesheet" href="css/components/auth.css?v=1.10.0002">
+    <link rel="stylesheet" href="css/components/admin-header.css?v=1.10.0002">
+    <link rel="stylesheet" href="css/dashboard.css?v=1.10.0002">
     <style>
         .admin-brands { max-width: 1000px; margin: 0 auto; padding: 1.5rem; }
         .admin-brands__header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.75rem; }
@@ -23,7 +23,9 @@
         .admin-brands__logo { width: 36px; height: 36px; border-radius: 6px; object-fit: cover; background: #222; display: inline-block; }
         .admin-brands__logo--empty { border: 1px dashed #444; }
         .admin-brands__slug { color: #b7d4e4; text-decoration: none; font-family: monospace; }
-        a.admin-brands__slug:hover { text-decoration: underline; }
+        button.admin-brands__slug--copy { background: none; border: none; padding: 0; cursor: pointer; }
+        button.admin-brands__slug--copy:hover { text-decoration: underline; }
+        button.admin-brands__slug--copy.admin-brands__slug--copied { color: #9fe0b3; }
         .admin-brands__owner-email { color: #777; font-size: 0.75rem; }
         .admin-brands__badge { display: inline-block; padding: 0.15em 0.6em; border-radius: 4px; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.02em; }
         .admin-brands__badge--pending   { background: #5a4a1e; color: #f0d999; }
@@ -37,6 +39,8 @@
         .admin-brands__btn--approve:hover:not(:disabled) { border-color: #4caf72; color: #9fe0b3; }
         .admin-brands__btn--reject:hover:not(:disabled)  { border-color: #c45; color: #e7a3a3; }
         .admin-brands__btn--suspend:hover:not(:disabled) { border-color: #999; color: #ddd; }
+        .admin-brands__btn--admin { text-decoration: none; display: inline-block; }
+        .admin-brands__btn--admin:hover { border-color: #7aabcf; color: #b7d4e4; }
         .admin-brands__empty { color: #888; padding: 2rem; text-align: center; }
         .admin-brands__gate { display: flex; align-items: center; justify-content: center; min-height: 60vh; text-align: center; }
         .admin-brands__gate p { color: #888; margin-bottom: 1em; }
@@ -63,7 +67,7 @@
     let fbUserInfo = null;
     let currentUser = null;
     let brands = [];
-    let statusFilter = 'pending';
+    let statusFilter = '';
 
     async function loadFirebaseAuth() {
       const [appMod, authMod] = await Promise.all([
@@ -134,10 +138,35 @@
       });
 
       bindActions();
+      bindCopyUrls();
+    }
+
+    function bindCopyUrls() {
+      document.querySelectorAll('.admin-brands__slug--copy').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const url = btn.getAttribute('data-copy-url');
+          try {
+            await navigator.clipboard.writeText(url);
+          } catch {
+            const ta = document.createElement('textarea');
+            ta.value = url;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+          }
+          btn.classList.add('admin-brands__slug--copied');
+          const orig = btn.textContent;
+          btn.textContent = 'Copied!';
+          setTimeout(() => { btn.textContent = orig; btn.classList.remove('admin-brands__slug--copied'); }, 1500);
+        });
+      });
     }
 
     function bindActions() {
-      document.querySelectorAll('.admin-brands__btn').forEach((btn) => {
+      document.querySelectorAll('.admin-brands__btn[data-brand-id]').forEach((btn) => {
         btn.addEventListener('click', async () => {
           const id = btn.getAttribute('data-brand-id');
           const status = btn.getAttribute('data-status');
