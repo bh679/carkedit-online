@@ -47,13 +47,20 @@ export function actionsFor(status) {
 const ACTION_TO_STATUS = { approve: 'approved', reject: 'rejected', suspend: 'suspended' };
 const ACTION_LABEL = { approve: 'Approve', reject: 'Reject', suspend: 'Suspend' };
 
+function adminPanelButton(brand) {
+  if (brand.status !== 'approved') return '';
+  const slug = escapeHtml(brand.slug);
+  return ` <a class="admin-brands__btn admin-brands__btn--admin" href="/${slug}/admin" target="_blank" rel="noopener">Admin Panel</a>`;
+}
+
 function actionButtons(brand) {
-  return actionsFor(brand.status)
+  const reviewBtns = actionsFor(brand.status)
     .map((a) =>
       `<button class="admin-brands__btn admin-brands__btn--${a}" ` +
       `data-brand-id="${escapeHtml(brand.id)}" data-status="${ACTION_TO_STATUS[a]}">${ACTION_LABEL[a]}</button>`,
     )
     .join(' ');
+  return reviewBtns + adminPanelButton(brand);
 }
 
 function fmtDate(iso) {
@@ -81,10 +88,8 @@ function logoCell(brand) {
 
 function slugCell(brand) {
   const slug = escapeHtml(brand.slug);
-  // Only approved slugs resolve, so only those are live links.
-  return brand.status === 'approved'
-    ? `<a class="admin-brands__slug" href="/${slug}" target="_blank" rel="noopener">/${slug}</a>`
-    : `<span class="admin-brands__slug">/${slug}</span>`;
+  const fullUrl = `https://play.carkedit.com/${slug}`;
+  return `<button class="admin-brands__slug admin-brands__slug--copy" data-copy-url="${escapeHtml(fullUrl)}" title="Copy: ${escapeHtml(fullUrl)}">/${slug}</button>`;
 }
 
 /** One <tr> for a brand request. */

@@ -60,9 +60,19 @@ test('renderBrandRow emits action buttons carrying brand id + target status', ()
   assert.match(row, /data-status="rejected"/); // reject button
 });
 
-test('renderBrandRow links the slug only when approved', () => {
-  assert.match(renderBrandRow({ ...baseBrand, status: 'approved' }), /<a class="admin-brands__slug" href="\/acme"/);
-  assert.doesNotMatch(renderBrandRow(baseBrand), /<a class="admin-brands__slug"/); // pending → plain text
+test('renderBrandRow renders slug as a copy button with full URL for all statuses', () => {
+  for (const s of BRAND_STATUSES) {
+    const row = renderBrandRow({ ...baseBrand, status: s });
+    assert.match(row, /admin-brands__slug--copy/);
+    assert.match(row, /data-copy-url="https:\/\/play\.carkedit\.com\/acme"/);
+  }
+});
+
+test('renderBrandRow shows Admin Panel link only for approved brands', () => {
+  assert.match(renderBrandRow({ ...baseBrand, status: 'approved' }), /admin-brands__btn--admin/);
+  assert.doesNotMatch(renderBrandRow({ ...baseBrand, status: 'pending' }), /admin-brands__btn--admin/);
+  assert.doesNotMatch(renderBrandRow({ ...baseBrand, status: 'rejected' }), /admin-brands__btn--admin/);
+  assert.doesNotMatch(renderBrandRow({ ...baseBrand, status: 'suspended' }), /admin-brands__btn--admin/);
 });
 
 test('renderBrandRow renders an empty-logo placeholder when no logo_url', () => {
