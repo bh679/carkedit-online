@@ -221,6 +221,10 @@ export function mountPlayerStats(rootEl, opts) {
     onGameDevToggled = null,
     fetchGameDetail = null,
     renderGameDetail = null,
+    // When set ({ id, name }) the list is a brand-scoped view: the sign-up
+    // location dropdown collapses other brands into "Other" so their names
+    // aren't leaked. Null on the global Stats page (lists each brand by name).
+    brandScope = null,
   } = opts;
 
   const canToggleDev = typeof patchDevFlag === 'function';
@@ -228,6 +232,8 @@ export function mountPlayerStats(rootEl, opts) {
 
   const state = {
     devFilter: 'nodev',
+    filterAccounts: 'all',   // 'all' | 'accounts'  (accounts = has a matched user account)
+    filterLocation: 'all',   // 'all' | 'root' | '<brandId>' | '__other__'  (where they signed up)
     displayLimit: INITIAL_LIMIT,
     data: { players: [], total_distinct: 0, total_matched_users: 0 },
     loading: false,
@@ -237,6 +243,41 @@ export function mountPlayerStats(rootEl, opts) {
     expandedGameId: null,
     gameDetailCache: {},
   };
+
+  // ── Sign-up filters ───────────────────────────────────────────────────────
+  function passesFilters(p) {
+    if (state.filterAccounts === 'accounts' && !p.matched_user_id) return false;
+    const loc = state.filterLocation;
+    if (loc === 'all') return true;
+    if (!p.matched_user_id) return false;            // a location implies a registered account
+    if (loc === 'root') return !p.signup_brand_id;   // signed up on the main site
+    if (loc === '__other__') {                       // signed up under a DIFFERENT brand
+      return !!p.signup_brand_id && (!brandScope || p.signup_brand_id !== brandScope.id);
+    }
+    return p.signup_brand_id === loc;                // a specific brand id
+  }
+
+  // Options for the sign-up-location dropdown. Brand view: All / Root / <brand> /
+  // Other. Global view: All / Root / one entry per brand present in the data.
+  function locationOptions() {
+    const opts = [
+      { value: 'all', label: 'All sign-ups' },
+      { value: 'root', label: 'Root' },
+    ];
+    if (brandScope) {
+      opts.push({ value: brandScope.id, label: brandScope.name || 'This brand' });
+      opts.push({ value: '__other__', label: 'Other brand' });
+    } else {
+      const seen = new Map();
+      for (const p of (state.data.players || [])) {
+        if (p.signup_brand_id && p.signup_brand_name && !seen.has(p.signup_brand_id)) {
+          seen.set(p.signup_brand_id, p.signup_brand_name);
+        }
+      }
+      for (const [id, name] of seen) opts.push({ value: id, label: name });
+    }
+    return opts;
+  }
 
   async function fetchData() {
     state.loading = true;
@@ -275,27 +316,35 @@ export function mountPlayerStats(rootEl, opts) {
     if (!rootEl.isConnected) return;
 
     const devActive = state.devFilter !== 'all' ? 'dashboard__filter-btn--active' : '';
+    const acctActive = state.filterAccounts === 'accounts' ? 'dashboard__filter-btn--active' : '';
+    const locOpts = locationOptions().map((o) =>
+      `<option value="${escAttr(o.value)}"${o.value === state.filterLocation ? ' selected' : ''}>${escapeHtml(o.label)}</option>`
+    ).join('');
     const filterBar = `
       <div class="dashboard__filter-bar">
         <button class="dashboard__filter-btn ${devActive}" data-ps-action="cycle-dev">${DEV_FILTER_LABELS[state.devFilter]}</button>
+        <button class="dashboard__filter-btn ${acctActive}" data-ps-action="cycle-accounts">${state.filterAccounts === 'accounts' ? 'Accounts' : 'All'}</button>
+        <select class="dashboard__filter-select" data-ps-select="location" aria-label="Sign-up location">${locOpts}</select>
       </div>
     `;
 
-    const players = state.data.players || [];
-    const total = players.length;
+    const allPlayers = state.data.players || [];
 
-    if (state.loading && total === 0) {
+    if (state.loading && allPlayers.length === 0) {
       rootEl.innerHTML = `${filterBar}<p class="dashboard__empty">Loading…</p>`;
       return;
     }
-
-    if (state.error && total === 0) {
+    if (state.error && allPlayers.length === 0) {
       rootEl.innerHTML = `${filterBar}<p class="dashboard__empty">${escapeHtml(state.error)}</p>`;
       return;
     }
 
+    const players = allPlayers.filter(passesFilters);
+    const total = players.length;
+    const filtered = state.filterAccounts !== 'all' || state.filterLocation !== 'all';
+
     if (total === 0) {
-      rootEl.innerHTML = `${filterBar}<p class="dashboard__empty">No player data yet.</p>`;
+      rootEl.innerHTML = `${filterBar}<p class="dashboard__empty">${filtered ? 'No one matches these filters.' : 'No player data yet.'}</p>`;
       return;
     }
 
@@ -304,9 +353,10 @@ export function mountPlayerStats(rootEl, opts) {
       .map(p => renderRow(p, state.expandedPlayerKey, state.playerGamesCache, canToggleDev, canExpandGame, state.expandedGameId, state.gameDetailCache, renderGameDetail))
       .join('');
 
+    const noun = state.filterAccounts === 'accounts' ? 'accounts' : 'players';
     const summary = `
       <div class="user-stats__summary">
-        ${state.data.total_distinct} distinct players · ${state.data.total_matched_users} matched to user accounts
+        ${total} ${noun}${filtered ? ' (filtered)' : ` · ${state.data.total_matched_users} with accounts`}
         <span class="user-stats__summary-meta">· showing ${visibleCount} of ${total}</span>
       </div>
     `;
@@ -385,6 +435,16 @@ export function mountPlayerStats(rootEl, opts) {
     }
   }
 
+  // Sign-up-location dropdown (client-side filter).
+  rootEl.addEventListener('change', (e) => {
+    const sel = e.target.closest('[data-ps-select="location"]');
+    if (!sel) return;
+    state.filterLocation = sel.value;
+    state.displayLimit = INITIAL_LIMIT;
+    state.expandedPlayerKey = null;
+    render();
+  });
+
   rootEl.addEventListener('click', async (e) => {
     const target = e.target.closest('[data-ps-action]');
     if (!target) return;
@@ -407,6 +467,17 @@ export function mountPlayerStats(rootEl, opts) {
       state.expandedPlayerKey = null;
       render();
       await fetchData();
+      render();
+      return;
+    }
+
+    if (action === 'cycle-accounts') {
+      e.stopPropagation();
+      // Client-side filter — no refetch needed; the rows already carry
+      // matched_user_id + signup_brand_id.
+      state.filterAccounts = state.filterAccounts === 'accounts' ? 'all' : 'accounts';
+      state.displayLimit = INITIAL_LIMIT;
+      state.expandedPlayerKey = null;
       render();
       return;
     }

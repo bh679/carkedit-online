@@ -1682,6 +1682,20 @@ body {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Sign-up-location dropdown in the player/users filter bar. */
+.dashboard__filter-select {
+  height: 32px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-sm);
+  max-width: 200px;
+  cursor: pointer;
+}
 .user-stats__row:hover {
   border-color: color-mix(in srgb, var(--color-primary) 50%, var(--color-border));
 }

@@ -47,7 +47,7 @@
     import { renderAdminHeader, bindAdminHeader, resetAdminHeaderMenu } from '/js/components/admin-header.js';
     import { getFirebaseConfig } from '/js/firebase-config.js';
     import { escapeHtml } from '/js/utils/escape.js';
-    import { resolveBrandId, renderUsersPanel } from '/js/brand-admin.js';
+    import { resolveBrandId } from '/js/brand-admin.js';
     // brand-config.js hydrates window.brand from the injected window.__BRAND__ as
     // an import side-effect — required for the /<slug>/admin route to resolve the id.
     import '/js/config/brand-config.js';
@@ -141,14 +141,10 @@
           <section class="brand-admin__section"><h2>Card analytics</h2><div id="card-analytics"></div></section>
           <section class="brand-admin__section"><h2>Packs</h2><div id="pack-stats"></div></section>
           <section class="brand-admin__section"><h2>Survey responses</h2><div id="survey-responses"></div></section>
-          <section class="brand-admin__section"><h2>Players</h2><div id="user-stats"></div></section>
-          <section class="brand-admin__section">
-            <h2>Signed-up accounts <span class="brand-admin__count" id="signups-count"></span></h2>
-            <div id="brand-signups"></div>
-          </section>
+          <section class="brand-admin__section"><h2>Players &amp; accounts</h2><div id="user-stats"></div></section>
         </div>`;
       bindAdminHeader(app, { user: fbUserInfo, role, onSignOut: doSignOut });
-      mountViewers(brandId);
+      mountViewers(brandId, brand && brand.name);
     }
 
     // ── Live auto-refresh (mirrors the global Stats dashboard) ──────────────
@@ -175,7 +171,6 @@
         try { if (h && h.handle && h.handle.refresh) h.handle.refresh(); }
         catch (err) { console.warn('[brand-admin] viewer refresh failed:', err); }
       }
-      if (currentBrandId) loadSignups(currentBrandId);
     }
 
     function scheduleRefresh() {
@@ -199,7 +194,7 @@
     }
 
     // Mount the five shared viewers brand-scoped + the signed-up-accounts list.
-    function mountViewers(brandId) {
+    function mountViewers(brandId, brandName) {
       const base = `/api/carkedit/brands/${encodeURIComponent(brandId)}`;
       // games + survey viewers register inline-onclick handlers on window.dash (ns).
       window.dash = window.dash || {};
@@ -238,9 +233,10 @@
       const playerHandle = mountPlayerStats(document.getElementById('user-stats'), {
         authFetch,
         apiBase: '',
-        statsBasePath: base,     // brand-scopes /users/stats + /games?playerName=
+        statsBasePath: base,     // brand-scopes /users/stats (folds in this brand's signups) + /games?playerName=
         showSeeAllLink: false,
         patchDevFlag: null,      // read-only
+        brandScope: { id: brandId, name: brandName },  // location dropdown → All / Root / <brand> / Other
       });
 
       // Collect handles for the live auto-refresh loop (cards handle pushed
@@ -275,24 +271,7 @@
           });
       }
 
-      loadSignups(brandId);
       startAutoRefresh(brandId);   // begin live polling (fast while a game is in progress)
-    }
-
-    // Signed-up accounts attributed to this brand (users.brand_id). Reuses the P3
-    // renderUsersPanel table verbatim.
-    async function loadSignups(brandId) {
-      const el = document.getElementById('brand-signups');
-      const countEl = document.getElementById('signups-count');
-      try {
-        const res = await authFetch(`/api/carkedit/brands/${encodeURIComponent(brandId)}/users`);
-        if (!res.ok) { el.innerHTML = '<p class="brand-admin__empty">Failed to load accounts.</p>'; return; }
-        const users = (await res.json()).users || [];
-        el.innerHTML = renderUsersPanel(users);
-        if (countEl) countEl.textContent = `(${users.length})`;
-      } catch (err) {
-        el.innerHTML = '<p class="brand-admin__empty">Failed to load accounts.</p>';
-      }
     }
 
     async function fetchCurrentUser() {
