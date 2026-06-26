@@ -61,24 +61,32 @@ function brandAdminHref(state) {
 }
 
 /**
+ * The Manage Account button, or null when signed out.
+ * @returns {string|null} button HTML.
+ */
+export function manageAccountButton(state) {
+  if (!state.authUser) return null;
+  return `<button class="btn btn--secondary" onclick="window.game.manageAccount()">Manage Account</button>`;
+}
+
+/**
+ * The Brand Admin button, or null unless the user owns an approved brand.
+ * @returns {string|null} button HTML.
+ */
+export function brandAdminButton(state) {
+  if (!state.authUser) return null;
+  const href = brandAdminHref(state);
+  return href ? `<a class="btn btn--dark menu__site-link" href="${href}">Brand Admin</a>` : null;
+}
+
+/**
  * Main-menu account actions the signed-in user has access to, as individual
  * button HTML strings: Manage Account when signed in, plus Brand Admin only for
  * owners with an approved brand. Returned as an array so callers can count them.
  * @returns {string[]} button HTML strings (empty when signed out).
  */
 export function menuAccountButtons(state) {
-  if (!state.authUser) return [];
-
-  const buttons = [
-    `<button class="btn btn--secondary" onclick="window.game.manageAccount()">Manage Account</button>`,
-  ];
-
-  const href = brandAdminHref(state);
-  if (href) {
-    buttons.push(`<a class="btn btn--dark menu__site-link" href="${href}">Brand Admin</a>`);
-  }
-
-  return buttons;
+  return [manageAccountButton(state), brandAdminButton(state)].filter(Boolean);
 }
 
 /**
