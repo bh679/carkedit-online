@@ -93,12 +93,14 @@ export function renderTier(tier, evangelist = 'Evangelist') {
   const cta = `Become ${escapeHtml(`a ${evangelist}`)}`;
   return `
     <li class="evp-tier evp-tier--${tier.key}${featured}">
-      ${badge}
-      <h2 class="evp-tier__name">${escapeHtml(tier.name)}</h2>
-      <p class="evp-tier__price">
-        <span class="evp-tier__amount">${escapeHtml(tier.price)}</span>
-        <span class="evp-tier__period">${escapeHtml(tier.period)}</span>
-      </p>
+      <div class="evp-tier__head">
+        ${badge}
+        <h2 class="evp-tier__name">${escapeHtml(tier.name)}</h2>
+        <p class="evp-tier__price">
+          <span class="evp-tier__amount">${escapeHtml(tier.price)}</span>
+          <span class="evp-tier__period">${escapeHtml(tier.period)}</span>
+        </p>
+      </div>
       <ul class="evp-features">
         ${inherits}
         ${features}

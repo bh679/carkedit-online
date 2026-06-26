@@ -24,8 +24,6 @@ body.page--evangelist-pricing #app {
   flex-direction: column;
   gap: var(--space-lg);
   width: 100%;
-  max-width: 1100px;
-  margin: 0 auto;
   padding: var(--space-md) var(--space-md) var(--space-xl);
 }
 
@@ -86,22 +84,15 @@ body.page--evangelist-pricing #app {
   text-align: center;
 }
 
-/* ── Tiers grid ───────────────────────────────────────── */
+/* ── Tiers (stacked rows) ─────────────────────────────── */
 .evp-tiers {
   list-style: none;
-  display: grid;
-  grid-template-columns: 1fr;
+  display: flex;
+  flex-direction: column;
   gap: var(--space-md);
-  align-items: start;
 }
 
-@media (min-width: 720px) {
-  .evp-tiers {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-/* ── Tier card ────────────────────────────────────────── */
+/* ── Tier row (full-width stacked card) ───────────────── */
 .evp-tier {
   position: relative;
   display: flex;
@@ -118,19 +109,27 @@ body.page--evangelist-pricing #app {
   box-shadow: 0 0 0 1px var(--color-primary);
 }
 
+/* Name + price header of each row. */
+.evp-tier__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-xs) var(--space-md);
+}
+
 .evp-tier__badge {
   position: absolute;
   top: 0;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 0.65rem;
+  left: var(--space-md);
+  transform: translateY(-50%);
+  font-size: 0.6rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--color-white);
   background: var(--color-primary);
   border-radius: var(--radius-sm);
-  padding: 0.18rem 0.6rem;
+  padding: 0.14rem 0.5rem;
   white-space: nowrap;
 }
 
@@ -144,10 +143,11 @@ body.page--evangelist-pricing #app {
   display: flex;
   align-items: baseline;
   gap: var(--space-xs);
+  margin-left: auto;
 }
 
 .evp-tier__amount {
-  font-size: 2.2rem;
+  font-size: 2rem;
   font-weight: 800;
   color: var(--color-highlight);
   line-height: 1;
@@ -164,8 +164,6 @@ body.page--evangelist-pricing #app {
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
-  flex: 1 1 auto;
-  margin-top: var(--space-xs);
 }
 
 .evp-feature {
