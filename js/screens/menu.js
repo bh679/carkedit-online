@@ -50,8 +50,9 @@ export function render(state) {
 
 /**
  * Secondary menu actions (Expansions + the account links the user has access
- * to). With 2+ items they collapse behind a transparent "More" toggle; with a
- * single item it is shown inline (a toggle for one button is not worth it).
+ * to). With 2+ items they sit behind a transparent "More" button; pressing it
+ * reveals every item and the button itself disappears (one-way, no collapse).
+ * A single item is shown inline (a toggle for one button is not worth it).
  * @param {object} state
  * @returns {string} HTML string
  */
@@ -63,20 +64,18 @@ function renderMenuSecondary(state) {
 
   if (extras.length === 0) return '';
   if (extras.length === 1) return extras[0];
+  if (state.showMenuExtras) return extras.join('\n');
 
-  const open = !!state.showMenuExtras;
-  const toggle = `
+  return `
     <button
-      class="btn btn--ghost menu__more-toggle${open ? ' menu__more-toggle--open' : ''}"
+      class="btn btn--ghost menu__more-toggle"
       onclick="window.game.toggleMenuExtras()"
-      aria-expanded="${open}"
+      aria-expanded="false"
     >
       <span>More</span>
       <span class="menu__more-arrow" aria-hidden="true">▾</span>
     </button>
   `;
-
-  return `${toggle}${open ? extras.join('\n') : ''}`;
 }
 
 function renderRecoveringOverlay(state) {
