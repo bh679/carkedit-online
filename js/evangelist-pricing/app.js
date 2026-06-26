@@ -36,8 +36,7 @@ export const TIERS = [
     inherits: 'Everything in Basic',
     features: [
       '1000 games a year <span class="evp-feature__note">(unlimited in first 4 months)</span>',
-      '20-card Custom Expansion Pack',
-      'Clients can make 2 cards each',
+      'Up to 20 Custom Cards',
     ],
   },
   {
@@ -46,7 +45,8 @@ export const TIERS = [
     features: [
       'Unlimited Games',
       'Up to 200 Custom Cards',
-      'Clients can make 10 custom cards each',
+      'Clients can make 2 cards each',
+      'Custom Post-Game Survey',
     ],
   },
 ];

@@ -99,7 +99,8 @@ test('renderTier: renders each feature string', () => {
   const html = renderTier(TIERS[2], 'ultimate');
   assert.match(html, /Unlimited Games/);
   assert.match(html, /Up to 200 Custom Cards/);
-  assert.match(html, /Clients can make 10 custom cards each/);
+  assert.match(html, /Clients can make 2 cards each/);
+  assert.match(html, /Custom Post-Game Survey/);
   assert.match(html, /Everything in Pro/);
 });
 
