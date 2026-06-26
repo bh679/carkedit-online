@@ -47,22 +47,28 @@ export function render(state) {
 
 const HOW_TO_PLAY_BTN = `<a class="btn btn--secondary menu__site-link" href="how-to-play">How to Play</a>`;
 const EXPANSIONS_BTN = `<a class="btn btn--secondary menu__site-link" href="expansions">Expansions</a>`;
+// Links to the evangelist pricing page (404s until that feature merges).
+const PARTNER_BTN = `<a class="btn btn--secondary menu__site-link" href="evangelist-pricing">Partner</a>`;
 
 /**
  * The middle of the menu: a promoted primary action followed by the collapsible
  * secondary actions. Brand owners get Brand Admin promoted to a primary slot and
  * How to Play demoted into "More"; everyone else keeps How to Play primary.
+ * Signed-in users without any brand get a Partner button (pricing) under More.
  * @param {object} state
  * @returns {string} HTML string
  */
 function renderMenuMiddle(state) {
   const brandAdmin = brandAdminButton(state);
   const manageAccount = manageAccountButton(state);
+  const hasAnyBrand = Array.isArray(state.myBrands) && state.myBrands.length > 0;
+  const partner = (state.authUser && !hasAnyBrand) ? PARTNER_BTN : null;
 
   const primary = brandAdmin || HOW_TO_PLAY_BTN;
   const secondary = [
     brandAdmin ? HOW_TO_PLAY_BTN : null,
     EXPANSIONS_BTN,
+    partner,
     manageAccount,
   ].filter(Boolean);
 
