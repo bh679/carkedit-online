@@ -84,7 +84,7 @@ export function renderHeader(evangelist = 'Evangelist') {
         alt=""
         onerror="this.style.display='none'"
       />
-      <h1 class="evp-header__title">${who} Pricing</h1>
+      <h1 class="evp-header__title">Become a ${who}</h1>
       <p class="evp-header__subtitle">Run co-branded games at your own URL</p>
     </header>
   `;
@@ -169,8 +169,7 @@ export function render(evangelist = 'Evangelist', selected = DEFAULT_PLAN) {
     <div class="evp">
       ${renderHeader(evangelist)}
       <p class="evp-intro">
-        Become a${escapeHtml(` ${evangelist}`)} and run Carked It! games under your own brand —
-        your logo, your vanity URL, and stats to match. Tap a plan to choose it.
+        Your brand, your community. Tap a plan to choose it.
       </p>
       ${renderTiers(tiers(), selected)}
       ${renderActions(evangelist, selected)}

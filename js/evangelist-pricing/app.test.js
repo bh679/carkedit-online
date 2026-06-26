@@ -45,7 +45,7 @@ test('TIERS: Pro and Ultimate inherit lower tiers; Basic does not', () => {
 
 test('renderHeader: uses the configurable evangelist term in the title', () => {
   const html = renderHeader('Death Evangelist');
-  assert.match(html, /Death Evangelist Pricing/);
+  assert.match(html, /Become a Death Evangelist/);
   assert.match(html, /href="\/"/); // back to menu
 });
 
