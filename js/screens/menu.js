@@ -1,7 +1,7 @@
 // CarkedIt Online — Menu Screen
 'use strict';
 
-import { renderAuthButton } from '../components/auth-button.js';
+import { renderAuthButton, manageAccountButton, brandAdminButton, brandPendingButton } from '../components/auth-button.js';
 import { escapeHtml } from '../utils/escape.js';
 import { renderCoBrand } from '../config/brand-config.js';
 
@@ -32,12 +32,7 @@ export function render(state) {
         <button class="btn btn--secondary" onclick="window.game.showScreen('join-game')">
           Join Game
         </button>
-        <a class="btn btn--secondary menu__site-link" href="how-to-play">
-          How to Play
-        </a>
-        <a class="btn btn--secondary menu__site-link" href="expansions">
-          Expansions
-        </a>
+        ${renderMenuMiddle(state)}
         <a class="btn btn--ghost menu__site-link menu__shop-link" href="https://carkedit.com/shop/all-products/games/carked-it/" target="_blank" rel="noopener noreferrer">Buy Physical Game</a>
       </div>
       <div class="page-auth">${renderAuthButton(state)}</div>
@@ -47,6 +42,63 @@ export function render(state) {
       </div>
       ${reconnecting ? renderRecoveringOverlay(state) : ''}
     </div>
+  `;
+}
+
+const HOW_TO_PLAY_BTN = `<a class="btn btn--secondary menu__site-link" href="how-to-play">How to Play</a>`;
+const EXPANSIONS_BTN = `<a class="btn btn--secondary menu__site-link" href="expansions">Expansions</a>`;
+// Links to the evangelist pricing page (404s until that feature merges).
+const PARTNER_BTN = `<a class="btn btn--secondary menu__site-link" href="evangelist-pricing">Partner</a>`;
+
+/**
+ * The middle of the menu: a promoted primary action followed by the collapsible
+ * secondary actions. Owners get a brand button promoted to a primary slot —
+ * Brand Admin when approved, Brand Pending while their request is pending — and
+ * How to Play demoted into "More"; everyone else keeps How to Play primary.
+ * Signed-in users without any brand get a Partner button (pricing) under More.
+ * @param {object} state
+ * @returns {string} HTML string
+ */
+function renderMenuMiddle(state) {
+  const brandBtn = brandAdminButton(state) || brandPendingButton(state);
+  const manageAccount = manageAccountButton(state);
+  const hasAnyBrand = Array.isArray(state.myBrands) && state.myBrands.length > 0;
+  const partner = (state.authUser && !hasAnyBrand) ? PARTNER_BTN : null;
+
+  const primary = brandBtn || HOW_TO_PLAY_BTN;
+  const secondary = [
+    brandBtn ? HOW_TO_PLAY_BTN : null,
+    EXPANSIONS_BTN,
+    partner,
+    manageAccount,
+  ].filter(Boolean);
+
+  return `${primary}\n${renderMenuSecondary(state, secondary)}`;
+}
+
+/**
+ * Collapsible secondary actions. With 2+ items they sit behind a transparent
+ * "More" button; pressing it reveals every item and the button itself disappears
+ * (one-way, no collapse). A single item is shown inline (a toggle for one button
+ * is not worth it).
+ * @param {object} state
+ * @param {string[]} secondary  button HTML strings
+ * @returns {string} HTML string
+ */
+function renderMenuSecondary(state, secondary) {
+  if (secondary.length === 0) return '';
+  if (secondary.length === 1) return secondary[0];
+  if (state.showMenuExtras) return secondary.join('\n');
+
+  return `
+    <button
+      class="btn btn--ghost menu__more-toggle"
+      onclick="window.game.toggleMenuExtras()"
+      aria-expanded="false"
+    >
+      <span>More</span>
+      <span class="menu__more-arrow" aria-hidden="true">▾</span>
+    </button>
   `;
 }
 

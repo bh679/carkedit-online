@@ -55,6 +55,27 @@ function formatBirth(month, day) {
   return `${String(month).padStart(2, '0')}/${String(day).padStart(2, '0')}`;
 }
 
+// "Signed up" cell: which brand URL the matched account was created under.
+// Brand name when signed up under a partner; "Root" for an account created on
+// the main site (no brand); "—" for an anonymous player with no account.
+function renderSignupCell(p) {
+  let label, title;
+  if (!p.matched_user_id) {
+    label = '—';
+    title = 'Anonymous player — no registered account';
+  } else if (p.signup_brand_name) {
+    label = p.signup_brand_name;
+    title = `Signed up on ${p.signup_brand_name}`;
+  } else {
+    label = 'Root';
+    title = 'Signed up on the main site (no brand)';
+  }
+  return `<div class="user-stats__metric">
+    <span class="user-stats__metric-value user-stats__signup" title="${escAttr(title)}">${escapeHtml(label)}</span>
+    <span class="user-stats__metric-label">signed up</span>
+  </div>`;
+}
+
 function renderPlayerGames(nameKey, games, canToggleDev, canExpandGame, expandedGameId, gameDetailCache, renderGameDetailFn) {
   if (games === undefined) {
     return `<div class="user-stats__games user-stats__games--loading" data-ps-stop>Loading games…</div>`;
@@ -148,6 +169,7 @@ function renderRow(p, expandedKey, playerGamesCache, canToggleDev, canExpandGame
       <div class="user-stats__metric"><span class="user-stats__metric-value">${formatDuration(p.total_seconds)}</span><span class="user-stats__metric-label">play time</span></div>
       <div class="user-stats__metric"><span class="user-stats__metric-value">${formatDate(p.first_game_at)}</span><span class="user-stats__metric-label">first</span></div>
       <div class="user-stats__metric"><span class="user-stats__metric-value">${formatDate(p.last_game_at)}</span><span class="user-stats__metric-label">last</span></div>
+      ${renderSignupCell(p)}
       ${detail}
     </div>
   `;
@@ -188,6 +210,10 @@ export function mountPlayerStats(rootEl, opts) {
   const {
     authFetch,
     apiBase = '',
+    // Path segment between apiBase and the resource. Default keeps the global
+    // admin routes (Stats page, admin-users.html). Pass '/api/carkedit/brands/<id>'
+    // to brand-scope the Users viewer (hits /brands/:id/users/stats + /brands/:id/games).
+    statsBasePath = '/api/carkedit',
     showSeeAllLink = false,
     expansionSteps = DEFAULT_EXPANSION_STEPS,
     patchDevFlag = null,
@@ -195,6 +221,10 @@ export function mountPlayerStats(rootEl, opts) {
     onGameDevToggled = null,
     fetchGameDetail = null,
     renderGameDetail = null,
+    // When set ({ id, name }) the list is a brand-scoped view: the sign-up
+    // location dropdown collapses other brands into "Other" so their names
+    // aren't leaked. Null on the global Stats page (lists each brand by name).
+    brandScope = null,
   } = opts;
 
   const canToggleDev = typeof patchDevFlag === 'function';
@@ -202,6 +232,9 @@ export function mountPlayerStats(rootEl, opts) {
 
   const state = {
     devFilter: 'nodev',
+    // One combined filter — account presence AND sign-up location:
+    // 'all' | 'accounts' | 'noaccount' | 'root' | '<brandId>' | '__other__'
+    filter: 'all',
     displayLimit: INITIAL_LIMIT,
     data: { players: [], total_distinct: 0, total_matched_users: 0 },
     loading: false,
@@ -212,10 +245,50 @@ export function mountPlayerStats(rootEl, opts) {
     gameDetailCache: {},
   };
 
+  // ── Combined account + sign-up-location filter ──────────────────────────────
+  function passesFilters(p) {
+    const f = state.filter;
+    if (f === 'all') return true;
+    if (f === 'noaccount') return !p.matched_user_id;
+    if (f === 'accounts') return !!p.matched_user_id;
+    // Remaining options are sign-up locations — each implies a registered account.
+    if (!p.matched_user_id) return false;
+    if (f === 'root') return !p.signup_brand_id;                 // signed up on the main site
+    if (f === '__other__') {                                     // signed up under a DIFFERENT brand
+      return !!p.signup_brand_id && (!brandScope || p.signup_brand_id !== brandScope.id);
+    }
+    return p.signup_brand_id === f;                              // a specific brand id
+  }
+
+  // One dropdown combining account presence + sign-up location.
+  // Brand view: All players / With account / No account / Root / <brand> / Other.
+  // Global view: … / Root / one entry per brand present in the data.
+  function filterOptions() {
+    const opts = [
+      { value: 'all', label: 'All players' },
+      { value: 'accounts', label: 'With account' },
+      { value: 'noaccount', label: 'No account' },
+      { value: 'root', label: 'Root' },
+    ];
+    if (brandScope) {
+      opts.push({ value: brandScope.id, label: brandScope.name || 'This brand' });
+      opts.push({ value: '__other__', label: 'Other brand' });
+    } else {
+      const seen = new Map();
+      for (const p of (state.data.players || [])) {
+        if (p.signup_brand_id && p.signup_brand_name && !seen.has(p.signup_brand_id)) {
+          seen.set(p.signup_brand_id, p.signup_brand_name);
+        }
+      }
+      for (const [id, name] of seen) opts.push({ value: id, label: name });
+    }
+    return opts;
+  }
+
   async function fetchData() {
     state.loading = true;
     try {
-      const res = await authFetch(`${apiBase}/api/carkedit/users/stats?dev=${state.devFilter}&limit=${FETCH_LIMIT}`);
+      const res = await authFetch(`${apiBase}${statsBasePath}/users/stats?dev=${state.devFilter}&limit=${FETCH_LIMIT}`);
       if (res.ok) {
         state.data = await res.json();
         state.error = null;
@@ -232,7 +305,7 @@ export function mountPlayerStats(rootEl, opts) {
 
   async function fetchPlayerGames(nameKey) {
     try {
-      const res = await authFetch(`${apiBase}/api/carkedit/games?playerName=${encodeURIComponent(nameKey)}&dev=all&limit=${PLAYER_GAMES_LIMIT}`);
+      const res = await authFetch(`${apiBase}${statsBasePath}/games?playerName=${encodeURIComponent(nameKey)}&dev=all&limit=${PLAYER_GAMES_LIMIT}`);
       if (res.ok) {
         const data = await res.json();
         state.playerGamesCache[nameKey] = data.games || [];
@@ -249,27 +322,33 @@ export function mountPlayerStats(rootEl, opts) {
     if (!rootEl.isConnected) return;
 
     const devActive = state.devFilter !== 'all' ? 'dashboard__filter-btn--active' : '';
+    const filterOpts = filterOptions().map((o) =>
+      `<option value="${escAttr(o.value)}"${o.value === state.filter ? ' selected' : ''}>${escapeHtml(o.label)}</option>`
+    ).join('');
     const filterBar = `
       <div class="dashboard__filter-bar">
         <button class="dashboard__filter-btn ${devActive}" data-ps-action="cycle-dev">${DEV_FILTER_LABELS[state.devFilter]}</button>
+        <select class="dashboard__filter-select" data-ps-select="filter" aria-label="Players and sign-up filter">${filterOpts}</select>
       </div>
     `;
 
-    const players = state.data.players || [];
-    const total = players.length;
+    const allPlayers = state.data.players || [];
 
-    if (state.loading && total === 0) {
+    if (state.loading && allPlayers.length === 0) {
       rootEl.innerHTML = `${filterBar}<p class="dashboard__empty">Loading…</p>`;
       return;
     }
-
-    if (state.error && total === 0) {
+    if (state.error && allPlayers.length === 0) {
       rootEl.innerHTML = `${filterBar}<p class="dashboard__empty">${escapeHtml(state.error)}</p>`;
       return;
     }
 
+    const players = allPlayers.filter(passesFilters);
+    const total = players.length;
+    const filtered = state.filter !== 'all';
+
     if (total === 0) {
-      rootEl.innerHTML = `${filterBar}<p class="dashboard__empty">No player data yet.</p>`;
+      rootEl.innerHTML = `${filterBar}<p class="dashboard__empty">${filtered ? 'No one matches this filter.' : 'No player data yet.'}</p>`;
       return;
     }
 
@@ -278,9 +357,11 @@ export function mountPlayerStats(rootEl, opts) {
       .map(p => renderRow(p, state.expandedPlayerKey, state.playerGamesCache, canToggleDev, canExpandGame, state.expandedGameId, state.gameDetailCache, renderGameDetail))
       .join('');
 
+    const noun = state.filter === 'noaccount' ? 'players (no account)'
+      : (state.filter !== 'all') ? 'accounts' : 'players';
     const summary = `
       <div class="user-stats__summary">
-        ${state.data.total_distinct} distinct players · ${state.data.total_matched_users} matched to user accounts
+        ${total} ${noun}${filtered ? ' (filtered)' : ` · ${state.data.total_matched_users} with accounts`}
         <span class="user-stats__summary-meta">· showing ${visibleCount} of ${total}</span>
       </div>
     `;
@@ -358,6 +439,16 @@ export function mountPlayerStats(rootEl, opts) {
       alert('Failed to toggle dev: ' + e.message);
     }
   }
+
+  // Combined account + sign-up-location dropdown (client-side filter).
+  rootEl.addEventListener('change', (e) => {
+    const sel = e.target.closest('[data-ps-select="filter"]');
+    if (!sel) return;
+    state.filter = sel.value;
+    state.displayLimit = INITIAL_LIMIT;
+    state.expandedPlayerKey = null;
+    render();
+  });
 
   rootEl.addEventListener('click', async (e) => {
     const target = e.target.closest('[data-ps-action]');

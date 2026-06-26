@@ -43,13 +43,12 @@ export function render(state) {
     return `
       <div class="screen screen--account">
         <div class="marketplace__header">
-          <button class="marketplace__back" onclick="window.game.showScreen('menu')">← Back</button>
           <h1 class="marketplace__title">Manage Account</h1>
-          <span></span>
         </div>
         <p class="marketplace__empty">Sign in to manage your account.<br><br>
           <button class="btn btn--primary" onclick="window.game.showLogin()">Sign in</button>
         </p>
+        <button class="btn mode-select__back-btn" onclick="window.game.showScreen('menu')">← Back</button>
       </div>
     `;
   }
@@ -57,9 +56,7 @@ export function render(state) {
   return `
     <div class="screen screen--account">
       <div class="marketplace__header">
-        <button class="marketplace__back" onclick="window.game.showScreen('menu')">← Back</button>
         <h1 class="marketplace__title">Manage Account</h1>
-        <span></span>
       </div>
 
       <section class="account__section">
@@ -100,6 +97,7 @@ export function render(state) {
           Apply for a partner brand — an admin will review your request.</p>
         <a class="btn btn--primary account__cta" href="brand-signup">Become a ${esc(EVANGELIST)}</a>
       </section>
+      <button class="btn mode-select__back-btn" onclick="window.game.showScreen('menu')">← Back</button>
     </div>
   `;
 }

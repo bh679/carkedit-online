@@ -157,6 +157,9 @@ async function postGameToServer(entry) {
         settings: entry.settings,
         finishedAt: entry.finishedAt,
         isDev: entry.isDev || false,
+        // Brand PLAY attribution: tag the game with the brand URL it was created on
+        // (window.brand is set on /<slug>/...). Server validates it to a real brand.
+        brandId: (typeof window !== 'undefined' && window.brand) ? window.brand.id : undefined,
       }),
     });
 

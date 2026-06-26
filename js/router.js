@@ -95,11 +95,11 @@ export function showScreen(name, updates = {}) {
     if (list && container) {
       container.classList.toggle('player-list-container--scrollable', list.scrollWidth > list.clientWidth);
     }
-    // Trigger pitch card flip animation after browser paints the initial state
-    const pitchFlips = document.querySelectorAll('[data-pitch-reveal]');
-    if (pitchFlips.length) {
+    // Trigger card flip animation after browser paints the initial state
+    const flipEls = document.querySelectorAll('[data-pitch-reveal], [data-die-reveal]');
+    if (flipEls.length) {
       requestAnimationFrame(() => {
-        pitchFlips.forEach(el => el.classList.add('card-flip--revealed'));
+        flipEls.forEach(el => el.classList.add('card-flip--revealed'));
       });
     }
   });
@@ -787,6 +787,10 @@ window.game = {
   },
   closeUserMenu() {
     setState({ showUserMenu: false });
+    showScreen(getState().screen);
+  },
+  toggleMenuExtras() {
+    setState({ showMenuExtras: !getState().showMenuExtras });
     showScreen(getState().screen);
   },
   _closeUserMenuOnOutsideClick(e) {

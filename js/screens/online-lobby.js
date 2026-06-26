@@ -6,6 +6,7 @@ import { renderAuthButton } from '../components/auth-button.js';
 import { PERSON_ICON, STAR_ICON, formatBirthday } from '../components/player-list.js';
 import { renderAdvancedPanel, renderToggle } from './lobby.js';
 import { render as renderPackSelector } from '../components/pack-selector.js';
+import { renderHeaderCoBrand } from '../config/brand-config.js';
 
 const LINK_ICON = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
   <path d="M6.5 9.5L9.5 6.5" stroke="#374151" stroke-width="1.5" stroke-linecap="round"/>
@@ -49,7 +50,10 @@ function renderJoinCreate(state, connecting, error) {
   const headerHtml = `
     <header class="phase-header" data-phase="online">
       <div class="phase-header__left">
-        <span class="phase-header__app-name">CarkedIt</span>
+        <div class="phase-header__title-row">
+          <span class="phase-header__app-name">CarkedIt</span>
+          ${renderHeaderCoBrand((typeof window !== 'undefined' && window.brand) ? window.brand : null)}
+        </div>
         <span class="phase-header__phase-label">Online</span>
       </div>
       <div class="phase-header__right">
@@ -360,7 +364,10 @@ function renderConnectedLobby(state) {
   const headerHtml = `
     <header class="phase-header">
       <div class="phase-header__left">
-        <span class="phase-header__app-name">CarkedIt</span>
+        <div class="phase-header__title-row">
+          <span class="phase-header__app-name">CarkedIt</span>
+          ${renderHeaderCoBrand((typeof window !== 'undefined' && window.brand) ? window.brand : null)}
+        </div>
         <span class="phase-header__phase-label">Online Lobby</span>
       </div>
       <div class="phase-header__right">
@@ -483,7 +490,7 @@ const DEFAULTS = {
   rounds: 1, handSize: 5, enableLive: true, enableBye: true, enableEulogy: true,
   forceWildcards: 'atLeastOne', playableWildcards: true, wildcardCount: 2, eulogistCount: 2,
   handRedraws: 'once_per_phase', timerEnabled: false, ultraQuickMode: false,
-  optionalCardPlay: false,
+  optionalCardPlay: false, showCardReveal: false,
 };
 
 const MODE_PRESETS = {

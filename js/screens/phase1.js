@@ -44,8 +44,15 @@ export function render(state) {
       const promptHtml = state.currentCard.prompt
         ? `<p class="phase1__card-prompt">${state.currentCard.prompt}</p>`
         : '';
+      const flipCard = `
+        <div class="card-flip" data-die-reveal>
+          <div class="card-flip__inner">
+            <div class="card-flip__back">${renderCardBack({ deckType: 'die' })}</div>
+            <div class="card-flip__front">${renderCard(state.currentCard)}</div>
+          </div>
+        </div>`;
       boardContent = renderActiveCard(
-        renderCard(state.currentCard),
+        flipCard,
         { label: isMyTurn ? 'Your death' : `${currentPlayer.name}'s death`, extraHtml: promptHtml },
       );
       handContent = isMyTurn

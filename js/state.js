@@ -66,6 +66,7 @@ let _state = {
     timerAutoAdvance: true,
     ultraQuickMode: false,
     optionalCardPlay: false,
+    showCardReveal: false,
   },
   showAdvancedSettings: false,
   showExpansionPacks: false,

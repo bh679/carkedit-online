@@ -68,12 +68,18 @@ export async function initAuth(onUserChanged) {
           showLoginModal: accountError ? _getState().showLoginModal : false,
         });
         if (onUserChanged) onUserChanged();
+        // Owned partner brands → drives the "Brand Admin" link in the user menu.
+        fetchMyBrands(token).then((brands) => {
+          _setState({ myBrands: brands });
+          if (onUserChanged) onUserChanged();
+        });
       } else {
         _setState({
           authUser: null,
           firebaseUser: null,
           authToken: null,
           authLoading: false,
+          myBrands: [],
         });
         if (onUserChanged) onUserChanged();
       }
@@ -169,9 +175,27 @@ export async function updateUserProfile({ display_name, birth_month, birth_day }
   }
 }
 
+// Partner brands this user owns (any status). Empty on failure — the menu
+// simply omits the Brand Admin link.
+async function fetchMyBrands(token) {
+  try {
+    const res = await fetch(`${window.location.origin}/api/carkedit/brands/mine`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return [];
+    return (await res.json()).brands || [];
+  } catch (err) {
+    console.warn('[CarkedIt Auth] fetch my brands failed:', err);
+    return [];
+  }
+}
+
 async function linkOrFetchUser(firebaseUser, token) {
   const API_BASE = `${window.location.origin}/api/carkedit`;
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+  // Partner-brand attribution: when signing up on a brand vanity URL, tag the
+  // new account with the brand (server validates + writes it once, at creation).
+  const brandId = (typeof window !== 'undefined' && window.brand) ? window.brand.id : undefined;
 
   const anonymousId = localStorage.getItem('carkedit-user-id');
   if (anonymousId) {
@@ -179,7 +203,7 @@ async function linkOrFetchUser(firebaseUser, token) {
       const res = await fetch(`${API_BASE}/users/link`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ anonymous_user_id: anonymousId }),
+        body: JSON.stringify({ anonymous_user_id: anonymousId, brand_id: brandId }),
       });
       if (res.ok) {
         const user = await res.json();
@@ -203,6 +227,7 @@ async function linkOrFetchUser(firebaseUser, token) {
         firebase_uid: firebaseUser.uid,
         email: firebaseUser.email,
         avatar_url: firebaseUser.photoURL,
+        brand_id: brandId,
       }),
     });
     if (res.ok) {

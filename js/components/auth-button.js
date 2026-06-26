@@ -20,12 +20,13 @@ export function renderAuthButton(state) {
 
     const adminItems = isAdmin ? renderAdminMenuItems() : '';
 
+    // Manage Account and Brand Admin are surfaced directly in the main menu
+    // (see renderMenuAccountButtons), so they are intentionally not repeated here.
     const menu = state.showUserMenu ? `
       <div class="auth-menu" onclick="event.stopPropagation()">
         <div class="auth-menu__name">${name}</div>
         <div class="auth-menu__divider"></div>
         ${adminItems}
-        <button class="auth-menu__item" onclick="window.game.manageAccount()">Manage Account</button>
         <button class="auth-menu__item auth-menu__item--logout" onclick="window.game.logOut()">Log Out</button>
       </div>
     ` : '';
@@ -45,6 +46,71 @@ export function renderAuthButton(state) {
       <button class="btn btn--ghost" onclick="window.game.showLogin()">Sign In</button>
     </div>
   `;
+}
+
+/**
+ * Resolve the Brand Admin destination for the user's first approved brand.
+ * The button only surfaces for owners with an approved brand, so pending or
+ * rejected brands are ignored and link to the co-branded /<slug>/admin.
+ * @returns {string|null} href, or null when the user has no approved brand.
+ */
+function brandAdminHref(state) {
+  const myBrands = Array.isArray(state.myBrands) ? state.myBrands : [];
+  const b = myBrands.find((x) => x.status === 'approved' && x.slug);
+  return b ? `/${encodeURIComponent(b.slug)}/admin` : null;
+}
+
+/**
+ * The Manage Account button, or null when signed out.
+ * @returns {string|null} button HTML.
+ */
+export function manageAccountButton(state) {
+  if (!state.authUser) return null;
+  return `<button class="btn btn--secondary" onclick="window.game.manageAccount()">Manage Account</button>`;
+}
+
+/**
+ * The Brand Admin button, or null unless the user owns an approved brand.
+ * @returns {string|null} button HTML.
+ */
+export function brandAdminButton(state) {
+  if (!state.authUser) return null;
+  const href = brandAdminHref(state);
+  return href ? `<a class="btn btn--dark menu__site-link" href="${href}">Brand Admin</a>` : null;
+}
+
+/**
+ * The Brand Pending button, shown to owners whose brand request is still
+ * pending (and not yet approved). Links to the sign-up page where the request
+ * can be reviewed/edited. Null when signed out, approved, or with no request.
+ * @returns {string|null} button HTML.
+ */
+export function brandPendingButton(state) {
+  if (!state.authUser) return null;
+  if (brandAdminHref(state)) return null; // an approved brand takes precedence
+  const myBrands = Array.isArray(state.myBrands) ? state.myBrands : [];
+  const hasPending = myBrands.some((x) => x.status === 'pending');
+  return hasPending
+    ? `<a class="btn btn--dark menu__site-link" href="brand-signup">Brand Pending</a>`
+    : null;
+}
+
+/**
+ * Main-menu account actions the signed-in user has access to, as individual
+ * button HTML strings: Manage Account when signed in, plus Brand Admin only for
+ * owners with an approved brand. Returned as an array so callers can count them.
+ * @returns {string[]} button HTML strings (empty when signed out).
+ */
+export function menuAccountButtons(state) {
+  return [manageAccountButton(state), brandAdminButton(state)].filter(Boolean);
+}
+
+/**
+ * Convenience string form of {@link menuAccountButtons}.
+ * @returns {string} HTML string (empty when signed out).
+ */
+export function renderMenuAccountButtons(state) {
+  return menuAccountButtons(state).join('\n');
 }
 
 export function renderLoginModal(state) {
