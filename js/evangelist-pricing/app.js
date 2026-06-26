@@ -24,10 +24,10 @@ export const TIERS = [
     period: '/ year',
     features: [
       'Custom URL <span class="evp-feature__note">carkedit.com/your-url</span>',
-      '250 games a year <span class="evp-feature__note">(unlimited 6 months in pre-release)</span>',
-      'Free for clients',
-      'Logo branded',
-      'Admin Stats page',
+      'Free for your clients',
+      '250 games a year <span class="evp-feature__note">(unlimited in first 4 months)</span>',
+      'Your Logo',
+      'Analytics',
     ],
   },
   {
@@ -38,7 +38,7 @@ export const TIERS = [
     featured: true,
     inherits: 'Everything in Basic',
     features: [
-      '1000 games a year <span class="evp-feature__note">(unlimited 6 months in pre-release)</span>',
+      '1000 games a year <span class="evp-feature__note">(unlimited in first 4 months)</span>',
       '20-card Custom Expansion Pack',
       'Clients can make 2 cards each',
     ],
