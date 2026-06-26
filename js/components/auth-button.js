@@ -61,23 +61,32 @@ function brandAdminHref(state) {
 }
 
 /**
- * Main-menu account actions, shown only when the user has access:
- * Brand Admin appears only for owners with an approved brand; Manage Account
- * only when signed in.
+ * Main-menu account actions the signed-in user has access to, as individual
+ * button HTML strings: Manage Account when signed in, plus Brand Admin only for
+ * owners with an approved brand. Returned as an array so callers can count them.
+ * @returns {string[]} button HTML strings (empty when signed out).
+ */
+export function menuAccountButtons(state) {
+  if (!state.authUser) return [];
+
+  const buttons = [
+    `<button class="btn btn--secondary" onclick="window.game.manageAccount()">Manage Account</button>`,
+  ];
+
+  const href = brandAdminHref(state);
+  if (href) {
+    buttons.push(`<a class="btn btn--dark menu__site-link" href="${href}">Brand Admin</a>`);
+  }
+
+  return buttons;
+}
+
+/**
+ * Convenience string form of {@link menuAccountButtons}.
  * @returns {string} HTML string (empty when signed out).
  */
 export function renderMenuAccountButtons(state) {
-  if (!state.authUser) return '';
-
-  const href = brandAdminHref(state);
-  const brandAdminBtn = href
-    ? `<a class="btn btn--dark menu__site-link" href="${href}">Brand Admin</a>`
-    : '';
-
-  return `
-    <button class="btn btn--secondary" onclick="window.game.manageAccount()">Manage Account</button>
-    ${brandAdminBtn}
-  `;
+  return menuAccountButtons(state).join('\n');
 }
 
 export function renderLoginModal(state) {

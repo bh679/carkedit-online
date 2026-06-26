@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { renderLoginModal, renderMenuAccountButtons } from './auth-button.js';
+import { renderLoginModal, renderMenuAccountButtons, menuAccountButtons } from './auth-button.js';
 
 const open = (extra = {}) => renderLoginModal({ showLoginModal: true, ...extra });
 
@@ -56,6 +56,15 @@ test('renderMenuAccountButtons: pending brand does not show Brand Admin', () => 
   });
   assert.ok(html.includes('Manage Account'));
   assert.ok(!html.includes('Brand Admin'));
+});
+
+test('menuAccountButtons: returns an array sized by access (0 / 1 / 2 buttons)', () => {
+  assert.equal(menuAccountButtons({ authUser: null }).length, 0);
+  assert.equal(menuAccountButtons({ authUser: { id: 'u1' }, myBrands: [] }).length, 1);
+  assert.equal(
+    menuAccountButtons({ authUser: { id: 'u1' }, myBrands: [{ id: 'b1', status: 'approved', slug: 'acme' }] }).length,
+    2,
+  );
 });
 
 test('renderMenuAccountButtons: approved brand is shown even when a pending brand is listed first', () => {

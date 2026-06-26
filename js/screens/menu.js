@@ -1,7 +1,7 @@
 // CarkedIt Online — Menu Screen
 'use strict';
 
-import { renderAuthButton, renderMenuAccountButtons } from '../components/auth-button.js';
+import { renderAuthButton, menuAccountButtons } from '../components/auth-button.js';
 import { escapeHtml } from '../utils/escape.js';
 import { renderCoBrand } from '../config/brand-config.js';
 
@@ -35,8 +35,7 @@ export function render(state) {
         <a class="btn btn--secondary menu__site-link" href="how-to-play">
           How to Play
         </a>
-        ${renderMenuExtrasToggle(state)}
-        ${renderMenuExtras(state)}
+        ${renderMenuSecondary(state)}
         <a class="btn btn--ghost menu__site-link menu__shop-link" href="https://carkedit.com/shop/all-products/games/carked-it/" target="_blank" rel="noopener noreferrer">Buy Physical Game</a>
       </div>
       <div class="page-auth">${renderAuthButton(state)}</div>
@@ -50,36 +49,34 @@ export function render(state) {
 }
 
 /**
- * The "More / Less" disclosure toggle that reveals the secondary menu actions.
+ * Secondary menu actions (Expansions + the account links the user has access
+ * to). With 2+ items they collapse behind a transparent "More" toggle; with a
+ * single item it is shown inline (a toggle for one button is not worth it).
  * @param {object} state
  * @returns {string} HTML string
  */
-function renderMenuExtrasToggle(state) {
+function renderMenuSecondary(state) {
+  const extras = [
+    `<a class="btn btn--secondary menu__site-link" href="expansions">Expansions</a>`,
+    ...menuAccountButtons(state),
+  ];
+
+  if (extras.length === 0) return '';
+  if (extras.length === 1) return extras[0];
+
   const open = !!state.showMenuExtras;
-  return `
+  const toggle = `
     <button
-      class="btn btn--secondary menu__more-toggle${open ? ' menu__more-toggle--open' : ''}"
+      class="btn btn--ghost menu__more-toggle${open ? ' menu__more-toggle--open' : ''}"
       onclick="window.game.toggleMenuExtras()"
       aria-expanded="${open}"
     >
-      <span>${open ? 'Less' : 'More'}</span>
+      <span>More</span>
       <span class="menu__more-arrow" aria-hidden="true">▾</span>
     </button>
   `;
-}
 
-/**
- * Secondary menu actions (Expansions + account links), hidden behind the
- * More/Less toggle. Returns nothing when the menu is collapsed.
- * @param {object} state
- * @returns {string} HTML string
- */
-function renderMenuExtras(state) {
-  if (!state.showMenuExtras) return '';
-  return `
-    <a class="btn btn--secondary menu__site-link" href="expansions">Expansions</a>
-    ${renderMenuAccountButtons(state)}
-  `;
+  return `${toggle}${open ? extras.join('\n') : ''}`;
 }
 
 function renderRecoveringOverlay(state) {
