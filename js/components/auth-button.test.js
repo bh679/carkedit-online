@@ -49,10 +49,22 @@ test('renderMenuAccountButtons: approved brand links to the co-branded /<slug>/a
   assert.ok(html.includes('href="/acme/admin"'));
 });
 
-test('renderMenuAccountButtons: pending brand links to /brand-admin by id', () => {
+test('renderMenuAccountButtons: pending brand does not show Brand Admin', () => {
   const html = renderMenuAccountButtons({
     authUser: { id: 'u1' },
     myBrands: [{ id: 'b1', status: 'pending', slug: 'acme' }],
   });
-  assert.ok(html.includes('href="/brand-admin?brand=b1"'));
+  assert.ok(html.includes('Manage Account'));
+  assert.ok(!html.includes('Brand Admin'));
+});
+
+test('renderMenuAccountButtons: approved brand is shown even when a pending brand is listed first', () => {
+  const html = renderMenuAccountButtons({
+    authUser: { id: 'u1' },
+    myBrands: [
+      { id: 'b1', status: 'pending', slug: 'pend' },
+      { id: 'b2', status: 'approved', slug: 'acme' },
+    ],
+  });
+  assert.ok(html.includes('href="/acme/admin"'));
 });

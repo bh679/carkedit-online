@@ -49,23 +49,21 @@ export function renderAuthButton(state) {
 }
 
 /**
- * Resolve the Brand Admin destination for the first/best brand the user owns.
- * Approved brands link to the co-branded /<slug>/admin; otherwise the
- * /brand-admin page resolves the brand by id (works for pending brands too).
- * @returns {string|null} href, or null when the user owns no brands.
+ * Resolve the Brand Admin destination for the user's first approved brand.
+ * The button only surfaces for owners with an approved brand, so pending or
+ * rejected brands are ignored and link to the co-branded /<slug>/admin.
+ * @returns {string|null} href, or null when the user has no approved brand.
  */
 function brandAdminHref(state) {
   const myBrands = Array.isArray(state.myBrands) ? state.myBrands : [];
-  if (!myBrands.length) return null;
-  const b = myBrands.find((x) => x.status === 'approved') || myBrands[0];
-  return (b.status === 'approved' && b.slug)
-    ? `/${encodeURIComponent(b.slug)}/admin`
-    : `/brand-admin?brand=${encodeURIComponent(b.id)}`;
+  const b = myBrands.find((x) => x.status === 'approved' && x.slug);
+  return b ? `/${encodeURIComponent(b.slug)}/admin` : null;
 }
 
 /**
  * Main-menu account actions, shown only when the user has access:
- * Brand Admin appears only for brand owners; Manage Account only when signed in.
+ * Brand Admin appears only for owners with an approved brand; Manage Account
+ * only when signed in.
  * @returns {string} HTML string (empty when signed out).
  */
 export function renderMenuAccountButtons(state) {
