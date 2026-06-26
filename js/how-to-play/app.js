@@ -141,7 +141,7 @@ export function renderSetupPanel(active) {
           similar and play with your phones in hand.
         </p>
       </div>
-      <a class="btn btn--primary htp-cta" href="#play" onclick="window.howToPlay.selectTab('play'); return false;">Game Rules &rarr;</a>
+      <a class="btn btn--primary htp-cta" href="#play" onclick="window.howToPlay.selectTab('play'); window.scrollTo(0,0); return false;">Game Rules &rarr;</a>
     </section>
   `;
 }
