@@ -58,6 +58,7 @@ export const TIERS = [
 ];
 
 export const SIGNUP_HREF = 'brand-signup.html';
+export const WHITELABEL_EMAIL = 'simon@theageingrevolution.com';
 
 // ── Rendering (pure: returns HTML strings) ────────────────
 
@@ -118,6 +119,19 @@ export function renderTiers(tiers, evangelist = 'Evangelist') {
   `;
 }
 
+export function renderWhiteLabel() {
+  const email = escapeHtml(WHITELABEL_EMAIL);
+  return `
+    <div class="evp-whitelabel">
+      <div class="evp-whitelabel__text">
+        <h2 class="evp-whitelabel__title">Want a full corporate white label?</h2>
+        <p class="evp-whitelabel__body">Your own app, fully branded end-to-end. Get in touch to talk through a bespoke package.</p>
+      </div>
+      <a class="btn btn--secondary evp-whitelabel__cta" href="mailto:${email}">Email us &rarr;</a>
+    </div>
+  `;
+}
+
 export function render(evangelist = 'Evangelist') {
   return `
     <div class="evp">
@@ -127,6 +141,7 @@ export function render(evangelist = 'Evangelist') {
         your logo, your vanity URL, and stats to match. Pick the plan that fits your audience.
       </p>
       ${renderTiers(tiers(), evangelist)}
+      ${renderWhiteLabel()}
       <p class="evp-foot">All plans are billed yearly. Questions? Submit a request and an admin will be in touch.</p>
     </div>
   `;

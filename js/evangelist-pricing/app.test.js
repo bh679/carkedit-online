@@ -3,9 +3,11 @@ import assert from 'node:assert/strict';
 import {
   TIERS,
   SIGNUP_HREF,
+  WHITELABEL_EMAIL,
   renderHeader,
   renderTier,
   renderTiers,
+  renderWhiteLabel,
   render,
 } from './app.js';
 
@@ -85,4 +87,16 @@ test('render: includes all tier names and the evangelist term', () => {
   const html = render('Death Evangelist');
   ['Basic', 'Pro', 'Ultimate'].forEach((n) => assert.match(html, new RegExp(n)));
   assert.match(html, /Death Evangelist/);
+});
+
+// ── renderWhiteLabel ──────────────────────────────────────
+
+test('renderWhiteLabel: offers a corporate white label with a mailto link', () => {
+  const html = renderWhiteLabel();
+  assert.match(html, /white label/i);
+  assert.match(html, new RegExp(`href="mailto:${WHITELABEL_EMAIL}"`));
+});
+
+test('render: includes the white-label contact email', () => {
+  assert.match(render('Evangelist'), new RegExp(`mailto:${WHITELABEL_EMAIL}`));
 });
