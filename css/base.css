@@ -92,6 +92,11 @@ body {
   color: var(--color-white);
 }
 
+.btn--dark {
+  background: var(--color-surface);
+  color: var(--color-white);
+}
+
 .btn--ghost {
   background: transparent;
   color: var(--color-primary);

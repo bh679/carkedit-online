@@ -789,6 +789,10 @@ window.game = {
     setState({ showUserMenu: false });
     showScreen(getState().screen);
   },
+  toggleMenuExtras() {
+    setState({ showMenuExtras: !getState().showMenuExtras });
+    showScreen(getState().screen);
+  },
   _closeUserMenuOnOutsideClick(e) {
     const menu = document.querySelector('.auth-menu');
     const btn = document.querySelector('.auth-bar__avatar-btn');
