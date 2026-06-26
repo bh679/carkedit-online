@@ -232,8 +232,9 @@ export function mountPlayerStats(rootEl, opts) {
 
   const state = {
     devFilter: 'nodev',
-    filterAccounts: 'all',   // 'all' | 'accounts'  (accounts = has a matched user account)
-    filterLocation: 'all',   // 'all' | 'root' | '<brandId>' | '__other__'  (where they signed up)
+    // One combined filter — account presence AND sign-up location:
+    // 'all' | 'accounts' | 'noaccount' | 'root' | '<brandId>' | '__other__'
+    filter: 'all',
     displayLimit: INITIAL_LIMIT,
     data: { players: [], total_distinct: 0, total_matched_users: 0 },
     loading: false,
@@ -244,24 +245,29 @@ export function mountPlayerStats(rootEl, opts) {
     gameDetailCache: {},
   };
 
-  // ── Sign-up filters ───────────────────────────────────────────────────────
+  // ── Combined account + sign-up-location filter ──────────────────────────────
   function passesFilters(p) {
-    if (state.filterAccounts === 'accounts' && !p.matched_user_id) return false;
-    const loc = state.filterLocation;
-    if (loc === 'all') return true;
-    if (!p.matched_user_id) return false;            // a location implies a registered account
-    if (loc === 'root') return !p.signup_brand_id;   // signed up on the main site
-    if (loc === '__other__') {                       // signed up under a DIFFERENT brand
+    const f = state.filter;
+    if (f === 'all') return true;
+    if (f === 'noaccount') return !p.matched_user_id;
+    if (f === 'accounts') return !!p.matched_user_id;
+    // Remaining options are sign-up locations — each implies a registered account.
+    if (!p.matched_user_id) return false;
+    if (f === 'root') return !p.signup_brand_id;                 // signed up on the main site
+    if (f === '__other__') {                                     // signed up under a DIFFERENT brand
       return !!p.signup_brand_id && (!brandScope || p.signup_brand_id !== brandScope.id);
     }
-    return p.signup_brand_id === loc;                // a specific brand id
+    return p.signup_brand_id === f;                              // a specific brand id
   }
 
-  // Options for the sign-up-location dropdown. Brand view: All / Root / <brand> /
-  // Other. Global view: All / Root / one entry per brand present in the data.
-  function locationOptions() {
+  // One dropdown combining account presence + sign-up location.
+  // Brand view: All players / With account / No account / Root / <brand> / Other.
+  // Global view: … / Root / one entry per brand present in the data.
+  function filterOptions() {
     const opts = [
-      { value: 'all', label: 'All sign-ups' },
+      { value: 'all', label: 'All players' },
+      { value: 'accounts', label: 'With account' },
+      { value: 'noaccount', label: 'No account' },
       { value: 'root', label: 'Root' },
     ];
     if (brandScope) {
@@ -316,15 +322,13 @@ export function mountPlayerStats(rootEl, opts) {
     if (!rootEl.isConnected) return;
 
     const devActive = state.devFilter !== 'all' ? 'dashboard__filter-btn--active' : '';
-    const acctActive = state.filterAccounts === 'accounts' ? 'dashboard__filter-btn--active' : '';
-    const locOpts = locationOptions().map((o) =>
-      `<option value="${escAttr(o.value)}"${o.value === state.filterLocation ? ' selected' : ''}>${escapeHtml(o.label)}</option>`
+    const filterOpts = filterOptions().map((o) =>
+      `<option value="${escAttr(o.value)}"${o.value === state.filter ? ' selected' : ''}>${escapeHtml(o.label)}</option>`
     ).join('');
     const filterBar = `
       <div class="dashboard__filter-bar">
         <button class="dashboard__filter-btn ${devActive}" data-ps-action="cycle-dev">${DEV_FILTER_LABELS[state.devFilter]}</button>
-        <button class="dashboard__filter-btn ${acctActive}" data-ps-action="cycle-accounts">${state.filterAccounts === 'accounts' ? 'Accounts' : 'All'}</button>
-        <select class="dashboard__filter-select" data-ps-select="location" aria-label="Sign-up location">${locOpts}</select>
+        <select class="dashboard__filter-select" data-ps-select="filter" aria-label="Players and sign-up filter">${filterOpts}</select>
       </div>
     `;
 
@@ -341,10 +345,10 @@ export function mountPlayerStats(rootEl, opts) {
 
     const players = allPlayers.filter(passesFilters);
     const total = players.length;
-    const filtered = state.filterAccounts !== 'all' || state.filterLocation !== 'all';
+    const filtered = state.filter !== 'all';
 
     if (total === 0) {
-      rootEl.innerHTML = `${filterBar}<p class="dashboard__empty">${filtered ? 'No one matches these filters.' : 'No player data yet.'}</p>`;
+      rootEl.innerHTML = `${filterBar}<p class="dashboard__empty">${filtered ? 'No one matches this filter.' : 'No player data yet.'}</p>`;
       return;
     }
 
@@ -353,7 +357,8 @@ export function mountPlayerStats(rootEl, opts) {
       .map(p => renderRow(p, state.expandedPlayerKey, state.playerGamesCache, canToggleDev, canExpandGame, state.expandedGameId, state.gameDetailCache, renderGameDetail))
       .join('');
 
-    const noun = state.filterAccounts === 'accounts' ? 'accounts' : 'players';
+    const noun = state.filter === 'noaccount' ? 'players (no account)'
+      : (state.filter !== 'all') ? 'accounts' : 'players';
     const summary = `
       <div class="user-stats__summary">
         ${total} ${noun}${filtered ? ' (filtered)' : ` · ${state.data.total_matched_users} with accounts`}
@@ -435,11 +440,11 @@ export function mountPlayerStats(rootEl, opts) {
     }
   }
 
-  // Sign-up-location dropdown (client-side filter).
+  // Combined account + sign-up-location dropdown (client-side filter).
   rootEl.addEventListener('change', (e) => {
-    const sel = e.target.closest('[data-ps-select="location"]');
+    const sel = e.target.closest('[data-ps-select="filter"]');
     if (!sel) return;
-    state.filterLocation = sel.value;
+    state.filter = sel.value;
     state.displayLimit = INITIAL_LIMIT;
     state.expandedPlayerKey = null;
     render();
@@ -467,17 +472,6 @@ export function mountPlayerStats(rootEl, opts) {
       state.expandedPlayerKey = null;
       render();
       await fetchData();
-      render();
-      return;
-    }
-
-    if (action === 'cycle-accounts') {
-      e.stopPropagation();
-      // Client-side filter — no refetch needed; the rows already carry
-      // matched_user_id + signup_brand_id.
-      state.filterAccounts = state.filterAccounts === 'accounts' ? 'all' : 'accounts';
-      state.displayLimit = INITIAL_LIMIT;
-      state.expandedPlayerKey = null;
       render();
       return;
     }
