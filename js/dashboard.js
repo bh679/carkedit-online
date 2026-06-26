@@ -6,6 +6,10 @@ import { render as renderCardList, fromStatRow, bindScrollArrows } from './compo
 import { render as renderCard } from './components/card.js';
 import { renderAdminHeader, bindAdminHeader, resetAdminHeaderMenu } from './components/admin-header.js';
 import { mountPlayerStats } from './components/player-stats.js';
+import { mountPackStats } from './components/packs-stats-viewer.js';
+import { mountGamesStats } from './components/games-stats-viewer.js';
+import { mountSurveyResponses } from './components/survey-responses-viewer.js';
+import { mountCardStats } from './components/cards-stats-viewer.js';
 import {
   renderGameFilters,
   renderStatusChips,
@@ -753,65 +757,27 @@ function buildSurveysSeeAllHref() {
   return qs ? `stats-surveys.html?${qs}` : 'stats-surveys.html';
 }
 
+// Survey responses now render via the shared mountSurveyResponses() module (the
+// NPS summary cards stay in the stats bar). Mount-once/refresh; dev-toggle reused
+// via callback (read-only in prod preview). Handlers register on window.dash.
+let surveyResponsesHandle = null;
 function renderSurveyResponses() {
   const el = document.getElementById('survey-responses');
   if (!el) return;
-
-  const devLabels = { all: 'With Dev', nodev: 'No Dev', dev: 'Only Dev' };
-  const devActive = surveyDevFilter !== 'all' ? 'dashboard__filter-btn--active' : '';
-  const filterBar = `
-    <div class="dashboard__filter-bar">
-      <button class="dashboard__filter-btn ${devActive}" onclick="window.dash.cycleSurveyDev()">${devLabels[surveyDevFilter]}</button>
-    </div>
-  `;
-
-  const seeAllBtn = `<a class="dashboard__see-all" href="${buildSurveysSeeAllHref()}">See all</a>`;
-
-  if (surveyResponses.length === 0) {
-    el.innerHTML = `${filterBar}<p class="dashboard__empty">No survey responses yet.</p>`;
-    return;
+  if (el.dataset.svMounted !== '1') {
+    el.dataset.svMounted = '1';
+    surveyResponsesHandle = mountSurveyResponses(el, {
+      authFetch,
+      surveyBase: `${apiBase()}/api/carkedit`,
+      ns: 'dash',
+      pageSize: surveyPageSize,
+      patchDevFlag: dataSource === 'prod' ? null : patchDevFlag,
+      confirmDevToggle,
+      seeAllHref: buildSurveysSeeAllHref,
+    });
+  } else if (surveyResponsesHandle) {
+    surveyResponsesHandle.refresh();
   }
-
-  const rows = surveyResponses.map(r => {
-    const date = new Date(r.created_at).toLocaleString();
-    const bucket = npsBucketClass(r.nps_score);
-    const player = r.player_name || '(anonymous)';
-    const rawComment = r.comment || '';
-    const rawImprovement = r.improvement || '';
-    const comment = escapeHtml(rawComment);
-    const improvement = escapeHtml(rawImprovement);
-    const sid = escAttr(String(r.id));
-    return `
-      <div class="survey-response">
-        <div class="survey-response__header">
-          <span class="nps-chip ${bucket}">${r.nps_score}</span>
-          <span class="survey-response__player">${escapeHtml(player)}</span>
-          <span class="survey-response__date">${date}</span>
-          ${dataSource === 'prod'
-            ? `<span class="dashboard__dev-toggle ${r.is_dev ? 'is-on' : ''}" title="Read-only in prod preview" style="opacity:0.4;cursor:not-allowed">DEV</span>`
-            : `<button class="dashboard__dev-toggle ${r.is_dev ? 'is-on' : ''}" title="Toggle dev" onclick="window.dash.toggleSurveyDev('${sid}', ${!r.is_dev})">DEV</button>`}
-        </div>
-        ${comment ? `<div class="${surveyFieldClass(rawComment)}"${surveyFieldOnclick(rawComment)}><strong>Comment:</strong> ${comment}</div>` : ''}
-        ${improvement ? `<div class="${surveyFieldClass(rawImprovement)}"${surveyFieldOnclick(rawImprovement)}><strong>Improve:</strong> ${improvement}</div>` : ''}
-      </div>
-    `;
-  }).join('');
-
-  const hasMore = surveyResponses.length < surveyTotal;
-  const loadMoreBtn = hasMore
-    ? `<button class="dashboard__load-more" onclick="window.dash.loadMoreSurveys()">Load more (${surveyResponses.length} of ${surveyTotal})</button>`
-    : '';
-  const actionsClass = hasMore ? 'dashboard__list-actions' : 'dashboard__list-actions dashboard__list-actions--solo';
-  const actions = `<div class="${actionsClass}">${loadMoreBtn}${seeAllBtn}</div>`;
-
-  el.innerHTML = `
-    ${filterBar}
-    <div class="survey-responses__summary">
-      Showing ${surveyResponses.length} of ${surveyTotal} responses
-    </div>
-    <div class="survey-responses__list">${rows}</div>
-    ${actions}
-  `;
 }
 
 const SURVEY_TRUNCATE_CHAR_THRESHOLD = 280;
@@ -1090,39 +1056,30 @@ function buildGamesSeeAllHref() {
   return qs ? `stats-games.html?${qs}` : 'stats-games.html';
 }
 
+// Games list now renders via the shared mountGamesStats() module (one code path
+// with the brand-admin page). Mount-once/refresh like renderUserStats: a fresh
+// #game-list (renderPage rebuild or data-source switch) re-mounts with the
+// current apiBase. The module registers its filter/card handlers on window.dash.
+let gamesStatsHandle = null;
 function renderGameList() {
   const el = document.getElementById('game-list');
   if (!el) return;
-
-  const hasMore = games.length < gamesTotalCount;
-  const loadMoreBtn = hasMore
-    ? `<button class="dashboard__load-more" onclick="window.dash.loadMoreGames()">Load more (${games.length} of ${gamesTotalCount})</button>`
-    : '';
-  const seeAllBtn = `<a class="dashboard__see-all" href="${buildGamesSeeAllHref()}">See all</a>`;
-  const actionsClass = hasMore ? 'dashboard__list-actions' : 'dashboard__list-actions dashboard__list-actions--solo';
-  const actions = `<div class="${actionsClass}">${loadMoreBtn}${seeAllBtn}</div>`;
-
-  el.innerHTML = `
-    ${renderGameFilters(getGameFilterState(), 'dash')}
-    ${renderStatusChips(getGameFilterState(), 'dash')}
-    ${renderDurationChips(getGameFilterState(), 'dash')}
-    ${renderPlayerChips(getGameFilterState(), 'dash')}
-    ${games.length === 0 ? '<p class="dashboard__empty">No games match filters.</p>' : `
-      <div class="dashboard__list-header">
-        <span class="dashboard__cell dashboard__cell--date">Date/Time</span>
-        <span class="dashboard__cell dashboard__cell--host">Host</span>
-        <span class="dashboard__cell dashboard__cell--players">Players</span>
-        <span class="dashboard__cell dashboard__cell--time">Play Time</span>
-        <span class="dashboard__cell dashboard__cell--status">Status</span>
-        <span class="dashboard__cell dashboard__cell--live"></span>
-        <span class="dashboard__cell dashboard__cell--dev"></span>
-        <span class="dashboard__cell dashboard__cell--error"></span>
-        <span class="dashboard__cell dashboard__cell--issue"></span>
-      </div>
-      ${games.map(renderGameCard).join('')}
-      ${actions}
-    `}
-  `;
+  if (el.dataset.gvMounted !== '1') {
+    el.dataset.gvMounted = '1';
+    gamesStatsHandle = mountGamesStats(el, {
+      authFetch,
+      gamesBase: `${apiBase()}/api/carkedit`,
+      ns: 'dash',
+      renderGameDetail,
+      gameDetailUrl: (id) => `${apiBase()}/api/carkedit/games/${id}`,
+      seeAllHref: buildGamesSeeAllHref,
+      pageSize: gamesPageSize,
+      patchDevFlag: dataSource === 'prod' ? null : patchDevFlag,
+      confirmDevToggle,
+    });
+  } else if (gamesStatsHandle) {
+    gamesStatsHandle.refresh();
+  }
 }
 
 // ── Card Analytics ────────────────────────────────
@@ -1134,16 +1091,13 @@ let cardDevFilter = 'nodev'; // 'all' | 'dev' | 'nodev'
 let cardPackFilter = 'all'; // 'all' | 'base' | pack_id string
 let cardAuthorFilter = 'all'; // 'all' | creator_name string
 
-async function fetchCardStats() {
-  try {
-    const params = cardDevFilter !== 'all' ? `?dev=${cardDevFilter}` : '';
-    const res = await authFetch(`${apiBase()}/api/carkedit/cards/stats${params}`);
-    if (!res.ok) return;
-    cardStats = await res.json();
-  } catch (err) {
-    console.warn('[dashboard] Failed to fetch card stats:', err);
-  }
-}
+// Card analytics render via the shared mountCardStats() module so the Stats page
+// and the brand-admin page use ONE code path. fetchCardStats is now a no-op (the
+// module fetches /cards/stats internally on mount/refresh); kept so existing
+// Promise.all() call sites (boot + every refresh tick) stay valid without edits
+// and don't issue a duplicate request. Mirrors fetchPackStats. (loadCardData is
+// intentionally left live — its one-time boot fan-out is an accepted double-fetch.)
+async function fetchCardStats() {}
 
 function filterCards(cards) {
   let result = cards;
@@ -1275,76 +1229,29 @@ function getActiveCards() {
   return cards;
 }
 
+// Card analytics now renders via the shared mountCardStats() module (one code
+// path with the brand-admin page). Mount-once/refresh like renderGameList /
+// renderPackStats: a fresh #card-analytics (renderPage rebuild or data-source
+// switch) re-mounts with the current apiBase. The module registers its filter +
+// preview handlers on window.dash (ns:'dash') so game-detail mini-cards keep
+// calling window.dash.previewCard. Pack metadata stays GLOBAL (packsMetaBase).
+// The old inline card functions above remain as dead code (referenced by the
+// window.dash literal) but are superseded by the module's handlers at mount.
+let cardStatsHandle = null;
 function renderCardAnalytics() {
   const el = document.getElementById('card-analytics');
   if (!el) return;
-
-  const deckLabels = { all: 'All Decks', die: 'Die', living: 'Live', bye: 'Bye' };
-  const deckActive = cardDeckFilter !== 'all' ? 'dashboard__filter-btn--active' : '';
-
-  const sortOption = (value, label) =>
-    `<option value="${value}" ${cardSortMode === value ? 'selected' : ''}>${label}</option>`;
-
-  const dirArrow = cardSortAsc ? '&#x25B2;' : '&#x25BC;';
-  const dirLabel = cardSortAsc ? 'Asc' : 'Desc';
-
-  const filtered = filterCards(getActiveCards());
-  const cardsHtml = filtered.length > 0
-    ? renderCardList(filtered.map((c) => fromStatRow(c)), {
-        size: 'md',
-        showStats: true,
-        scrollArrows: true,
-        legacy: true,
-        id: 'card-scroll-row',
-        buildOnClick: buildStatCardOnClick,
-        highlightStat: cardSortMode,
-      })
-    : '<p class="dashboard__card-row-empty">No data yet</p>';
-
-  const cardDevLabels = { all: 'With Dev', nodev: 'No Dev', dev: 'Only Dev' };
-  const cardDevActive = cardDevFilter !== 'all' ? 'dashboard__filter-btn--active' : '';
-
-  const truncateLabel = (str, max = 28) => {
-    const s = String(str ?? '');
-    return s.length > max ? s.slice(0, max - 1) + '…' : s;
-  };
-
-  const packOption = (value, label) =>
-    `<option value="${value}" ${cardPackFilter === value ? 'selected' : ''}>${label}</option>`;
-
-  const authorOption = (value, label) =>
-    `<option value="${value}" ${cardAuthorFilter === value ? 'selected' : ''}>${label}</option>`;
-
-  el.innerHTML = `
-    <div class="dashboard__card-analytics-header">
-      <div class="dashboard__sort-bar">
-        <select class="dashboard__sort-select" onchange="window.dash.setCardSort(this.value)">
-          ${sortOption('play_rate', 'Play Rate')}
-          ${sortOption('play_count', 'Play Count')}
-          ${sortOption('win_rate', 'Win Rate')}
-          ${sortOption('draw_count', 'Draw Count')}
-        </select>
-        <button class="dashboard__filter-btn" onclick="window.dash.toggleCardSortDir()" title="${dirLabel}">${dirArrow}</button>
-      </div>
-      <div class="dashboard__filter-bar">
-        <select class="dashboard__sort-select" onchange="window.dash.setPackFilter(this.value)">
-          ${packOption('all', 'All Packs')}
-          ${cardAuthorFilter === 'all' ? packOption('base', 'Base Game') : ''}
-          ${packList.filter(p => cardAuthorFilter === 'all' || packCreatorMap[p.id] === cardAuthorFilter).map(p => packOption(p.id, truncateLabel(p.title))).join('')}
-        </select>
-        <select class="dashboard__sort-select" onchange="window.dash.setAuthorFilter(this.value)">
-          ${authorOption('all', 'All Authors')}
-          ${authorList.map(a => authorOption(a, a)).join('')}
-        </select>
-        <button class="dashboard__filter-btn ${deckActive}" onclick="window.dash.cycleDeckFilter()">${deckLabels[cardDeckFilter]}</button>
-        <button class="dashboard__filter-btn ${cardDevActive}" onclick="window.dash.cycleCardDev()">${cardDevLabels[cardDevFilter]}</button>
-      </div>
-    </div>
-    ${cardsHtml}
-  `;
-
-  // Bind shared scroll-arrow visibility helper
-  requestAnimationFrame(() => bindScrollArrows('card-scroll-row'));
+  if (el.dataset.cvMounted !== '1') {
+    el.dataset.cvMounted = '1';
+    cardStatsHandle = mountCardStats(el, {
+      authFetch,
+      cardsStatsUrl: `${apiBase()}/api/carkedit/cards/stats`,
+      packsMetaBase: `${apiBase()}/api/carkedit`,
+      ns: 'dash',
+    });
+  } else if (cardStatsHandle) {
+    cardStatsHandle.refresh();
+  }
 }
 
 // Back-compat: some legacy markup or external callers may still reference
@@ -1356,128 +1263,32 @@ function scrollCards(direction) {
 }
 
 // ── Expansion Pack Usage ─────────────────────────────
-let packStats = { packs: [] };
-let packSortMode = 'usage_count'; // 'usage_count' | 'total_plays' | 'total_wins' | 'win_rate' | 'favorite_count' | 'card_count' | 'title'
-let packSortAsc = false;
-const PACK_INITIAL_LIMIT = 7;
-let packExpanded = false;
+let packStatsHandle = null;
 
-async function fetchPackStats() {
-  try {
-    const res = await authFetch(`${apiBase()}/api/carkedit/packs/stats`);
-    if (!res.ok) return;
-    packStats = await res.json();
-  } catch (err) {
-    console.warn('[dashboard] Failed to fetch pack stats:', err);
-  }
-}
+// Pack stats render via the shared mountPackStats() module so the Stats page and
+// the brand-admin page use ONE code path. fetchPackStats is now a no-op (the
+// module fetches internally on mount/refresh); kept so existing Promise.all()
+// call sites stay valid without edits.
+async function fetchPackStats() {}
 
-function setPackSort(mode) {
-  if (packSortMode === mode) {
-    packSortAsc = !packSortAsc;
-  } else {
-    packSortMode = mode;
-    packSortAsc = false;
-  }
-  renderPackStats();
-}
-
-function togglePackExpanded() {
-  packExpanded = !packExpanded;
-  renderPackStats();
-}
-
-function getSortedPacks() {
-  const packs = [...(packStats.packs || [])];
-  const dir = packSortAsc ? 1 : -1;
-  packs.sort((a, b) => {
-    let av, bv;
-    if (packSortMode === 'total_cost_usd') {
-      av = (a.base_cost_usd || 0) + (a.total_cost_usd || 0);
-      bv = (b.base_cost_usd || 0) + (b.total_cost_usd || 0);
-    } else {
-      av = a[packSortMode];
-      bv = b[packSortMode];
-    }
-    if (typeof av === 'string' || typeof bv === 'string') {
-      return dir * String(av || '').localeCompare(String(bv || ''));
-    }
-    return dir * ((av || 0) - (bv || 0));
-  });
-  return packs;
-}
-
-function packSortHeader(label, mode) {
-  const active = packSortMode === mode;
-  const arrow = active ? (packSortAsc ? ' &#x25B2;' : ' &#x25BC;') : '';
-  const cls = active ? 'dashboard__pack-th dashboard__pack-th--active' : 'dashboard__pack-th';
-  return `<th class="${cls}" onclick="window.dash.setPackSort('${mode}')">${label}${arrow}</th>`;
-}
-
+// Mount-once / refresh, mirroring renderUserStats: renderPage() rebuilds #app, so
+// a fresh #pack-stats (no dataset flag) triggers a re-mount — which also re-reads
+// apiBase() for a data-source switch. onEditCost/onToggleDev are null in prod
+// preview (read-only) and the modal/PATCH flow is reused via callbacks.
 function renderPackStats() {
   const el = document.getElementById('pack-stats');
   if (!el) return;
-
-  const allPacks = getSortedPacks();
-
-  if (allPacks.length === 0) {
-    el.innerHTML = '<p class="dashboard__empty">No expansion packs yet.</p>';
-    return;
+  if (el.dataset.pkMounted !== '1') {
+    el.dataset.pkMounted = '1';
+    packStatsHandle = mountPackStats(el, {
+      authFetch,
+      statsUrl: `${apiBase()}/api/carkedit/packs/stats`,
+      onEditCost: dataSource === 'prod' ? null : (p) => openBaseCostModal(p.id, p.base_cost_usd || 0, p.total_cost_usd || 0),
+      onToggleDev: dataSource === 'prod' ? null : togglePackDev,
+    });
+  } else if (packStatsHandle) {
+    packStatsHandle.refresh();
   }
-
-  const hasMore = allPacks.length > PACK_INITIAL_LIMIT;
-  const packs = (hasMore && !packExpanded) ? allPacks.slice(0, PACK_INITIAL_LIMIT) : allPacks;
-  const hidden = allPacks.length - packs.length;
-
-  const rows = packs.map((p) => {
-    const winRatePct = ((p.win_rate || 0) * 100).toFixed(0);
-    const officialBadge = p.is_official ? ' <span class="dashboard__pack-badge dashboard__pack-badge--official">OFFICIAL</span>' : '';
-    const devBadge = dataSource === 'prod'
-      ? ` <span class="dashboard__dev-toggle ${p.is_dev ? 'is-on' : ''}" title="Read-only in prod preview" style="opacity:0.4;cursor:not-allowed">DEV</span>`
-      : ` <button class="dashboard__dev-toggle ${p.is_dev ? 'is-on' : ''}" title="Toggle dev" onclick="window.dash.togglePackDev('${escAttr(p.id)}', ${!p.is_dev})">DEV</button>`;
-    const statusKey = (p.status || 'draft').toLowerCase();
-    const statusBadge = ` <span class="dashboard__pack-badge dashboard__pack-badge--status dashboard__pack-badge--${statusKey}">${statusKey.toUpperCase()}</span>`;
-    const titleEsc = escAttr(p.title || '(untitled)');
-    const creatorEsc = escAttr(p.creator_name || '—');
-    return `
-      <tr class="dashboard__pack-row">
-        <td class="dashboard__pack-cell dashboard__pack-cell--title">
-          <a href="expansions.html?pack=${encodeURIComponent(p.id)}" target="_blank" rel="noopener">${titleEsc}</a>${statusBadge}${officialBadge}${devBadge}
-        </td>
-        <td class="dashboard__pack-cell">${creatorEsc}</td>
-        <td class="dashboard__pack-cell dashboard__pack-cell--num">${p.card_count || 0}</td>
-        <td class="dashboard__pack-cell dashboard__pack-cell--num">${p.usage_count || 0}</td>
-        <td class="dashboard__pack-cell dashboard__pack-cell--num">${p.total_plays || 0}</td>
-        <td class="dashboard__pack-cell dashboard__pack-cell--num">${p.total_wins || 0}</td>
-        <td class="dashboard__pack-cell dashboard__pack-cell--num">${winRatePct}%</td>
-        <td class="dashboard__pack-cell dashboard__pack-cell--num">${p.favorite_count || 0}</td>
-        <td class="dashboard__pack-cell dashboard__pack-cell--num dashboard__pack-cell--cost" onclick="window.dash.openBaseCostModal('${escAttr(p.id)}', ${p.base_cost_usd || 0}, ${p.total_cost_usd || 0})" title="Click to set base cost">$${((p.base_cost_usd || 0) + (p.total_cost_usd || 0)).toFixed(2)}</td>
-      </tr>`;
-  }).join('');
-
-  el.innerHTML = `
-    <div class="dashboard__pack-stats-wrap">
-      <table class="dashboard__pack-table">
-        <thead>
-          <tr>
-            ${packSortHeader('Pack', 'title')}
-            <th class="dashboard__pack-th">Creator</th>
-            ${packSortHeader('Cards', 'card_count')}
-            ${packSortHeader('Games Used', 'usage_count')}
-            ${packSortHeader('Plays', 'total_plays')}
-            ${packSortHeader('Wins', 'total_wins')}
-            ${packSortHeader('Win Rate', 'win_rate')}
-            ${packSortHeader('Favorites', 'favorite_count')}
-            ${packSortHeader('Cost', 'total_cost_usd')}
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-      ${hasMore ? `
-        <button class="dashboard__load-more" onclick="window.dash.togglePackExpanded()">
-          ${packExpanded ? 'Show less' : `See more (${hidden} more)`}
-        </button>` : ''}
-    </div>`;
 }
 
 // ── Graphs ───────────────────────────────────────────
@@ -1766,16 +1577,13 @@ async function toggleSurveyDev(id, next) {
   } catch (e) { console.error(e); alert('Failed to toggle dev: ' + e.message); }
 }
 
-async function togglePackDev(id, next) {
+async function togglePackDev(pack, next) {
   if (dataSource === 'prod') return; // read-only in prod-preview mode
-  const p = packStats.packs.find(x => x.id === id);
-  const label = p ? (p.title || '(untitled)') : id;
+  const label = pack ? (pack.title || '(untitled)') : '';
   if (!await confirmDevToggle('Pack', label, next)) return;
   try {
-    const updated = await patchDevFlag('packs', id, next);
-    const i = packStats.packs.findIndex(x => x.id === id);
-    if (i >= 0) packStats.packs[i] = { ...packStats.packs[i], is_dev: !!updated.is_dev };
-    renderPackStats();
+    await patchDevFlag('packs', pack.id, next);
+    if (packStatsHandle) packStatsHandle.refresh();
   } catch (e) { console.error(e); alert('Failed to toggle dev: ' + e.message); }
 }
 
@@ -1838,10 +1646,8 @@ async function saveBaseCost(packId) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ base_cost_usd: val }),
     });
-    const i = packStats.packs.findIndex(x => x.id === packId);
-    if (i >= 0) packStats.packs[i].base_cost_usd = val;
     closeBaseCostModal();
-    renderPackStats();
+    if (packStatsHandle) packStatsHandle.refresh();
   } catch (e) {
     console.error(e);
     document.getElementById('base-cost-status').textContent = 'Failed to save: ' + e.message;
@@ -1849,7 +1655,7 @@ async function saveBaseCost(packId) {
   }
 }
 
-window.dash = { cyclePlayTime, cycleGamesCount, cyclePlayersCount, toggleGame, cycleDeckFilter, setCardSort, toggleCardSortDir, cycleCardDev, setPackFilter, setAuthorFilter, setPackSort, togglePackExpanded, cycleSurveyDev, previewCard, closePreview, prevPreviewCard, nextPreviewCard, scrollCards, loadMoreGames, loadMoreSurveys, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange, toggleHideGroup, toggleHideRaw, toggleHideDuration, toggleHidePlayers, toggleExpandGroup, signInWithGoogle, signOut, toggleGameDev, toggleSurveyDev, togglePackDev, openBaseCostModal, closeBaseCostModal, saveBaseCost, cycleDataSource };
+window.dash = { cyclePlayTime, cycleGamesCount, cyclePlayersCount, toggleGame, cycleDeckFilter, setCardSort, toggleCardSortDir, cycleCardDev, setPackFilter, setAuthorFilter, cycleSurveyDev, previewCard, closePreview, prevPreviewCard, nextPreviewCard, scrollCards, loadMoreGames, loadMoreSurveys, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange, toggleHideGroup, toggleHideRaw, toggleHideDuration, toggleHidePlayers, toggleExpandGroup, signInWithGoogle, signOut, toggleGameDev, toggleSurveyDev, openBaseCostModal, closeBaseCostModal, saveBaseCost, cycleDataSource };
 
 // ── Auth Gate UI ─────────────────────────────────────
 function renderAuthGate(message, showSignIn = true) {
