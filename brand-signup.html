@@ -78,6 +78,34 @@
         .brand-signup__brand-status--approved  { background: #234a2e; color: #9fe0b3; }
         .brand-signup__brand-status--rejected  { background: #5a2424; color: #e7a3a3; }
         .brand-signup__brand-status--suspended { background: #3a3a3a; color: #aaa; }
+
+        /* Click-to-edit requests. */
+        .brand-signup__brand-item { list-style: none; }
+        .brand-signup__brand--clickable { cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+        .brand-signup__brand--clickable:hover { border-color: var(--color-primary); }
+        .brand-signup__brand--clickable:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+        .brand-signup__brand-item--expanded .brand-signup__brand--clickable {
+            border-color: var(--color-primary); border-bottom-left-radius: 0; border-bottom-right-radius: 0;
+        }
+        .brand-signup__brand-chevron { color: var(--color-text-muted); flex: 0 0 auto; font-size: 0.8rem; }
+
+        /* Inline editor under an expanded request. */
+        .brand-signup__edit-form {
+            border-top: none; border-top-left-radius: 0; border-top-right-radius: 0;
+            border-color: var(--color-primary); margin-top: -1px;
+        }
+        .brand-signup__edit-status-line { font-size: 0.85rem; color: var(--color-text-muted); margin: 0; }
+        .brand-signup__edit-logo { width: 48px; height: 48px; border-radius: var(--radius-sm); object-fit: contain; background: var(--color-input-bg); }
+        .brand-signup__cancel { flex: 0 0 auto; }
+
+        /* Minimised create form while editing. */
+        .brand-signup__new-bar {
+            width: 100%; text-align: left; cursor: pointer;
+            padding: var(--space-sm) var(--space-md); font-size: 0.95rem; font-weight: 600;
+            color: var(--color-text-90); background: var(--color-surface);
+            border: 1px dashed var(--color-border); border-radius: var(--radius-md);
+        }
+        .brand-signup__new-bar:hover { border-color: var(--color-primary); color: var(--color-text); }
     </style>
     <script src="js/branch-banner.js"></script>
 </head>
@@ -106,6 +134,8 @@
     let authToken = null;
     let slugTimer = null;
     let accountEmail = '';   // pre-fills the contact email from the signed-in account
+    let myBrands = [];       // cache of the user's requests (/brands/mine)
+    let expandedId = null;   // id of the request currently expanded for editing
 
     async function loadFirebaseAuth() {
       const [appMod, authMod] = await Promise.all([
@@ -148,23 +178,34 @@
       });
     }
 
-    function renderForm() {
-      document.getElementById('app').innerHTML = shell(`
+    // The create/application section: full form normally, or a minimised bar
+    // while a request is expanded for editing.
+    function renderCreateSection() {
+      if (expandedId !== null) {
+        return `<button type="button" class="brand-signup__new-bar"
+          onclick="window.brandSignup.newRequest()">+ Request another brand</button>`;
+      }
+      return `
         <p class="brand-signup__intro">Submit a request and an admin will review it.</p>
-        <div id="my-brands"></div>
-        ${renderRequestForm(EVANGELIST, SELECTED_PLAN, accountEmail)}
+        ${renderRequestForm(EVANGELIST, SELECTED_PLAN, accountEmail)}`;
+    }
+
+    function paint() {
+      document.getElementById('app').innerHTML = shell(`
+        ${renderCreateSection()}
+        ${renderMyBrands(myBrands, expandedId, EVANGELIST)}
       `);
-      loadMyBrands();
     }
 
     async function loadMyBrands() {
       try {
         const res = await authFetch('/api/carkedit/brands/mine');
-        if (!res.ok) return;
-        const data = await res.json().catch(() => ({}));
-        const m = document.getElementById('my-brands');
-        if (m) m.innerHTML = renderMyBrands(data.brands || []);
+        if (res.ok) {
+          const data = await res.json().catch(() => ({}));
+          myBrands = Array.isArray(data.brands) ? data.brands : [];
+        }
       } catch (err) { /* non-fatal */ }
+      paint();
     }
 
     // Controller referenced by the form's inline onsubmit/oninput.
@@ -240,6 +281,56 @@
           } catch (err) { /* leave the checking… hint */ }
         }, 400);
       },
+      // Expand a request into its inline edit form (minimises the create form).
+      expandRequest(id) {
+        expandedId = id;
+        paint();
+        const el = document.querySelector('.brand-signup__brand-item--expanded');
+        if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
+      },
+      onBrandKey(event, id) {
+        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.expandRequest(id); }
+      },
+      // Close the editor / reopen the create form.
+      collapseRequest() { expandedId = null; paint(); },
+      newRequest() { expandedId = null; paint(); },
+      async saveEdit(event, id) {
+        if (event) event.preventDefault();
+        const g = (s) => document.getElementById(s);
+        const name = g('edit-brand-name')?.value.trim() || '';
+        const slug = g('edit-brand-slug')?.value.trim().toLowerCase() || '';
+        const email = g('edit-brand-email')?.value.trim() || '';
+        const phone = g('edit-brand-phone')?.value.trim() || '';
+        const plan = normalisePlan(g('edit-brand-plan')?.value);
+        const logoEl = g('edit-brand-logo');
+        const status = g('edit-brand-status');
+        const setStatus = (msg, cls) => { if (status) { status.textContent = msg; status.className = `brand-signup__status${cls ? ' ' + cls : ''}`; } };
+        if (!name || !slug) { setStatus('Name and URL are required', 'brand-signup__status--err'); return false; }
+        if (!email) { setStatus('Contact email is required', 'brand-signup__status--err'); return false; }
+        if (!phone) { setStatus('Phone number is required', 'brand-signup__status--err'); return false; }
+        if (!authToken) { setStatus('Please sign in first', 'brand-signup__status--err'); return false; }
+        setStatus('Saving…');
+        const form = new FormData();
+        form.append('name', name);
+        form.append('slug', slug);
+        form.append('email', email);
+        form.append('phone', phone);
+        if (plan) form.append('plan', plan);
+        if (logoEl?.files?.[0]) form.append('logo', logoEl.files[0]);
+        try {
+          const res = await authFetch(`/api/carkedit/brands/${encodeURIComponent(id)}/details`, { method: 'PATCH', body: form });
+          const data = await res.json().catch(() => ({}));
+          if (res.ok) {
+            expandedId = null;
+            await loadMyBrands();   // refresh cache + repaint
+          } else {
+            setStatus(data.error || 'Update failed', 'brand-signup__status--err');
+          }
+        } catch (err) {
+          setStatus('Network error', 'brand-signup__status--err');
+        }
+        return false;
+      },
     };
 
     // Init
@@ -250,7 +341,8 @@
         if (user) {
           authToken = await user.getIdToken();
           accountEmail = user.email || '';
-          renderForm();
+          paint();
+          loadMyBrands();
         } else {
           authToken = null;
           renderSignedOut();

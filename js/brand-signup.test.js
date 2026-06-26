@@ -3,10 +3,22 @@ import assert from 'node:assert/strict';
 import {
   renderRequestForm,
   renderMyBrands,
+  renderEditForm,
   renderPlanSelect,
   normalisePlan,
   PLAN_LABELS,
 } from './brand-signup.js';
+
+const SAMPLE_BRAND = {
+  id: 'brand_abc',
+  slug: 'acme',
+  name: 'Acme Co',
+  status: 'pending',
+  plan: 'pro',
+  contact_email: 'owner@example.com',
+  contact_phone: '+61 400 000 000',
+  logo_url: '/uploads/brands/a.png',
+};
 
 test('renderRequestForm includes name, slug, email, phone, logo inputs and a submit button', () => {
   const html = renderRequestForm('Death Evangelist');
@@ -65,9 +77,41 @@ test('renderMyBrands lists each request with its capitalised status', () => {
 });
 
 test('renderMyBrands escapes brand name + slug', () => {
-  const html = renderMyBrands([{ slug: 'x', name: '<b>evil</b>', status: 'pending' }]);
+  const html = renderMyBrands([{ id: 'x1', slug: 'x', name: '<b>evil</b>', status: 'pending' }]);
   assert.doesNotMatch(html, /<b>evil<\/b>/);
   assert.match(html, /&lt;b&gt;evil/);
+});
+
+// ── click-to-edit ─────────────────────────────────────────
+
+test('renderMyBrands rows are clickable and wire expandRequest with the id', () => {
+  const html = renderMyBrands([SAMPLE_BRAND]);
+  assert.match(html, /role="button"/);
+  assert.match(html, /window\.brandSignup\.expandRequest\('brand_abc'\)/);
+  // Not expanded by default → no inline edit form.
+  assert.doesNotMatch(html, /edit-brand-name/);
+});
+
+test('renderMyBrands renders the edit form only for the expanded id', () => {
+  const other = { ...SAMPLE_BRAND, id: 'brand_other', slug: 'other', name: 'Other' };
+  const html = renderMyBrands([SAMPLE_BRAND, other], 'brand_abc');
+  // Exactly the expanded row gets an edit form.
+  assert.match(html, /id="edit-brand-name"/);
+  assert.equal((html.match(/brand-signup__edit-form/g) || []).length, 1);
+  assert.match(html, /brand-signup__brand-item--expanded/);
+});
+
+test('renderEditForm pre-fills fields, selects the plan, and wires save/cancel', () => {
+  const html = renderEditForm(SAMPLE_BRAND, 'Death Evangelist');
+  assert.match(html, /id="edit-brand-name"[^>]*value="Acme Co"/);
+  assert.match(html, /id="edit-brand-slug"[^>]*value="acme"/);
+  assert.match(html, /id="edit-brand-email"[^>]*value="owner@example.com"/);
+  assert.match(html, /id="edit-brand-phone"[^>]*value="\+61 400 000 000"/);
+  assert.match(html, /id="edit-brand-plan"/);
+  assert.match(html, /value="pro"\s+selected/);
+  assert.match(html, /window\.brandSignup\.saveEdit\(event, 'brand_abc'\)/);
+  assert.match(html, /window\.brandSignup\.collapseRequest\(\)/);
+  assert.match(html, /Save changes/);
 });
 
 // ── plan selection tracking ───────────────────────────────
