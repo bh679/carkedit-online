@@ -23,7 +23,7 @@ export const TIERS = [
     price: '$150',
     period: '/ year',
     features: [
-      'Custom URL',
+      'Custom URL <span class="evp-feature__note">carkedit.com/your-url</span>',
       '250 games a year <span class="evp-feature__note">(unlimited 6 months in pre-release)</span>',
       'Free for clients',
       'Logo branded',

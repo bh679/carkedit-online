@@ -30,26 +30,36 @@ export function normalisePlan(value) {
   return Object.prototype.hasOwnProperty.call(PLAN_LABELS, key) ? key : null;
 }
 
-/** A read-only summary of the plan chosen on the pricing page (or '' if none). */
-export function renderSelectedPlan(plan) {
-  const key = normalisePlan(plan);
-  if (!key) return '';
+/**
+ * A plan picker, pre-selected to the plan chosen on the pricing page (if any).
+ * The user can switch plans here, so this is an editable <select>, not a label.
+ */
+export function renderPlanSelect(plan) {
+  const selected = normalisePlan(plan);
+  const options = Object.entries(PLAN_LABELS)
+    .map(([key, label]) =>
+      `<option value="${escapeHtml(key)}"${key === selected ? ' selected' : ''}>${escapeHtml(label)}</option>`)
+    .join('');
   return `
-    <div class="brand-signup__field brand-signup__plan">
-      <span>Selected plan</span>
-      <p class="brand-signup__plan-value" id="brand-request-plan">${escapeHtml(PLAN_LABELS[key])}</p>
-    </div>`;
+    <label class="brand-signup__field brand-signup__plan">
+      <span>Plan</span>
+      <select id="brand-request-plan" class="brand-signup__plan-select">
+        <option value=""${selected ? '' : ' selected'}>— Choose a plan —</option>
+        ${options}
+      </select>
+    </label>`;
 }
 
 /**
  * The request form. `evangelist` is the configurable role label for copy;
- * `plan` (optional) is the tier chosen on the pricing page, shown read-only.
+ * `plan` (optional) is the tier chosen on the pricing page, pre-selected in the
+ * plan picker (the user can switch it here).
  */
 export function renderRequestForm(evangelist = 'Evangelist', plan = null) {
   const who = escapeHtml(evangelist);
   return `
     <form id="brand-request-form" class="brand-signup__form" onsubmit="return window.brandSignup.submit(event)">
-      ${renderSelectedPlan(plan)}
+      ${renderPlanSelect(plan)}
       <label class="brand-signup__field">
         <span>Brand name</span>
         <input type="text" id="brand-request-name" maxlength="80" required placeholder="Acme Funeral Co." />

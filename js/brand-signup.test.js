@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   renderRequestForm,
   renderMyBrands,
-  renderSelectedPlan,
+  renderPlanSelect,
   normalisePlan,
   PLAN_LABELS,
 } from './brand-signup.js';
@@ -74,15 +74,29 @@ test('PLAN_LABELS: covers the three tier keys', () => {
   assert.deepEqual(Object.keys(PLAN_LABELS), ['basic', 'pro', 'ultimate']);
 });
 
-test('renderSelectedPlan: shows the chosen plan label, empty when none/unknown', () => {
-  assert.match(renderSelectedPlan('pro'), /Selected plan/);
-  assert.match(renderSelectedPlan('pro'), /Pro/);
-  assert.equal(renderSelectedPlan(null), '');
-  assert.equal(renderSelectedPlan('bogus'), '');
+test('renderPlanSelect: a switchable select with all tiers, none chosen by default', () => {
+  const html = renderPlanSelect(null);
+  assert.match(html, /<select id="brand-request-plan"/);
+  assert.match(html, /Choose a plan/);
+  Object.values(PLAN_LABELS).forEach((label) => assert.match(html, new RegExp(label)));
+  // Placeholder is the selected option when no plan is supplied.
+  assert.match(html, /value=""\s+selected/);
 });
 
-test('renderRequestForm: shows the selected plan when given one, omits it otherwise', () => {
-  assert.match(renderRequestForm('Evangelist', 'ultimate'), /Selected plan/);
-  assert.match(renderRequestForm('Evangelist', 'ultimate'), /Ultimate/);
-  assert.doesNotMatch(renderRequestForm('Evangelist'), /Selected plan/);
+test('renderPlanSelect: pre-selects the plan passed from the pricing page', () => {
+  const html = renderPlanSelect('ultimate');
+  assert.match(html, /value="ultimate"\s+selected/);
+  // The empty placeholder is no longer the selected option.
+  assert.doesNotMatch(html, /value=""\s+selected/);
+});
+
+test('renderPlanSelect: an unknown plan falls back to no selection', () => {
+  const html = renderPlanSelect('bogus');
+  assert.match(html, /value=""\s+selected/);
+});
+
+test('renderRequestForm: always includes the switchable plan select', () => {
+  assert.match(renderRequestForm('Evangelist', 'ultimate'), /<select id="brand-request-plan"/);
+  assert.match(renderRequestForm('Evangelist', 'ultimate'), /value="ultimate"\s+selected/);
+  assert.match(renderRequestForm('Evangelist'), /<select id="brand-request-plan"/);
 });
