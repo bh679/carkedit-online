@@ -6,48 +6,73 @@
     <title>CarkedIt — Brand Sign-up</title>
     <link rel="stylesheet" href="css/base.css?v=1.09.0008">
     <link rel="stylesheet" href="css/components/auth.css?v=1.09.0008">
+    <!-- Styling mirrors the Evangelist pricing page (css/screens/evangelist-pricing.css):
+         design tokens only, same header / surface-card / input look. -->
     <style>
-        .brand-signup { max-width: 640px; margin: 0 auto; padding: 1.5rem; }
-        .brand-signup__header { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 1.25rem; }
-        .brand-signup__back { color: #b7d4e4; text-decoration: none; font-size: 0.9rem; }
-        .brand-signup__back:hover { text-decoration: underline; }
-        .brand-signup__title { font-size: 1.4rem; margin: 0; text-align: center; flex: 1; }
-        .brand-signup__intro { opacity: 0.75; font-size: 0.9rem; margin: 0 0 1.25rem; }
-        .brand-signup__intro code { background: rgba(0,0,0,0.35); padding: 0.05em 0.4em; border-radius: 4px; }
-        .brand-signup__gate { opacity: 0.8; margin: 1rem 0; }
-        .brand-signup__form { display: flex; flex-direction: column; gap: 0.85rem; }
-        .brand-signup__field { display: flex; flex-direction: column; gap: 0.25rem; }
-        .brand-signup__field span { font-size: 0.85rem; opacity: 0.7; }
-        .brand-signup__field input {
-            padding: 0.6em 0.75em; font-size: 0.95rem; border: 1px solid #555;
-            border-radius: 6px; background: #1a1a1a; color: #eee;
+        /* Scrollable info page (game screens lock the body). */
+        body.page--brand-signup { overflow-y: auto; height: auto; min-height: 100dvh; }
+        body.page--brand-signup #app { overflow: visible; height: auto; min-height: 100dvh; }
+
+        .brand-signup {
+            display: flex; flex-direction: column; gap: var(--space-lg);
+            width: 100%; padding: var(--space-md) var(--space-md) var(--space-xl);
         }
-        .brand-signup__field input:focus { outline: none; border-color: #888; }
-        .brand-signup__plan-select {
-            padding: 0.6em 0.75em; font-size: 0.95rem;
-            border: 1px solid #555; border-radius: 6px; background: #1a1a1a; color: #eee;
+
+        /* Header — same pattern as the pricing page. */
+        .brand-signup__header { position: relative; text-align: center; padding-top: var(--space-lg); }
+        .brand-signup__back {
+            position: absolute; top: 0; left: 0; color: var(--color-text-muted);
+            text-decoration: none; font-size: 0.9rem; font-weight: 600; padding: var(--space-xs) 0;
         }
-        .brand-signup__plan-select:focus { outline: none; border-color: #888; }
-        .brand-signup__slug-hint { font-size: 0.8rem; opacity: 0.75; margin: -0.55rem 0 0; font-family: monospace; }
-        .brand-signup__slug-hint--ok  { color: #6fdc8c; opacity: 1; }
-        .brand-signup__slug-hint--err { color: #ff6b6b; opacity: 1; }
-        .brand-signup__actions { display: flex; align-items: center; gap: 1rem; margin-top: 0.25rem; }
-        .brand-signup__status { font-size: 0.9rem; opacity: 0.85; }
-        .brand-signup__status--ok  { color: #6fdc8c; }
-        .brand-signup__status--err { color: #ff6b6b; }
-        .brand-signup__note { font-size: 0.78rem; opacity: 0.55; margin: 0.25rem 0 0; }
-        .brand-signup__brands { margin-bottom: 1.5rem; }
-        .brand-signup__brands-title { font-size: 1rem; margin: 0 0 0.5rem; opacity: 0.85; }
-        .brand-signup__brands-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+        .brand-signup__back:hover { color: var(--color-text); }
+        .brand-signup__logo { width: min(120px, 28vw); display: block; margin: 0 auto var(--space-sm); }
+        .brand-signup__title {
+            font-size: 2rem; font-weight: 800; color: var(--color-primary);
+            letter-spacing: -0.5px; margin: 0;
+        }
+        .brand-signup__subtitle { font-size: 1rem; color: var(--color-text-muted); margin-top: var(--space-xs); }
+
+        .brand-signup__intro { color: var(--color-text-90); line-height: 1.5; }
+        .brand-signup__intro code { background: var(--color-input-bg); padding: 0.05em 0.4em; border-radius: var(--radius-sm); }
+        .brand-signup__gate { color: var(--color-text-90); margin: var(--space-sm) 0; }
+
+        /* Form on a surface card, token-styled inputs. */
+        .brand-signup__form {
+            display: flex; flex-direction: column; gap: var(--space-md);
+            background: var(--color-surface); border: 1px solid var(--color-border);
+            border-radius: var(--radius-md); padding: var(--space-md);
+        }
+        .brand-signup__field { display: flex; flex-direction: column; gap: var(--space-xs); }
+        .brand-signup__field span { font-size: 0.85rem; color: var(--color-text-muted); }
+        .brand-signup__field input, .brand-signup__plan-select {
+            padding: 0.6em 0.75em; font-size: 0.95rem; border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm); background: var(--color-input-bg); color: var(--color-text);
+        }
+        .brand-signup__field input:focus, .brand-signup__plan-select:focus { outline: none; border-color: var(--color-primary); }
+        .brand-signup__slug-hint { font-size: 0.8rem; color: var(--color-text-muted); margin: calc(var(--space-xs) * -1) 0 0; font-family: monospace; }
+        .brand-signup__slug-hint--ok  { color: var(--color-live); }
+        .brand-signup__slug-hint--err { color: var(--color-danger); }
+        .brand-signup__actions { display: flex; align-items: center; gap: var(--space-md); margin-top: var(--space-xs); }
+        .brand-signup__status { font-size: 0.9rem; color: var(--color-text-90); }
+        .brand-signup__status--ok  { color: var(--color-live); }
+        .brand-signup__status--err { color: var(--color-danger); }
+        .brand-signup__note { font-size: 0.78rem; color: var(--color-text-muted); margin: var(--space-xs) 0 0; }
+
+        /* "Your requests" — surface cards, matching the pricing tiers. */
+        .brand-signup__brands { display: flex; flex-direction: column; gap: var(--space-sm); }
+        .brand-signup__brands-title { font-size: 1.25rem; font-weight: 800; color: var(--color-text); margin: 0; }
+        .brand-signup__brands-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-xs); }
         .brand-signup__brand {
-            display: flex; align-items: center; gap: 0.75rem;
-            padding: 0.5rem 0.7rem; background: rgba(0,0,0,0.3); border-radius: 6px; font-size: 0.85rem;
+            display: flex; align-items: center; gap: var(--space-sm);
+            padding: var(--space-sm) var(--space-md); background: var(--color-surface);
+            border: 1px solid var(--color-border); border-radius: var(--radius-md); font-size: 0.85rem;
         }
-        .brand-signup__brand-logo { width: 28px; height: 28px; border-radius: 6px; object-fit: contain; background: #1a1a1a; flex: 0 0 auto; }
-        .brand-signup__brand-logo--empty { background: rgba(255,255,255,0.06); }
-        .brand-signup__brand-slug { font-family: monospace; opacity: 0.9; white-space: nowrap; }
-        .brand-signup__brand-name { opacity: 0.7; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .brand-signup__brand-status { font-weight: 600; font-size: 0.72rem; padding: 0.12em 0.6em; border-radius: 4px; }
+        .brand-signup__brand-logo { width: 28px; height: 28px; border-radius: var(--radius-sm); object-fit: contain; background: var(--color-input-bg); flex: 0 0 auto; }
+        .brand-signup__brand-logo--empty { background: var(--color-input-bg); }
+        .brand-signup__brand-slug { font-family: monospace; color: var(--color-text-90); white-space: nowrap; }
+        .brand-signup__brand-name { color: var(--color-text-muted); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .brand-signup__brand-status { font-weight: 600; font-size: 0.72rem; padding: 0.12em 0.6em; border-radius: var(--radius-sm); }
+        /* Semantic status colours (state-specific; kept distinct from theme tokens). */
         .brand-signup__brand-status--pending   { background: #5a4a1e; color: #f0d999; }
         .brand-signup__brand-status--approved  { background: #234a2e; color: #9fe0b3; }
         .brand-signup__brand-status--rejected  { background: #5a2424; color: #e7a3a3; }
@@ -55,7 +80,7 @@
     </style>
     <script src="js/branch-banner.js"></script>
 </head>
-<body>
+<body class="page--brand-signup">
     <div id="app"></div>
     <script type="module">
     'use strict';
@@ -97,18 +122,20 @@
 
     function shell(inner) {
       return `<div class="brand-signup">
-        <div class="brand-signup__header">
-          <a class="brand-signup__back" href="index.html">← Back</a>
+        <header class="brand-signup__header">
+          <a class="brand-signup__back" href="evangelist-pricing" aria-label="Back to pricing">← Pricing</a>
+          <img class="brand-signup__logo" src="assets/CarkedIt-skull.webp" alt=""
+            onerror="this.style.display='none'" />
           <h1 class="brand-signup__title">Become a ${escapeHtml(EVANGELIST)}</h1>
-          <span></span>
-        </div>
+          <p class="brand-signup__subtitle">Run co-branded games at your own URL</p>
+        </header>
         ${inner}
       </div>`;
     }
 
     function renderSignedOut() {
       document.getElementById('app').innerHTML = shell(`
-        <p class="brand-signup__intro">Run co-branded games at your own URL (<code>carkedit.com/your-url</code>).</p>
+        <p class="brand-signup__intro">Your own vanity URL: <code>carkedit.com/your-url</code>.</p>
         <p class="brand-signup__gate">Sign in to apply.</p>
         <button class="btn btn--primary" id="sign-in-btn">Sign in with Google</button>
       `);
@@ -121,7 +148,7 @@
 
     function renderForm() {
       document.getElementById('app').innerHTML = shell(`
-        <p class="brand-signup__intro">Run co-branded games at your own URL
+        <p class="brand-signup__intro">Pick your plan and vanity URL
           (<code>carkedit.com/your-url</code>). Submit a request and an admin will review it.</p>
         <div id="my-brands"></div>
         ${renderRequestForm(EVANGELIST, SELECTED_PLAN)}

@@ -13,15 +13,15 @@
 
 import { ROLE_LABELS } from '../config/brand-labels.js';
 import { escapeHtml } from '../utils/escape.js';
+import { PLAN_BY_KEY } from '../config/plans.js';
 
 // ── Content data ──────────────────────────────────────────
+// Name + price come from the shared plan catalog (js/config/plans.js); only the
+// marketing copy (features / featured / inherits) lives here.
 
 export const TIERS = [
   {
-    key: 'basic',
-    name: 'Basic',
-    price: '$150',
-    period: '/ year',
+    ...PLAN_BY_KEY.basic,
     features: [
       'Custom URL <span class="evp-feature__note">carkedit.com/your-url</span>',
       'Free for your clients',
@@ -31,10 +31,7 @@ export const TIERS = [
     ],
   },
   {
-    key: 'pro',
-    name: 'Pro',
-    price: '$250',
-    period: '/ year',
+    ...PLAN_BY_KEY.pro,
     featured: true,
     inherits: 'Everything in Basic',
     features: [
@@ -44,10 +41,7 @@ export const TIERS = [
     ],
   },
   {
-    key: 'ultimate',
-    name: 'Ultimate',
-    price: '$500',
-    period: '/ year',
+    ...PLAN_BY_KEY.ultimate,
     inherits: 'Everything in Pro',
     features: [
       'Unlimited Games',

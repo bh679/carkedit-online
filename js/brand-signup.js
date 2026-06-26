@@ -7,6 +7,7 @@
 'use strict';
 
 import { escapeHtml } from './utils/escape.js';
+import { PLANS, normalisePlan } from './config/plans.js';
 
 const STATUS_LABEL = {
   pending: 'Pending',
@@ -15,30 +16,22 @@ const STATUS_LABEL = {
   suspended: 'Suspended',
 };
 
-// Plan tiers a request can be tagged with (chosen on the pricing page and passed
-// in via ?plan=). Keep in sync with the Evangelist pricing page's TIERS keys and
-// the API's allowed plan enum.
-export const PLAN_LABELS = {
-  basic: 'Basic',
-  pro: 'Pro',
-  ultimate: 'Ultimate',
-};
-
-/** Normalise an incoming ?plan= value to a known key, or null if unknown. */
-export function normalisePlan(value) {
-  const key = typeof value === 'string' ? value.trim().toLowerCase() : '';
-  return Object.prototype.hasOwnProperty.call(PLAN_LABELS, key) ? key : null;
-}
+// Re-exported from the shared plan catalog so the page + tests have one import.
+export { normalisePlan };
+export const PLAN_LABELS = Object.fromEntries(PLANS.map((p) => [p.key, p.name]));
 
 /**
  * A plan picker, pre-selected to the plan chosen on the pricing page (if any).
  * The user can switch plans here, so this is an editable <select>, not a label.
+ * Each option shows the price after the name on one line, e.g. "Pro — $250 / year".
  */
 export function renderPlanSelect(plan) {
   const selected = normalisePlan(plan);
-  const options = Object.entries(PLAN_LABELS)
-    .map(([key, label]) =>
-      `<option value="${escapeHtml(key)}"${key === selected ? ' selected' : ''}>${escapeHtml(label)}</option>`)
+  const options = PLANS
+    .map((p) => {
+      const label = `${p.name} — ${p.price} ${p.period}`;
+      return `<option value="${escapeHtml(p.key)}"${p.key === selected ? ' selected' : ''}>${escapeHtml(label)}</option>`;
+    })
     .join('');
   return `
     <label class="brand-signup__field brand-signup__plan">

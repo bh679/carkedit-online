@@ -83,6 +83,13 @@ test('renderPlanSelect: a switchable select with all tiers, none chosen by defau
   assert.match(html, /value=""\s+selected/);
 });
 
+test('renderPlanSelect: each option shows the price after the name on one line', () => {
+  const html = renderPlanSelect(null);
+  assert.match(html, /Basic — \$150 \/ year/);
+  assert.match(html, /Pro — \$250 \/ year/);
+  assert.match(html, /Ultimate — \$500 \/ year/);
+});
+
 test('renderPlanSelect: pre-selects the plan passed from the pricing page', () => {
   const html = renderPlanSelect('ultimate');
   assert.match(html, /value="ultimate"\s+selected/);
