@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CarkedIt — Become a Partner</title>
+    <title>CarkedIt — Brand Sign-up</title>
     <link rel="stylesheet" href="css/base.css?v=1.09.0008">
     <link rel="stylesheet" href="css/components/auth.css?v=1.09.0008">
     <style>
@@ -64,6 +64,7 @@
     await guardPage('brand-signup').catch((err) => { throw err; });
 
     const EVANGELIST = ROLE_LABELS.evangelist.singular;
+    document.title = `CarkedIt — Become a ${EVANGELIST}`;   // configurable label, not hardcoded "Partner"
     const FIREBASE_CONFIG = getFirebaseConfig();
 
     let firebaseAuth = null;

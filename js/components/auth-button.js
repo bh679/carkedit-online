@@ -20,11 +20,25 @@ export function renderAuthButton(state) {
 
     const adminItems = isAdmin ? renderAdminMenuItems() : '';
 
+    // Owners (Evangelists) get a direct link to their brand admin panel. Approved
+    // brands link to the co-branded /<slug>/admin; otherwise the /brand-admin
+    // page resolves the brand by id (works for pending brands too).
+    const myBrands = Array.isArray(state.myBrands) ? state.myBrands : [];
+    let brandAdminItem = '';
+    if (myBrands.length) {
+      const b = myBrands.find((x) => x.status === 'approved') || myBrands[0];
+      const href = (b.status === 'approved' && b.slug)
+        ? `/${encodeURIComponent(b.slug)}/admin`
+        : `/brand-admin?brand=${encodeURIComponent(b.id)}`;
+      brandAdminItem = `<a class="auth-menu__item" href="${href}">Brand Admin</a>`;
+    }
+
     const menu = state.showUserMenu ? `
       <div class="auth-menu" onclick="event.stopPropagation()">
         <div class="auth-menu__name">${name}</div>
         <div class="auth-menu__divider"></div>
         ${adminItems}
+        ${brandAdminItem}
         <button class="auth-menu__item" onclick="window.game.manageAccount()">Manage Account</button>
         <button class="auth-menu__item auth-menu__item--logout" onclick="window.game.logOut()">Log Out</button>
       </div>

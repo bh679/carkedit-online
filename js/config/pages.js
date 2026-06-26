@@ -6,6 +6,8 @@
 // surfaces this table as an editable checkbox grid.
 'use strict';
 
+import { ROLE_LABELS } from './brand-labels.js';
+
 export const PAGES = [
   { path: 'index',                label: 'Home / Game',           defaultMinRole: 'Player', category: 'public' },
   { path: 'admin-image-gen',      label: 'Image AI',              defaultMinRole: 'QA',     category: 'admin'  },
@@ -23,7 +25,7 @@ export const PAGES = [
   { path: 'deploying',            label: 'Deploying',             defaultMinRole: 'Player', category: 'public' },
   { path: 'dev-dashboard',        label: 'Dev Dashboard',         defaultMinRole: 'QA',     category: 'admin'  },
   { path: 'expansions',           label: 'Expansion Packs',       defaultMinRole: 'Player', category: 'public' },
-  { path: 'brand-signup',         label: 'Become a Partner',      defaultMinRole: 'Player', category: 'public' },
+  { path: 'brand-signup',         label: `Become a ${ROLE_LABELS.evangelist.singular}`, defaultMinRole: 'Player', category: 'public' },
   { path: 'financial-dashboard',  label: 'Costs',                 defaultMinRole: 'QA',     category: 'admin'  },
   { path: 'mockup-menu-layouts',  label: 'Menu Mockups',          defaultMinRole: 'QA',     category: 'dev'    },
   { path: 'stats',                label: 'Stats',                 defaultMinRole: 'QA',     category: 'admin'  },

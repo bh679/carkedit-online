@@ -68,12 +68,18 @@ export async function initAuth(onUserChanged) {
           showLoginModal: accountError ? _getState().showLoginModal : false,
         });
         if (onUserChanged) onUserChanged();
+        // Owned partner brands → drives the "Brand Admin" link in the user menu.
+        fetchMyBrands(token).then((brands) => {
+          _setState({ myBrands: brands });
+          if (onUserChanged) onUserChanged();
+        });
       } else {
         _setState({
           authUser: null,
           firebaseUser: null,
           authToken: null,
           authLoading: false,
+          myBrands: [],
         });
         if (onUserChanged) onUserChanged();
       }
@@ -166,6 +172,21 @@ export async function updateUserProfile({ display_name, birth_month, birth_day }
     }
   } catch (err) {
     console.warn('[CarkedIt Auth] Profile update failed:', err);
+  }
+}
+
+// Partner brands this user owns (any status). Empty on failure — the menu
+// simply omits the Brand Admin link.
+async function fetchMyBrands(token) {
+  try {
+    const res = await fetch(`${window.location.origin}/api/carkedit/brands/mine`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return [];
+    return (await res.json()).brands || [];
+  } catch (err) {
+    console.warn('[CarkedIt Auth] fetch my brands failed:', err);
+    return [];
   }
 }
 
