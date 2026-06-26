@@ -77,8 +77,8 @@ export function renderMenuAccountButtons(state) {
     : '';
 
   return `
-    ${brandAdminBtn}
     <button class="btn btn--secondary" onclick="window.game.manageAccount()">Manage Account</button>
+    ${brandAdminBtn}
   `;
 }
 
