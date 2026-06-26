@@ -62,13 +62,13 @@ export function renderRequestForm(evangelist = 'Evangelist', plan = null) {
         <input type="text" id="brand-request-slug" maxlength="40" required placeholder="acme"
           autocomplete="off" oninput="window.brandSignup.checkSlug()" />
       </label>
-      <p class="brand-signup__slug-hint" id="brand-slug-hint">carkedit.com/&lt;your-url&gt;</p>
+      <p class="brand-signup__slug-hint" id="brand-slug-hint">play.carkedit.com/&lt;your-url&gt;</p>
       <label class="brand-signup__field">
         <span>Logo (optional)</span>
         <input type="file" id="brand-request-logo" accept="image/*" />
       </label>
       <div class="brand-signup__actions">
-        <button type="submit" class="btn btn--primary">Submit request</button>
+        <button type="submit" class="btn btn--primary brand-signup__submit">Submit request</button>
         <span id="brand-request-status" class="brand-signup__status"></span>
       </div>
       <p class="brand-signup__note">Becoming a ${who} is admin-approved — your request stays pending until reviewed.</p>
@@ -85,7 +85,7 @@ export function renderMyBrands(brands) {
       : '<span class="brand-signup__brand-logo brand-signup__brand-logo--empty" aria-hidden="true"></span>';
     return `<li class="brand-signup__brand">
       ${logo}
-      <span class="brand-signup__brand-slug">carkedit.com/${escapeHtml(b.slug)}</span>
+      <span class="brand-signup__brand-slug">play.carkedit.com/${escapeHtml(b.slug)}</span>
       <span class="brand-signup__brand-name">${escapeHtml(b.name)}</span>
       <span class="brand-signup__brand-status brand-signup__brand-status--${escapeHtml(b.status)}">${escapeHtml(label)}</span>
     </li>`;

@@ -52,8 +52,9 @@
         .brand-signup__slug-hint { font-size: 0.8rem; color: var(--color-text-muted); margin: calc(var(--space-xs) * -1) 0 0; font-family: monospace; }
         .brand-signup__slug-hint--ok  { color: var(--color-live); }
         .brand-signup__slug-hint--err { color: var(--color-danger); }
-        .brand-signup__actions { display: flex; align-items: center; gap: var(--space-md); margin-top: var(--space-xs); }
-        .brand-signup__status { font-size: 0.9rem; color: var(--color-text-90); }
+        .brand-signup__actions { display: flex; flex-direction: column; align-items: stretch; gap: var(--space-sm); margin-top: var(--space-xs); }
+        .brand-signup__submit { width: 100%; }
+        .brand-signup__status { font-size: 0.9rem; color: var(--color-text-90); text-align: center; }
         .brand-signup__status--ok  { color: var(--color-live); }
         .brand-signup__status--err { color: var(--color-danger); }
         .brand-signup__note { font-size: 0.78rem; color: var(--color-text-muted); margin: var(--space-xs) 0 0; }
@@ -135,7 +136,7 @@
 
     function renderSignedOut() {
       document.getElementById('app').innerHTML = shell(`
-        <p class="brand-signup__intro">Your own vanity URL: <code>carkedit.com/your-url</code>.</p>
+        <p class="brand-signup__intro">Your own vanity URL: <code>play.carkedit.com/your-url</code>.</p>
         <p class="brand-signup__gate">Sign in to apply.</p>
         <button class="btn btn--primary" id="sign-in-btn">Sign in with Google</button>
       `);
@@ -148,8 +149,7 @@
 
     function renderForm() {
       document.getElementById('app').innerHTML = shell(`
-        <p class="brand-signup__intro">Pick your plan and vanity URL
-          (<code>carkedit.com/your-url</code>). Submit a request and an admin will review it.</p>
+        <p class="brand-signup__intro">Submit a request and an admin will review it.</p>
         <div id="my-brands"></div>
         ${renderRequestForm(EVANGELIST, SELECTED_PLAN)}
       `);
@@ -196,7 +196,7 @@
             setStatus('Request submitted — pending review', 'brand-signup__status--ok');
             nameEl.value = ''; slugEl.value = ''; if (logoEl) logoEl.value = '';
             const hint = document.getElementById('brand-slug-hint');
-            if (hint) { hint.textContent = 'carkedit.com/<your-url>'; hint.className = 'brand-signup__slug-hint'; }
+            if (hint) { hint.textContent = 'play.carkedit.com/<your-url>'; hint.className = 'brand-signup__slug-hint'; }
             loadMyBrands();
           } else {
             setStatus(data.error || 'Request failed', 'brand-signup__status--err');
@@ -212,8 +212,8 @@
         if (!slugEl || !hint) return;
         const slug = slugEl.value.trim().toLowerCase();
         clearTimeout(slugTimer);
-        if (!slug) { hint.textContent = 'carkedit.com/<your-url>'; hint.className = 'brand-signup__slug-hint'; return; }
-        hint.textContent = `carkedit.com/${slug} — checking…`;
+        if (!slug) { hint.textContent = 'play.carkedit.com/<your-url>'; hint.className = 'brand-signup__slug-hint'; return; }
+        hint.textContent = `play.carkedit.com/${slug} — checking…`;
         hint.className = 'brand-signup__slug-hint';
         slugTimer = setTimeout(async () => {
           if (!authToken) { hint.textContent = 'Sign in to check availability'; hint.className = 'brand-signup__slug-hint'; return; }
@@ -222,10 +222,10 @@
             const data = await res.json().catch(() => ({}));
             if (slugEl.value.trim().toLowerCase() !== slug) return; // input changed mid-flight
             if (data.available) {
-              hint.textContent = `carkedit.com/${slug} — available`;
+              hint.textContent = `play.carkedit.com/${slug} — available`;
               hint.className = 'brand-signup__slug-hint brand-signup__slug-hint--ok';
             } else {
-              hint.textContent = data.reason || `carkedit.com/${slug} — unavailable`;
+              hint.textContent = data.reason || `play.carkedit.com/${slug} — unavailable`;
               hint.className = 'brand-signup__slug-hint brand-signup__slug-hint--err';
             }
           } catch (err) { /* leave the checking… hint */ }

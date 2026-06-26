@@ -84,7 +84,7 @@ export function renderHeader(evangelist = 'Evangelist') {
         alt=""
         onerror="this.style.display='none'"
       />
-      <h1 class="evp-header__title">Become a ${who}</h1>
+      <h1 class="evp-header__title">${who} Pricing</h1>
       <p class="evp-header__subtitle">Run co-branded games at your own URL</p>
     </header>
   `;
