@@ -1666,13 +1666,34 @@ body {
 }
 .user-stats__row {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) repeat(4, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 2fr) repeat(5, minmax(0, 1fr));
   gap: 0.75rem;
   align-items: center;
   padding: 0.75rem 1rem;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 8px;
+  cursor: pointer;
+}
+/* "Signed up" cell: brand names can be long — keep the column tidy. */
+.user-stats__signup {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Sign-up-location dropdown in the player/users filter bar. */
+.dashboard__filter-select {
+  height: 32px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-sm);
+  max-width: 200px;
   cursor: pointer;
 }
 .user-stats__row:hover {

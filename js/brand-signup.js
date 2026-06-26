@@ -47,7 +47,11 @@ export function renderMyBrands(brands) {
   if (!brands || brands.length === 0) return '';
   const items = brands.map((b) => {
     const label = STATUS_LABEL[b.status] || b.status;
+    const logo = b.logo_url
+      ? `<img class="brand-signup__brand-logo" src="${escapeHtml(b.logo_url)}" alt="" onerror="this.style.display='none'" />`
+      : '<span class="brand-signup__brand-logo brand-signup__brand-logo--empty" aria-hidden="true"></span>';
     return `<li class="brand-signup__brand">
+      ${logo}
       <span class="brand-signup__brand-slug">carkedit.com/${escapeHtml(b.slug)}</span>
       <span class="brand-signup__brand-name">${escapeHtml(b.name)}</span>
       <span class="brand-signup__brand-status brand-signup__brand-status--${escapeHtml(b.status)}">${escapeHtml(label)}</span>

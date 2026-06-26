@@ -37,7 +37,9 @@ function esc(str) {
 // matches a top-level page's path. No back link and no role filtering — callers
 // add their own chrome (e.g. the header's ← link) and filter by role at render.
 export function buildAdminNavLinks(effectivePages) {
-  const adminPages = effectivePages.filter((p) => p.category === 'admin');
+  // `hidden` pages stay in the registry (for guardPage role lookup) but are kept
+  // out of every menu — e.g. brand-admin, which is reached via /<slug>/admin.
+  const adminPages = effectivePages.filter((p) => p.category === 'admin' && !p.hidden);
   const topLevel = adminPages.filter((p) => !p.parent);
   return topLevel.map((p) => {
     const children = adminPages

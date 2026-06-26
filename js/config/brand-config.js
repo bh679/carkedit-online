@@ -49,6 +49,19 @@ export function renderCoBrand(brand) {
   `;
 }
 
+/**
+ * Compact co-brand for the phase-header strip (in-game, lobby, create-room) —
+ * a small partner logo + name sitting next to the "CarkedIt" title. Styled by
+ * .phase-header__cobrand in css/components/phase-header.css.
+ */
+export function renderHeaderCoBrand(brand) {
+  if (!brand) return '';
+  const logo = brand.logoUrl
+    ? `<img class="phase-header__cobrand-logo" src="${escapeHtml(brand.logoUrl)}" alt="" onerror="this.style.display='none'" />`
+    : '';
+  return `<span class="phase-header__cobrand" title="In partnership with ${escapeHtml(brand.name)}">${logo}<span class="phase-header__cobrand-name">${escapeHtml(brand.name)}</span></span>`;
+}
+
 // Auto-hydrate in the browser (no-op under Node test where window is undefined).
 if (typeof window !== 'undefined') {
   applyBrand(window.__BRAND__, window, typeof document !== 'undefined' ? document : null);

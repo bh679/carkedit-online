@@ -6,12 +6,18 @@
 // surfaces this table as an editable checkbox grid.
 'use strict';
 
+import { ROLE_LABELS } from './brand-labels.js';
+
 export const PAGES = [
   { path: 'index',                label: 'Home / Game',           defaultMinRole: 'Player', category: 'public' },
   { path: 'admin-image-gen',      label: 'Image AI',              defaultMinRole: 'QA',     category: 'admin'  },
   { path: 'admin-users',          label: 'User Management',       defaultMinRole: 'Admin',  category: 'admin'  },
   { path: 'admin-roles',          label: 'Roles & Permissions',   defaultMinRole: 'Admin',  category: 'admin'  },
   { path: 'admin-brands',         label: 'Brand Requests',        defaultMinRole: 'Admin',  category: 'admin'  },
+  // Served by the API resolver at /<slug>/admin (not a top-level page). Kept in
+  // the registry so guardPage('brand-admin') resolves its Host gate, but flagged
+  // `hidden` so it never appears in the admin nav menu.
+  { path: 'brand-admin',          label: 'Brand Admin',           defaultMinRole: 'Host',   category: 'admin', hidden: true },
   { path: 'card-scale-test',      label: 'Card Scale Test',       defaultMinRole: 'QA',     category: 'dev'    },
   { path: 'card-test',            label: 'Card Test',             defaultMinRole: 'QA',     category: 'dev'    },
   { path: 'color-demo',           label: 'Color Demo',            defaultMinRole: 'QA',     category: 'dev'    },
@@ -19,7 +25,7 @@ export const PAGES = [
   { path: 'deploying',            label: 'Deploying',             defaultMinRole: 'Player', category: 'public' },
   { path: 'dev-dashboard',        label: 'Dev Dashboard',         defaultMinRole: 'QA',     category: 'admin'  },
   { path: 'expansions',           label: 'Expansion Packs',       defaultMinRole: 'Player', category: 'public' },
-  { path: 'brand-signup',         label: 'Become a Partner',      defaultMinRole: 'Player', category: 'public' },
+  { path: 'brand-signup',         label: `Become a ${ROLE_LABELS.evangelist.singular}`, defaultMinRole: 'Player', category: 'public' },
   { path: 'financial-dashboard',  label: 'Costs',                 defaultMinRole: 'QA',     category: 'admin'  },
   { path: 'mockup-menu-layouts',  label: 'Menu Mockups',          defaultMinRole: 'QA',     category: 'dev'    },
   { path: 'stats',                label: 'Stats',                 defaultMinRole: 'QA',     category: 'admin'  },

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CarkedIt — Become a Partner</title>
+    <title>CarkedIt — Brand Sign-up</title>
     <link rel="stylesheet" href="css/base.css?v=1.09.0008">
     <link rel="stylesheet" href="css/components/auth.css?v=1.09.0008">
     <style>
@@ -38,6 +38,8 @@
             display: flex; align-items: center; gap: 0.75rem;
             padding: 0.5rem 0.7rem; background: rgba(0,0,0,0.3); border-radius: 6px; font-size: 0.85rem;
         }
+        .brand-signup__brand-logo { width: 28px; height: 28px; border-radius: 6px; object-fit: contain; background: #1a1a1a; flex: 0 0 auto; }
+        .brand-signup__brand-logo--empty { background: rgba(255,255,255,0.06); }
         .brand-signup__brand-slug { font-family: monospace; opacity: 0.9; white-space: nowrap; }
         .brand-signup__brand-name { opacity: 0.7; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .brand-signup__brand-status { font-weight: 600; font-size: 0.72rem; padding: 0.12em 0.6em; border-radius: 4px; }
@@ -64,6 +66,7 @@
     await guardPage('brand-signup').catch((err) => { throw err; });
 
     const EVANGELIST = ROLE_LABELS.evangelist.singular;
+    document.title = `CarkedIt — Become a ${EVANGELIST}`;   // configurable label, not hardcoded "Partner"
     const FIREBASE_CONFIG = getFirebaseConfig();
 
     let firebaseAuth = null;
