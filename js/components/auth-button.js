@@ -73,7 +73,7 @@ export function renderMenuAccountButtons(state) {
 
   const href = brandAdminHref(state);
   const brandAdminBtn = href
-    ? `<a class="btn btn--secondary menu__site-link" href="${href}">Brand Admin</a>`
+    ? `<a class="btn btn--dark menu__site-link" href="${href}">Brand Admin</a>`
     : '';
 
   return `
