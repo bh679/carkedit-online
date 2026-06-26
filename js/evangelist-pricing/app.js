@@ -77,7 +77,6 @@ export function renderHeader(evangelist = 'Evangelist') {
   const who = escapeHtml(evangelist);
   return `
     <header class="evp-header">
-      <a class="evp-back" href="/" aria-label="Back to menu">&larr; Menu</a>
       <img
         class="evp-header__logo"
         src="assets/CarkedIt-skull.webp"
@@ -88,6 +87,10 @@ export function renderHeader(evangelist = 'Evangelist') {
       <p class="evp-header__subtitle">Run co-branded games at your own URL</p>
     </header>
   `;
+}
+
+export function renderBack() {
+  return `<a class="evp-back" href="/" aria-label="Back to menu">&larr; Menu</a>`;
 }
 
 export function renderTier(tier, selected) {
@@ -175,6 +178,7 @@ export function render(evangelist = 'Evangelist', selected = DEFAULT_PLAN) {
       ${renderActions(evangelist, selected)}
       ${renderWhiteLabel()}
       <p class="evp-foot">All plans are billed yearly. Questions? Submit a request and an admin will be in touch.</p>
+      ${renderBack()}
     </div>
   `;
 }
