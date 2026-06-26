@@ -35,10 +35,8 @@ export function render(state) {
         <a class="btn btn--secondary menu__site-link" href="how-to-play">
           How to Play
         </a>
-        <a class="btn btn--secondary menu__site-link" href="expansions">
-          Expansions
-        </a>
-        ${renderMenuAccountButtons(state)}
+        ${renderMenuExtrasToggle(state)}
+        ${renderMenuExtras(state)}
         <a class="btn btn--ghost menu__site-link menu__shop-link" href="https://carkedit.com/shop/all-products/games/carked-it/" target="_blank" rel="noopener noreferrer">Buy Physical Game</a>
       </div>
       <div class="page-auth">${renderAuthButton(state)}</div>
@@ -48,6 +46,39 @@ export function render(state) {
       </div>
       ${reconnecting ? renderRecoveringOverlay(state) : ''}
     </div>
+  `;
+}
+
+/**
+ * The "More / Less" disclosure toggle that reveals the secondary menu actions.
+ * @param {object} state
+ * @returns {string} HTML string
+ */
+function renderMenuExtrasToggle(state) {
+  const open = !!state.showMenuExtras;
+  return `
+    <button
+      class="btn btn--secondary menu__more-toggle${open ? ' menu__more-toggle--open' : ''}"
+      onclick="window.game.toggleMenuExtras()"
+      aria-expanded="${open}"
+    >
+      <span>${open ? 'Less' : 'More'}</span>
+      <span class="menu__more-arrow" aria-hidden="true">▾</span>
+    </button>
+  `;
+}
+
+/**
+ * Secondary menu actions (Expansions + account links), hidden behind the
+ * More/Less toggle. Returns nothing when the menu is collapsed.
+ * @param {object} state
+ * @returns {string} HTML string
+ */
+function renderMenuExtras(state) {
+  if (!state.showMenuExtras) return '';
+  return `
+    <a class="btn btn--secondary menu__site-link" href="expansions">Expansions</a>
+    ${renderMenuAccountButtons(state)}
   `;
 }
 

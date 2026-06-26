@@ -79,6 +79,24 @@
   text-align: center;
 }
 
+.menu__more-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+}
+
+.menu__more-arrow {
+  display: inline-block;
+  transition: transform 0.15s ease;
+  font-size: 0.85em;
+  line-height: 1;
+}
+
+.menu__more-toggle--open .menu__more-arrow {
+  transform: rotate(180deg);
+}
+
 .menu__shop-link {
   color: var(--color-white);
 }
