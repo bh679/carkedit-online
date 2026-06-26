@@ -147,9 +147,10 @@ export function renderEditForm(brand, evangelist = 'Evangelist') {
       <label class="brand-signup__field">
         <span>Desired URL</span>
         <input type="text" id="edit-brand-slug" maxlength="40" required autocomplete="off"
-          value="${escapeHtml(brand.slug || '')}" placeholder="acme" />
+          value="${escapeHtml(brand.slug || '')}" data-current="${escapeHtml(brand.slug || '')}"
+          placeholder="acme" oninput="window.brandSignup.checkEditSlug()" />
       </label>
-      <p class="brand-signup__slug-hint">play.carkedit.com/${escapeHtml(brand.slug || '<your-url>')}</p>
+      <p class="brand-signup__slug-hint" id="edit-brand-slug-hint">play.carkedit.com/${escapeHtml(brand.slug || '&lt;your-url&gt;')}</p>
       <label class="brand-signup__field">
         <span>Contact email</span>
         <input type="email" id="edit-brand-email" maxlength="160" required

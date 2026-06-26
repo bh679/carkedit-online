@@ -114,6 +114,13 @@ test('renderEditForm pre-fills fields, selects the plan, and wires save/cancel',
   assert.match(html, /Save changes/);
 });
 
+test('renderEditForm wires a live URL availability check, anchored to the current slug', () => {
+  const html = renderEditForm(SAMPLE_BRAND, 'Death Evangelist');
+  assert.match(html, /window\.brandSignup\.checkEditSlug\(\)/);
+  assert.match(html, /id="edit-brand-slug-hint"/);
+  assert.match(html, /id="edit-brand-slug"[^>]*data-current="acme"/);
+});
+
 // ── plan selection tracking ───────────────────────────────
 
 test('normalisePlan: accepts known keys (case-insensitive), rejects junk', () => {

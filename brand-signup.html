@@ -281,6 +281,39 @@
           } catch (err) { /* leave the checking… hint */ }
         }, 400);
       },
+      // Live availability check for the edit form's URL (reserved/taken/format),
+      // treating the request's own current slug as available.
+      checkEditSlug() {
+        const slugEl = document.getElementById('edit-brand-slug');
+        const hint = document.getElementById('edit-brand-slug-hint');
+        if (!slugEl || !hint) return;
+        const current = (slugEl.dataset.current || '').toLowerCase();
+        const slug = slugEl.value.trim().toLowerCase();
+        clearTimeout(slugTimer);
+        if (!slug) { hint.textContent = 'play.carkedit.com/<your-url>'; hint.className = 'brand-signup__slug-hint'; return; }
+        if (slug === current) {
+          hint.textContent = `play.carkedit.com/${slug} — current URL`;
+          hint.className = 'brand-signup__slug-hint brand-signup__slug-hint--ok';
+          return;
+        }
+        hint.textContent = `play.carkedit.com/${slug} — checking…`;
+        hint.className = 'brand-signup__slug-hint';
+        slugTimer = setTimeout(async () => {
+          if (!authToken) { hint.textContent = 'Sign in to check availability'; hint.className = 'brand-signup__slug-hint'; return; }
+          try {
+            const res = await authFetch(`/api/carkedit/brands/slug-available/${encodeURIComponent(slug)}`);
+            const data = await res.json().catch(() => ({}));
+            if (slugEl.value.trim().toLowerCase() !== slug) return; // input changed mid-flight
+            if (data.available) {
+              hint.textContent = `play.carkedit.com/${slug} — available`;
+              hint.className = 'brand-signup__slug-hint brand-signup__slug-hint--ok';
+            } else {
+              hint.textContent = data.reason || `play.carkedit.com/${slug} — unavailable`;
+              hint.className = 'brand-signup__slug-hint brand-signup__slug-hint--err';
+            }
+          } catch (err) { /* leave the checking… hint */ }
+        }, 400);
+      },
       // Expand a request into its inline edit form (minimises the create form).
       expandRequest(id) {
         expandedId = id;
