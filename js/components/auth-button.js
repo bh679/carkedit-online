@@ -20,26 +20,13 @@ export function renderAuthButton(state) {
 
     const adminItems = isAdmin ? renderAdminMenuItems() : '';
 
-    // Owners (Evangelists) get a direct link to their brand admin panel. Approved
-    // brands link to the co-branded /<slug>/admin; otherwise the /brand-admin
-    // page resolves the brand by id (works for pending brands too).
-    const myBrands = Array.isArray(state.myBrands) ? state.myBrands : [];
-    let brandAdminItem = '';
-    if (myBrands.length) {
-      const b = myBrands.find((x) => x.status === 'approved') || myBrands[0];
-      const href = (b.status === 'approved' && b.slug)
-        ? `/${encodeURIComponent(b.slug)}/admin`
-        : `/brand-admin?brand=${encodeURIComponent(b.id)}`;
-      brandAdminItem = `<a class="auth-menu__item" href="${href}">Brand Admin</a>`;
-    }
-
+    // Manage Account and Brand Admin are surfaced directly in the main menu
+    // (see renderMenuAccountButtons), so they are intentionally not repeated here.
     const menu = state.showUserMenu ? `
       <div class="auth-menu" onclick="event.stopPropagation()">
         <div class="auth-menu__name">${name}</div>
         <div class="auth-menu__divider"></div>
         ${adminItems}
-        ${brandAdminItem}
-        <button class="auth-menu__item" onclick="window.game.manageAccount()">Manage Account</button>
         <button class="auth-menu__item auth-menu__item--logout" onclick="window.game.logOut()">Log Out</button>
       </div>
     ` : '';
@@ -58,6 +45,40 @@ export function renderAuthButton(state) {
     <div class="auth-bar">
       <button class="btn btn--ghost" onclick="window.game.showLogin()">Sign In</button>
     </div>
+  `;
+}
+
+/**
+ * Resolve the Brand Admin destination for the first/best brand the user owns.
+ * Approved brands link to the co-branded /<slug>/admin; otherwise the
+ * /brand-admin page resolves the brand by id (works for pending brands too).
+ * @returns {string|null} href, or null when the user owns no brands.
+ */
+function brandAdminHref(state) {
+  const myBrands = Array.isArray(state.myBrands) ? state.myBrands : [];
+  if (!myBrands.length) return null;
+  const b = myBrands.find((x) => x.status === 'approved') || myBrands[0];
+  return (b.status === 'approved' && b.slug)
+    ? `/${encodeURIComponent(b.slug)}/admin`
+    : `/brand-admin?brand=${encodeURIComponent(b.id)}`;
+}
+
+/**
+ * Main-menu account actions, shown only when the user has access:
+ * Brand Admin appears only for brand owners; Manage Account only when signed in.
+ * @returns {string} HTML string (empty when signed out).
+ */
+export function renderMenuAccountButtons(state) {
+  if (!state.authUser) return '';
+
+  const href = brandAdminHref(state);
+  const brandAdminBtn = href
+    ? `<a class="btn btn--secondary menu__site-link" href="${href}">Brand Admin</a>`
+    : '';
+
+  return `
+    ${brandAdminBtn}
+    <button class="btn btn--secondary" onclick="window.game.manageAccount()">Manage Account</button>
   `;
 }
 

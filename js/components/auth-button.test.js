@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { renderLoginModal } from './auth-button.js';
+import { renderLoginModal, renderMenuAccountButtons } from './auth-button.js';
 
 const open = (extra = {}) => renderLoginModal({ showLoginModal: true, ...extra });
 
@@ -27,4 +27,32 @@ test('renderLoginModal: a loginNotice renders in the success notice element', ()
 
 test('renderLoginModal: no notice element when loginNotice is absent', () => {
   assert.ok(!open({ loginMode: 'signin' }).includes('login-modal__notice'));
+});
+
+test('renderMenuAccountButtons: signed out renders nothing', () => {
+  assert.equal(renderMenuAccountButtons({ authUser: null }), '');
+});
+
+test('renderMenuAccountButtons: signed in shows Manage Account but no Brand Admin without brands', () => {
+  const html = renderMenuAccountButtons({ authUser: { id: 'u1' }, myBrands: [] });
+  assert.ok(html.includes('Manage Account'));
+  assert.ok(html.includes('window.game.manageAccount()'));
+  assert.ok(!html.includes('Brand Admin'));
+});
+
+test('renderMenuAccountButtons: approved brand links to the co-branded /<slug>/admin', () => {
+  const html = renderMenuAccountButtons({
+    authUser: { id: 'u1' },
+    myBrands: [{ id: 'b1', status: 'approved', slug: 'acme' }],
+  });
+  assert.ok(html.includes('Brand Admin'));
+  assert.ok(html.includes('href="/acme/admin"'));
+});
+
+test('renderMenuAccountButtons: pending brand links to /brand-admin by id', () => {
+  const html = renderMenuAccountButtons({
+    authUser: { id: 'u1' },
+    myBrands: [{ id: 'b1', status: 'pending', slug: 'acme' }],
+  });
+  assert.ok(html.includes('href="/brand-admin?brand=b1"'));
 });

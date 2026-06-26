@@ -1,7 +1,7 @@
 // CarkedIt Online — Menu Screen
 'use strict';
 
-import { renderAuthButton } from '../components/auth-button.js';
+import { renderAuthButton, renderMenuAccountButtons } from '../components/auth-button.js';
 import { escapeHtml } from '../utils/escape.js';
 import { renderCoBrand } from '../config/brand-config.js';
 
@@ -39,6 +39,7 @@ export function render(state) {
           Expansions
         </a>
         <a class="btn btn--ghost menu__site-link menu__shop-link" href="https://carkedit.com/shop/all-products/games/carked-it/" target="_blank" rel="noopener noreferrer">Buy Physical Game</a>
+        ${renderMenuAccountButtons(state)}
       </div>
       <div class="page-auth">${renderAuthButton(state)}</div>
       <div class="menu__versions">
