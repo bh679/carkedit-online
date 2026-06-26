@@ -3,7 +3,7 @@
 
 import { getState } from '../state.js';
 import { subscribeErrorState } from '../utils/error-logger.js';
-import { escapeHtml } from '../utils/escape.js';
+import { renderHeaderCoBrand } from '../config/brand-config.js';
 
 // Subscribe once at module load — toggles the --error class on any flag button
 // currently in the DOM whenever the error state changes.
@@ -40,12 +40,7 @@ export function render({ phase = '', label = '' } = {}) {
   else if (isDev) flagClass += ' phase-header__flag-btn--dev';
   // Partner co-brand alongside the CarkedIt name during play (window.brand set
   // on a brand vanity URL). Additive — CarkedIt's name stays.
-  const brand = (typeof window !== 'undefined' && window.brand) ? window.brand : null;
-  const coBrand = brand
-    ? `<span class="phase-header__cobrand" title="In partnership with ${escapeHtml(brand.name)}">${
-        brand.logoUrl ? `<img class="phase-header__cobrand-logo" src="${escapeHtml(brand.logoUrl)}" alt="" onerror="this.style.display='none'" />` : ''
-      }<span class="phase-header__cobrand-name">${escapeHtml(brand.name)}</span></span>`
-    : '';
+  const coBrand = renderHeaderCoBrand((typeof window !== 'undefined' && window.brand) ? window.brand : null);
   return `
     <header class="phase-header" data-phase="${phase}">
       <div class="phase-header__left">
