@@ -1,0 +1,209 @@
+/* CarkedIt Online — Evangelist Pricing page
+ * Colours: only var(--color-*) tokens (see css/colors.css). No hardcoded values.
+ * Layout mirrors css/screens/how-to-play.css.
+ */
+
+/* ── Scrolling override ───────────────────────────────────
+ * Game screens lock the body to no-scroll; this informational page scrolls,
+ * mirroring css/screens/how-to-play.css (body.page--how-to-play).             */
+body.page--evangelist-pricing {
+  overflow-y: auto;
+  height: auto;
+  min-height: 100dvh;
+}
+
+body.page--evangelist-pricing #app {
+  overflow: visible;
+  height: auto;
+  min-height: 100dvh;
+}
+
+/* ── Layout ───────────────────────────────────────────── */
+.evp {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--space-md) var(--space-md) var(--space-xl);
+}
+
+/* ── Header ───────────────────────────────────────────── */
+.evp-header {
+  position: relative;
+  text-align: center;
+  padding-top: var(--space-lg);
+}
+
+.evp-back {
+  position: absolute;
+  top: 0;
+  left: 0;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: var(--space-xs) 0;
+}
+
+.evp-back:hover {
+  color: var(--color-text);
+}
+
+.evp-header__logo {
+  width: min(120px, 28vw);
+  display: block;
+  margin: 0 auto var(--space-sm);
+}
+
+.evp-header__title {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--color-primary);
+  letter-spacing: -0.5px;
+}
+
+.evp-header__subtitle {
+  font-size: 1rem;
+  color: var(--color-text-muted);
+  margin-top: var(--space-xs);
+}
+
+/* ── Intro / footer copy ──────────────────────────────── */
+.evp-intro {
+  color: var(--color-text-90);
+  line-height: 1.5;
+  text-align: center;
+  max-width: 60ch;
+  margin: 0 auto;
+}
+
+.evp-foot {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+/* ── Tiers grid ───────────────────────────────────────── */
+.evp-tiers {
+  list-style: none;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-md);
+  align-items: start;
+}
+
+@media (min-width: 720px) {
+  .evp-tiers {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* ── Tier card ────────────────────────────────────────── */
+.evp-tier {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-lg) var(--space-md) var(--space-md);
+}
+
+.evp-tier--featured {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary);
+}
+
+.evp-tier__badge {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-white);
+  background: var(--color-primary);
+  border-radius: var(--radius-sm);
+  padding: 0.18rem 0.6rem;
+  white-space: nowrap;
+}
+
+.evp-tier__name {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--color-text);
+}
+
+.evp-tier__price {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-xs);
+}
+
+.evp-tier__amount {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: var(--color-highlight);
+  line-height: 1;
+}
+
+.evp-tier__period {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+
+/* ── Features ─────────────────────────────────────────── */
+.evp-features {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  flex: 1 1 auto;
+  margin-top: var(--space-xs);
+}
+
+.evp-feature {
+  position: relative;
+  padding-left: 1.5rem;
+  color: var(--color-text-90);
+  line-height: 1.4;
+  font-size: 0.95rem;
+}
+
+.evp-feature::before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: var(--color-live);
+  font-weight: 800;
+}
+
+.evp-feature--inherits {
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.evp-feature--inherits::before {
+  content: "★";
+  color: var(--color-primary);
+}
+
+.evp-feature__note {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+/* ── CTA ──────────────────────────────────────────────── */
+.evp-tier__cta {
+  text-decoration: none;
+  text-align: center;
+  margin-top: var(--space-sm);
+}
