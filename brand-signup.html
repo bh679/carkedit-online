@@ -105,6 +105,7 @@
     let firebaseAuth = null;
     let authToken = null;
     let slugTimer = null;
+    let accountEmail = '';   // pre-fills the contact email from the signed-in account
 
     async function loadFirebaseAuth() {
       const [appMod, authMod] = await Promise.all([
@@ -151,7 +152,7 @@
       document.getElementById('app').innerHTML = shell(`
         <p class="brand-signup__intro">Submit a request and an admin will review it.</p>
         <div id="my-brands"></div>
-        ${renderRequestForm(EVANGELIST, SELECTED_PLAN)}
+        ${renderRequestForm(EVANGELIST, SELECTED_PLAN, accountEmail)}
       `);
       loadMyBrands();
     }
@@ -172,18 +173,26 @@
         if (event) event.preventDefault();
         const nameEl = document.getElementById('brand-request-name');
         const slugEl = document.getElementById('brand-request-slug');
+        const emailEl = document.getElementById('brand-request-email');
+        const phoneEl = document.getElementById('brand-request-phone');
         const logoEl = document.getElementById('brand-request-logo');
         const status = document.getElementById('brand-request-status');
         if (!nameEl || !slugEl) return false;
         const name = nameEl.value.trim();
         const slug = slugEl.value.trim().toLowerCase();
+        const email = emailEl?.value.trim() || '';
+        const phone = phoneEl?.value.trim() || '';
         const setStatus = (msg, cls) => { if (status) { status.textContent = msg; status.className = `brand-signup__status${cls ? ' ' + cls : ''}`; } };
         if (!name || !slug) { setStatus('Name and URL are required', 'brand-signup__status--err'); return false; }
+        if (!email) { setStatus('Contact email is required', 'brand-signup__status--err'); return false; }
+        if (!phone) { setStatus('Phone number is required', 'brand-signup__status--err'); return false; }
         if (!authToken) { setStatus('Please sign in first', 'brand-signup__status--err'); return false; }
         setStatus('Submitting…');
         const form = new FormData();
         form.append('name', name);
         form.append('slug', slug);
+        form.append('email', email);
+        form.append('phone', phone);
         const planEl = document.getElementById('brand-request-plan');
         const plan = normalisePlan(planEl?.value);
         if (plan) form.append('plan', plan);
@@ -194,7 +203,7 @@
           const data = await res.json().catch(() => ({}));
           if (res.ok) {
             setStatus('Request submitted — pending review', 'brand-signup__status--ok');
-            nameEl.value = ''; slugEl.value = ''; if (logoEl) logoEl.value = '';
+            nameEl.value = ''; slugEl.value = ''; if (phoneEl) phoneEl.value = ''; if (logoEl) logoEl.value = '';
             const hint = document.getElementById('brand-slug-hint');
             if (hint) { hint.textContent = 'play.carkedit.com/<your-url>'; hint.className = 'brand-signup__slug-hint'; }
             loadMyBrands();
@@ -240,6 +249,7 @@
       authMod.onAuthStateChanged(firebaseAuth, async (user) => {
         if (user) {
           authToken = await user.getIdToken();
+          accountEmail = user.email || '';
           renderForm();
         } else {
           authToken = null;

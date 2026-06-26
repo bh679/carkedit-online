@@ -8,14 +8,25 @@ import {
   PLAN_LABELS,
 } from './brand-signup.js';
 
-test('renderRequestForm includes name, slug, logo inputs and a submit button', () => {
+test('renderRequestForm includes name, slug, email, phone, logo inputs and a submit button', () => {
   const html = renderRequestForm('Death Evangelist');
   assert.match(html, /id="brand-request-name"/);
   assert.match(html, /id="brand-request-slug"/);
+  assert.match(html, /id="brand-request-email"/);
+  assert.match(html, /type="email"/);
+  assert.match(html, /id="brand-request-phone"/);
+  assert.match(html, /type="tel"/);
   assert.match(html, /id="brand-request-logo"/);
   assert.match(html, /type="file"/);
   assert.match(html, /Submit request/);
   assert.match(html, /id="brand-slug-hint"/);
+});
+
+test('renderRequestForm pre-fills the contact email from the account (escaped)', () => {
+  const html = renderRequestForm('Death Evangelist', null, 'me@example.com');
+  assert.match(html, /id="brand-request-email"[^>]*value="me@example\.com"/);
+  // Empty email leaves the field blank.
+  assert.match(renderRequestForm('Death Evangelist'), /id="brand-request-email"[^>]*value=""/);
 });
 
 test('renderRequestForm wires the inline controller hooks', () => {

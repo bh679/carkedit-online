@@ -46,9 +46,10 @@ export function renderPlanSelect(plan) {
 /**
  * The request form. `evangelist` is the configurable role label for copy;
  * `plan` (optional) is the tier chosen on the pricing page, pre-selected in the
- * plan picker (the user can switch it here).
+ * plan picker (the user can switch it here); `email` (optional) pre-fills the
+ * contact email from the signed-in account.
  */
-export function renderRequestForm(evangelist = 'Evangelist', plan = null) {
+export function renderRequestForm(evangelist = 'Evangelist', plan = null, email = '') {
   const who = escapeHtml(evangelist);
   return `
     <form id="brand-request-form" class="brand-signup__form" onsubmit="return window.brandSignup.submit(event)">
@@ -63,6 +64,16 @@ export function renderRequestForm(evangelist = 'Evangelist', plan = null) {
           autocomplete="off" oninput="window.brandSignup.checkSlug()" />
       </label>
       <p class="brand-signup__slug-hint" id="brand-slug-hint">play.carkedit.com/&lt;your-url&gt;</p>
+      <label class="brand-signup__field">
+        <span>Contact email</span>
+        <input type="email" id="brand-request-email" maxlength="160" required
+          value="${escapeHtml(email)}" placeholder="you@example.com" />
+      </label>
+      <label class="brand-signup__field">
+        <span>Phone number</span>
+        <input type="tel" id="brand-request-phone" maxlength="40" required
+          autocomplete="tel" placeholder="+61 400 000 000" />
+      </label>
       <label class="brand-signup__field">
         <span>Logo (optional)</span>
         <input type="file" id="brand-request-logo" accept="image/*" />
