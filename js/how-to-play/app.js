@@ -1,7 +1,7 @@
 // CarkedIt Online — How to Play page
 // Standalone informational page with two tabs:
 //   1) Set Up a Game  (3-step remote setup)
-//   2) How It Works   (the rules)
+//   2) Game Rules      (the rules)
 //
 // Pure render/logic functions are exported and import-safe (no DOM at load time)
 // so they can be unit tested; the DOM bootstrap at the bottom is guarded.
@@ -107,7 +107,7 @@ export function renderTabs(active) {
   return `
     <div class="htp-tabs" role="tablist">
       ${tab('setup', 'Set Up a Game')}
-      ${tab('play', 'How It Works')}
+      ${tab('play', 'Game Rules')}
     </div>
   `;
 }
@@ -141,7 +141,7 @@ export function renderSetupPanel(active) {
           similar and play with your phones in hand.
         </p>
       </div>
-      <a class="btn btn--primary htp-cta" href="/?host=1">Start a Game &rarr;</a>
+      <a class="btn btn--primary htp-cta" href="#play" onclick="window.howToPlay.selectTab('play'); window.scrollTo(0,0); return false;">Game Rules &rarr;</a>
     </section>
   `;
 }
