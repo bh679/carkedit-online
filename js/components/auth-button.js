@@ -80,6 +80,22 @@ export function brandAdminButton(state) {
 }
 
 /**
+ * The Brand Pending button, shown to owners whose brand request is still
+ * pending (and not yet approved). Links to the sign-up page where the request
+ * can be reviewed/edited. Null when signed out, approved, or with no request.
+ * @returns {string|null} button HTML.
+ */
+export function brandPendingButton(state) {
+  if (!state.authUser) return null;
+  if (brandAdminHref(state)) return null; // an approved brand takes precedence
+  const myBrands = Array.isArray(state.myBrands) ? state.myBrands : [];
+  const hasPending = myBrands.some((x) => x.status === 'pending');
+  return hasPending
+    ? `<a class="btn btn--dark menu__site-link" href="brand-signup">Brand Pending</a>`
+    : null;
+}
+
+/**
  * Main-menu account actions the signed-in user has access to, as individual
  * button HTML strings: Manage Account when signed in, plus Brand Admin only for
  * owners with an approved brand. Returned as an array so callers can count them.

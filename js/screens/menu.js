@@ -1,7 +1,7 @@
 // CarkedIt Online — Menu Screen
 'use strict';
 
-import { renderAuthButton, manageAccountButton, brandAdminButton } from '../components/auth-button.js';
+import { renderAuthButton, manageAccountButton, brandAdminButton, brandPendingButton } from '../components/auth-button.js';
 import { escapeHtml } from '../utils/escape.js';
 import { renderCoBrand } from '../config/brand-config.js';
 
@@ -52,21 +52,22 @@ const PARTNER_BTN = `<a class="btn btn--secondary menu__site-link" href="evangel
 
 /**
  * The middle of the menu: a promoted primary action followed by the collapsible
- * secondary actions. Brand owners get Brand Admin promoted to a primary slot and
+ * secondary actions. Owners get a brand button promoted to a primary slot —
+ * Brand Admin when approved, Brand Pending while their request is pending — and
  * How to Play demoted into "More"; everyone else keeps How to Play primary.
  * Signed-in users without any brand get a Partner button (pricing) under More.
  * @param {object} state
  * @returns {string} HTML string
  */
 function renderMenuMiddle(state) {
-  const brandAdmin = brandAdminButton(state);
+  const brandBtn = brandAdminButton(state) || brandPendingButton(state);
   const manageAccount = manageAccountButton(state);
   const hasAnyBrand = Array.isArray(state.myBrands) && state.myBrands.length > 0;
   const partner = (state.authUser && !hasAnyBrand) ? PARTNER_BTN : null;
 
-  const primary = brandAdmin || HOW_TO_PLAY_BTN;
+  const primary = brandBtn || HOW_TO_PLAY_BTN;
   const secondary = [
-    brandAdmin ? HOW_TO_PLAY_BTN : null,
+    brandBtn ? HOW_TO_PLAY_BTN : null,
     EXPANSIONS_BTN,
     partner,
     manageAccount,

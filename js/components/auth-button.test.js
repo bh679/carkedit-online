@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { renderLoginModal, renderMenuAccountButtons, menuAccountButtons } from './auth-button.js';
+import { renderLoginModal, renderMenuAccountButtons, menuAccountButtons, brandPendingButton } from './auth-button.js';
 
 const open = (extra = {}) => renderLoginModal({ showLoginModal: true, ...extra });
 
@@ -56,6 +56,22 @@ test('renderMenuAccountButtons: pending brand does not show Brand Admin', () => 
   });
   assert.ok(html.includes('Manage Account'));
   assert.ok(!html.includes('Brand Admin'));
+});
+
+test('brandPendingButton: only for a pending request, linking to brand-signup', () => {
+  assert.equal(brandPendingButton({ authUser: null }), null);
+  assert.equal(brandPendingButton({ authUser: { id: 'u1' }, myBrands: [] }), null);
+  const html = brandPendingButton({ authUser: { id: 'u1' }, myBrands: [{ id: 'b1', status: 'pending' }] });
+  assert.ok(html.includes('Brand Pending'));
+  assert.ok(html.includes('href="brand-signup"'));
+});
+
+test('brandPendingButton: an approved brand takes precedence (no pending button)', () => {
+  const html = brandPendingButton({
+    authUser: { id: 'u1' },
+    myBrands: [{ id: 'b1', status: 'approved', slug: 'acme' }, { id: 'b2', status: 'pending' }],
+  });
+  assert.equal(html, null);
 });
 
 test('menuAccountButtons: returns an array sized by access (0 / 1 / 2 buttons)', () => {
