@@ -2,6 +2,12 @@
 @import './colors.css';
 
 :root {
+  /* Dark UI: render native form-control chrome (select popups, date/number
+     pickers, scrollbars, autofill) in dark mode consistently across platforms.
+     Without this, Windows Chrome paints <select> option popups on a light
+     surface, making the near-white option text unreadable. */
+  color-scheme: dark;
+
   /* Card aspect ratio (5:7) */
   --card-aspect: 5 / 7;
 
@@ -128,4 +134,12 @@ body {
 .input:focus {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
+}
+
+/* Native <select> dropdown popups: give options an opaque dark background so
+   they stay readable on Windows Chrome, which otherwise renders the popup on a
+   light system surface. Applies to all selects, including class-less ones. */
+option {
+  background-color: var(--color-surface);
+  color: var(--color-text);
 }
