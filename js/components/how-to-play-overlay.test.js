@@ -35,18 +35,26 @@ test('setupStepStatus: step 1 done once connected (host, alone)', () => {
   assert.deepEqual(setupStepStatus(state), [true, false, false]);
 });
 
-test('setupStepStatus: step 2 done once another player joins', () => {
-  const state = { connectionStatus: 'connected', onlinePlayers: [{ ready: false }, { ready: false }] };
+test('setupStepStatus: 2 players is NOT enough — game minimum is 3', () => {
+  const twoWaiting = { connectionStatus: 'connected', onlinePlayers: [{ ready: false }, { ready: false }] };
+  assert.deepEqual(setupStepStatus(twoWaiting), [true, false, false]);
+  // Even both ready: sharing isn't done until the 3-player minimum is in.
+  const twoReady = { connectionStatus: 'connected', onlinePlayers: [{ ready: true }, { ready: true }] };
+  assert.deepEqual(setupStepStatus(twoReady), [true, false, false]);
+});
+
+test('setupStepStatus: step 2 done once 3 players are in', () => {
+  const state = { connectionStatus: 'connected', onlinePlayers: [{ ready: false }, { ready: false }, { ready: false }] };
   assert.deepEqual(setupStepStatus(state), [true, true, false]);
 });
 
-test('setupStepStatus: step 3 done once 2+ players are all ready', () => {
-  const state = { connectionStatus: 'connected', onlinePlayers: [{ ready: true }, { ready: true }] };
+test('setupStepStatus: step 3 done once 3+ players are all ready', () => {
+  const state = { connectionStatus: 'connected', onlinePlayers: [{ ready: true }, { ready: true }, { ready: true }] };
   assert.deepEqual(setupStepStatus(state), [true, true, true]);
 });
 
 test('setupStepStatus: step 3 not done if someone is not ready', () => {
-  const state = { connectionStatus: 'connected', onlinePlayers: [{ ready: true }, { ready: false }] };
+  const state = { connectionStatus: 'connected', onlinePlayers: [{ ready: true }, { ready: true }, { ready: false }] };
   assert.deepEqual(setupStepStatus(state), [true, true, false]);
 });
 
@@ -91,10 +99,13 @@ test('renderOverlay: dismiss controls are wired to close, never navigation', () 
   assert.ok(!html.includes('<a '), 'overlay uses buttons, not anchors, so it never leaves the lobby');
 });
 
-test('renderOverlay: completed steps are marked done and lose their badge', () => {
-  const allReady = { connectionStatus: 'connected', onlinePlayers: [{ ready: true }, { ready: true }] };
+test('renderOverlay: completed steps are minimized — ✓ + title + Done, no body', () => {
+  const allReady = { connectionStatus: 'connected', onlinePlayers: [{ ready: true }, { ready: true }, { ready: true }] };
   const html = renderOverlay(allReady);
   assert.ok(html.includes('htp-step--done'), 'expected a done step');
+  assert.ok(html.includes('htp-step--mini'), 'done steps render the compact variant');
+  // All three steps are done → no step bodies remain in the setup panel.
+  assert.ok(!html.includes('htp-step__body'), 'minimized steps drop their body text');
   // Step 1 (Host a Game) is complete, so its "Free Account Required" badge is hidden.
   assert.ok(!html.includes('Free Account Required'), 'completed step hides its badge');
 });
@@ -103,4 +114,25 @@ test('renderOverlay: incomplete first step shows its badge and is current', () =
   const html = renderOverlay({ connectionStatus: 'disconnected', onlinePlayers: [] });
   assert.ok(html.includes('Free Account Required'), 'step 1 badge visible while incomplete');
   assert.ok(html.includes('htp-step--current'), 'first incomplete step is highlighted');
+  assert.ok(!html.includes('htp-step--mini'), 'no minimized steps while nothing is done');
+});
+
+test('renderOverlay: Share the Link is tap-to-copy while incomplete in a room', () => {
+  const inRoom = { connectionStatus: 'connected', roomCode: 'ABCD', onlinePlayers: [{ ready: false }, { ready: false }] };
+  const html = renderOverlay(inRoom);
+  assert.ok(html.includes('window.game.copyJoinLinkFromHowTo()'), 'share step copies the invite link');
+  assert.ok(html.includes('htp-step--copy'), 'share step is styled tappable');
+  assert.ok(html.includes('Tap to copy the invite link'), 'share step shows the copy hint');
+});
+
+test('renderOverlay: Share the Link is not tappable without a room', () => {
+  const html = renderOverlay({ connectionStatus: 'disconnected', onlinePlayers: [] });
+  assert.ok(!html.includes('copyJoinLinkFromHowTo'), 'no copy handler before a room exists');
+  assert.ok(!html.includes('htp-step__copy-hint'), 'no copy hint before a room exists');
+});
+
+test('renderOverlay: Share the Link stops being tappable once done (3 players)', () => {
+  const three = { connectionStatus: 'connected', roomCode: 'ABCD', onlinePlayers: [{ ready: false }, { ready: false }, { ready: false }] };
+  const html = renderOverlay(three);
+  assert.ok(!html.includes('copyJoinLinkFromHowTo'), 'done share step is no longer a copy button');
 });

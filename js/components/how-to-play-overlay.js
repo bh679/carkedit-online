@@ -66,8 +66,8 @@ export function markHowToBannerDismissed() {
 /**
  * Which of the three "Set Up a Game" steps are complete, in order.
  *   1) Host a Game   — done once connected to a room
- *   2) Share the Link — done once another player has joined
- *   3) Join & Start   — done once 2+ players are in and everyone is ready
+ *   2) Share the Link — done once the game minimum of 3 players is in
+ *   3) Join & Start   — done once 3+ players are in and everyone is ready
  * @param {object} state
  * @returns {[boolean, boolean, boolean]}
  */
@@ -77,8 +77,8 @@ export function setupStepStatus(state) {
   const count = players.length;
   return [
     connected,
-    connected && count > 1,
-    connected && count >= 2 && players.every(p => p && p.ready),
+    connected && count >= 3,
+    connected && count >= 3 && players.every(p => p && p.ready),
   ];
 }
 
@@ -141,20 +141,41 @@ function renderSetupPanel(state, active) {
   const steps = SETUP_STEPS.map((s, i) => {
     const isDone = done[i];
     const isCurrent = i === currentIndex;
-    const cls = ['htp-step', isDone ? 'htp-step--done' : '', isCurrent ? 'htp-step--current' : '']
+
+    // Completed steps collapse to a compact ✓ + title + Done row — the details
+    // are no longer needed, they just record the progress already made.
+    if (isDone) {
+      return `
+        <li class="htp-step htp-step--done htp-step--mini">
+          <span class="htp-step__num" aria-hidden="true">✓</span>
+          <h3 class="htp-step__title">${s.title} <span class="htp-step__done-label">Done</span></h3>
+        </li>
+      `;
+    }
+
+    // "Share the Link" is actionable in place: tapping the step copies the
+    // invite link (only possible once connected, when a room code exists).
+    const isShareStep = s.title === 'Share the Link';
+    const canCopy = isShareStep && state?.connectionStatus === 'connected' && !!state?.roomCode;
+    const copyAttrs = canCopy
+      ? ` role="button" tabindex="0" onclick="window.game.copyJoinLinkFromHowTo()"`
+      : '';
+    const copyHint = canCopy
+      ? '<p class="htp-step__copy-hint" id="htp-copy-hint">Tap to copy the invite link</p>'
+      : '';
+
+    const cls = ['htp-step', isCurrent ? 'htp-step--current' : '', canCopy ? 'htp-step--copy' : '']
       .filter(Boolean).join(' ');
-    const num = isDone ? '✓' : s.n;
-    // Once a step is complete its account/no-account badge is no longer relevant.
-    const badge = (!isDone && s.badge)
+    const badge = s.badge
       ? ` <span class="htp-step__badge${s.badgeVariant ? ` htp-step__badge--${s.badgeVariant}` : ''}">${s.badge}</span>`
       : '';
-    const doneLabel = isDone ? ' <span class="htp-step__done-label">Done</span>' : '';
     return `
-      <li class="${cls}">
-        <span class="htp-step__num" aria-hidden="true">${num}</span>
+      <li class="${cls}"${copyAttrs}>
+        <span class="htp-step__num" aria-hidden="true">${s.n}</span>
         <div class="htp-step__text">
-          <h3 class="htp-step__title">${s.title}${badge}${doneLabel}</h3>
+          <h3 class="htp-step__title">${s.title}${badge}</h3>
           <p class="htp-step__body">${s.body}</p>
+          ${copyHint}
         </div>
       </li>
     `;

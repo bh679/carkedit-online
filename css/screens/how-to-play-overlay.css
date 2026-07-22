@@ -100,6 +100,47 @@
   white-space: nowrap;
 }
 
+/* Completed steps collapse to a compact single row: ✓ + title + Done.
+ * Details are hidden — they just record the progress already made. */
+.htp-step--mini {
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 6px 10px;
+}
+
+.htp-step--mini .htp-step__num {
+  width: 20px;
+  height: 20px;
+  font-size: 0.7rem;
+  flex: 0 0 auto;
+}
+
+.htp-step--mini .htp-step__title {
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+/* ── Tap-to-copy "Share the Link" step ────────────────── */
+.htp-step--copy {
+  cursor: pointer;
+}
+
+.htp-step--copy:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.htp-step__copy-hint {
+  margin-top: var(--space-xs);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.htp-step__copy-hint--copied {
+  color: var(--color-live);
+}
+
 /* ── Header help button (both lobby states) ───────────── */
 .phase-header__help-btn {
   width: 44px;

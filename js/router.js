@@ -533,6 +533,20 @@ function cancelRecover() {
   showScreen('menu');
 }
 
+/**
+ * Builds the room's invite URL and writes it to the clipboard.
+ * Shared by the room-code card copy and the How-to-Play "Share the Link" step.
+ * @returns {Promise<void>|null} the clipboard promise, or null when no room code
+ */
+function writeJoinLinkToClipboard() {
+  const state = getState();
+  const code = state.roomCode;
+  if (!code) return null;
+  const url = new URL(window.location.href);
+  url.search = `?join=${encodeURIComponent(code)}`;
+  return navigator.clipboard.writeText(url.toString());
+}
+
 // Expose game API for inline onclick handlers
 window.game = {
   showScreen,
@@ -1106,12 +1120,9 @@ window.game = {
     showScreen('online-lobby');
   },
   copyJoinLink() {
-    const state = getState();
-    const code = state.roomCode;
-    if (!code) return;
-    const url = new URL(window.location.href);
-    url.search = `?join=${encodeURIComponent(code)}`;
-    navigator.clipboard.writeText(url.toString()).then(() => {
+    const copied = writeJoinLinkToClipboard();
+    if (!copied) return;
+    copied.then(() => {
       const btn = document.querySelector('.phase-header__settings-btn');
       if (btn) {
         const original = btn.innerHTML;
@@ -1149,6 +1160,26 @@ window.game = {
   dismissHowToBanner() {
     markHowToBannerDismissed();
     showScreen('online-lobby');
+  },
+  // Copy triggered from the overlay's "Share the Link" step: same link as the
+  // room-code card, but the feedback flashes in place on the step's hint line
+  // (no re-render, so the overlay and scroll position stay put).
+  copyJoinLinkFromHowTo() {
+    const copied = writeJoinLinkToClipboard();
+    if (!copied) return;
+    copied.then(() => {
+      const hint = document.getElementById('htp-copy-hint');
+      if (!hint) return;
+      const original = hint.textContent;
+      hint.textContent = 'Copied! Send it to your friends';
+      hint.classList.add('htp-step__copy-hint--copied');
+      setTimeout(() => {
+        const el = document.getElementById('htp-copy-hint');
+        if (!el) return;
+        el.textContent = original;
+        el.classList.remove('htp-step__copy-hint--copied');
+      }, 2200);
+    }).catch(() => {});
   },
 };
 
