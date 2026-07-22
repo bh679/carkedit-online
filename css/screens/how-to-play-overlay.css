@@ -104,10 +104,12 @@
 .phase-header__help-btn {
   width: 44px;
   height: 44px;
-  background: var(--color-phase-settings-bg, var(--color-secondary));
-  border: 1px solid var(--color-phase-settings-border, var(--color-border));
+  /* White chip to match the flag/link buttons; dark glyph for contrast (their
+     icons carry their own dark stroke, but ours is a text "?"). */
+  background: var(--color-phase-settings-bg);
+  border: 1px solid var(--color-phase-settings-border);
   border-radius: 10px;
-  color: var(--color-phase-header-text, var(--color-text));
+  color: var(--color-bg);
   font-size: 20px;
   font-weight: 800;
   line-height: 1;

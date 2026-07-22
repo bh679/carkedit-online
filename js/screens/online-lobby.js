@@ -58,7 +58,6 @@ function renderJoinCreate(state, connecting, error) {
         <span class="phase-header__phase-label">Online</span>
       </div>
       <div class="phase-header__right">
-        ${renderHelpButton()}
         <button class="phase-header__flag-btn" aria-label="Report issue" onclick="window.game.openIssueReport()">
           ${FLAG_ICON}
         </button>
@@ -77,7 +76,6 @@ function renderJoinCreate(state, connecting, error) {
       <div class="online-lobby__actions">
         ${backBtn}
       </div>
-      ${state.showHowToPlay ? renderHowToPlayOverlay(state) : ''}
     </div>
   `;
 }
@@ -96,7 +94,6 @@ function renderDetailsStep(state, connecting, error) {
 
   return `
     <div class="online-lobby__forms">
-      ${renderFirstGameCta(state)}
       <h2 class="online-lobby__heading">Your Details</h2>
       <input
         type="text"
