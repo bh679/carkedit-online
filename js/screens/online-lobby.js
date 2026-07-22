@@ -342,7 +342,7 @@ function renderConnectedLobby(state) {
       ${renderFirstGameCta(state)}
       ${codeDisplay}
       <div class="online-lobby__divider"></div>
-      <h2 class="online-lobby__heading">Players</h2>
+      <h2 class="online-lobby__heading">Players${onlinePlayers.length < 3 ? ' <span class="online-lobby__heading-note">— Minimum 3</span>' : ''}</h2>
       <div class="online-lobby__player-list">
         ${playerListHtml}
       </div>
