@@ -7,6 +7,7 @@ import { PERSON_ICON, STAR_ICON, formatBirthday } from '../components/player-lis
 import { renderAdvancedPanel, renderToggle } from './lobby.js';
 import { render as renderPackSelector } from '../components/pack-selector.js';
 import { renderHeaderCoBrand } from '../config/brand-config.js';
+import { renderHelpButton, renderFirstGameCta, renderOverlay as renderHowToPlayOverlay } from '../components/how-to-play-overlay.js';
 
 const LINK_ICON = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
   <path d="M6.5 9.5L9.5 6.5" stroke="#374151" stroke-width="1.5" stroke-linecap="round"/>
@@ -57,6 +58,7 @@ function renderJoinCreate(state, connecting, error) {
         <span class="phase-header__phase-label">Online</span>
       </div>
       <div class="phase-header__right">
+        ${renderHelpButton()}
         <button class="phase-header__flag-btn" aria-label="Report issue" onclick="window.game.openIssueReport()">
           ${FLAG_ICON}
         </button>
@@ -75,6 +77,7 @@ function renderJoinCreate(state, connecting, error) {
       <div class="online-lobby__actions">
         ${backBtn}
       </div>
+      ${state.showHowToPlay ? renderHowToPlayOverlay(state) : ''}
     </div>
   `;
 }
@@ -93,6 +96,7 @@ function renderDetailsStep(state, connecting, error) {
 
   return `
     <div class="online-lobby__forms">
+      ${renderFirstGameCta(state)}
       <h2 class="online-lobby__heading">Your Details</h2>
       <input
         type="text"
@@ -338,6 +342,7 @@ function renderConnectedLobby(state) {
 
   const boardContent = `
     <div class="online-lobby__connected">
+      ${renderFirstGameCta(state)}
       ${codeDisplay}
       <div class="online-lobby__divider"></div>
       <h2 class="online-lobby__heading">Players</h2>
@@ -371,6 +376,7 @@ function renderConnectedLobby(state) {
         <span class="phase-header__phase-label">Online Lobby</span>
       </div>
       <div class="phase-header__right">
+        ${renderHelpButton()}
         <button class="${flagClass}" aria-label="Report issue" onclick="window.game.openIssueReport()">
           ${FLAG_ICON}
         </button>
@@ -391,6 +397,7 @@ function renderConnectedLobby(state) {
         </button>
       </div>
       ${drawerHtml}
+      ${state.showHowToPlay ? renderHowToPlayOverlay(state) : ''}
     </div>
   `;
 }

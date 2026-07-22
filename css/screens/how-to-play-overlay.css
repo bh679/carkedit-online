@@ -1,0 +1,151 @@
+/* CarkedIt Online — How to Play overlay (in-lobby)
+ * Renders the how-to-play content ON TOP of the online lobby. Reuses the .htp-*
+ * content styles from how-to-play.css; this file adds only the overlay chrome,
+ * the live step-completion states, and the lobby entry buttons.
+ * Colours: var(--color-*) tokens only (see css/colors.css).
+ */
+
+/* ── Overlay chrome ───────────────────────────────────── */
+.htp-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 400; /* above the host edit drawer (200) and inspect overlays (100) */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-md);
+}
+
+.htp-overlay__scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--color-overlay-dim);
+}
+
+.htp-overlay__panel {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 560px);
+  max-height: min(90dvh, 900px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 50px var(--color-overlay-dim);
+}
+
+.htp-overlay__close {
+  position: absolute;
+  top: var(--space-sm);
+  right: var(--space-sm);
+  z-index: 2;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-secondary);
+  color: var(--color-text);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.htp-overlay__close:active {
+  opacity: 0.8;
+}
+
+/* The reused .htp container is a full page normally; in the overlay it's the
+ * scroll body of the panel. */
+.htp--overlay {
+  padding: var(--space-lg) var(--space-md) var(--space-xl);
+}
+
+.htp-overlay__titles {
+  text-align: center;
+  padding: 0 var(--space-lg) var(--space-xs);
+}
+
+/* ── Live step completion ─────────────────────────────── */
+/* Current (next) step: nudge attention with a primary ring. */
+.htp-step--current {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+/* Completed step: greyed out with a green tick. */
+.htp-step--done {
+  opacity: 0.62;
+}
+
+.htp-step--done .htp-step__num {
+  background: var(--color-live);
+}
+
+.htp-step__done-label {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-bg);
+  background: var(--color-live);
+  border-radius: var(--radius-sm);
+  padding: 0.12rem 0.4rem;
+  margin-left: var(--space-xs);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+/* ── Header help button (both lobby states) ───────────── */
+.phase-header__help-btn {
+  width: 44px;
+  height: 44px;
+  background: var(--color-phase-settings-bg, var(--color-secondary));
+  border: 1px solid var(--color-phase-settings-border, var(--color-border));
+  border-radius: 10px;
+  color: var(--color-phase-header-text, var(--color-text));
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.phase-header__help-btn:active {
+  opacity: 0.8;
+}
+
+/* ── First-game emphasized CTA (in the lobby board) ───── */
+.online-lobby__howto-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  width: 100%;
+  margin-bottom: var(--space-md);
+  font-weight: 700;
+  box-shadow: 0 0 0 0 var(--color-primary-subtle);
+  animation: htp-cta-pulse 2.4s ease-out infinite;
+}
+
+.online-lobby__howto-cta-icon {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+@keyframes htp-cta-pulse {
+  0%   { box-shadow: 0 0 0 0 var(--color-primary-subtle); }
+  70%  { box-shadow: 0 0 0 10px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .online-lobby__howto-cta { animation: none; }
+}
