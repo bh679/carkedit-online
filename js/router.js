@@ -842,7 +842,12 @@ window.game = {
     renderLoginModalOverlay();
   },
   async signInWithGoogle() {
+    // Mobile uses signInWithRedirect (full page reload) — remember where the
+    // player was so the return trip restores this screen instead of the menu.
+    saveAuthReturn({ screen: getState().screen });
     await signInWithGoogle();
+    // Desktop popup path: the page never reloaded, so the snapshot is stale.
+    clearAuthReturn();
     // Surface popup errors wherever the auth UI lives (modal or inline
     // lobby form) — success re-renders via the auth state change instead.
     if (getState().loginError) {
@@ -927,7 +932,16 @@ window.game = {
   async lobbyGoogleAuth() {
     // Keep typed details — the post-sign-in re-render rebuilds the screen.
     captureLobbyDetails();
+    // Mobile uses signInWithRedirect (full page reload) — persist the lobby
+    // step and typed details so the return trip lands back on Create Room.
+    saveAuthReturn({
+      screen: 'online-lobby',
+      lobbyStep: 'details',
+      lobbyDetails: getState().lobbyDetails,
+    });
     await signInWithGoogle();
+    // Desktop popup path: the page never reloaded, so the snapshot is stale.
+    clearAuthReturn();
     if (getState().loginError) refreshCreateSection(getState());
   },
   async logOut() {
@@ -1157,6 +1171,45 @@ function renderLoginModalOverlay() {
   if (root) root.innerHTML = renderLoginModal(getState());
 }
 
+// Post-auth return snapshot — on mobile, Google sign-in uses
+// signInWithRedirect (full page navigation), which wipes all in-memory state.
+// Persist where the player was so the return trip doesn't dump them on the
+// main menu. sessionStorage keeps it tab-local, like the game session.
+const AUTH_RETURN_KEY = 'carkedit-auth-return';
+// Screens safe to restore after the redirect — in-game screens need a live
+// room and are recovered by the saved-session path instead.
+const AUTH_RETURN_SCREENS = ['online-lobby', 'join-game', 'account', 'menu'];
+
+function saveAuthReturn(snapshot) {
+  try {
+    sessionStorage.setItem(AUTH_RETURN_KEY, JSON.stringify(snapshot));
+  } catch (err) {
+    // Private mode / storage disabled — sign-in still works, just without the return trip.
+    console.warn('[router] Could not save auth return snapshot:', err);
+  }
+}
+
+// One-shot read: returns the snapshot (or null) and removes the key so a
+// later manual reload doesn't spuriously restore.
+function consumeAuthReturn() {
+  try {
+    const raw = sessionStorage.getItem(AUTH_RETURN_KEY);
+    if (!raw) return null;
+    sessionStorage.removeItem(AUTH_RETURN_KEY);
+    const snapshot = JSON.parse(raw);
+    return (snapshot && typeof snapshot === 'object') ? snapshot : null;
+  } catch (err) {
+    console.warn('[router] Could not read auth return snapshot:', err);
+    return null;
+  }
+}
+
+function clearAuthReturn() {
+  try {
+    sessionStorage.removeItem(AUTH_RETURN_KEY);
+  } catch (err) { /* storage disabled — nothing to clear */ }
+}
+
 /**
  * Snapshot the details-step inputs into state so they survive the re-render
  * caused by switching lobby steps or completing a sign-in.
@@ -1224,6 +1277,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const params = new URLSearchParams(window.location.search);
   const joinCode = params.get('join');
   const savedSession = loadSession();
+  // One-shot: present only when returning from the mobile Google sign-in
+  // redirect. Consumed even when savedSession/joinCode win, so it can't
+  // linger and hijack a later reload.
+  const authReturn = consumeAuthReturn();
 
   // Page-reload recovery — only attempt if we saved a session in this tab.
   // sessionStorage already filters out cross-tab/post-close scenarios.
@@ -1254,6 +1311,23 @@ document.addEventListener('DOMContentLoaded', () => {
       const codeInput = document.getElementById('online-room-code');
       if (codeInput) codeInput.value = joinCode.toUpperCase();
     });
+  } else if (authReturn) {
+    // Returning from the mobile Google sign-in redirect — put the player back
+    // where they were (e.g. Create Room details step, with their typed
+    // details) instead of dumping them on the main menu. The lobby renders in
+    // its authLoading state first; onAuthStateChanged then re-renders it
+    // signed in (or with loginError if the redirect failed).
+    if (authReturn.lobbyDetails && typeof authReturn.lobbyDetails === 'object') {
+      setState({
+        lobbyStep: authReturn.lobbyStep === 'email-auth' ? 'email-auth' : 'details',
+        lobbyDetails: {
+          name: String(authReturn.lobbyDetails.name || ''),
+          birthMonth: parseInt(authReturn.lobbyDetails.birthMonth, 10) || 0,
+          birthDay: parseInt(authReturn.lobbyDetails.birthDay, 10) || 0,
+        },
+      });
+    }
+    showScreen(AUTH_RETURN_SCREENS.includes(authReturn.screen) ? authReturn.screen : 'menu');
   } else if (params.has('host')) {
     // Deep-link from the How to Play page — straight to "Your Details / Create a Room"
     // (mirrors window.game.openOnlineLobby()).
