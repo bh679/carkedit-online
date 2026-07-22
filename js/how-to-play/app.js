@@ -86,8 +86,8 @@ export function renderSetupPanel(active) {
       <div class="htp-callout">
         <span class="htp-callout__icon" aria-hidden="true">\u{1F4F9}</span>
         <p class="htp-callout__text">
-          <strong>Best with a video call.</strong> Carked It! is all about pitching, arguing and
-          roasting your mates — get everyone on <strong>Zoom, Google Meet, FaceTime</strong> or
+          <strong>Best with a video call.</strong> Carked It! is all about pitching, conversations
+          and stories — get everyone on <strong>Zoom, Google Meet, FaceTime</strong> or
           similar and play with your phones in hand.
         </p>
       </div>
