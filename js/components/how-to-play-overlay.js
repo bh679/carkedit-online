@@ -11,7 +11,7 @@
 // standalone page via ../how-to-play/content.js.
 'use strict';
 
-import { SETUP_STEPS, DECKS, PHASES } from '../how-to-play/content.js';
+import { SETUP_STEPS, DECKS, PHASES, VIDEO_CALL_TIP } from '../how-to-play/content.js';
 
 // ── Tabs ──────────────────────────────────────────────────
 export const TABS = ['setup', 'play'];
@@ -59,6 +59,26 @@ export function markHowToBannerDismissed() {
     if (typeof localStorage !== 'undefined') localStorage.setItem(BANNER_DISMISS_KEY, '1');
   } catch {
     /* storage disabled — banner reappears on reload, harmless */
+  }
+}
+
+// The video-call tip is its own completable step: tap to mark done, then it
+// collapses to the same minimized row as steps 1-3. Persists like the banner.
+export const VIDEO_TIP_DONE_KEY = 'carkedit:videoCallTipDone';
+
+export function isVideoCallTipDone() {
+  try {
+    return !!(typeof localStorage !== 'undefined' && localStorage.getItem(VIDEO_TIP_DONE_KEY));
+  } catch {
+    return false;
+  }
+}
+
+export function markVideoCallTipDone() {
+  try {
+    if (typeof localStorage !== 'undefined') localStorage.setItem(VIDEO_TIP_DONE_KEY, '1');
+  } catch {
+    /* storage disabled — tip reappears on reload, harmless */
   }
 }
 
@@ -133,12 +153,33 @@ function renderTabs(active) {
   `;
 }
 
+function renderVideoCallTip() {
+  if (isVideoCallTipDone()) {
+    return `
+      <li class="htp-step htp-step--done htp-step--mini">
+        <span class="htp-step__num" aria-hidden="true">✓</span>
+        <h3 class="htp-step__title">${VIDEO_CALL_TIP.title} <span class="htp-step__done-label">Done</span></h3>
+      </li>
+    `;
+  }
+  return `
+    <li class="htp-step htp-step--tip" role="button" tabindex="0" onclick="window.game.dismissVideoCallTip()">
+      <span class="htp-step__num" aria-hidden="true">${VIDEO_CALL_TIP.icon}</span>
+      <div class="htp-step__text">
+        <h3 class="htp-step__title">${VIDEO_CALL_TIP.title}</h3>
+        <p class="htp-tip__body">${VIDEO_CALL_TIP.body}</p>
+        <p class="htp-tip__hint">Tap to mark as done</p>
+      </div>
+    </li>
+  `;
+}
+
 function renderSetupPanel(state, active) {
   const on = active === 'setup';
   const done = setupStepStatus(state);
   const currentIndex = done.indexOf(false); // first incomplete step, or -1 if all done
 
-  const steps = SETUP_STEPS.map((s, i) => {
+  const numberedSteps = SETUP_STEPS.map((s, i) => {
     const isDone = done[i];
     const isCurrent = i === currentIndex;
 
@@ -180,6 +221,7 @@ function renderSetupPanel(state, active) {
       </li>
     `;
   }).join('');
+  const steps = renderVideoCallTip() + numberedSteps;
 
   return `
     <section
@@ -190,14 +232,6 @@ function renderSetupPanel(state, active) {
     >
       <p class="htp-intro">Carked It! Online plays across everyone’s phones. Get a game going in three steps:</p>
       <ol class="htp-steps">${steps}</ol>
-      <div class="htp-callout">
-        <span class="htp-callout__icon" aria-hidden="true">\u{1F4F9}</span>
-        <p class="htp-callout__text">
-          <strong>Best with a video call.</strong> Carked It! is all about pitching, arguing and
-          roasting your mates — get everyone on <strong>Zoom, Google Meet, FaceTime</strong> or
-          similar and play with your phones in hand.
-        </p>
-      </div>
       <button type="button" class="btn btn--primary htp-cta" onclick="window.game.setHowToPlayTab('play')">Game Rules &rarr;</button>
     </section>
   `;

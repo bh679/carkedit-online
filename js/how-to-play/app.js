@@ -10,8 +10,8 @@
 // Content data (SETUP_STEPS/DECKS/PHASES) is shared with the in-lobby overlay,
 // so it lives in a DOM-free module and is re-exported here for backwards
 // compatibility with existing importers/tests.
-export { SETUP_STEPS, DECKS, PHASES } from './content.js';
-import { SETUP_STEPS, DECKS, PHASES } from './content.js';
+export { SETUP_STEPS, DECKS, PHASES, VIDEO_CALL_TIP } from './content.js';
+import { SETUP_STEPS, DECKS, PHASES, VIDEO_CALL_TIP } from './content.js';
 
 export const TABS = ['setup', 'play'];
 export const DEFAULT_TAB = 'setup';
@@ -82,15 +82,13 @@ export function renderSetupPanel(active) {
       ${on ? '' : 'hidden'}
     >
       <p class="htp-intro">Carked It! Online plays across everyone’s phones. Get a game going in three steps:</p>
-      <ol class="htp-steps">${steps}</ol>
       <div class="htp-callout">
-        <span class="htp-callout__icon" aria-hidden="true">\u{1F4F9}</span>
+        <span class="htp-callout__icon" aria-hidden="true">${VIDEO_CALL_TIP.icon}</span>
         <p class="htp-callout__text">
-          <strong>Best with a video call.</strong> Carked It! is all about pitching, arguing and
-          roasting your mates — get everyone on <strong>Zoom, Google Meet, FaceTime</strong> or
-          similar and play with your phones in hand.
+          <strong>${VIDEO_CALL_TIP.title}</strong> ${VIDEO_CALL_TIP.body}
         </p>
       </div>
+      <ol class="htp-steps">${steps}</ol>
       <a class="btn btn--primary htp-cta" href="#play" onclick="window.howToPlay.selectTab('play'); window.scrollTo(0,0); return false;">Game Rules &rarr;</a>
     </section>
   `;

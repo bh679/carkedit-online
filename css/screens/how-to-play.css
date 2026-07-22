@@ -167,13 +167,15 @@ body.page--how-to-play #app {
   background: var(--color-live);
 }
 
-.htp-step__body {
+.htp-step__body,
+.htp-tip__body {
   color: var(--color-text-90);
   line-height: 1.45;
   font-size: 0.95rem;
 }
 
-.htp-step__body strong {
+.htp-step__body strong,
+.htp-tip__body strong {
   color: var(--color-highlight);
 }
 

@@ -11,7 +11,7 @@ import {
   renderFirstGameBanner,
   renderOverlay,
 } from './how-to-play-overlay.js';
-import { SETUP_STEPS } from '../how-to-play/content.js';
+import { SETUP_STEPS, VIDEO_CALL_TIP } from '../how-to-play/content.js';
 
 // ── Tabs ──────────────────────────────────────────────────
 
@@ -90,6 +90,16 @@ test('renderOverlay: has both tabs and every setup step title', () => {
   for (const s of SETUP_STEPS) {
     assert.ok(html.includes(s.title), `expected step "${s.title}"`);
   }
+});
+
+test('renderOverlay: video-call tip is a tappable step above the numbered steps, not yet done', () => {
+  const html = renderOverlay({ connectionStatus: 'disconnected', onlinePlayers: [] });
+  assert.ok(html.includes(VIDEO_CALL_TIP.title), 'expected the tip title');
+  assert.ok(html.includes('tell stories and connection'), 'expected the current tip wording');
+  assert.ok(html.includes('htp-step--tip'), 'tip renders as a tappable step');
+  assert.ok(html.includes('window.game.dismissVideoCallTip()'), 'tapping the tip marks it done');
+  assert.ok(html.includes('Tap to mark as done'), 'expected the tip hint');
+  assert.ok(html.indexOf(VIDEO_CALL_TIP.title) < html.indexOf(SETUP_STEPS[0].title), 'tip appears above step 1');
 });
 
 test('renderOverlay: dismiss controls are wired to close, never navigation', () => {

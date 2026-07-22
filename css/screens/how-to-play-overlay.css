@@ -141,6 +141,23 @@
   color: var(--color-live);
 }
 
+/* ── Tap-to-dismiss video-call tip step ───────────────── */
+.htp-step--tip {
+  cursor: pointer;
+}
+
+.htp-step--tip:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.htp-tip__hint {
+  margin-top: var(--space-xs);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
 /* ── Header help button (both lobby states) ───────────── */
 .phase-header__help-btn {
   width: 44px;
