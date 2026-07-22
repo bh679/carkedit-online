@@ -9,6 +9,7 @@ import {
   isSelected,
   signupUrl,
   renderHeader,
+  renderBack,
   renderTier,
   renderTiers,
   renderActions,
@@ -46,7 +47,16 @@ test('TIERS: Pro and Ultimate inherit lower tiers; Basic does not', () => {
 test('renderHeader: uses the configurable evangelist term in the title', () => {
   const html = renderHeader('Death Evangelist');
   assert.match(html, /Death Evangelist Pricing/);
-  assert.match(html, /href="\/"/); // back to menu
+});
+
+test('renderBack: links back to the menu (moved out of the header in #291)', () => {
+  const html = renderBack();
+  assert.match(html, /href="\/"/);
+  assert.match(html, /Menu/);
+});
+
+test('render: page still contains the back-to-menu link', () => {
+  assert.match(render('Evangelist'), /href="\/"/);
 });
 
 test('renderHeader: escapes the injected term', () => {
