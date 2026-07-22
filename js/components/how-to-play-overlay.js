@@ -42,6 +42,26 @@ export function markOnlinePlayed() {
   }
 }
 
+// The first-game banner can also be dismissed with its ✕ before the first game;
+// once dismissed it stays gone (the header "?" remains the way back in).
+export const BANNER_DISMISS_KEY = 'carkedit:howToBannerDismissed';
+
+export function isHowToBannerDismissed() {
+  try {
+    return !!(typeof localStorage !== 'undefined' && localStorage.getItem(BANNER_DISMISS_KEY));
+  } catch {
+    return false;
+  }
+}
+
+export function markHowToBannerDismissed() {
+  try {
+    if (typeof localStorage !== 'undefined') localStorage.setItem(BANNER_DISMISS_KEY, '1');
+  } catch {
+    /* storage disabled — banner reappears on reload, harmless */
+  }
+}
+
 // ── Setup-step completion (derived from live lobby state) ──
 /**
  * Which of the three "Set Up a Game" steps are complete, in order.
@@ -77,20 +97,19 @@ export function renderHelpButton() {
 }
 
 /**
- * Emphasized inline call-to-action, shown only until the player's first online
- * game. Returns '' once they've played, so the header help button carries it.
+ * Slim first-game banner: a single dismissible line that opens the instructions.
+ * Shown only until the player's first online game, and hidden once dismissed (✕)
+ * — the header help button remains the permanent way in. Kept short so it never
+ * pushes the lobby into a scroll.
  */
-export function renderFirstGameCta(state) {
-  if (!isFirstOnlineGame()) return '';
+export function renderFirstGameBanner(state) {
+  if (!isFirstOnlineGame() || isHowToBannerDismissed()) return '';
   return `
-    <button
-      type="button"
-      class="btn btn--primary online-lobby__howto-cta"
-      onclick="window.game.openHowToPlay()"
-    >
-      <span class="online-lobby__howto-cta-icon" aria-hidden="true">🃏</span>
-      <span>First time? Here's how to play</span>
-    </button>
+    <div class="online-lobby__howto-bar" role="button" tabindex="0" onclick="window.game.openHowToPlay()">
+      <span class="online-lobby__howto-bar-emoji" aria-hidden="true">🃏</span>
+      <span class="online-lobby__howto-bar-text">First time? <span class="online-lobby__howto-bar-link">Here's how to play &rarr;</span></span>
+      <button type="button" class="online-lobby__howto-bar-x" aria-label="Dismiss" onclick="event.stopPropagation(); window.game.dismissHowToBanner()">&times;</button>
+    </div>
   `;
 }
 

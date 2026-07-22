@@ -103,9 +103,16 @@ test('renderSetupPanel: step 3 shows the "No Account Required" badge (green vari
   assert.ok(html.includes('htp-step__badge--ok'), 'expected the green badge variant class');
 });
 
-test('renderSetupPanel: "Start a Game" CTA deep-links into the create-room screen', () => {
+test('renderSetupPanel: CTA advances to the Game Rules tab', () => {
   const html = renderSetupPanel('setup');
+  assert.ok(html.includes('href="#play"'), 'expected the setup CTA to link to #play');
+  assert.ok(html.includes('Game Rules'), 'expected the "Game Rules" CTA label');
+});
+
+test('renderPlayPanel: "Start a Game" CTA deep-links into the create-room screen', () => {
+  const html = renderPlayPanel('play');
   assert.ok(html.includes('href="/?host=1"'), 'expected the CTA to deep-link to /?host=1');
+  assert.ok(html.includes('Start a Game'), 'expected the "Start a Game" CTA label');
 });
 
 // ── Play panel content contract ───────────────────────────

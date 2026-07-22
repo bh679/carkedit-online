@@ -7,7 +7,7 @@ import { PERSON_ICON, STAR_ICON, formatBirthday } from '../components/player-lis
 import { renderAdvancedPanel, renderToggle } from './lobby.js';
 import { render as renderPackSelector } from '../components/pack-selector.js';
 import { renderHeaderCoBrand } from '../config/brand-config.js';
-import { renderHelpButton, renderFirstGameCta, renderOverlay as renderHowToPlayOverlay } from '../components/how-to-play-overlay.js';
+import { renderHelpButton, renderFirstGameBanner, renderOverlay as renderHowToPlayOverlay } from '../components/how-to-play-overlay.js';
 
 const LINK_ICON = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
   <path d="M6.5 9.5L9.5 6.5" stroke="#374151" stroke-width="1.5" stroke-linecap="round"/>
@@ -339,7 +339,7 @@ function renderConnectedLobby(state) {
 
   const boardContent = `
     <div class="online-lobby__connected">
-      ${renderFirstGameCta(state)}
+      ${renderFirstGameBanner(state)}
       ${codeDisplay}
       <div class="online-lobby__divider"></div>
       <h2 class="online-lobby__heading">${onlinePlayers.length > 1 ? `${onlinePlayers.length} ` : ''}Players${onlinePlayers.length < 3 ? ' <span class="online-lobby__heading-note">— Minimum 3</span>' : ''}</h2>

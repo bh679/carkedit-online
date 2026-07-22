@@ -5,9 +5,10 @@ import {
   DEFAULT_TAB,
   normaliseTab,
   isFirstOnlineGame,
+  isHowToBannerDismissed,
   setupStepStatus,
   renderHelpButton,
-  renderFirstGameCta,
+  renderFirstGameBanner,
   renderOverlay,
 } from './how-to-play-overlay.js';
 import { SETUP_STEPS } from '../how-to-play/content.js';
@@ -56,10 +57,13 @@ test('isFirstOnlineGame: true when no localStorage is present (node env)', () =>
   assert.equal(isFirstOnlineGame(), true);
 });
 
-test('renderFirstGameCta: shows the emphasized CTA on first game', () => {
-  const html = renderFirstGameCta({});
-  assert.ok(html.includes('online-lobby__howto-cta'), 'expected the emphasized CTA class');
-  assert.ok(html.includes('window.game.openHowToPlay()'), 'CTA opens the overlay');
+test('renderFirstGameBanner: shows the slim dismissible bar on first game', () => {
+  assert.equal(isHowToBannerDismissed(), false); // node env: no localStorage
+  const html = renderFirstGameBanner({});
+  assert.ok(html.includes('online-lobby__howto-bar'), 'expected the banner class');
+  assert.ok(html.includes('window.game.openHowToPlay()'), 'banner opens the overlay');
+  assert.ok(html.includes('window.game.dismissHowToBanner()'), 'has a dismiss (✕) control');
+  assert.ok(html.includes('event.stopPropagation()'), 'dismiss does not also open the overlay');
 });
 
 test('renderHelpButton: opens the overlay and is labelled', () => {
