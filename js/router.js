@@ -34,6 +34,7 @@ import {
 import { loadSession, clearSession } from './managers/session-recovery.js';
 import { onTimerUpdate } from './managers/online-timer.js';
 import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, sendPasswordReset, logOut, updateUserProfile, getAuthToken } from './managers/auth-manager.js';
+import { saveAuthReturn, consumeAuthReturn, clearAuthReturn } from './managers/auth-return.js';
 import { fetchMyPacks, fetchPublicPacks, fetchFavoritePacks, setPackFavorite, getPack } from './card-designer/pack-manager.js';
 import { render as renderCardFace } from './components/card.js';
 import { buildCard } from './data/card.js';
@@ -1171,45 +1172,6 @@ function renderLoginModalOverlay() {
   if (root) root.innerHTML = renderLoginModal(getState());
 }
 
-// Post-auth return snapshot — on mobile, Google sign-in uses
-// signInWithRedirect (full page navigation), which wipes all in-memory state.
-// Persist where the player was so the return trip doesn't dump them on the
-// main menu. sessionStorage keeps it tab-local, like the game session.
-const AUTH_RETURN_KEY = 'carkedit-auth-return';
-// Screens safe to restore after the redirect — in-game screens need a live
-// room and are recovered by the saved-session path instead.
-const AUTH_RETURN_SCREENS = ['online-lobby', 'join-game', 'account', 'menu'];
-
-function saveAuthReturn(snapshot) {
-  try {
-    sessionStorage.setItem(AUTH_RETURN_KEY, JSON.stringify(snapshot));
-  } catch (err) {
-    // Private mode / storage disabled — sign-in still works, just without the return trip.
-    console.warn('[router] Could not save auth return snapshot:', err);
-  }
-}
-
-// One-shot read: returns the snapshot (or null) and removes the key so a
-// later manual reload doesn't spuriously restore.
-function consumeAuthReturn() {
-  try {
-    const raw = sessionStorage.getItem(AUTH_RETURN_KEY);
-    if (!raw) return null;
-    sessionStorage.removeItem(AUTH_RETURN_KEY);
-    const snapshot = JSON.parse(raw);
-    return (snapshot && typeof snapshot === 'object') ? snapshot : null;
-  } catch (err) {
-    console.warn('[router] Could not read auth return snapshot:', err);
-    return null;
-  }
-}
-
-function clearAuthReturn() {
-  try {
-    sessionStorage.removeItem(AUTH_RETURN_KEY);
-  } catch (err) { /* storage disabled — nothing to clear */ }
-}
-
 /**
  * Snapshot the details-step inputs into state so they survive the re-render
  * caused by switching lobby steps or completing a sign-in.
@@ -1316,18 +1278,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // where they were (e.g. Create Room details step, with their typed
     // details) instead of dumping them on the main menu. The lobby renders in
     // its authLoading state first; onAuthStateChanged then re-renders it
-    // signed in (or with loginError if the redirect failed).
-    if (authReturn.lobbyDetails && typeof authReturn.lobbyDetails === 'object') {
-      setState({
-        lobbyStep: authReturn.lobbyStep === 'email-auth' ? 'email-auth' : 'details',
-        lobbyDetails: {
-          name: String(authReturn.lobbyDetails.name || ''),
-          birthMonth: parseInt(authReturn.lobbyDetails.birthMonth, 10) || 0,
-          birthDay: parseInt(authReturn.lobbyDetails.birthDay, 10) || 0,
-        },
-      });
+    // signed in (or with loginError if the redirect failed). The snapshot is
+    // already sanitized (whitelisted screen) by consumeAuthReturn().
+    if (authReturn.lobbyDetails) {
+      setState({ lobbyStep: authReturn.lobbyStep, lobbyDetails: authReturn.lobbyDetails });
     }
-    showScreen(AUTH_RETURN_SCREENS.includes(authReturn.screen) ? authReturn.screen : 'menu');
+    showScreen(authReturn.screen);
   } else if (params.has('host')) {
     // Deep-link from the How to Play page — straight to "Your Details / Create a Room"
     // (mirrors window.game.openOnlineLobby()).
