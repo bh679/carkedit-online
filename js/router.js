@@ -34,6 +34,7 @@ import {
 import { loadSession, clearSession } from './managers/session-recovery.js';
 import { onTimerUpdate } from './managers/online-timer.js';
 import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, sendPasswordReset, logOut, updateUserProfile, getAuthToken } from './managers/auth-manager.js';
+import { saveAuthReturn, consumeAuthReturn, clearAuthReturn } from './managers/auth-return.js';
 import { fetchMyPacks, fetchPublicPacks, fetchFavoritePacks, setPackFavorite, getPack } from './card-designer/pack-manager.js';
 import { render as renderCardFace } from './components/card.js';
 import { buildCard } from './data/card.js';
@@ -856,7 +857,12 @@ window.game = {
     renderLoginModalOverlay();
   },
   async signInWithGoogle() {
+    // Mobile uses signInWithRedirect (full page reload) — remember where the
+    // player was so the return trip restores this screen instead of the menu.
+    saveAuthReturn({ screen: getState().screen });
     await signInWithGoogle();
+    // Desktop popup path: the page never reloaded, so the snapshot is stale.
+    clearAuthReturn();
     // Surface popup errors wherever the auth UI lives (modal or inline
     // lobby form) — success re-renders via the auth state change instead.
     if (getState().loginError) {
@@ -941,7 +947,16 @@ window.game = {
   async lobbyGoogleAuth() {
     // Keep typed details — the post-sign-in re-render rebuilds the screen.
     captureLobbyDetails();
+    // Mobile uses signInWithRedirect (full page reload) — persist the lobby
+    // step and typed details so the return trip lands back on Create Room.
+    saveAuthReturn({
+      screen: 'online-lobby',
+      lobbyStep: 'details',
+      lobbyDetails: getState().lobbyDetails,
+    });
     await signInWithGoogle();
+    // Desktop popup path: the page never reloaded, so the snapshot is stale.
+    clearAuthReturn();
     if (getState().loginError) refreshCreateSection(getState());
   },
   async logOut() {
@@ -1200,6 +1215,14 @@ function captureLobbyDetails() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  // router.js is evaluated twice: index.html loads it with a ?v= cache-bust
+  // query while game-manager.js imports it plain — different URLs, so the
+  // browser treats them as two modules and registers this listener twice.
+  // Only the first boot may run: the second used to re-run the whole chain
+  // and stomp the restored screen back to the menu.
+  if (window.__carkeditBooted) return;
+  window.__carkeditBooted = true;
+
   // Start capturing errors for issue reports
   initErrorLogger();
 
@@ -1255,6 +1278,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const params = new URLSearchParams(window.location.search);
   const joinCode = params.get('join');
   const savedSession = loadSession();
+  // One-shot: present only when returning from the mobile Google sign-in
+  // redirect. Consumed even when savedSession/joinCode win, so it can't
+  // linger and hijack a later reload.
+  const authReturn = consumeAuthReturn();
 
   // Page-reload recovery — only attempt if we saved a session in this tab.
   // sessionStorage already filters out cross-tab/post-close scenarios.
@@ -1285,6 +1312,17 @@ document.addEventListener('DOMContentLoaded', () => {
       const codeInput = document.getElementById('online-room-code');
       if (codeInput) codeInput.value = joinCode.toUpperCase();
     });
+  } else if (authReturn) {
+    // Returning from the mobile Google sign-in redirect — put the player back
+    // where they were (e.g. Create Room details step, with their typed
+    // details) instead of dumping them on the main menu. The lobby renders in
+    // its authLoading state first; onAuthStateChanged then re-renders it
+    // signed in (or with loginError if the redirect failed). The snapshot is
+    // already sanitized (whitelisted screen) by consumeAuthReturn().
+    if (authReturn.lobbyDetails) {
+      setState({ lobbyStep: authReturn.lobbyStep, lobbyDetails: authReturn.lobbyDetails });
+    }
+    showScreen(authReturn.screen);
   } else if (params.has('host')) {
     // Deep-link from the How to Play page — straight to "Your Details / Create a Room"
     // (mirrors window.game.openOnlineLobby()).
