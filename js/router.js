@@ -1184,6 +1184,14 @@ function captureLobbyDetails() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  // router.js is evaluated twice: index.html loads it with a ?v= cache-bust
+  // query while game-manager.js imports it plain — different URLs, so the
+  // browser treats them as two modules and registers this listener twice.
+  // Only the first boot may run: the second used to re-run the whole chain
+  // and stomp the restored screen back to the menu.
+  if (window.__carkeditBooted) return;
+  window.__carkeditBooted = true;
+
   // Start capturing errors for issue reports
   initErrorLogger();
 
