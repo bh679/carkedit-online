@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>CarkedIt Lobby — How to Play mock</title>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/colors.css">
+  <link rel="stylesheet" href="css/components/phase-header.css">
+  <link rel="stylesheet" href="css/components/gameboard.css">
+  <link rel="stylesheet" href="css/components/player-list.css">
+  <link rel="stylesheet" href="css/components/issue-report.css">
+  <link rel="stylesheet" href="css/screens/online-lobby.css">
+  <link rel="stylesheet" href="css/screens/how-to-play.css">
+  <link rel="stylesheet" href="css/screens/how-to-play-overlay.css">
+  <style>
+    /* ── Mock-only chrome (never ships) ── */
+    .mock-switch{position:fixed;top:6px;left:50%;transform:translateX(-50%);z-index:350;
+      display:flex;align-items:center;gap:6px;background:rgba(0,0,0,.55);backdrop-filter:blur(6px);
+      border:1px solid var(--color-border);border-radius:999px;padding:4px 8px;
+      font:600 11px system-ui,sans-serif;color:var(--color-text-muted);}
+    .mock-switch a{width:20px;height:20px;display:grid;place-items:center;border-radius:50%;
+      color:var(--color-text);text-decoration:none;font-weight:800;}
+    .mock-switch a.on{background:var(--color-primary);color:#fff;}
+
+    /* Option 1 — header pill + pulse ring */
+    .mock-newpill{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;
+      color:#fff;background:var(--color-primary);border-radius:8px;padding:4px 7px;white-space:nowrap;align-self:center;}
+    .mock-pulse{position:relative;}
+    .mock-pulse::after{content:"";position:absolute;inset:-4px;border-radius:14px;border:2px solid var(--color-primary);
+      animation:mockring 2s ease-out infinite;pointer-events:none;}
+    @keyframes mockring{0%{opacity:.9;transform:scale(1)}70%{opacity:0;transform:scale(1.15)}100%{opacity:0}}
+
+    /* Option 2 — buttons inside the room-code card */
+    .mock-code-actions{display:flex;gap:8px;margin-top:10px;}
+    .mock-cb{flex:1;display:flex;align-items:center;justify-content:center;gap:5px;
+      background:var(--color-secondary);border-radius:9px;padding:9px 6px;font-size:12.5px;font-weight:700;
+      color:var(--color-text);border:none;cursor:pointer;}
+    .mock-cb.pri{background:var(--color-primary);color:#fff;}
+
+    /* Option 3 — slim dismissible bar */
+    .mock-banner{display:flex;align-items:center;gap:8px;background:var(--color-primary-subtle);
+      border:1px solid rgba(152,66,255,.35);border-radius:11px;padding:8px 10px;cursor:pointer;}
+    .mock-banner .mb-text{font-size:12.5px;font-weight:650;color:var(--color-text);}
+    .mock-banner .mb-arrow{color:var(--color-primary);font-weight:800;}
+    .mock-banner .mb-x{margin-left:auto;color:var(--color-text-muted);font-size:15px;font-weight:700;padding:0 4px;}
+    @media (prefers-reduced-motion:reduce){ .mock-pulse::after{animation:none;opacity:.6;} }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <div class="mock-switch" id="mock-switch">Design <a href="?opt=1" data-o="1">1</a><a href="?opt=2" data-o="2">2</a><a href="?opt=3" data-o="3">3</a></div>
+  <script type="module">
+    import { getState, setState } from './js/state.js';
+    import { render } from './js/screens/online-lobby.js';
+    import { renderOverlay } from './js/components/how-to-play-overlay.js';
+
+    window.brand = null;
+    // Suppress the current emphasized first-game CTA so each option shows a clean baseline.
+    try { localStorage.setItem('carkedit:hasPlayedOnline', '1'); } catch {}
+
+    const opt = (new URLSearchParams(location.search).get('opt') || '2');
+    document.querySelectorAll('#mock-switch a').forEach(a => { if (a.dataset.o === opt) a.classList.add('on'); });
+
+    const players = [
+      { name: 'Brennan Hatton', sessionId: 'me', ready: false, connected: true, birthMonth: 1, birthDay: 2 },
+      { name: 'Simon',          sessionId: 's1', ready: false, connected: true, birthMonth: 2, birthDay: 3 },
+    ];
+
+    // Minimal window.game so the real overlay opens/closes/switches tabs in the mock.
+    const FAKE = { connectionStatus: 'connected', onlinePlayers: players, howToPlayTab: 'setup' };
+    function mountOverlay(tab) {
+      FAKE.howToPlayTab = tab || 'setup';
+      let host = document.getElementById('mock-overlay-host');
+      if (!host) { host = document.createElement('div'); host.id = 'mock-overlay-host'; document.body.appendChild(host); }
+      host.innerHTML = renderOverlay(FAKE);
+    }
+    function unmountOverlay() { const h = document.getElementById('mock-overlay-host'); if (h) h.remove(); }
+    window.game = new Proxy({
+      openHowToPlay() { mountOverlay('setup'); },
+      setHowToPlayTab(t) { mountOverlay(t); },
+      closeHowToPlay() { unmountOverlay(); },
+      copyJoinLink() { /* mock: no-op */ },
+    }, { get(t, p) { return p in t ? t[p] : function () {}; } });
+
+    setState({ screen: 'online-lobby', connectionStatus: 'connected', roomCode: 'KNOW', isHost: true, mySessionId: 'me', onlinePlayers: players });
+    const app = document.getElementById('app');
+    app.innerHTML = render(getState());
+
+    // ── Apply the chosen variant on top of the real lobby ──
+    const right = app.querySelector('.phase-header__right');
+    const help  = app.querySelector('.phase-header__help-btn');
+    const connected = app.querySelector('.online-lobby__connected');
+    const codeCard  = app.querySelector('.online-lobby__room-code');
+
+    if (opt === '1') {
+      if (help && right) {
+        help.classList.add('mock-pulse');
+        const pill = document.createElement('span');
+        pill.className = 'mock-newpill';
+        pill.textContent = 'New? How to play';
+        right.insertBefore(pill, right.firstChild);
+      }
+    } else if (opt === '3') {
+      if (connected) {
+        const bar = document.createElement('div');
+        bar.className = 'mock-banner';
+        bar.innerHTML = '<span style="font-size:15px;line-height:1">🃏</span>'
+          + '<span class="mb-text">First time? <span class="mb-arrow">Here’s how to play &rarr;</span></span>'
+          + '<span class="mb-x" title="Dismiss">✕</span>';
+        bar.addEventListener('click', (e) => {
+          if (e.target.classList.contains('mb-x')) { bar.remove(); }
+          else { window.game.openHowToPlay(); }
+        });
+        connected.insertBefore(bar, connected.firstChild);
+      }
+    } else {
+      // Option 2 (default) — action buttons inside the room-code card
+      if (codeCard) {
+        const hint = codeCard.querySelector('.online-lobby__code-hint');
+        if (hint) hint.style.display = 'none';
+        const actions = document.createElement('div');
+        actions.className = 'mock-code-actions';
+        const invite = document.createElement('button');
+        invite.type = 'button'; invite.className = 'mock-cb pri'; invite.textContent = '🔗 Invite';
+        invite.addEventListener('click', (e) => { e.stopPropagation(); window.game.copyJoinLink(); });
+        const htp = document.createElement('button');
+        htp.type = 'button'; htp.className = 'mock-cb'; htp.textContent = '❓ How to Play';
+        htp.addEventListener('click', (e) => { e.stopPropagation(); window.game.openHowToPlay(); });
+        actions.appendChild(invite); actions.appendChild(htp);
+        codeCard.appendChild(actions);
+      }
+    }
+  </script>
+</body>
+</html>

@@ -86,7 +86,12 @@
   .why .k{flex:0 0 auto;width:15px;text-align:center;font-weight:800;}
   .k.up{color:var(--green);} .k.dn{color:var(--gold);}
   .tag{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.03em;color:var(--green);background:rgba(77,158,77,.14);border-radius:7px;padding:3px 8px;margin-top:2px;}
-  footer.note{margin-top:52px;padding-top:22px;border-top:1px solid var(--hair);color:var(--page-muted);font-size:13.5px;max-width:70ch;}
+  .fs-row{display:flex;flex-wrap:wrap;gap:12px;margin-top:48px;}
+  .fs-link{flex:1;min-width:220px;text-align:center;text-decoration:none;
+    background:var(--primary);color:#fff;font-weight:750;font-size:14.5px;
+    padding:14px 16px;border-radius:12px;}
+  .fs-link:hover{filter:brightness(1.08);}
+  footer.note{margin-top:28px;padding-top:22px;border-top:1px solid var(--hair);color:var(--page-muted);font-size:13.5px;max-width:70ch;}
   footer.note b{color:var(--page-text);}
   @media (prefers-reduced-motion:reduce){ .help-pulse::after{animation:none;opacity:.6;} }
 </style>
@@ -181,7 +186,12 @@
     </section>
 
   </div>
-  <footer class="note"><b>All three keep the header “?” button</b> as the permanent, always-available entry point — the options differ only in the <i>first-game</i> emphasis. Recommendation: <b>Option 1</b> for guaranteed no-scroll on the smallest phones, or <b>Option 3</b> to keep the current banner’s warmth. Reply with a number and I’ll wire it into the real lobby.</footer>
+  <div class="fs-row">
+    <a class="fs-link" href="lobby-mock.html?opt=1">▶ Open Option 1 full-screen</a>
+    <a class="fs-link" href="lobby-mock.html?opt=2">▶ Open Option 2 full-screen</a>
+    <a class="fs-link" href="lobby-mock.html?opt=3">▶ Open Option 3 full-screen</a>
+  </div>
+  <footer class="note"><b>All three keep the header “?” button</b> as the permanent, always-available entry point — the options differ only in the <i>first-game</i> emphasis. The full-screen links above render the <b>real lobby</b> (actual app styling) with each option applied — tap “How to Play”, Invite, or the “?” to open the live instructions overlay. Recommendation: <b>Option 1</b> for guaranteed no-scroll on the smallest phones, or <b>Option 3</b> to keep the current banner’s warmth. Reply with a number and I’ll wire it into the real lobby.</footer>
 </div>
 </body>
 </html>
