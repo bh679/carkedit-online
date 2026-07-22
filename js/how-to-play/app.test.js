@@ -84,9 +84,15 @@ test('renderSetupPanel: includes the three step titles', () => {
 test('renderSetupPanel: includes the video-call tip with named platforms', () => {
   const html = renderSetupPanel('setup');
   assert.ok(html.includes('video call'), 'expected the video-call tip');
+  assert.ok(html.includes('tell stories and connection'), 'expected the current video-call tip wording');
   for (const platform of ['Zoom', 'Google Meet', 'FaceTime']) {
     assert.ok(html.includes(platform), `expected "${platform}" in the video-call tip`);
   }
+});
+
+test('renderSetupPanel: video-call tip renders above the numbered steps', () => {
+  const html = renderSetupPanel('setup');
+  assert.ok(html.indexOf('htp-callout') < html.indexOf('htp-steps'), 'expected the tip callout before the steps list');
 });
 
 test('renderSetupPanel: step 1 shows the "Free Account Required" badge', () => {

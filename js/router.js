@@ -39,7 +39,7 @@ import { render as renderCardFace } from './components/card.js';
 import { buildCard } from './data/card.js';
 import { getOrCreate as registryGetOrCreate, get as registryGet } from './data/CardRegistry.js';
 import { renderLoginModal } from './components/auth-button.js';
-import { markOnlinePlayed, markHowToBannerDismissed } from './components/how-to-play-overlay.js';
+import { markOnlinePlayed, markHowToBannerDismissed, markVideoCallTipDone } from './components/how-to-play-overlay.js';
 import {
   startPhase1, doneDying, revealCard,
   startPhase2, startPhase3,
@@ -1159,6 +1159,10 @@ window.game = {
   },
   dismissHowToBanner() {
     markHowToBannerDismissed();
+    showScreen('online-lobby');
+  },
+  dismissVideoCallTip() {
+    markVideoCallTipDone();
     showScreen('online-lobby');
   },
   // Copy triggered from the overlay's "Share the Link" step: same link as the

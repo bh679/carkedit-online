@@ -7,6 +7,12 @@
 // the game bundle without triggering any page bootstrap.
 'use strict';
 
+export const VIDEO_CALL_TIP = {
+  icon: '\u{1F4F9}',
+  title: 'Best with a video call.',
+  body: 'Carked It! is all about tell stories and connection — get everyone on <strong>Zoom, Google Meet, FaceTime</strong> or similar and play with your phones in hand.',
+};
+
 export const SETUP_STEPS = [
   {
     n: 1,
