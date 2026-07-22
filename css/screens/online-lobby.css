@@ -26,6 +26,12 @@
   color: var(--color-text);
 }
 
+/* Inline hint next to a heading (e.g. "Players — Minimum 3" while under 3). */
+.online-lobby__heading-note {
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
 .online-lobby__birthday-row {
   display: flex;
   gap: var(--space-sm);

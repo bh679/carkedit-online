@@ -39,6 +39,7 @@ import { render as renderCardFace } from './components/card.js';
 import { buildCard } from './data/card.js';
 import { getOrCreate as registryGetOrCreate, get as registryGet } from './data/CardRegistry.js';
 import { renderLoginModal } from './components/auth-button.js';
+import { markOnlinePlayed, markHowToBannerDismissed } from './components/how-to-play-overlay.js';
 import {
   startPhase1, doneDying, revealCard,
   startPhase2, startPhase3,
@@ -1129,6 +1130,26 @@ window.game = {
       }
     }).catch(() => {});
   },
+  // ── How to Play overlay (online lobby) ───────────────────
+  // Rendered on top of the lobby so it never navigates away (which would drop
+  // the room on mobile). State-driven, so live step check-offs update on
+  // re-render as players join.
+  openHowToPlay() {
+    setState({ showHowToPlay: true, howToPlayTab: 'setup' });
+    showScreen('online-lobby');
+  },
+  closeHowToPlay() {
+    setState({ showHowToPlay: false });
+    showScreen('online-lobby');
+  },
+  setHowToPlayTab(tab) {
+    setState({ howToPlayTab: tab === 'play' ? 'play' : 'setup' });
+    showScreen('online-lobby');
+  },
+  dismissHowToBanner() {
+    markHowToBannerDismissed();
+    showScreen('online-lobby');
+  },
 };
 
 function renderLoginModalOverlay() {
@@ -1161,6 +1182,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Register screen change callback for server-driven transitions
   onScreenChange((screenName) => {
+    // Once the player reaches a game phase online, they've had their first game —
+    // drop the emphasized "How to Play" CTA in future lobbies.
+    if (typeof screenName === 'string' && screenName.startsWith('phase')) {
+      markOnlinePlayed();
+    }
     showScreen(screenName);
   });
 

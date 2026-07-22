@@ -75,6 +75,10 @@ let _state = {
   lobbyEditOpen: false,
   lobbyEditTab: 'mode', // 'mode' | 'rules' | 'packs'
 
+  // How to Play overlay (online lobby) — instructions shown over the lobby
+  showHowToPlay: false,
+  howToPlayTab: 'setup', // 'setup' | 'play'
+
   // Phase 2/3 state
   totalRounds: 1,
   livingDeadIndex: 0,
