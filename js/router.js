@@ -116,6 +116,7 @@ export function showScreen(name, updates = {}) {
       const el = document.getElementById('menu-version-server');
       if (el) el.textContent = `Server: v${data.version}`;
     }).catch(() => {});
+    loadScheduledGamesForMenu();
   }
 
   // Show player list label only when the list overflows (more players than fit on screen)
@@ -1083,6 +1084,8 @@ window.game = {
         videoCall: game.videoCall || [],
         videoCallNotes: game.videoCallNotes || '',
       });
+      // The menu promotes upcoming games; this is a new one, so make it refetch.
+      invalidateScheduledGamesCache();
       showScreen('scheduled-created');
     } catch (err) {
       // The server owns link validation, so its message is the one to show —
@@ -1602,6 +1605,48 @@ function closeCalendarMenus() {
   });
 }
 
+/**
+ * Which account the menu's scheduled-game count was loaded for. Sign-in
+ * resolves after the first menu paint, so the fetch has to run again once
+ * authUser appears — but not on every visit to the menu.
+ */
+let _scheduledLoadedForUser = null;
+
+/** Force the next menu visit to refetch (a game was just added). */
+function invalidateScheduledGamesCache() {
+  _scheduledLoadedForUser = null;
+}
+
+/**
+ * Fetch the signed-in host's upcoming games so the menu can promote them.
+ * Re-renders only when the count changes, which keeps the render → fetch →
+ * render path from looping.
+ */
+function loadScheduledGamesForMenu() {
+  const userId = getState().authUser?.id ?? null;
+  if (!userId) {
+    _scheduledLoadedForUser = null;
+    if ((getState().scheduledGames || []).length > 0) {
+      setState({ scheduledGames: [] });
+      if (getState().screen === 'menu') showScreen('menu');
+    }
+    return;
+  }
+  if (_scheduledLoadedForUser === userId) return;
+  _scheduledLoadedForUser = userId;
+
+  fetchMyScheduledGames()
+    .then((games) => {
+      const before = (getState().scheduledGames || []).length;
+      setState({ scheduledGames: games });
+      if (games.length !== before && getState().screen === 'menu') showScreen('menu');
+    })
+    .catch(() => {
+      // A failed count just means no promoted button — never block the menu.
+      _scheduledLoadedForUser = null;
+    });
+}
+
 /** Reload the host's list and repaint it in place. */
 async function refreshScheduledGames() {
   setState({ scheduledGamesLoading: true });
@@ -1609,6 +1654,8 @@ async function refreshScheduledGames() {
   try {
     const games = await fetchMyScheduledGames();
     setState({ scheduledGames: games, scheduledGamesLoading: false });
+    // This list IS the menu's source, so the menu needn't refetch it.
+    _scheduledLoadedForUser = getState().authUser?.id ?? null;
   } catch (err) {
     setState({ scheduledGamesLoading: false, scheduledGamesError: err.message || 'Failed to load your scheduled games' });
   }
