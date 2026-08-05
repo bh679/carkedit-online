@@ -9,6 +9,18 @@ const EVENT = {
   startsAt: '2026-08-08T09:30:00.000Z',
 };
 
+const MEET = 'https://meet.google.com/abc-defg-hij';
+
+// A typical parsed invite: the link, a dial-in and a passcode, plus notes.
+const CALL = {
+  videoCall: [
+    { kind: 'link', platform: 'google-meet', value: MEET, label: 'Join Google Meet' },
+    { kind: 'phone', platform: 'phone', value: '+61 2 8015 6011', label: 'Dial-in' },
+    { kind: 'code', platform: 'other', value: '481516', label: 'Passcode' },
+  ],
+  videoCallNotes: 'Cameras on, mics muted until the eulogy.',
+};
+
 describe('buildIcs', () => {
   test('emits a single VEVENT with CRLF line endings', () => {
     const ics = buildIcs(EVENT);
@@ -56,13 +68,22 @@ describe('buildIcs', () => {
   });
 
   test('a video call takes over the location and joins the description', () => {
-    const call = 'https://meet.google.com/abc-defg-hij';
-    const ics = buildIcs({ ...EVENT, videoUrl: call });
+    const ics = buildIcs({ ...EVENT, ...CALL });
     // LOCATION is the field calendar apps turn into a "join" button.
-    assert.ok(ics.includes(`LOCATION:${call}`));
-    assert.ok(ics.includes(`Video call: ${call}`));
+    assert.ok(ics.includes(`LOCATION:${MEET}`));
+    assert.ok(ics.includes('Join Google Meet: ' + MEET));
+    // Dial-in and code matter as much as the link when joining from a phone.
+    assert.ok(ics.includes('Dial-in: +61 2 8015 6011'));
+    assert.ok(ics.includes('Passcode: 481516'));
+    assert.ok(ics.includes('Cameras on'));
     // The game link still has to be reachable from the event.
     assert.ok(ics.includes(`URL:${EVENT.joinUrl}`));
+  });
+
+  test('a call with no link leaves the game link as the location', () => {
+    const ics = buildIcs({ ...EVENT, videoCall: [{ kind: 'phone', value: '+61 2 8015 6011', label: 'Dial-in' }] });
+    assert.ok(ics.includes(`LOCATION:${EVENT.joinUrl}`));
+    assert.ok(ics.includes('Dial-in: +61 2 8015 6011'));
   });
 });
 
@@ -82,10 +103,9 @@ describe('googleCalendarUrl', () => {
   });
 
   test('prefers the video call as the location when there is one', () => {
-    const call = 'https://meet.google.com/abc-defg-hij';
-    const url = new URL(googleCalendarUrl({ ...EVENT, videoUrl: call }));
-    assert.equal(url.searchParams.get('location'), call);
-    assert.ok(url.searchParams.get('details').includes(call));
+    const url = new URL(googleCalendarUrl({ ...EVENT, ...CALL }));
+    assert.equal(url.searchParams.get('location'), MEET);
+    assert.ok(url.searchParams.get('details').includes(MEET));
     assert.ok(url.searchParams.get('details').includes(EVENT.joinUrl));
   });
 });
@@ -105,9 +125,8 @@ describe('outlookCalendarUrl', () => {
     const plain = new URL(outlookCalendarUrl(EVENT));
     assert.equal(plain.searchParams.get('location'), EVENT.joinUrl);
 
-    const call = 'https://meet.google.com/abc-defg-hij';
-    const withCall = new URL(outlookCalendarUrl({ ...EVENT, videoUrl: call }));
-    assert.equal(withCall.searchParams.get('location'), call);
+    const withCall = new URL(outlookCalendarUrl({ ...EVENT, ...CALL }));
+    assert.equal(withCall.searchParams.get('location'), MEET);
     assert.ok(withCall.searchParams.get('body').includes(EVENT.joinUrl));
   });
 });

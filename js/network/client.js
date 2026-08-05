@@ -18,6 +18,10 @@ let _client = null;
 let _room = null;
 let _onScreenChange = null;
 let _onSettingsChange = null;
+// Video-call details are reachable from every screen (lobby and in-game), so
+// they get their own callback rather than riding on _onSettingsChange, which
+// only fires while the online lobby is showing.
+let _onVideoCallChange = null;
 let _lastOnUpdate = null;
 let _lastIdentity = null;
 let _reconnecting = false;
@@ -721,6 +725,18 @@ function setupRoomListeners(room, onUpdate) {
   $(room.state.selectedPackIds).onAdd(syncSelectedPackIds);
   $(room.state.selectedPackIds).onRemove(syncSelectedPackIds);
 
+  // Sync the host's video-call details. Fires on every screen — a player can
+  // open the call panel mid-game, and the host can edit it mid-game.
+  const syncVideoCall = () => {
+    setState({ videoCall: videoCallFromRoom(room), videoCallNotes: room.state.videoCallNotes || '' });
+    if (_onVideoCallChange) _onVideoCallChange();
+  };
+  if (room.state.videoCall) {
+    $(room.state.videoCall).onAdd(syncVideoCall);
+    $(room.state.videoCall).onRemove(syncVideoCall);
+  }
+  $(room.state).listen('videoCallNotes', syncVideoCall);
+
   // Sync disabledPackDecks (per-pack deck enablement) from server to local state
   const syncDisabledPackDecks = () => {
     const keys = Array.from(room.state.disabledPackDecks ?? []);
@@ -922,6 +938,13 @@ function syncGameSettingsFromRoom(room) {
   return settings;
 }
 
+/** Plain-object copy of the room's video-call entries for local state. */
+function videoCallFromRoom(room) {
+  return Array.from(room.state?.videoCall ?? []).map((e) => ({
+    kind: e.kind, platform: e.platform, value: e.value, label: e.label,
+  }));
+}
+
 export async function createRoom({ name, birthMonth, birthDay, isPrivate = true, isDevName = false, devMode = false, userId = '', authToken = null }, onUpdate) {
   setState({ connectionStatus: 'connecting', onlineError: null });
   try {
@@ -951,13 +974,14 @@ export async function createRoom({ name, birthMonth, birthDay, isPrivate = true,
       roomCode: room.state?.roomCode || null,
       scheduledAt: null,
       scheduledTitle: '',
-      scheduledVideoUrl: '',
       gameMode: 'online',
       onlinePlayers: syncPlayersFromRoom(room),
       mySessionId: room.sessionId,
       gameSettings: { ...state.gameSettings, ...syncGameSettingsFromRoom(room) },
       selectedPackIds: Array.from(room.state.selectedPackIds ?? []),
       disabledPackDecks: Array.from(room.state.disabledPackDecks ?? []),
+      videoCall: videoCallFromRoom(room),
+      videoCallNotes: room.state.videoCallNotes || '',
     });
     _lastOnUpdate = onUpdate;
     _lastIdentity = { name, birthMonth: birthMonth || 0, birthDay: birthDay || 0, isDevName, userId };
@@ -1035,13 +1059,14 @@ export async function joinRoom(code, { name, birthMonth, birthDay, isDevName = f
       roomCode: code.toUpperCase(),
       scheduledAt: room.state?.scheduledAt || null,
       scheduledTitle: room.state?.scheduledTitle || '',
-      scheduledVideoUrl: room.state?.scheduledVideoUrl || '',
       gameMode: 'online',
       onlinePlayers: syncPlayersFromRoom(room),
       mySessionId: room.sessionId,
       gameSettings: { ...state.gameSettings, ...syncGameSettingsFromRoom(room) },
       selectedPackIds: Array.from(room.state.selectedPackIds ?? []),
       disabledPackDecks: Array.from(room.state.disabledPackDecks ?? []),
+      videoCall: videoCallFromRoom(room),
+      videoCallNotes: room.state.videoCallNotes || '',
     });
     _lastOnUpdate = onUpdate;
     _lastIdentity = { name, birthMonth: birthMonth || 0, birthDay: birthDay || 0, isDevName, userId };
@@ -1107,6 +1132,8 @@ async function _doRecover(onUpdate) {
       gameSettings: { ...state.gameSettings, ...syncGameSettingsFromRoom(room) },
       selectedPackIds: Array.from(room.state.selectedPackIds ?? []),
       disabledPackDecks: Array.from(room.state.disabledPackDecks ?? []),
+      videoCall: videoCallFromRoom(room),
+      videoCallNotes: room.state.videoCallNotes || '',
     });
     _lastOnUpdate = onUpdate;
     _lastIdentity = saved.identity;
@@ -1160,7 +1187,6 @@ export async function leaveRoom() {
     roomCode: null,
     scheduledAt: null,
     scheduledTitle: '',
-    scheduledVideoUrl: '',
     gameMode: 'local',
     onlinePlayers: [],
     onlineError: null,
@@ -1190,4 +1216,8 @@ export function onScreenChange(callback) {
 /** Register a callback for game settings changes from the server */
 export function onSettingsChange(callback) {
   _onSettingsChange = callback;
+}
+
+export function onVideoCallChange(callback) {
+  _onVideoCallChange = callback;
 }

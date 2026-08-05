@@ -52,20 +52,19 @@ export function render(state) {
         ${connecting ? 'disabled' : ''}
       >
 
-      <label class="schedule__label" for="schedule-video-url">Video call link <span class="schedule__label-note">optional</span></label>
-      <input
-        type="url"
-        id="schedule-video-url"
-        class="input"
-        maxlength="500"
-        placeholder="https://meet.google.com/..."
-        value="${escapeHtml(typed.videoUrl || '')}"
+      <label class="schedule__label" for="schedule-video-call">Video call <span class="schedule__label-note">optional</span></label>
+      <textarea
+        id="schedule-video-call"
+        class="input schedule__paste"
+        rows="4"
+        maxlength="4000"
+        placeholder="Paste a Zoom, Google Meet, Teams, Discord or WhatsApp invite — we'll sort out the links, numbers and codes."
         ${connecting ? 'disabled' : ''}
-      >
+      >${escapeHtml(typed.videoCallText || '')}</textarea>
       <p class="online-lobby__field-note">
-        CarkedIt is best played with everyone on a call. Paste your Zoom, Meet or
-        FaceTime link and we'll show it to your players and put it in the calendar
-        invite. Anyone with the game link can see it.
+        CarkedIt is best played with everyone on a call. Paste the whole invite —
+        links, dial-in numbers and meeting codes are pulled out for your players
+        and added to the calendar invite. Anyone with the game link can see it.
       </p>
 
       ${errorHtml}

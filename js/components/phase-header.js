@@ -4,6 +4,7 @@
 import { getState } from '../state.js';
 import { subscribeErrorState } from '../utils/error-logger.js';
 import { renderHeaderCoBrand } from '../config/brand-config.js';
+import { renderCallButton } from './video-call-panel.js';
 
 // Subscribe once at module load — toggles the --error class on any flag button
 // currently in the DOM whenever the error state changes.
@@ -51,6 +52,7 @@ export function render({ phase = '', label = '' } = {}) {
         <span class="phase-header__phase-label">${label}</span>
       </div>
       <div class="phase-header__right">
+        ${renderCallButton(state)}
         <button class="${flagClass}" aria-label="Report issue" onclick="window.game.openIssueReport()">
           ${FLAG_ICON}
         </button>

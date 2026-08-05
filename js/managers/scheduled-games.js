@@ -30,14 +30,15 @@ export function buildJoinUrl(code) {
 }
 
 /** Reserve a code + start time. Requires a Host account. */
-export async function createScheduledGame({ scheduledAt, title, videoUrl, devMode }) {
+export async function createScheduledGame({ scheduledAt, title, videoCall, videoCallNotes, devMode }) {
   const res = await fetch(`${API_BASE}/scheduled`, {
     method: 'POST',
     headers: await authHeaders(),
     body: JSON.stringify({
       scheduledAt,
       title: title || undefined,
-      videoUrl: videoUrl || undefined,
+      videoCall: videoCall || [],
+      videoCallNotes: videoCallNotes || '',
       devMode: !!devMode,
       brandId: window.brand ? window.brand.id : undefined,
     }),

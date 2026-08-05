@@ -11,7 +11,8 @@ import { renderHelpButton, renderFirstGameBanner, renderOverlay as renderHowToPl
 import { formatStartTime, hasStarted } from '../utils/schedule-format.js';
 import { renderCalendarActions } from '../components/calendar-actions.js';
 import { renderCountdown } from '../components/countdown.js';
-import { renderVideoCallLink } from '../components/video-call-link.js';
+import { renderCallButton } from '../components/video-call-panel.js';
+import { renderEditor as renderVideoCallEditor } from '../components/video-call-editor.js';
 
 const LINK_ICON = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
   <path d="M6.5 9.5L9.5 6.5" stroke="#374151" stroke-width="1.5" stroke-linecap="round"/>
@@ -280,22 +281,16 @@ export function refreshCreateSection(state) {
  * arrives — from then on the lobby is an ordinary one.
  */
 function renderScheduleBanner(state) {
-  const { scheduledAt, scheduledTitle, scheduledVideoUrl } = state;
+  const { scheduledAt, scheduledTitle } = state;
   if (!scheduledAt) return '';
 
   const titleHtml = scheduledTitle
     ? `<span class="schedule__banner-title">${escapeHtml(scheduledTitle)}</span>`
     : '';
 
-  // Once the countdown is spent the banner has nothing left to say — except
-  // the call, which players need most at exactly that moment.
-  if (hasStarted(scheduledAt)) {
-    return scheduledVideoUrl
-      ? `<div class="schedule__banner schedule__banner--compact">
-           ${renderVideoCallLink(scheduledVideoUrl)}
-         </div>`
-      : '';
-  }
+  // Once the countdown is spent the banner has nothing left to say. The call
+  // details stay reachable from the header button, in the lobby and in-game.
+  if (hasStarted(scheduledAt)) return '';
 
   return `
     <div class="schedule__banner">
@@ -303,7 +298,6 @@ function renderScheduleBanner(state) {
       <span class="schedule__banner-when">${escapeHtml(formatStartTime(scheduledAt))}</span>
       ${renderCountdown(scheduledAt)}
       ${renderCalendarActions()}
-      ${renderVideoCallLink(scheduledVideoUrl)}
       <button class="btn btn--ghost schedule__how-btn" onclick="window.game.openHowToPlay()">
         How to play
       </button>
@@ -430,6 +424,7 @@ function renderConnectedLobby(state) {
         <span class="phase-header__phase-label">Online Lobby</span>
       </div>
       <div class="phase-header__right">
+        ${renderCallButton(state)}
         ${renderHelpButton()}
         <button class="${flagClass}" aria-label="Report issue" onclick="window.game.openIssueReport()">
           ${FLAG_ICON}
@@ -481,6 +476,7 @@ function renderEditDrawer(state) {
         ${tabBtn('mode', 'Mode')}
         ${tabBtn('rules', 'Rules')}
         ${tabBtn('packs', packLabel)}
+        ${tabBtn('call', 'Call')}
       </div>
       <div id="online-lobby__edit-body" class="online-lobby__edit-body">
         ${renderEditDrawerBody(state)}
@@ -499,6 +495,7 @@ export function renderEditDrawerBody(state) {
   if (tab === 'mode')  return renderModeTab(state);
   if (tab === 'rules') return renderAdvancedPanel(state, { force: true });
   if (tab === 'packs') return renderPackSelector(state, { isHost: true });
+  if (tab === 'call')  return renderVideoCallEditor(state);
   return '';
 }
 

@@ -51,7 +51,7 @@ export function render(state) {
       </p>
 
       ${renderCalendarActions()}
-      ${renderVideoCallLink(game.videoUrl)}
+      ${renderVideoCallLink(state)}
 
       <div class="online-lobby__divider"></div>
 

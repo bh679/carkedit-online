@@ -36,16 +36,29 @@ function escapeIcsText(value) {
     .replace(/\r?\n/g, '\\n');
 }
 
-function eventDescription(joinUrl, videoUrl) {
+/** First joinable link among the host's call details, if any. */
+function firstCallLink(videoCall) {
+  return (videoCall || []).find((e) => e?.kind === 'link' && e.value)?.value || '';
+}
+
+function eventDescription(joinUrl, videoCall, videoCallNotes) {
   const lines = [
     'CarkedIt is a party game about dying badly and being remembered fondly.',
     '',
     `Join here when it starts: ${joinUrl}`,
     'No account needed to play — just open the link, add your name, and wait for the host.',
   ];
-  if (videoUrl) {
-    lines.push('', `Video call: ${videoUrl}`);
+  // Dial-in numbers and meeting codes matter as much as the link when someone
+  // is joining from a phone, so every entry goes into the invite.
+  const entries = videoCall || [];
+  if (entries.length > 0) {
+    lines.push('', 'Video call:');
+    for (const e of entries) {
+      lines.push(e.label ? `${e.label}: ${e.value}` : e.value);
+    }
   }
+  const notes = (videoCallNotes || '').trim();
+  if (notes) lines.push('', notes);
   return lines.join('\n');
 }
 
@@ -54,15 +67,15 @@ function eventDescription(joinUrl, videoUrl) {
  * because that is the field calendar apps turn into a "join" button; without
  * one the game link is the next best thing to put a tap on.
  */
-function eventLocation(joinUrl, videoUrl) {
-  return videoUrl || joinUrl;
+function eventLocation(joinUrl, videoCall) {
+  return firstCallLink(videoCall) || joinUrl;
 }
 
 /**
  * Build a single-event .ics document.
- * @param {{title?: string, joinUrl: string, videoUrl?: string, startsAt: string, durationMinutes?: number}} opts
+ * @param {{title?: string, joinUrl: string, videoCall?: object[], videoCallNotes?: string, startsAt: string, durationMinutes?: number}} opts
  */
-export function buildIcs({ title, joinUrl, videoUrl, startsAt, durationMinutes = DEFAULT_DURATION_MINUTES }) {
+export function buildIcs({ title, joinUrl, videoCall, videoCallNotes, startsAt, durationMinutes = DEFAULT_DURATION_MINUTES }) {
   const start = new Date(startsAt);
   const end = endFor(startsAt, durationMinutes);
   const stamp = toIcsStamp(new Date());
@@ -80,8 +93,8 @@ export function buildIcs({ title, joinUrl, videoUrl, startsAt, durationMinutes =
     `DTSTART:${toIcsStamp(start)}`,
     `DTEND:${toIcsStamp(end)}`,
     `SUMMARY:${escapeIcsText(title || 'CarkedIt game')}`,
-    `DESCRIPTION:${escapeIcsText(eventDescription(joinUrl, videoUrl))}`,
-    `LOCATION:${escapeIcsText(eventLocation(joinUrl, videoUrl))}`,
+    `DESCRIPTION:${escapeIcsText(eventDescription(joinUrl, videoCall, videoCallNotes))}`,
+    `LOCATION:${escapeIcsText(eventLocation(joinUrl, videoCall))}`,
     `URL:${escapeIcsText(joinUrl)}`,
     'BEGIN:VALARM',
     'TRIGGER:-PT15M',
@@ -112,27 +125,27 @@ export function downloadIcs(opts) {
  * Outlook wants ISO-8601 with offsets rather than the compact basic format
  * Google and ICS use.
  */
-export function outlookCalendarUrl({ title, joinUrl, videoUrl, startsAt, durationMinutes = DEFAULT_DURATION_MINUTES }) {
+export function outlookCalendarUrl({ title, joinUrl, videoCall, videoCallNotes, startsAt, durationMinutes = DEFAULT_DURATION_MINUTES }) {
   const params = new URLSearchParams({
     path: '/calendar/action/compose',
     rru: 'addevent',
     subject: title || 'CarkedIt game',
     startdt: new Date(startsAt).toISOString(),
     enddt: endFor(startsAt, durationMinutes).toISOString(),
-    body: eventDescription(joinUrl, videoUrl),
-    location: eventLocation(joinUrl, videoUrl),
+    body: eventDescription(joinUrl, videoCall, videoCallNotes),
+    location: eventLocation(joinUrl, videoCall),
   });
   return `https://outlook.live.com/calendar/0/deeplink/compose?${params.toString()}`;
 }
 
 /** One-click "add to Google Calendar" URL. */
-export function googleCalendarUrl({ title, joinUrl, videoUrl, startsAt, durationMinutes = DEFAULT_DURATION_MINUTES }) {
+export function googleCalendarUrl({ title, joinUrl, videoCall, videoCallNotes, startsAt, durationMinutes = DEFAULT_DURATION_MINUTES }) {
   const params = new URLSearchParams({
     action: 'TEMPLATE',
     text: title || 'CarkedIt game',
     dates: toGoogleRange(new Date(startsAt), endFor(startsAt, durationMinutes)),
-    details: eventDescription(joinUrl, videoUrl),
-    location: eventLocation(joinUrl, videoUrl),
+    details: eventDescription(joinUrl, videoCall, videoCallNotes),
+    location: eventLocation(joinUrl, videoCall),
   });
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }

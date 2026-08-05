@@ -15,6 +15,16 @@
   margin-bottom: calc(var(--space-md) * -0.5);
 }
 
+/* Paste target for a whole invite — roomy enough to see what was pasted
+   without pushing the Schedule button off a phone screen. */
+.schedule__paste {
+  width: 100%;
+  min-height: 5.5rem;
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.4;
+}
+
 .schedule__label-note {
   font-weight: 500;
   color: var(--color-text-muted);

@@ -40,7 +40,7 @@ function renderScheduleBanner(state) {
       <div class="schedule__banner">
         ${titleHtml}
         <span class="schedule__banner-label">Starting now — join in</span>
-        ${renderVideoCallLink(info.videoUrl)}
+        ${renderVideoCallLink(state)}
       </div>
     `;
   }
@@ -51,7 +51,7 @@ function renderScheduleBanner(state) {
       <span class="schedule__banner-when">${escapeHtml(formatStartTime(info.scheduledAt))}</span>
       ${renderCountdown(info.scheduledAt)}
       ${renderCalendarActions()}
-      ${renderVideoCallLink(info.videoUrl)}
+      ${renderVideoCallLink(state)}
       <button class="btn btn--ghost schedule__how-btn" onclick="window.game.openHowToPlay()">
         How to play
       </button>

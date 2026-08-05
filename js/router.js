@@ -27,6 +27,7 @@ import {
   buildJoinUrl,
 } from './managers/scheduled-games.js';
 import { downloadIcs, googleCalendarUrl, outlookCalendarUrl } from './utils/calendar.js';
+import { parseVideoCallText } from './utils/video-call.js';
 import { startScheduleCountdown } from './managers/schedule-countdown.js';
 import { saveGameToHistory, getGameHistory, syncWithServer } from './managers/game-history.js';
 import { shuffle } from './utils/shuffle.js';
@@ -42,6 +43,7 @@ import {
   sendMessage,
   onScreenChange,
   onSettingsChange,
+  onVideoCallChange,
   resyncFromRoomState,
 } from './network/client.js';
 import { loadSession, clearSession } from './managers/session-recovery.js';
@@ -54,6 +56,16 @@ import { buildCard } from './data/card.js';
 import { getOrCreate as registryGetOrCreate, get as registryGet } from './data/CardRegistry.js';
 import { renderLoginModal } from './components/auth-button.js';
 import { markOnlinePlayed, markHowToBannerDismissed, markVideoCallTipDone } from './components/how-to-play-overlay.js';
+import { renderPanel as renderVideoCallPanel, renderCallButton } from './components/video-call-panel.js';
+import {
+  buildDraft as buildVideoCallDraft,
+  harvestDraft as harvestVideoCallDraft,
+  mergeParsed as mergeParsedVideoCall,
+  blankEntry as blankVideoCallEntry,
+  cleanDraftEntries as cleanVideoCallEntries,
+  saveRememberedVideoCall,
+  clearRememberedVideoCall,
+} from './components/video-call-editor.js';
 import {
   startPhase1, doneDying, revealCard,
   startPhase2, startPhase3,
@@ -405,6 +417,54 @@ function toggleExpansionPacks() {
   else if (screen === 'lobby') showScreen('lobby');
 }
 
+// ── Video call panel mounting ────────────────────────────
+// Body-level so it survives screen re-renders and works during the game.
+
+function mountVideoCallPanel() {
+  unmountVideoCallPanel();
+  const container = document.createElement('div');
+  container.id = 'video-call-container';
+  container.innerHTML = renderVideoCallPanel(getState());
+  document.body.appendChild(container);
+}
+
+function unmountVideoCallPanel() {
+  document.getElementById('video-call-container')?.remove();
+}
+
+/**
+ * Re-renders whichever surface currently holds the editor — the body panel, or
+ * the Call tab of the host's lobby drawer. Callers harvest the DOM into the
+ * draft first, so nothing typed is lost.
+ */
+function refreshVideoCallEditor() {
+  if (document.getElementById('video-call-container')) {
+    mountVideoCallPanel();
+    return;
+  }
+  const body = document.getElementById('online-lobby__edit-body');
+  if (body) body.innerHTML = renderEditDrawerBody(getState());
+}
+
+/**
+ * Someone else changed the call details. Refresh the open panel (unless the
+ * host is mid-edit, where clobbering their draft would be rude) and the small
+ * header button, which lives in whichever screen is currently rendered.
+ */
+function refreshVideoCallUi() {
+  const state = getState();
+  if (document.getElementById('video-call-container') && !state.videoCallEditOpen) {
+    mountVideoCallPanel();
+  }
+  const right = document.querySelector('.phase-header__right');
+  if (!right) return;
+  const existing = right.querySelector('.phase-header__call-btn');
+  const html = renderCallButton(state).trim();
+  if (existing && html) existing.outerHTML = html;
+  else if (existing) existing.remove();
+  else if (html) right.insertAdjacentHTML('afterbegin', html);
+}
+
 function openLobbyEditor() {
   setState({ lobbyEditOpen: true });
   showScreen('online-lobby');
@@ -416,7 +476,11 @@ function closeLobbyEditor() {
 }
 
 function setLobbyEditTab(tab) {
-  if (!['mode', 'rules', 'packs'].includes(tab)) return;
+  if (!['mode', 'rules', 'packs', 'call'].includes(tab)) return;
+  // The Call tab hosts the same editor as the panel, so it needs a draft.
+  if (tab === 'call' && !getState().videoCallDraft) {
+    setState({ videoCallDraft: buildVideoCallDraft(getState()) });
+  }
   setState({ lobbyEditTab: tab });
   showScreen('online-lobby');
 }
@@ -982,7 +1046,7 @@ window.game = {
       return;
     }
     captureScheduleDraft();
-    const { startsAt, title, videoUrl } = getState().scheduleDraft;
+    const { startsAt, title, videoCallText } = getState().scheduleDraft;
     if (!startsAt) {
       setState({ scheduleError: 'Pick a date and time' });
       showScreen('schedule-game');
@@ -1000,11 +1064,24 @@ window.game = {
     setState({ connectionStatus: 'connecting', scheduleError: null });
     showScreen('schedule-game');
     try {
-      const game = await apiCreateScheduledGame({ scheduledAt: scheduledAt.toISOString(), title, videoUrl });
+      // The host pastes a raw invite; the shared parser splits it into the same
+      // link/phone/code entries the live room syncs, and the server sanitizes
+      // them again before they are stored.
+      const { entries, notes } = parseVideoCallText(videoCallText);
+      const game = await apiCreateScheduledGame({
+        scheduledAt: scheduledAt.toISOString(),
+        title,
+        videoCall: entries,
+        videoCallNotes: notes,
+      });
       setState({
         connectionStatus: 'disconnected',
         scheduledGame: game,
-        scheduleDraft: { startsAt: '', title: '', videoUrl: '' },
+        scheduleDraft: { startsAt: '', title: '', videoCallText: '' },
+        // Seed the shared panel so "Video call details" works on the
+        // confirmation screen, before any room exists.
+        videoCall: game.videoCall || [],
+        videoCallNotes: game.videoCallNotes || '',
       });
       showScreen('scheduled-created');
     } catch (err) {
@@ -1332,6 +1409,82 @@ window.game = {
       }
     }).catch(() => {});
   },
+  // ── Video call details ───────────────────────────────────
+  // The panel is mounted on document.body (like the issue report) so it opens
+  // over the lobby AND over any game phase without navigating away — a player
+  // who drops off the call mid-game can get the link back where they stand.
+  openVideoCall() {
+    mountVideoCallPanel();
+  },
+  closeVideoCall() {
+    setState({ videoCallEditOpen: false, videoCallDraft: null });
+    unmountVideoCallPanel();
+  },
+  openVideoCallEditor() {
+    setState({ videoCallEditOpen: true, videoCallDraft: buildVideoCallDraft(getState()) });
+    mountVideoCallPanel();
+  },
+  closeVideoCallEditor() {
+    setState({ videoCallEditOpen: false, videoCallDraft: null });
+    if (document.getElementById('video-call-container')) mountVideoCallPanel();
+    else if (getState().screen === 'online-lobby') showScreen('online-lobby');
+  },
+  /** Re-runs detection over the paste box and merges anything new into the draft. */
+  parseVideoCallPaste() {
+    const draft = harvestVideoCallDraft(getState().videoCallDraft);
+    const text = draft.paste || '';
+    if (!text.trim()) {
+      setState({ videoCallDraft: draft });
+      return;
+    }
+    const merged = mergeParsedVideoCall(draft, text);
+    // The paste box has done its job — clear it so a second Detect can't
+    // re-add the same invite, and the detected rows become the source of truth.
+    setState({ videoCallDraft: { ...merged, paste: '' } });
+    refreshVideoCallEditor();
+  },
+  addVideoCallEntry(kind) {
+    const draft = harvestVideoCallDraft(getState().videoCallDraft);
+    setState({ videoCallDraft: { ...draft, entries: [...draft.entries, blankVideoCallEntry(kind)] } });
+    refreshVideoCallEditor();
+  },
+  removeVideoCallEntry(index) {
+    const draft = harvestVideoCallDraft(getState().videoCallDraft);
+    const entries = draft.entries.filter((_, i) => i !== index);
+    setState({ videoCallDraft: { ...draft, entries } });
+    refreshVideoCallEditor();
+  },
+  saveVideoCall() {
+    const draft = harvestVideoCallDraft(getState().videoCallDraft);
+    const entries = cleanVideoCallEntries(draft.entries);
+    const notes = (draft.notes || '').trim();
+
+    sendMessage('set_video_call', { entries, notes });
+
+    // Opt-in only, and unticking actively forgets what was stored before.
+    if (draft.remember) saveRememberedVideoCall({ entries, notes });
+    else clearRememberedVideoCall();
+
+    // Optimistic: the server echo will overwrite this with the sanitised copy.
+    setState({ videoCall: entries, videoCallNotes: notes, videoCallEditOpen: false, videoCallDraft: null });
+    if (document.getElementById('video-call-container')) mountVideoCallPanel();
+    if (getState().screen === 'online-lobby') showScreen('online-lobby');
+  },
+  copyVideoCallValue(index) {
+    const entry = getState().videoCall?.[index];
+    if (!entry) return;
+    navigator.clipboard.writeText(entry.value).then(() => {
+      const btn = document.querySelector(`.video-call__row[data-index="${index}"] .video-call__copy`);
+      if (!btn) return;
+      const original = btn.innerHTML;
+      btn.classList.add('video-call__copy--done');
+      btn.textContent = 'Copied';
+      setTimeout(() => {
+        btn.innerHTML = original;
+        btn.classList.remove('video-call__copy--done');
+      }, 1500);
+    }).catch(() => {});
+  },
   // ── How to Play overlay (online lobby) ───────────────────
   // Rendered on top of the lobby so it never navigates away (which would drop
   // the room on mobile). State-driven, so live step check-offs update on
@@ -1398,8 +1551,8 @@ function captureLobbyDetails() {
 function captureScheduleDraft() {
   const startsAt = document.getElementById('schedule-start-at')?.value || '';
   const title = document.getElementById('schedule-title')?.value?.trim() || '';
-  const videoUrl = document.getElementById('schedule-video-url')?.value?.trim() || '';
-  setState({ scheduleDraft: { startsAt, title, videoUrl } });
+  const videoCallText = document.getElementById('schedule-video-call')?.value || '';
+  setState({ scheduleDraft: { startsAt, title, videoCallText } });
 }
 
 /**
@@ -1411,17 +1564,18 @@ function currentCalendarEvent() {
   const state = getState();
   if (state.screen === 'scheduled-created' && state.scheduledGame) {
     const g = state.scheduledGame;
-    return { title: g.title, joinUrl: buildJoinUrl(g.code), videoUrl: g.videoUrl, startsAt: g.scheduledAt };
+    return { title: g.title, joinUrl: buildJoinUrl(g.code), videoCall: g.videoCall, videoCallNotes: g.videoCallNotes, startsAt: g.scheduledAt };
   }
   if (state.screen === 'join-game' && state.scheduledInfo) {
     const info = state.scheduledInfo;
-    return { title: info.title, joinUrl: buildJoinUrl(info.code), videoUrl: info.videoUrl, startsAt: info.scheduledAt };
+    return { title: info.title, joinUrl: buildJoinUrl(info.code), videoCall: info.videoCall, videoCallNotes: info.videoCallNotes, startsAt: info.scheduledAt };
   }
   if (state.scheduledAt && state.roomCode) {
     return {
       title: state.scheduledTitle,
       joinUrl: buildJoinUrl(state.roomCode),
-      videoUrl: state.scheduledVideoUrl,
+      videoCall: state.videoCall,
+      videoCallNotes: state.videoCallNotes,
       startsAt: state.scheduledAt,
     };
   }
@@ -1478,7 +1632,13 @@ async function loadScheduleInfoForCode(code) {
   try {
     const info = await lookupScheduledGame(code);
     if (!info) return;
-    setState({ scheduledInfo: info });
+    // Seed the shared video-call panel from the reservation so a player can
+    // open the call details before joining — there may be no room yet.
+    setState({
+      scheduledInfo: info,
+      videoCall: info.videoCall || [],
+      videoCallNotes: info.videoCallNotes || '',
+    });
     const el = document.getElementById('join-schedule-banner');
     if (el && getState().screen === 'join-game') showScreen('join-game');
   } catch {
@@ -1519,6 +1679,13 @@ document.addEventListener('DOMContentLoaded', () => {
   // Register settings change callback for partial DOM updates (no full re-render)
   onSettingsChange(() => {
     refreshAdvancedPanel();
+  });
+
+  // Video-call details can change on any screen (host edits mid-game), so this
+  // updates the header button and the open panel in place rather than
+  // re-rendering the screen underneath the player.
+  onVideoCallChange(() => {
+    refreshVideoCallUi();
   });
 
   // Register timer update callback — update ONLY the timer display each tick.

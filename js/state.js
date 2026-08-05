@@ -73,7 +73,15 @@ let _state = {
 
   // Online lobby host editor (drawer)
   lobbyEditOpen: false,
-  lobbyEditTab: 'mode', // 'mode' | 'rules' | 'packs'
+  lobbyEditTab: 'mode', // 'mode' | 'rules' | 'packs' | 'call'
+
+  // Host's video-call details (synced from the room) + the host editor's
+  // working copy. The panel itself is mounted on document.body, so only the
+  // data lives here.
+  videoCall: [],          // [{ kind, platform, value, label }]
+  videoCallNotes: '',
+  videoCallEditOpen: false,
+  videoCallDraft: null,   // { entries, notes, remember, paste } while editing
 
   // How to Play overlay (online lobby) — instructions shown over the lobby
   showHowToPlay: false,
@@ -150,13 +158,12 @@ let _state = {
   lobbyDetails: { name: '', birthMonth: 0, birthDay: 0 }, // Typed details kept across step/auth re-renders
 
   // ── Scheduled games ────────────────────────────────
-  scheduleDraft: { startsAt: '', title: '', videoUrl: '' }, // Typed schedule form values, kept across re-renders
+  scheduleDraft: { startsAt: '', title: '', videoCallText: '' }, // Typed schedule form values, kept across re-renders
   scheduleError: null,               // Validation/API error on the schedule form
   scheduledGame: null,               // The reservation just created (confirmation screen)
   scheduledInfo: null,               // Resolved schedule for a ?join= code, shown on the join screen
   scheduledAt: null,                 // ISO start time of the joined room, null for a walk-up game
   scheduledTitle: '',                // Optional occasion name for the joined room
-  scheduledVideoUrl: '',             // Optional video call link for the joined room
   scheduledGames: [],                // The host's own upcoming games
   scheduledGamesLoading: false,
   scheduledGamesError: null,

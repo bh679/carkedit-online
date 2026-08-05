@@ -1,30 +1,23 @@
-// CarkedIt Online — "Join the video call" button.
+// CarkedIt Online — "Video call details" button for a scheduled game.
 //
-// CarkedIt is a storytelling game; the how-to-play tip already tells hosts to
-// get everyone on Zoom/Meet/FaceTime. When a scheduled game carries a call
-// link, this puts it wherever players are already looking — the confirmation,
-// the join screen and the waiting lobby — so nobody has to dig back through
-// chat for it.
+// The in-game version of this lives in the phase header (video-call-panel.js's
+// renderCallButton), but that only appears once you're connected to a room. A
+// scheduled game has no room for most of its life, so the confirmation and join
+// screens need their own way into the same panel — which they can, because the
+// details are seeded into state from the reservation.
 'use strict';
 
-import { escapeHtml } from '../utils/escape.js';
-
 /**
- * @param {string|null} url  http(s) link; validated server-side on write.
- *   Escaped again here because the value is host-supplied and ends up in an
- *   href attribute.
- * @returns {string} HTML string — empty when there is no call
+ * @param {object} state
+ * @returns {string} HTML string — empty when the host set no call
  */
-export function renderVideoCallLink(url) {
-  if (!url) return '';
+export function renderVideoCallLink(state) {
+  const hasEntries = (state?.videoCall?.length ?? 0) > 0;
+  const hasNotes = !!(state?.videoCallNotes || '').trim();
+  if (!hasEntries && !hasNotes) return '';
   return `
-    <a
-      class="btn btn--secondary schedule__video-btn"
-      href="${escapeHtml(url)}"
-      target="_blank"
-      rel="noopener noreferrer"
-    >
-      📹 Join the video call
-    </a>
+    <button class="btn btn--secondary schedule__video-btn" onclick="window.game.openVideoCall()">
+      📹 Video call details
+    </button>
   `;
 }
