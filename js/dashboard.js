@@ -258,12 +258,6 @@ function getCardImage(cardId, cardDeck) {
   return null;
 }
 
-// ── PII Masking ──────────────────────────────────────
-function maskName(name) {
-  if (!name || name.length <= 1) return '*';
-  return name[0] + '*'.repeat(name.length - 1);
-}
-
 // ── Responsive Helper ───────────────────────────────────
 const isMobile = () => window.matchMedia('(max-width: 768px)').matches;
 
@@ -1016,7 +1010,7 @@ function renderGameCard(game) {
     <div class="dashboard__card ${cls}" onclick="window.dash.toggleGame('${game.id}')">
       <div class="dashboard__card-row">
         <span class="dashboard__cell dashboard__cell--date">${dateDisplay}</span>
-        <span class="dashboard__cell dashboard__cell--host">${maskName(game.host_name)}</span>
+        <span class="dashboard__cell dashboard__cell--host">${escapeHtml(game.host_name)}</span>
         <span class="dashboard__cell dashboard__cell--players">${playersDisplay}</span>
         <span class="dashboard__cell dashboard__cell--time">${playTime}</span>
         <span class="dashboard__cell dashboard__cell--status">${statusLabel(game.status)}</span>

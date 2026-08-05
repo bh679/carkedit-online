@@ -5,11 +5,10 @@
 // which reads matchMedia).
 'use strict';
 
-/** PII masking — first char + asterisks. */
-export function maskName(name) {
-  if (!name || name.length <= 1) return '*';
-  return name[0] + '*'.repeat(name.length - 1);
-}
+// PII masking used to live here (maskName). It moved to the API — see
+// carkedit-api src/utils/pii.ts — because client-side masking was cosmetic:
+// the real names were on the wire. Render sites now escape names with
+// escapeHtml from ../utils/escape.js instead of masking them.
 
 export const isMobile = () => window.matchMedia('(max-width: 768px)').matches;
 
