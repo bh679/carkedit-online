@@ -1099,6 +1099,40 @@ window.game = {
     if (!game) return;
     window.game.copyScheduledLinkFor(game.code);
   },
+  /**
+   * Open the host's own scheduled lobby. They're signed in, so their name and
+   * birthday are already on file — asking for them again on the join screen
+   * would be a pointless step between "my games" and the room. Falls back to
+   * the join screen if the profile has no name, or if the join fails.
+   */
+  async joinScheduledGame(code) {
+    const user = getState().authUser;
+    setState({ roomCode: code, onlineError: null });
+    const name = (user?.display_name || '').trim();
+    if (!name) {
+      loadScheduleInfoForCode(code);
+      showScreen('join-game');
+      return;
+    }
+    const authToken = await getAuthToken().catch(() => null);
+    try {
+      await networkJoinRoom(
+        code,
+        {
+          name,
+          birthMonth: user.birth_month || 0,
+          birthDay: user.birth_day || 0,
+          userId: user.id || '',
+          authToken,
+        },
+        () => { const s = getState(); if (s.screen === 'online-lobby') showScreen('online-lobby'); },
+      );
+      resyncFromRoomState();
+    } catch (err) {
+      loadScheduleInfoForCode(code);
+      showScreen('join-game');
+    }
+  },
   copyScheduledLinkFor(code) {
     navigator.clipboard.writeText(buildJoinUrl(code)).then(() => {
       const hint = document.querySelector('.online-lobby__code-hint');

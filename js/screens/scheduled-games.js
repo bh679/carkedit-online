@@ -120,6 +120,7 @@ function renderRow(game, state) {
       </div>`
     : `
       <div class="schedule__row-actions">
+        <button class="btn btn--primary" onclick="window.game.joinScheduledGame('${escapeHtml(game.code)}')">Join</button>
         <button class="btn btn--secondary" onclick="window.game.copyScheduledLinkFor('${escapeHtml(game.code)}')">Copy Link</button>
         <button class="btn btn--ghost" onclick="window.game.startReschedule('${escapeHtml(game.id)}')">Reschedule</button>
         <button class="btn btn--ghost schedule__cancel-btn" onclick="window.game.cancelScheduledGame('${escapeHtml(game.id)}')">Cancel Game</button>
