@@ -16,6 +16,7 @@
 'use strict';
 
 import { render as renderCard } from './card.js';
+import { escapeHtml } from '../utils/escape.js';
 
 // ── Module-level config (set by init) ────────────────
 let _authFetch = (url, opts) => fetch(url, opts);
@@ -33,10 +34,7 @@ function escAttr(str) {
   return String(str ?? '').replace(/&/g, '&amp;').replace(/'/g, '&#39;').replace(/"/g, '&quot;');
 }
 
-function maskName(name) {
-  if (!name || name.length <= 1) return '*';
-  return name[0] + '*'.repeat(name.length - 1);
-}
+// Names arrive pre-masked from the API for non-Admin viewers; escape only.
 
 function formatDuration(seconds) {
   if (!seconds && seconds !== 0) return '—';
@@ -177,7 +175,7 @@ function renderPlayersCard(gd) {
       <div class="detail__player ${isWinner ? 'detail__player--winner' : ''}">
         <div class="detail__player-header">
           <span class="detail__player-rank">#${p.rank}</span>
-          <span class="detail__player-name">${maskName(p.player_name)}${isWinner ? ' ★' : ''}</span>
+          <span class="detail__player-name">${escapeHtml(p.player_name)}${isWinner ? ' ★' : ''}</span>
           <span class="detail__player-score">${scoreText}</span>
         </div>
         ${cardsHtml}
@@ -256,7 +254,7 @@ function renderPhaseCards(gd) {
     const cardsHtml = plays.map(c =>
       `<div class="detail__mini-card-wrap ${c.is_winner ? 'detail__mini-card-wrap--winner' : ''}">
         ${renderMiniCard(c.card_text, c.card_deck, c.card_id)}
-        <span class="detail__mini-card-player">${maskName(c.player_name)}</span>
+        <span class="detail__mini-card-player">${escapeHtml(c.player_name)}</span>
       </div>`
     ).join('');
 
