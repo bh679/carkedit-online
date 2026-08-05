@@ -73,7 +73,15 @@ let _state = {
 
   // Online lobby host editor (drawer)
   lobbyEditOpen: false,
-  lobbyEditTab: 'mode', // 'mode' | 'rules' | 'packs'
+  lobbyEditTab: 'mode', // 'mode' | 'rules' | 'packs' | 'call'
+
+  // Host's video-call details (synced from the room) + the host editor's
+  // working copy. The panel itself is mounted on document.body, so only the
+  // data lives here.
+  videoCall: [],          // [{ kind, platform, value, label }]
+  videoCallNotes: '',
+  videoCallEditOpen: false,
+  videoCallDraft: null,   // { entries, notes, remember, paste } while editing
 
   // How to Play overlay (online lobby) — instructions shown over the lobby
   showHowToPlay: false,
