@@ -67,6 +67,24 @@ function renderRow(game, state) {
     ? `<span class="schedule__row-title">${escapeHtml(game.title)}</span>`
     : '';
 
+  // A game that has been played (or cancelled/expired) is history: its link is
+  // dead and the server rejects edits, so offering the actions would only
+  // produce errors. The row stays visible for the rest of its window as a
+  // record of what happened.
+  const actionable = game.status === 'scheduled' || game.status === 'live';
+  if (!actionable) {
+    return `
+      <div class="schedule__row schedule__row--closed">
+        <div class="schedule__row-head">
+          <span class="schedule__row-code">${escapeHtml(game.code)}</span>
+          <span class="schedule__row-status schedule__row-status--${escapeHtml(game.status)}">${escapeHtml(status)}</span>
+        </div>
+        ${titleHtml}
+        <span class="schedule__row-when">${escapeHtml(formatStartTime(game.scheduledAt))}</span>
+      </div>
+    `;
+  }
+
   const editHtml = editing
     ? `
       <div class="schedule__row-edit">

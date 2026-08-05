@@ -131,6 +131,11 @@
   color: var(--color-live);
 }
 
+/* Played/cancelled games are a record, not something to act on — recede them. */
+.schedule__row--closed {
+  opacity: 0.6;
+}
+
 .schedule__row-title {
   font-size: 0.9rem;
   font-weight: 600;
