@@ -8,6 +8,8 @@ import { renderAdvancedPanel, renderToggle } from './lobby.js';
 import { render as renderPackSelector } from '../components/pack-selector.js';
 import { renderHeaderCoBrand } from '../config/brand-config.js';
 import { renderHelpButton, renderFirstGameBanner, renderOverlay as renderHowToPlayOverlay } from '../components/how-to-play-overlay.js';
+import { renderCallButton } from '../components/video-call-panel.js';
+import { renderEditor as renderVideoCallEditor } from '../components/video-call-editor.js';
 
 const LINK_ICON = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
   <path d="M6.5 9.5L9.5 6.5" stroke="#374151" stroke-width="1.5" stroke-linecap="round"/>
@@ -373,6 +375,7 @@ function renderConnectedLobby(state) {
         <span class="phase-header__phase-label">Online Lobby</span>
       </div>
       <div class="phase-header__right">
+        ${renderCallButton(state)}
         ${renderHelpButton()}
         <button class="${flagClass}" aria-label="Report issue" onclick="window.game.openIssueReport()">
           ${FLAG_ICON}
@@ -424,6 +427,7 @@ function renderEditDrawer(state) {
         ${tabBtn('mode', 'Mode')}
         ${tabBtn('rules', 'Rules')}
         ${tabBtn('packs', packLabel)}
+        ${tabBtn('call', 'Call')}
       </div>
       <div id="online-lobby__edit-body" class="online-lobby__edit-body">
         ${renderEditDrawerBody(state)}
@@ -442,6 +446,7 @@ export function renderEditDrawerBody(state) {
   if (tab === 'mode')  return renderModeTab(state);
   if (tab === 'rules') return renderAdvancedPanel(state, { force: true });
   if (tab === 'packs') return renderPackSelector(state, { isHost: true });
+  if (tab === 'call')  return renderVideoCallEditor(state);
   return '';
 }
 
