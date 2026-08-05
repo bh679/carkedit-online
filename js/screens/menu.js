@@ -4,6 +4,8 @@
 import { renderAuthButton, manageAccountButton, brandAdminButton, brandPendingButton } from '../components/auth-button.js';
 import { escapeHtml } from '../utils/escape.js';
 import { renderCoBrand } from '../config/brand-config.js';
+import { renderCountdown } from '../components/countdown.js';
+import { formatStartTimeShort, hasStarted } from '../utils/schedule-format.js';
 
 /**
  * @param {object} state
@@ -49,6 +51,30 @@ const HOW_TO_PLAY_BTN = `<a class="btn btn--secondary menu__site-link" href="how
 const EXPANSIONS_BTN = `<a class="btn btn--secondary menu__site-link" href="expansions">Expansions</a>`;
 // Links to the evangelist pricing page (404s until that feature merges).
 const PARTNER_BTN = `<a class="btn btn--secondary menu__site-link" href="evangelist-pricing">Partner</a>`;
+const SCHEDULED_GAMES_BTN = `<button class="btn btn--secondary" onclick="window.game.openScheduledGames()">Scheduled Games</button>`;
+
+/**
+ * Promoted version, shown in the main action list when the host actually has
+ * games coming up. A game arranged for Friday is easy to lose track of, and the
+ * host is the one everyone else is waiting on — so it says how many and when
+ * the next one is, rather than hiding behind "More".
+ */
+function scheduledGamesButton(state) {
+  const games = state.scheduledGames || [];
+  if (games.length === 0) return null;
+  // The list is sorted by start time and can still hold a game whose slot has
+  // passed (it stays joinable for 24h), so "next" means the next one that
+  // hasn't started — falling back to the most recent when they all have.
+  const next = games.find((g) => !hasStarted(g.scheduledAt)) ?? games[games.length - 1];
+  const countdown = renderCountdown(next.scheduledAt, { compact: true });
+  const suffix = games.length > 1 ? ` (${games.length})` : '';
+  return `
+    <button class="btn btn--secondary menu__scheduled-btn" onclick="window.game.openScheduledGames()">
+      <span>Scheduled Games${suffix}</span>
+      ${countdown || `<span class="menu__scheduled-when">${escapeHtml(formatStartTimeShort(next.scheduledAt))}</span>`}
+    </button>
+  `;
+}
 
 /**
  * The middle of the menu: a promoted primary action followed by the collapsible
@@ -65,15 +91,23 @@ function renderMenuMiddle(state) {
   const hasAnyBrand = Array.isArray(state.myBrands) && state.myBrands.length > 0;
   const partner = (state.authUser && !hasAnyBrand) ? PARTNER_BTN : null;
 
+  // A host with games coming up gets them in the main list; with none, the
+  // entry point stays under "More" so the screen isn't orphaned (it's where
+  // they'd land after cancelling their last one). Signed-out players never
+  // see it — for them it would always lead to an empty list.
+  const promotedScheduled = state.authUser ? scheduledGamesButton(state) : null;
+  const scheduled = (state.authUser && !promotedScheduled) ? SCHEDULED_GAMES_BTN : null;
+
   const primary = brandBtn || HOW_TO_PLAY_BTN;
   const secondary = [
     brandBtn ? HOW_TO_PLAY_BTN : null,
     EXPANSIONS_BTN,
+    scheduled,
     partner,
     manageAccount,
   ].filter(Boolean);
 
-  return `${primary}\n${renderMenuSecondary(state, secondary)}`;
+  return `${promotedScheduled ?? ''}${primary}\n${renderMenuSecondary(state, secondary)}`;
 }
 
 /**

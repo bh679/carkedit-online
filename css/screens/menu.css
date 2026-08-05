@@ -180,3 +180,20 @@
   margin-top: var(--space-sm, 0.75rem);
   min-width: 120px;
 }
+
+/* ── Scheduled games (promoted) ─────────────────────
+   Only shown when the host actually has games coming up, so it carries the
+   count and the next start time rather than being a bare label. */
+.menu__scheduled-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.5em;
+}
+
+.menu__scheduled-when {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}

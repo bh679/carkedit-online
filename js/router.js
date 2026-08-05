@@ -15,6 +15,20 @@ import { render as renderPhase1 } from './screens/phase1.js';
 import { render as renderPhase23, formatTime } from './screens/phase2-3.js';
 import { render as renderPhase4 } from './screens/phase4.js';
 import { render as renderAccount, renderGamesList, renderMyPacks } from './screens/account.js';
+import { render as renderScheduleGame } from './screens/schedule-game.js';
+import { render as renderScheduledCreated } from './screens/scheduled-created.js';
+import { render as renderScheduledGames, renderBody as renderScheduledGamesBody } from './screens/scheduled-games.js';
+import {
+  createScheduledGame as apiCreateScheduledGame,
+  lookupScheduledGame,
+  fetchMyScheduledGames,
+  rescheduleGame as apiRescheduleGame,
+  cancelScheduledGame as apiCancelScheduledGame,
+  buildJoinUrl,
+} from './managers/scheduled-games.js';
+import { downloadIcs, googleCalendarUrl, outlookCalendarUrl } from './utils/calendar.js';
+import { parseVideoCallText } from './utils/video-call.js';
+import { startScheduleCountdown } from './managers/schedule-countdown.js';
 import { saveGameToHistory, getGameHistory, syncWithServer } from './managers/game-history.js';
 import { shuffle } from './utils/shuffle.js';
 import { escapeHtml } from './utils/escape.js';
@@ -76,6 +90,9 @@ const SCREENS = {
   phase3:        (state) => renderPhase23('bye', state),
   phase4:        (state) => renderPhase4(state),
   account:       (state) => renderAccount(state),
+  'schedule-game':     (state) => renderScheduleGame(state),
+  'scheduled-created': (state) => renderScheduledCreated(state),
+  'scheduled-games':   (state) => renderScheduledGames(state),
 };
 
 export function showScreen(name, updates = {}) {
@@ -99,6 +116,7 @@ export function showScreen(name, updates = {}) {
       const el = document.getElementById('menu-version-server');
       if (el) el.textContent = `Server: v${data.version}`;
     }).catch(() => {});
+    loadScheduledGamesForMenu();
   }
 
   // Show player list label only when the list overflows (more players than fit on screen)
@@ -121,6 +139,8 @@ export function showScreen(name, updates = {}) {
   if ((name === 'lobby' || name === 'online-lobby' || name === 'join-game') && !state.preloadComplete) {
     startPreload();
   }
+
+  syncScheduleCountdown();
 
   // Load expansion packs the first time we enter the online lobby in this session.
   if (name === 'online-lobby' && !_packsLoadedForLobby) {
@@ -153,6 +173,16 @@ export function showScreen(name, updates = {}) {
 }
 
 let _packsLoadedForLobby = false;
+
+/**
+ * Keep the once-a-second ticker running only while the screen actually shows a
+ * countdown. The ticker finds its own targets in the DOM, so this needs no
+ * per-screen knowledge; when a start time arrives it re-renders, which decides
+ * what (if anything) still counts down.
+ */
+function syncScheduleCountdown() {
+  startScheduleCountdown(() => showScreen(getState().screen));
+}
 
 function refreshAdvancedPanel() {
   const state = getState();
@@ -998,6 +1028,193 @@ window.game = {
     setState({ lobbyStep: 'details' });
     showScreen('online-lobby');
   },
+
+  // ── Scheduling ────────────────────────────────────
+  openScheduleScreen() {
+    captureLobbyDetails();
+    setState({ scheduleError: null });
+    showScreen('schedule-game');
+  },
+  /**
+   * Reserve a code + time. Unlike createRoom this opens no room — the
+   * reservation is the lobby until someone follows the link.
+   */
+  async scheduleRoom() {
+    if (!getState().authUser) {
+      setState({ onlineError: 'Please sign in to host a game' });
+      showScreen('online-lobby');
+      window.game.showLogin('signup');
+      return;
+    }
+    captureScheduleDraft();
+    const { startsAt, title, videoCallText } = getState().scheduleDraft;
+    if (!startsAt) {
+      setState({ scheduleError: 'Pick a date and time' });
+      showScreen('schedule-game');
+      return;
+    }
+    // `datetime-local` gives local wall-clock time; Date parses it in the
+    // player's own zone, which is exactly what they meant.
+    const scheduledAt = new Date(startsAt);
+    if (Number.isNaN(scheduledAt.getTime())) {
+      setState({ scheduleError: 'That date and time is not valid' });
+      showScreen('schedule-game');
+      return;
+    }
+
+    setState({ connectionStatus: 'connecting', scheduleError: null });
+    showScreen('schedule-game');
+    try {
+      // The host pastes a raw invite; the shared parser splits it into the same
+      // link/phone/code entries the live room syncs, and the server sanitizes
+      // them again before they are stored.
+      const { entries, notes } = parseVideoCallText(videoCallText);
+      const game = await apiCreateScheduledGame({
+        scheduledAt: scheduledAt.toISOString(),
+        title,
+        videoCall: entries,
+        videoCallNotes: notes,
+      });
+      setState({
+        connectionStatus: 'disconnected',
+        scheduledGame: game,
+        scheduleDraft: { startsAt: '', title: '', videoCallText: '' },
+        // Seed the shared panel so "Video call details" works on the
+        // confirmation screen, before any room exists.
+        videoCall: game.videoCall || [],
+        videoCallNotes: game.videoCallNotes || '',
+      });
+      // The menu promotes upcoming games; this is a new one, so make it refetch.
+      invalidateScheduledGamesCache();
+      showScreen('scheduled-created');
+    } catch (err) {
+      // The server owns link validation, so its message is the one to show —
+      // the typed values survive because they were captured above.
+      setState({ connectionStatus: 'disconnected', scheduleError: err.message || 'Failed to schedule the game' });
+      showScreen('schedule-game');
+    }
+  },
+  copyScheduledLink() {
+    const game = getState().scheduledGame;
+    if (!game) return;
+    window.game.copyScheduledLinkFor(game.code);
+  },
+  /**
+   * Open the host's own scheduled lobby. They're signed in, so their name and
+   * birthday are already on file — asking for them again on the join screen
+   * would be a pointless step between "my games" and the room. Falls back to
+   * the join screen if the profile has no name, or if the join fails.
+   */
+  async joinScheduledGame(code) {
+    const user = getState().authUser;
+    setState({ roomCode: code, onlineError: null });
+    const name = (user?.display_name || '').trim();
+    if (!name) {
+      loadScheduleInfoForCode(code);
+      showScreen('join-game');
+      return;
+    }
+    const authToken = await getAuthToken().catch(() => null);
+    try {
+      await networkJoinRoom(
+        code,
+        {
+          name,
+          birthMonth: user.birth_month || 0,
+          birthDay: user.birth_day || 0,
+          userId: user.id || '',
+          authToken,
+        },
+        () => { const s = getState(); if (s.screen === 'online-lobby') showScreen('online-lobby'); },
+      );
+      resyncFromRoomState();
+    } catch (err) {
+      loadScheduleInfoForCode(code);
+      showScreen('join-game');
+    }
+  },
+  copyScheduledLinkFor(code) {
+    navigator.clipboard.writeText(buildJoinUrl(code)).then(() => {
+      const hint = document.querySelector('.online-lobby__code-hint');
+      if (hint) {
+        const original = hint.textContent;
+        hint.textContent = 'Link copied — send it to your players';
+        hint.classList.add('online-lobby__code-hint--copied');
+        setTimeout(() => {
+          hint.textContent = original;
+          hint.classList.remove('online-lobby__code-hint--copied');
+        }, 2000);
+      }
+    }).catch(() => {});
+  },
+  /**
+   * Reveal the calendar choices in place. Toggled on the DOM rather than via
+   * state so the surrounding screen — and its running countdown — isn't
+   * re-rendered just to open a menu.
+   */
+  toggleCalendarMenu(event) {
+    const btn = event?.currentTarget;
+    const menu = btn?.parentElement?.querySelector('.schedule__calendar-menu');
+    if (!menu) return;
+    const open = menu.hasAttribute('hidden');
+    menu.toggleAttribute('hidden', !open);
+    btn.setAttribute('aria-expanded', String(open));
+  },
+  downloadScheduleIcs() {
+    const opts = currentCalendarEvent();
+    if (opts) downloadIcs(opts);
+    closeCalendarMenus();
+  },
+  openGoogleCalendar() {
+    const opts = currentCalendarEvent();
+    if (opts) window.open(googleCalendarUrl(opts), '_blank', 'noopener');
+    closeCalendarMenus();
+  },
+  openOutlookCalendar() {
+    const opts = currentCalendarEvent();
+    if (opts) window.open(outlookCalendarUrl(opts), '_blank', 'noopener');
+    closeCalendarMenus();
+  },
+  async openScheduledGames() {
+    setState({ scheduledGamesLoading: true, scheduledGamesError: null, rescheduleId: null });
+    showScreen('scheduled-games');
+    await refreshScheduledGames();
+  },
+  startReschedule(id) {
+    setState({ rescheduleId: id });
+    refreshScheduledGamesBody();
+  },
+  cancelReschedule() {
+    setState({ rescheduleId: null });
+    refreshScheduledGamesBody();
+  },
+  async saveReschedule(id) {
+    const input = document.getElementById(`reschedule-at-${id}`);
+    const value = input?.value;
+    if (!value) return;
+    const at = new Date(value);
+    if (Number.isNaN(at.getTime())) {
+      setState({ scheduledGamesError: 'That date and time is not valid' });
+      refreshScheduledGamesBody();
+      return;
+    }
+    try {
+      await apiRescheduleGame(id, { scheduledAt: at.toISOString() });
+      setState({ rescheduleId: null, scheduledGamesError: null });
+    } catch (err) {
+      setState({ scheduledGamesError: err.message || 'Failed to update the game' });
+    }
+    await refreshScheduledGames();
+  },
+  async cancelScheduledGame(id) {
+    try {
+      await apiCancelScheduledGame(id);
+      setState({ scheduledGamesError: null });
+    } catch (err) {
+      setState({ scheduledGamesError: err.message || 'Failed to cancel the game' });
+    }
+    await refreshScheduledGames();
+  },
   lobbyEmailAuth() {
     captureLobbyDetails();
     setState({ lobbyStep: 'email-auth', loginError: null, loginNotice: null });
@@ -1142,7 +1359,14 @@ window.game = {
           return;
         }
       } catch (err) {
-        setState({ onlineError: err.message || 'Room not found' });
+        // A scheduled game has no live room to look up yet, so a miss here
+        // isn't a bad code — the player simply hasn't given a name.
+        const scheduled = getState().scheduledInfo;
+        setState({
+          onlineError: scheduled && scheduled.code === code.toUpperCase()
+            ? 'Please enter your name'
+            : (err.message || 'Room not found'),
+        });
         showScreen('join-game');
         return;
       }
@@ -1151,10 +1375,13 @@ window.game = {
     if (userId && !isDevName) {
       updateUserProfile({ display_name: name, birth_month: birthMonth, birth_day: birthDay });
     }
+    // Sent so the scheduler of a scheduled game is recognised and given the
+    // host seat; ignored for ordinary rooms. Never blocks the join.
+    const authToken = await getAuthToken().catch(() => null);
     try {
       await networkJoinRoom(
         code,
-        { name, birthMonth, birthDay, isDevName, userId },
+        { name, birthMonth, birthDay, isDevName, userId, authToken },
         () => { const s = getState(); if (s.screen === 'online-lobby') showScreen('online-lobby'); },
       );
       // Resync screen from room state — joins an in-progress game at the correct phase
@@ -1301,15 +1528,15 @@ window.game = {
   // re-render as players join.
   openHowToPlay() {
     setState({ showHowToPlay: true, howToPlayTab: 'setup' });
-    showScreen('online-lobby');
+    showScreen(howToPlayHost());
   },
   closeHowToPlay() {
     setState({ showHowToPlay: false });
-    showScreen('online-lobby');
+    showScreen(howToPlayHost());
   },
   setHowToPlayTab(tab) {
     setState({ howToPlayTab: tab === 'play' ? 'play' : 'setup' });
-    showScreen('online-lobby');
+    showScreen(howToPlayHost());
   },
   dismissHowToBanner() {
     markHowToBannerDismissed();
@@ -1355,6 +1582,149 @@ function captureLobbyDetails() {
   const birthMonth = parseInt(document.getElementById('online-birth-month')?.value ?? '', 10) || 0;
   const birthDay = parseInt(document.getElementById('online-birth-day')?.value ?? '', 10) || 0;
   setState({ lobbyDetails: { name, birthMonth, birthDay } });
+}
+
+/** Keep typed schedule values across the re-render that shows a validation error. */
+function captureScheduleDraft() {
+  const startsAt = document.getElementById('schedule-start-at')?.value || '';
+  const title = document.getElementById('schedule-title')?.value?.trim() || '';
+  const videoCallText = document.getElementById('schedule-video-call')?.value || '';
+  setState({ scheduleDraft: { startsAt, title, videoCallText } });
+}
+
+/**
+ * The event a calendar button should add, from whichever scheduled game the
+ * current screen is about: the one just created, the one being joined, or the
+ * one whose lobby we're sitting in.
+ */
+function currentCalendarEvent() {
+  const state = getState();
+  if (state.screen === 'scheduled-created' && state.scheduledGame) {
+    const g = state.scheduledGame;
+    return { title: g.title, joinUrl: buildJoinUrl(g.code), videoCall: g.videoCall, videoCallNotes: g.videoCallNotes, startsAt: g.scheduledAt };
+  }
+  if (state.screen === 'join-game' && state.scheduledInfo) {
+    const info = state.scheduledInfo;
+    return { title: info.title, joinUrl: buildJoinUrl(info.code), videoCall: info.videoCall, videoCallNotes: info.videoCallNotes, startsAt: info.scheduledAt };
+  }
+  if (state.scheduledAt && state.roomCode) {
+    return {
+      title: state.scheduledTitle,
+      joinUrl: buildJoinUrl(state.roomCode),
+      videoCall: state.videoCall,
+      videoCallNotes: state.videoCallNotes,
+      startsAt: state.scheduledAt,
+    };
+  }
+  return null;
+}
+
+/**
+ * Which screen re-renders when the how-to-play overlay opens or closes. The
+ * overlay draws on top of whatever screen offers it — leaving the lobby would
+ * drop the room on mobile — so it stays put whenever the current screen
+ * renders it, and falls back to the lobby for callers that don't.
+ */
+const HOW_TO_PLAY_SCREENS = ['online-lobby', 'join-game', 'scheduled-games'];
+function howToPlayHost() {
+  const screen = getState().screen;
+  return HOW_TO_PLAY_SCREENS.includes(screen) ? screen : 'online-lobby';
+}
+
+/** Collapse any open calendar menu once a choice has been made. */
+function closeCalendarMenus() {
+  document.querySelectorAll('.schedule__calendar-menu').forEach((menu) => {
+    menu.setAttribute('hidden', '');
+    menu.parentElement?.querySelector('.schedule__calendar-btn')?.setAttribute('aria-expanded', 'false');
+  });
+}
+
+/**
+ * Which account the menu's scheduled-game count was loaded for. Sign-in
+ * resolves after the first menu paint, so the fetch has to run again once
+ * authUser appears — but not on every visit to the menu.
+ */
+let _scheduledLoadedForUser = null;
+
+/** Force the next menu visit to refetch (a game was just added). */
+function invalidateScheduledGamesCache() {
+  _scheduledLoadedForUser = null;
+}
+
+/**
+ * Fetch the signed-in host's upcoming games so the menu can promote them.
+ * Re-renders only when the count changes, which keeps the render → fetch →
+ * render path from looping.
+ */
+function loadScheduledGamesForMenu() {
+  const userId = getState().authUser?.id ?? null;
+  if (!userId) {
+    _scheduledLoadedForUser = null;
+    if ((getState().scheduledGames || []).length > 0) {
+      setState({ scheduledGames: [] });
+      if (getState().screen === 'menu') showScreen('menu');
+    }
+    return;
+  }
+  if (_scheduledLoadedForUser === userId) return;
+  _scheduledLoadedForUser = userId;
+
+  fetchMyScheduledGames()
+    .then((games) => {
+      const before = (getState().scheduledGames || []).length;
+      setState({ scheduledGames: games });
+      if (games.length !== before && getState().screen === 'menu') showScreen('menu');
+    })
+    .catch(() => {
+      // A failed count just means no promoted button — never block the menu.
+      _scheduledLoadedForUser = null;
+    });
+}
+
+/** Reload the host's list and repaint it in place. */
+async function refreshScheduledGames() {
+  setState({ scheduledGamesLoading: true });
+  refreshScheduledGamesBody();
+  try {
+    const games = await fetchMyScheduledGames();
+    setState({ scheduledGames: games, scheduledGamesLoading: false });
+    // This list IS the menu's source, so the menu needn't refetch it.
+    _scheduledLoadedForUser = getState().authUser?.id ?? null;
+  } catch (err) {
+    setState({ scheduledGamesLoading: false, scheduledGamesError: err.message || 'Failed to load your scheduled games' });
+  }
+  refreshScheduledGamesBody();
+}
+
+function refreshScheduledGamesBody() {
+  const el = document.getElementById('scheduled-games-body');
+  if (!el) return;
+  el.innerHTML = renderScheduledGamesBody(getState());
+  // The repaint replaced every countdown element, so re-point the ticker.
+  syncScheduleCountdown();
+}
+
+/**
+ * Resolve a ?join= code against the scheduled-games API so the join screen can
+ * show the countdown, calendar buttons and rules before anyone commits to
+ * joining. A code that isn't scheduled simply leaves the banner off.
+ */
+async function loadScheduleInfoForCode(code) {
+  try {
+    const info = await lookupScheduledGame(code);
+    if (!info) return;
+    // Seed the shared video-call panel from the reservation so a player can
+    // open the call details before joining — there may be no room yet.
+    setState({
+      scheduledInfo: info,
+      videoCall: info.videoCall || [],
+      videoCallNotes: info.videoCallNotes || '',
+    });
+    const el = document.getElementById('join-schedule-banner');
+    if (el && getState().screen === 'join-game') showScreen('join-game');
+  } catch {
+    // A failed lookup just means no banner — never block the join form.
+  }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -1462,6 +1832,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const codeInput = document.getElementById('online-room-code');
       if (codeInput) codeInput.value = joinCode.toUpperCase();
     });
+    // A scheduled link is often opened days early — resolve it so the screen
+    // can offer the countdown, calendar and rules instead of a bare code box.
+    loadScheduleInfoForCode(joinCode.toUpperCase());
   } else if (authReturn) {
     // Returning from the mobile Google sign-in redirect — put the player back
     // where they were (e.g. Create Room details step, with their typed

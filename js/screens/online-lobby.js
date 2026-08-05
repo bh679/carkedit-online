@@ -8,6 +8,9 @@ import { renderAdvancedPanel, renderToggle } from './lobby.js';
 import { render as renderPackSelector } from '../components/pack-selector.js';
 import { renderHeaderCoBrand } from '../config/brand-config.js';
 import { renderHelpButton, renderFirstGameBanner, renderOverlay as renderHowToPlayOverlay } from '../components/how-to-play-overlay.js';
+import { formatStartTime, hasStarted } from '../utils/schedule-format.js';
+import { renderCalendarActions } from '../components/calendar-actions.js';
+import { renderCountdown } from '../components/countdown.js';
 import { renderCallButton } from '../components/video-call-panel.js';
 import { renderEditor as renderVideoCallEditor } from '../components/video-call-editor.js';
 
@@ -182,6 +185,9 @@ function renderCreateSectionInner(state, connecting) {
     `;
   }
 
+  // Scheduling opens its own screen rather than swapping this section: it
+  // collects different information (time, occasion, video call) and creates
+  // nothing immediately, so it isn't a variant of "create a room".
   return `
     ${heading}
     <button
@@ -190,6 +196,13 @@ function renderCreateSectionInner(state, connecting) {
       ${connecting ? 'disabled' : ''}
     >
       ${connecting ? 'Creating...' : 'Create Private Room'}
+    </button>
+    <button
+      class="btn btn--secondary online-lobby__action-btn"
+      onclick="window.game.openScheduleScreen()"
+      ${connecting ? 'disabled' : ''}
+    >
+      Schedule for Later
     </button>
   `;
 }
@@ -262,9 +275,42 @@ export function refreshCreateSection(state) {
     : renderCreateSectionInner(state, state.connectionStatus === 'connecting');
 }
 
+/**
+ * Pre-start banner for a scheduled game: how long to wait, how to put it in a
+ * calendar, and how the game works. Disappears the moment the start time
+ * arrives — from then on the lobby is an ordinary one.
+ */
+function renderScheduleBanner(state) {
+  const { scheduledAt, scheduledTitle } = state;
+  if (!scheduledAt) return '';
+
+  const titleHtml = scheduledTitle
+    ? `<span class="schedule__banner-title">${escapeHtml(scheduledTitle)}</span>`
+    : '';
+
+  // Once the countdown is spent the banner has nothing left to say. The call
+  // details stay reachable from the header button, in the lobby and in-game.
+  if (hasStarted(scheduledAt)) return '';
+
+  return `
+    <div class="schedule__banner">
+      ${titleHtml}
+      <span class="schedule__banner-when">${escapeHtml(formatStartTime(scheduledAt))}</span>
+      ${renderCountdown(scheduledAt)}
+      ${renderCalendarActions()}
+      <button class="btn btn--ghost schedule__how-btn" onclick="window.game.openHowToPlay()">
+        How to play
+      </button>
+    </div>
+  `;
+}
+
 function renderConnectedLobby(state) {
   const { roomCode, isHost, onlinePlayers, onlineSettings } = state;
   const allReady = onlinePlayers.length > 0 && onlinePlayers.every(p => p.ready);
+  // Before the scheduled time the host may still start early ("Start now");
+  // everyone else is told what they're waiting for.
+  const awaitingSchedule = !!state.scheduledAt && !hasStarted(state.scheduledAt);
 
   const playerListHtml = onlinePlayers.length === 0
     ? '<p class="online-lobby__empty">No players yet...</p>'
@@ -333,15 +379,18 @@ function renderConnectedLobby(state) {
           onclick="window.game.startOnlineGame()"
           ${onlinePlayers.length < 2 ? 'disabled' : ''}
         >
-          Start Game
+          ${awaitingSchedule ? 'Start Now' : 'Start Game'}
         </button>
        </div>`
     : `${readyBtn}
-       <p class="online-lobby__waiting">Waiting for The Funeral Director to start the game...</p>`;
+       <p class="online-lobby__waiting">${awaitingSchedule
+          ? 'Waiting for the scheduled start — The Funeral Director can begin early.'
+          : 'Waiting for The Funeral Director to start the game...'}</p>`;
 
   const boardContent = `
     <div class="online-lobby__connected">
       ${renderFirstGameBanner(state)}
+      ${renderScheduleBanner(state)}
       ${codeDisplay}
       <div class="online-lobby__divider"></div>
       <h2 class="online-lobby__heading">${onlinePlayers.length > 1 ? `${onlinePlayers.length} ` : ''}Players${onlinePlayers.length < 3 ? ' <span class="online-lobby__heading-note">— Minimum 3</span>' : ''}</h2>
