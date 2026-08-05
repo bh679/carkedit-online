@@ -158,6 +158,20 @@ test('labels a dial-in with its region when the line names one', () => {
   assert.equal(phones(result)[0].label, 'US Tacoma');
 });
 
+test('a sentence containing a link and a number is kept whole in the instructions', () => {
+  const text = 'Hop on https://meet.google.com/abc-defg-hij around 7pm, or call me on +61 2 8015 6011 if you get stuck.';
+  const result = parseVideoCallText(text);
+  assert.equal(links(result).length, 1);
+  assert.equal(phones(result).length, 1);
+  // The sentence must still read as a sentence — not "Hop on around 7pm, or call me on if…"
+  assert.equal(result.notes, text);
+});
+
+test('label-style lines are dropped from the instructions, not half-kept', () => {
+  const result = parseVideoCallText('Meeting ID: 812 3456 7890\nPasscode: 481522');
+  assert.equal(result.notes, '');
+});
+
 test('text with no link or number is all instructions', () => {
   const result = parseVideoCallText('We are using the usual Zoom room.\nAsk Brennan for the link.');
   assert.equal(result.entries.length, 0);

@@ -271,8 +271,13 @@ export function parseVideoCallText(text) {
     rest = extractPhones(rest, entries, seen);
     const usedAsLabel = labelPhonesFromLine(rest, entries, before);
 
-    const leftover = usedAsLabel ? '' : cleanLeftover(rest);
-    noteLines.push(leftover);
+    // A line is never kept in half. If nothing meaningful survives extraction
+    // it's dropped; if real prose survives, the ORIGINAL line is kept, link and
+    // number included — cutting them out of a sentence ("Hop on around 7pm, or
+    // call me on if you get stuck") reads as nonsense. The duplication is
+    // deliberate: the buttons are for tapping, the sentence is for reading.
+    const survives = !usedAsLabel && cleanLeftover(rest) !== '';
+    noteLines.push(survives ? rawLine.replace(/\s+/g, ' ').trim() : '');
   }
 
   deriveZoomMeetingId(entries, seen);
