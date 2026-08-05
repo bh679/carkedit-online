@@ -1,7 +1,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildIcs, googleCalendarUrl } from './calendar.js';
+import { buildIcs, googleCalendarUrl, outlookCalendarUrl } from './calendar.js';
 
 const EVENT = {
   title: 'Nan, Bob & Co',
@@ -87,5 +87,27 @@ describe('googleCalendarUrl', () => {
     assert.equal(url.searchParams.get('location'), call);
     assert.ok(url.searchParams.get('details').includes(call));
     assert.ok(url.searchParams.get('details').includes(EVENT.joinUrl));
+  });
+});
+
+describe('outlookCalendarUrl', () => {
+  test('builds a compose deeplink with ISO-8601 start/end', () => {
+    const url = new URL(outlookCalendarUrl(EVENT));
+    assert.equal(url.origin + url.pathname, 'https://outlook.live.com/calendar/0/deeplink/compose');
+    assert.equal(url.searchParams.get('rru'), 'addevent');
+    assert.equal(url.searchParams.get('subject'), EVENT.title);
+    // Outlook wants full ISO-8601, not the compact basic format ICS/Google use.
+    assert.equal(url.searchParams.get('startdt'), '2026-08-08T09:30:00.000Z');
+    assert.equal(url.searchParams.get('enddt'), '2026-08-08T11:00:00.000Z');
+  });
+
+  test('carries the join link, and the call as location when present', () => {
+    const plain = new URL(outlookCalendarUrl(EVENT));
+    assert.equal(plain.searchParams.get('location'), EVENT.joinUrl);
+
+    const call = 'https://meet.google.com/abc-defg-hij';
+    const withCall = new URL(outlookCalendarUrl({ ...EVENT, videoUrl: call }));
+    assert.equal(withCall.searchParams.get('location'), call);
+    assert.ok(withCall.searchParams.get('body').includes(EVENT.joinUrl));
   });
 });

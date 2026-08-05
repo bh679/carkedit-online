@@ -26,9 +26,8 @@ import {
   cancelScheduledGame as apiCancelScheduledGame,
   buildJoinUrl,
 } from './managers/scheduled-games.js';
-import { downloadIcs, googleCalendarUrl } from './utils/calendar.js';
-import { startScheduleCountdown, clearScheduleCountdown } from './managers/schedule-countdown.js';
-import { hasStarted } from './utils/schedule-format.js';
+import { downloadIcs, googleCalendarUrl, outlookCalendarUrl } from './utils/calendar.js';
+import { startScheduleCountdown } from './managers/schedule-countdown.js';
 import { saveGameToHistory, getGameHistory, syncWithServer } from './managers/game-history.js';
 import { shuffle } from './utils/shuffle.js';
 import { escapeHtml } from './utils/escape.js';
@@ -128,7 +127,7 @@ export function showScreen(name, updates = {}) {
     startPreload();
   }
 
-  syncScheduleCountdown(name, state);
+  syncScheduleCountdown();
 
   // Load expansion packs the first time we enter the online lobby in this session.
   if (name === 'online-lobby' && !_packsLoadedForLobby) {
@@ -163,23 +162,13 @@ export function showScreen(name, updates = {}) {
 let _packsLoadedForLobby = false;
 
 /**
- * Keep the once-a-second countdown running only while a screen is actually
- * showing one. When the start time arrives the lobby re-renders itself, which
- * swaps the banner for the ordinary start controls.
+ * Keep the once-a-second ticker running only while the screen actually shows a
+ * countdown. The ticker finds its own targets in the DOM, so this needs no
+ * per-screen knowledge; when a start time arrives it re-renders, which decides
+ * what (if anything) still counts down.
  */
-function syncScheduleCountdown(screen, state) {
-  const at = screen === 'online-lobby'
-    ? state.scheduledAt
-    : (screen === 'join-game' ? state.scheduledInfo?.scheduledAt : null);
-
-  if (!at || hasStarted(at)) {
-    clearScheduleCountdown();
-    return;
-  }
-  startScheduleCountdown(at, () => {
-    const s = getState();
-    if (s.screen === 'online-lobby' || s.screen === 'join-game') showScreen(s.screen);
-  });
+function syncScheduleCountdown() {
+  startScheduleCountdown(() => showScreen(getState().screen));
 }
 
 function refreshAdvancedPanel() {
@@ -1044,13 +1033,33 @@ window.game = {
       }
     }).catch(() => {});
   },
+  /**
+   * Reveal the calendar choices in place. Toggled on the DOM rather than via
+   * state so the surrounding screen — and its running countdown — isn't
+   * re-rendered just to open a menu.
+   */
+  toggleCalendarMenu(event) {
+    const btn = event?.currentTarget;
+    const menu = btn?.parentElement?.querySelector('.schedule__calendar-menu');
+    if (!menu) return;
+    const open = menu.hasAttribute('hidden');
+    menu.toggleAttribute('hidden', !open);
+    btn.setAttribute('aria-expanded', String(open));
+  },
   downloadScheduleIcs() {
     const opts = currentCalendarEvent();
     if (opts) downloadIcs(opts);
+    closeCalendarMenus();
   },
   openGoogleCalendar() {
     const opts = currentCalendarEvent();
     if (opts) window.open(googleCalendarUrl(opts), '_blank', 'noopener');
+    closeCalendarMenus();
+  },
+  openOutlookCalendar() {
+    const opts = currentCalendarEvent();
+    if (opts) window.open(outlookCalendarUrl(opts), '_blank', 'noopener');
+    closeCalendarMenus();
   },
   async openScheduledGames() {
     setState({ scheduledGamesLoading: true, scheduledGamesError: null, rescheduleId: null });
@@ -1329,15 +1338,15 @@ window.game = {
   // re-render as players join.
   openHowToPlay() {
     setState({ showHowToPlay: true, howToPlayTab: 'setup' });
-    showScreen('online-lobby');
+    showScreen(howToPlayHost());
   },
   closeHowToPlay() {
     setState({ showHowToPlay: false });
-    showScreen('online-lobby');
+    showScreen(howToPlayHost());
   },
   setHowToPlayTab(tab) {
     setState({ howToPlayTab: tab === 'play' ? 'play' : 'setup' });
-    showScreen('online-lobby');
+    showScreen(howToPlayHost());
   },
   dismissHowToBanner() {
     markHowToBannerDismissed();
@@ -1419,6 +1428,26 @@ function currentCalendarEvent() {
   return null;
 }
 
+/**
+ * Which screen re-renders when the how-to-play overlay opens or closes. The
+ * overlay draws on top of whatever screen offers it — leaving the lobby would
+ * drop the room on mobile — so it stays put whenever the current screen
+ * renders it, and falls back to the lobby for callers that don't.
+ */
+const HOW_TO_PLAY_SCREENS = ['online-lobby', 'join-game', 'scheduled-games'];
+function howToPlayHost() {
+  const screen = getState().screen;
+  return HOW_TO_PLAY_SCREENS.includes(screen) ? screen : 'online-lobby';
+}
+
+/** Collapse any open calendar menu once a choice has been made. */
+function closeCalendarMenus() {
+  document.querySelectorAll('.schedule__calendar-menu').forEach((menu) => {
+    menu.setAttribute('hidden', '');
+    menu.parentElement?.querySelector('.schedule__calendar-btn')?.setAttribute('aria-expanded', 'false');
+  });
+}
+
 /** Reload the host's list and repaint it in place. */
 async function refreshScheduledGames() {
   setState({ scheduledGamesLoading: true });
@@ -1434,7 +1463,10 @@ async function refreshScheduledGames() {
 
 function refreshScheduledGamesBody() {
   const el = document.getElementById('scheduled-games-body');
-  if (el) el.innerHTML = renderScheduledGamesBody(getState());
+  if (!el) return;
+  el.innerHTML = renderScheduledGamesBody(getState());
+  // The repaint replaced every countdown element, so re-point the ticker.
+  syncScheduleCountdown();
 }
 
 /**

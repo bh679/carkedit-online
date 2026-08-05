@@ -8,8 +8,9 @@ import { renderAdvancedPanel, renderToggle } from './lobby.js';
 import { render as renderPackSelector } from '../components/pack-selector.js';
 import { renderHeaderCoBrand } from '../config/brand-config.js';
 import { renderHelpButton, renderFirstGameBanner, renderOverlay as renderHowToPlayOverlay } from '../components/how-to-play-overlay.js';
-import { formatStartTime, formatCountdown, msUntil, hasStarted } from '../utils/schedule-format.js';
+import { formatStartTime, hasStarted } from '../utils/schedule-format.js';
 import { renderCalendarActions } from '../components/calendar-actions.js';
+import { renderCountdown } from '../components/countdown.js';
 import { renderVideoCallLink } from '../components/video-call-link.js';
 
 const LINK_ICON = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -299,9 +300,8 @@ function renderScheduleBanner(state) {
   return `
     <div class="schedule__banner">
       ${titleHtml}
-      <span class="schedule__banner-label">Starts in</span>
-      <span class="online-lobby__countdown-value schedule__banner-countdown">${formatCountdown(msUntil(scheduledAt))}</span>
       <span class="schedule__banner-when">${escapeHtml(formatStartTime(scheduledAt))}</span>
+      ${renderCountdown(scheduledAt)}
       ${renderCalendarActions()}
       ${renderVideoCallLink(scheduledVideoUrl)}
       <button class="btn btn--ghost schedule__how-btn" onclick="window.game.openHowToPlay()">

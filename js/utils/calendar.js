@@ -107,6 +107,24 @@ export function downloadIcs(opts) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+/**
+ * One-click "add to Outlook" URL (outlook.com / Microsoft 365 web calendar).
+ * Outlook wants ISO-8601 with offsets rather than the compact basic format
+ * Google and ICS use.
+ */
+export function outlookCalendarUrl({ title, joinUrl, videoUrl, startsAt, durationMinutes = DEFAULT_DURATION_MINUTES }) {
+  const params = new URLSearchParams({
+    path: '/calendar/action/compose',
+    rru: 'addevent',
+    subject: title || 'CarkedIt game',
+    startdt: new Date(startsAt).toISOString(),
+    enddt: endFor(startsAt, durationMinutes).toISOString(),
+    body: eventDescription(joinUrl, videoUrl),
+    location: eventLocation(joinUrl, videoUrl),
+  });
+  return `https://outlook.live.com/calendar/0/deeplink/compose?${params.toString()}`;
+}
+
 /** One-click "add to Google Calendar" URL. */
 export function googleCalendarUrl({ title, joinUrl, videoUrl, startsAt, durationMinutes = DEFAULT_DURATION_MINUTES }) {
   const params = new URLSearchParams({

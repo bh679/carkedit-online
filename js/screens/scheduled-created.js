@@ -9,6 +9,7 @@ import { render as renderGameboard } from '../components/gameboard.js';
 import { render as renderPhaseHeader } from '../components/phase-header.js';
 import { renderCalendarActions } from '../components/calendar-actions.js';
 import { renderVideoCallLink } from '../components/video-call-link.js';
+import { renderCountdown } from '../components/countdown.js';
 import { formatStartTime } from '../utils/schedule-format.js';
 import { escapeHtml } from '../utils/escape.js';
 
@@ -35,6 +36,7 @@ export function render(state) {
       <h2 class="online-lobby__heading">Game Scheduled</h2>
       ${titleHtml}
       <p class="schedule__created-when">${escapeHtml(formatStartTime(game.scheduledAt))}</p>
+      <p class="schedule__created-countdown">${renderCountdown(game.scheduledAt)}</p>
 
       <div class="online-lobby__room-code" onclick="window.game.copyScheduledLink()" style="cursor:pointer" title="Click to copy join link">
         <span class="online-lobby__code-label">Room Code</span>

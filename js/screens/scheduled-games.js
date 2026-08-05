@@ -7,6 +7,8 @@
 
 import { render as renderGameboard } from '../components/gameboard.js';
 import { render as renderPhaseHeader } from '../components/phase-header.js';
+import { renderOverlay as renderHowToPlayOverlay } from '../components/how-to-play-overlay.js';
+import { renderCountdown } from '../components/countdown.js';
 import { formatStartTime } from '../utils/schedule-format.js';
 import { escapeHtml } from '../utils/escape.js';
 
@@ -26,6 +28,7 @@ export function render(state) {
       <div class="online-lobby__actions">
         <button class="btn mode-select__back-btn" onclick="window.game.showScreen('menu')">&larr; Back to Menu</button>
       </div>
+      ${state.showHowToPlay ? renderHowToPlayOverlay(state) : ''}
     </div>
   `;
 }
@@ -44,7 +47,7 @@ export function renderBody(state) {
   const games = state.scheduledGames || [];
   if (games.length === 0) {
     return `
-      <h2 class="online-lobby__heading">Scheduled Games</h2>
+      ${renderHeading()}
       <p class="online-lobby__empty">You have no upcoming games.</p>
       <button class="btn btn--primary online-lobby__action-btn" onclick="window.game.openOnlineLobby()">
         Schedule One
@@ -53,9 +56,25 @@ export function renderBody(state) {
   }
 
   return `
-    <h2 class="online-lobby__heading">Scheduled Games</h2>
+    ${renderHeading()}
     <div class="schedule__list">
       ${games.map((g) => renderRow(g, state)).join('')}
+    </div>
+  `;
+}
+
+/**
+ * The same instructions overlay the lobby offers. A host arranging a game days
+ * ahead is often the one who has to explain it to everyone else, so the rules
+ * belong here too — not only once everybody has arrived.
+ */
+function renderHeading() {
+  return `
+    <div class="schedule__list-head">
+      <h2 class="online-lobby__heading">Scheduled Games</h2>
+      <button class="btn btn--ghost schedule__how-btn" onclick="window.game.openHowToPlay()">
+        How to play
+      </button>
     </div>
   `;
 }
@@ -113,7 +132,10 @@ function renderRow(game, state) {
         <span class="schedule__row-status schedule__row-status--${escapeHtml(game.status)}">${escapeHtml(status)}</span>
       </div>
       ${titleHtml}
-      <span class="schedule__row-when">${escapeHtml(formatStartTime(game.scheduledAt))}</span>
+      <span class="schedule__row-when">
+        ${escapeHtml(formatStartTime(game.scheduledAt))}
+        ${renderCountdown(game.scheduledAt, { compact: true })}
+      </span>
       ${editHtml}
     </div>
   `;
