@@ -3,6 +3,60 @@
 
 import { render as renderGameboard } from '../components/gameboard.js';
 import { render as renderPhaseHeader } from '../components/phase-header.js';
+import { renderCalendarActions } from '../components/calendar-actions.js';
+import { formatStartTime, formatCountdown, msUntil, hasStarted } from '../utils/schedule-format.js';
+
+const UNAVAILABLE_MESSAGES = {
+  ended: 'This game has already been played.',
+  cancelled: 'The host cancelled this game.',
+  expired: 'This game link has expired.',
+};
+
+/**
+ * A scheduled link is usually opened long before the game — often by someone
+ * who can't play right now. So the countdown, the calendar buttons and the
+ * rules are offered BEFORE the join form, and are useful without joining.
+ */
+function renderScheduleBanner(state) {
+  const info = state.scheduledInfo;
+  if (!info) return '';
+
+  const unavailable = UNAVAILABLE_MESSAGES[info.status];
+  if (unavailable) {
+    return `<div class="schedule__banner schedule__banner--closed">
+        <span class="schedule__banner-label">${escapeHtml(unavailable)}</span>
+      </div>`;
+  }
+
+  const titleHtml = info.title
+    ? `<span class="schedule__banner-title">${escapeHtml(info.title)}</span>`
+    : '';
+
+  if (hasStarted(info.scheduledAt)) {
+    return `
+      <div class="schedule__banner">
+        ${titleHtml}
+        <span class="schedule__banner-label">Starting now — join in</span>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="schedule__banner">
+      ${titleHtml}
+      <span class="schedule__banner-label">Starts in</span>
+      <span class="online-lobby__countdown-value schedule__banner-countdown">${formatCountdown(msUntil(info.scheduledAt))}</span>
+      <span class="schedule__banner-when">${escapeHtml(formatStartTime(info.scheduledAt))}</span>
+      ${renderCalendarActions()}
+      <button class="btn btn--ghost schedule__how-btn" onclick="window.game.openHowToPlay()">
+        How to play
+      </button>
+      <p class="online-lobby__field-note">
+        You can join now and wait in the lobby — the host may start early.
+      </p>
+    </div>
+  `;
+}
 
 /**
  * @param {object} state
@@ -21,6 +75,7 @@ export function render(state) {
 
   const boardContent = `
     <div class="online-lobby__forms">
+      <div id="join-schedule-banner">${renderScheduleBanner(state)}</div>
       <h2 class="online-lobby__heading">Your Details</h2>
       <input
         type="text"

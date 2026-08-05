@@ -1,0 +1,167 @@
+/* CarkedIt Online — Scheduled games (create form, countdown banner, host list) */
+
+/* Native date/time picker chrome inherits the dark scheme from base.css. */
+.schedule__datetime {
+  width: 100%;
+}
+
+/* ── Countdown banner ───────────────────────────────
+   Shown above the room code in a waiting lobby, and above the join form when a
+   scheduled link is opened early. Deliberately the loudest thing on screen —
+   before the game exists, the time IS the content. */
+.schedule__banner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-md);
+  background: var(--color-primary-subtle);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+
+.schedule__banner--closed {
+  background: var(--color-input-bg);
+}
+
+.schedule__banner-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.schedule__banner-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.schedule__banner-countdown {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--color-primary);
+  /* Tabular figures stop the countdown jittering as digits change each second. */
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.05em;
+}
+
+.schedule__banner-when {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.schedule__calendar-row {
+  display: flex;
+  gap: var(--space-sm);
+  width: 100%;
+  margin-top: var(--space-xs);
+}
+
+/* Both labels must stay on one line at 375px, so trim the default .btn
+   padding rather than let "Add to Calendar" wrap into two rows. */
+.schedule__calendar-btn {
+  flex: 1;
+  padding: 0.75rem 0.5rem;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.schedule__how-btn {
+  font-size: 0.8rem;
+}
+
+/* ── Confirmation screen ────────────────────────── */
+.schedule__created-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text);
+  text-align: center;
+}
+
+.schedule__created-when {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  text-align: center;
+}
+
+/* ── Host list ──────────────────────────────────── */
+.schedule__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.schedule__row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-md);
+  background: var(--color-input-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.schedule__row-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.schedule__row-code {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--color-primary);
+  letter-spacing: 0.15em;
+}
+
+.schedule__row-status {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* A lobby with people already in it is the one state worth calling out. */
+.schedule__row-status--live {
+  color: var(--color-live);
+}
+
+.schedule__row-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.schedule__row-when {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.schedule__row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-top: var(--space-xs);
+}
+
+.schedule__row-actions .btn {
+  flex: 1;
+  min-width: 7rem;
+  font-size: 0.8rem;
+}
+
+.schedule__row-edit {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin-top: var(--space-xs);
+}
+
+.schedule__cancel-btn {
+  color: var(--color-danger);
+}

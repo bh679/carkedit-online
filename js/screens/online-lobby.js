@@ -8,6 +8,8 @@ import { renderAdvancedPanel, renderToggle } from './lobby.js';
 import { render as renderPackSelector } from '../components/pack-selector.js';
 import { renderHeaderCoBrand } from '../config/brand-config.js';
 import { renderHelpButton, renderFirstGameBanner, renderOverlay as renderHowToPlayOverlay } from '../components/how-to-play-overlay.js';
+import { formatStartTime, formatCountdown, msUntil, hasStarted } from '../utils/schedule-format.js';
+import { renderCalendarActions } from '../components/calendar-actions.js';
 
 const LINK_ICON = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
   <path d="M6.5 9.5L9.5 6.5" stroke="#374151" stroke-width="1.5" stroke-linecap="round"/>
@@ -180,6 +182,10 @@ function renderCreateSectionInner(state, connecting) {
     `;
   }
 
+  if (state.lobbyCreateMode === 'schedule') {
+    return renderScheduleInner(state, connecting);
+  }
+
   return `
     ${heading}
     <button
@@ -189,7 +195,72 @@ function renderCreateSectionInner(state, connecting) {
     >
       ${connecting ? 'Creating...' : 'Create Private Room'}
     </button>
+    <button
+      class="btn btn--secondary online-lobby__action-btn"
+      onclick="window.game.openScheduleForm()"
+      ${connecting ? 'disabled' : ''}
+    >
+      Schedule for Later
+    </button>
   `;
+}
+
+/**
+ * Scheduling form. Nothing is created until the host confirms — a scheduled
+ * game reserves a code server-side instead of opening a room, so this is a
+ * plain form rather than a variant of the create button.
+ */
+function renderScheduleInner(state, connecting) {
+  const typed = state.scheduleDraft || {};
+  const errorHtml = state.scheduleError
+    ? `<p class="online-lobby__error">${escapeHtml(state.scheduleError)}</p>`
+    : '';
+
+  return `
+    <h2 class="online-lobby__heading">Schedule a Game</h2>
+    <p class="online-lobby__field-note">
+      Pick a time and we'll give you a link to share now. It keeps working
+      until 24 hours after the game starts.
+    </p>
+    <input
+      type="datetime-local"
+      id="schedule-start-at"
+      class="input schedule__datetime"
+      min="${escapeHtml(localDateTimeValue(Date.now() + 5 * 60_000))}"
+      value="${escapeHtml(typed.startsAt || localDateTimeValue(Date.now() + 60 * 60_000))}"
+      ${connecting ? 'disabled' : ''}
+    >
+    <input
+      type="text"
+      id="schedule-title"
+      class="input"
+      maxlength="60"
+      placeholder="What's the occasion? (optional)"
+      value="${escapeHtml(typed.title || '')}"
+      ${connecting ? 'disabled' : ''}
+    >
+    ${errorHtml}
+    <button
+      class="btn btn--primary online-lobby__action-btn"
+      onclick="window.game.scheduleRoom(event)"
+      ${connecting ? 'disabled' : ''}
+    >
+      ${connecting ? 'Scheduling...' : 'Schedule Game'}
+    </button>
+    <button class="btn btn--ghost online-lobby__action-btn" onclick="window.game.closeScheduleForm()">
+      Cancel
+    </button>
+  `;
+}
+
+/**
+ * `datetime-local` speaks local wall-clock time with no zone, so build its
+ * value from the local parts rather than slicing an ISO (UTC) string.
+ */
+function localDateTimeValue(ms) {
+  const d = new Date(ms);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 /**
@@ -260,9 +331,37 @@ export function refreshCreateSection(state) {
     : renderCreateSectionInner(state, state.connectionStatus === 'connecting');
 }
 
+/**
+ * Pre-start banner for a scheduled game: how long to wait, how to put it in a
+ * calendar, and how the game works. Disappears the moment the start time
+ * arrives — from then on the lobby is an ordinary one.
+ */
+function renderScheduleBanner(state) {
+  const { scheduledAt, scheduledTitle } = state;
+  if (!scheduledAt || hasStarted(scheduledAt)) return '';
+  const titleHtml = scheduledTitle
+    ? `<span class="schedule__banner-title">${escapeHtml(scheduledTitle)}</span>`
+    : '';
+  return `
+    <div class="schedule__banner">
+      ${titleHtml}
+      <span class="schedule__banner-label">Starts in</span>
+      <span class="online-lobby__countdown-value schedule__banner-countdown">${formatCountdown(msUntil(scheduledAt))}</span>
+      <span class="schedule__banner-when">${escapeHtml(formatStartTime(scheduledAt))}</span>
+      ${renderCalendarActions()}
+      <button class="btn btn--ghost schedule__how-btn" onclick="window.game.openHowToPlay()">
+        How to play
+      </button>
+    </div>
+  `;
+}
+
 function renderConnectedLobby(state) {
   const { roomCode, isHost, onlinePlayers, onlineSettings } = state;
   const allReady = onlinePlayers.length > 0 && onlinePlayers.every(p => p.ready);
+  // Before the scheduled time the host may still start early ("Start now");
+  // everyone else is told what they're waiting for.
+  const awaitingSchedule = !!state.scheduledAt && !hasStarted(state.scheduledAt);
 
   const playerListHtml = onlinePlayers.length === 0
     ? '<p class="online-lobby__empty">No players yet...</p>'
@@ -331,15 +430,18 @@ function renderConnectedLobby(state) {
           onclick="window.game.startOnlineGame()"
           ${onlinePlayers.length < 2 ? 'disabled' : ''}
         >
-          Start Game
+          ${awaitingSchedule ? 'Start Now' : 'Start Game'}
         </button>
        </div>`
     : `${readyBtn}
-       <p class="online-lobby__waiting">Waiting for The Funeral Director to start the game...</p>`;
+       <p class="online-lobby__waiting">${awaitingSchedule
+          ? 'Waiting for the scheduled start — The Funeral Director can begin early.'
+          : 'Waiting for The Funeral Director to start the game...'}</p>`;
 
   const boardContent = `
     <div class="online-lobby__connected">
       ${renderFirstGameBanner(state)}
+      ${renderScheduleBanner(state)}
       ${codeDisplay}
       <div class="online-lobby__divider"></div>
       <h2 class="online-lobby__heading">${onlinePlayers.length > 1 ? `${onlinePlayers.length} ` : ''}Players${onlinePlayers.length < 3 ? ' <span class="online-lobby__heading-note">— Minimum 3</span>' : ''}</h2>

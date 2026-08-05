@@ -496,6 +496,14 @@ function setupRoomListeners(room, onUpdate) {
     if (onUpdate) onUpdate(syncPlayersFromRoom(room));
   });
 
+  // The host seat can move after everyone has joined: in a scheduled game the
+  // first arrival holds it only until the scheduler turns up. Every client
+  // needs to see that swap, not just the two players involved.
+  $(room.state).listen('hostId', (value) => {
+    setState({ isHost: value === room.sessionId });
+    if (onUpdate) onUpdate(syncPlayersFromRoom(room));
+  });
+
   // Listen for game settings changes (synced from server to local gameSettings)
   const settingKeys = [
     'rounds', 'handSize', 'enableDie', 'enableLive', 'enableBye', 'enableEulogy',
@@ -941,6 +949,8 @@ export async function createRoom({ name, birthMonth, birthDay, isPrivate = true,
       connectionStatus: 'connected',
       isHost: true,
       roomCode: room.state?.roomCode || null,
+      scheduledAt: null,
+      scheduledTitle: '',
       gameMode: 'online',
       onlinePlayers: syncPlayersFromRoom(room),
       mySessionId: room.sessionId,
@@ -966,18 +976,38 @@ export async function createRoom({ name, birthMonth, birthDay, isPrivate = true,
   }
 }
 
-export async function joinRoom(code, { name, birthMonth, birthDay, isDevName = false, userId = '' }, onUpdate) {
+/**
+ * Map a code to a joinable roomId. A scheduled game usually has no room
+ * running — its reservation lives in the DB — so when the live-room lookup
+ * misses we ask the server to spin one up from the reservation. That request
+ * is also what lets a guest open the waiting room before the host arrives.
+ */
+async function resolveRoomId(code) {
+  const upper = code.toUpperCase();
+  const res = await fetch(`${_restBaseUrl}/api/carkedit/rooms/lookup?code=${encodeURIComponent(upper)}`);
+  if (res.ok) return (await res.json()).roomId;
+  if (res.status !== 404) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Room not found (${res.status})`);
+  }
+
+  const scheduled = await fetch(`${_restBaseUrl}/api/carkedit/scheduled/${encodeURIComponent(upper)}/room`, {
+    method: 'POST',
+  });
+  if (!scheduled.ok) {
+    const body = await scheduled.json().catch(() => ({}));
+    // 404 here means the code isn't a scheduled game either — report the
+    // plain "not found" a player expects from a mistyped code.
+    throw new Error(body.error || (scheduled.status === 404 ? 'Room not found' : 'Could not open the game room'));
+  }
+  return (await scheduled.json()).roomId;
+}
+
+export async function joinRoom(code, { name, birthMonth, birthDay, isDevName = false, userId = '', authToken = null }, onUpdate) {
   setState({ connectionStatus: 'connecting', onlineError: null });
   try {
     await loadConfig();
-    const lookupUrl = `${_restBaseUrl}/api/carkedit/rooms/lookup?code=${encodeURIComponent(code.toUpperCase())}`;
-    const res = await fetch(lookupUrl);
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new Error(body.error || `Room not found (${res.status})`);
-    }
-    const lookupData = await res.json();
-    const { roomId } = lookupData;
+    const roomId = await resolveRoomId(code);
 
     const client = await getColyseusClient();
     const room = await client.joinById(roomId, {
@@ -986,6 +1016,10 @@ export async function joinRoom(code, { name, birthMonth, birthDay, isDevName = f
       birthDay: birthDay || 0,
       isDevName,
       userId,
+      // Only meaningful for a scheduled game: proves this joiner is the account
+      // that scheduled it, so they take the host seat back from whoever opened
+      // the lobby first.
+      authToken: authToken || undefined,
     });
     _room = room;
 
@@ -994,8 +1028,12 @@ export async function joinRoom(code, { name, birthMonth, birthDay, isDevName = f
     const state = getState();
     setState({
       connectionStatus: 'connected',
-      isHost: false,
+      // Normally false, but the scheduler of a scheduled game is handed the
+      // host seat on join — trust the server's hostId rather than assuming.
+      isHost: room.state?.hostId === room.sessionId,
       roomCode: code.toUpperCase(),
+      scheduledAt: room.state?.scheduledAt || null,
+      scheduledTitle: room.state?.scheduledTitle || '',
       gameMode: 'online',
       onlinePlayers: syncPlayersFromRoom(room),
       mySessionId: room.sessionId,
@@ -1118,6 +1156,8 @@ export async function leaveRoom() {
     connectionStatus: 'disconnected',
     isHost: false,
     roomCode: null,
+    scheduledAt: null,
+    scheduledTitle: '',
     gameMode: 'local',
     onlinePlayers: [],
     onlineError: null,

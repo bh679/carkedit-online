@@ -49,6 +49,7 @@ const HOW_TO_PLAY_BTN = `<a class="btn btn--secondary menu__site-link" href="how
 const EXPANSIONS_BTN = `<a class="btn btn--secondary menu__site-link" href="expansions">Expansions</a>`;
 // Links to the evangelist pricing page (404s until that feature merges).
 const PARTNER_BTN = `<a class="btn btn--secondary menu__site-link" href="evangelist-pricing">Partner</a>`;
+const SCHEDULED_GAMES_BTN = `<button class="btn btn--secondary" onclick="window.game.openScheduledGames()">Scheduled Games</button>`;
 
 /**
  * The middle of the menu: a promoted primary action followed by the collapsible
@@ -65,10 +66,15 @@ function renderMenuMiddle(state) {
   const hasAnyBrand = Array.isArray(state.myBrands) && state.myBrands.length > 0;
   const partner = (state.authUser && !hasAnyBrand) ? PARTNER_BTN : null;
 
+  // Only hosts have scheduled games, so the entry point only appears once
+  // signed in — for everyone else it would always lead to an empty list.
+  const scheduled = state.authUser ? SCHEDULED_GAMES_BTN : null;
+
   const primary = brandBtn || HOW_TO_PLAY_BTN;
   const secondary = [
     brandBtn ? HOW_TO_PLAY_BTN : null,
     EXPANSIONS_BTN,
+    scheduled,
     partner,
     manageAccount,
   ].filter(Boolean);
