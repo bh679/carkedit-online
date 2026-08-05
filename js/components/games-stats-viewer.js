@@ -23,9 +23,10 @@ import {
   renderGameFilters, renderStatusChips, renderDurationChips, renderPlayerChips,
 } from './game-filters.js';
 import {
-  maskName, isMobile, formatDuration, formatDurationCompact, formatDateTime,
+  isMobile, formatDuration, formatDurationCompact, formatDateTime,
   formatTimeAgo, statusLabel, liveStatusLabel, statusDot, rowClass, ICON_PERSON,
 } from '../utils/dashboard-format.js';
+import { escapeHtml } from '../utils/escape.js';
 
 export function mountGamesStats(rootEl, opts = {}) {
   const {
@@ -128,7 +129,7 @@ export function mountGamesStats(rootEl, opts = {}) {
       <div class="dashboard__card ${cls}" onclick="window.${ns}.toggleGame('${game.id}')">
         <div class="dashboard__card-row">
           <span class="dashboard__cell dashboard__cell--date">${dateDisplay}</span>
-          <span class="dashboard__cell dashboard__cell--host">${maskName(game.host_name)}</span>
+          <span class="dashboard__cell dashboard__cell--host">${escapeHtml(game.host_name)}</span>
           <span class="dashboard__cell dashboard__cell--players">${playersDisplay}</span>
           <span class="dashboard__cell dashboard__cell--time">${playTime}</span>
           <span class="dashboard__cell dashboard__cell--status">${statusLabel(game.status)}</span>

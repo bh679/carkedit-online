@@ -12,6 +12,7 @@ import {
 import { getFirebaseConfig, getProdFirebaseConfig } from './firebase-config.js';
 import { renderGameDetail, init as initGameDetail } from './components/game-detail.js';
 import { getOrCreate as registryGetOrCreate } from './data/CardRegistry.js';
+import { escapeHtml } from './utils/escape.js';
 
 await guardPage('stats-games').catch((err) => { throw err; });
 
@@ -184,10 +185,7 @@ async function doSignOut() {
   renderGate('Sign in to view stats.', true);
 }
 
-function maskName(name) {
-  if (!name || name.length <= 1) return '*';
-  return name[0] + '*'.repeat(name.length - 1);
-}
+// Names arrive pre-masked from the API for non-Admin viewers; escape only.
 
 const isMobile = () => window.matchMedia('(max-width: 768px)').matches;
 
@@ -577,7 +575,7 @@ function renderGameCard(game) {
     <div class="dashboard__card ${cls}" onclick="window.statsGames.toggleGame('${game.id}')">
       <div class="dashboard__card-row">
         <span class="dashboard__cell dashboard__cell--date">${dateDisplay}</span>
-        <span class="dashboard__cell dashboard__cell--host">${maskName(game.host_name)}</span>
+        <span class="dashboard__cell dashboard__cell--host">${escapeHtml(game.host_name)}</span>
         <span class="dashboard__cell dashboard__cell--players">${playersDisplay}</span>
         <span class="dashboard__cell dashboard__cell--time">${playTime}</span>
         <span class="dashboard__cell dashboard__cell--status">${statusLabel(game.status)}</span>
