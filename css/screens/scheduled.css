@@ -5,6 +5,37 @@
   width: 100%;
 }
 
+/* ── Schedule form ─────────────────────────────────── */
+.schedule__label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text);
+  /* Pull the label to its field: the form's flex gap would otherwise leave it
+     floating equidistant between the previous input and its own. */
+  margin-bottom: calc(var(--space-md) * -0.5);
+}
+
+.schedule__label-note {
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+/* ── Video call link ───────────────────────────────── */
+.schedule__video-btn {
+  display: block;
+  width: 100%;
+  text-align: center;
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+/* When only the call link is left (countdown spent), drop the banner padding
+   so it reads as a button rather than an empty panel. */
+.schedule__banner--compact {
+  padding: 0;
+  background: transparent;
+}
+
 /* ── Countdown banner ───────────────────────────────
    Shown above the room code in a waiting lobby, and above the join form when a
    scheduled link is opened early. Deliberately the loudest thing on screen —

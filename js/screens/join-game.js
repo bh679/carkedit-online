@@ -4,6 +4,7 @@
 import { render as renderGameboard } from '../components/gameboard.js';
 import { render as renderPhaseHeader } from '../components/phase-header.js';
 import { renderCalendarActions } from '../components/calendar-actions.js';
+import { renderVideoCallLink } from '../components/video-call-link.js';
 import { formatStartTime, formatCountdown, msUntil, hasStarted } from '../utils/schedule-format.js';
 
 const UNAVAILABLE_MESSAGES = {
@@ -37,6 +38,7 @@ function renderScheduleBanner(state) {
       <div class="schedule__banner">
         ${titleHtml}
         <span class="schedule__banner-label">Starting now — join in</span>
+        ${renderVideoCallLink(info.videoUrl)}
       </div>
     `;
   }
@@ -48,6 +50,7 @@ function renderScheduleBanner(state) {
       <span class="online-lobby__countdown-value schedule__banner-countdown">${formatCountdown(msUntil(info.scheduledAt))}</span>
       <span class="schedule__banner-when">${escapeHtml(formatStartTime(info.scheduledAt))}</span>
       ${renderCalendarActions()}
+      ${renderVideoCallLink(info.videoUrl)}
       <button class="btn btn--ghost schedule__how-btn" onclick="window.game.openHowToPlay()">
         How to play
       </button>

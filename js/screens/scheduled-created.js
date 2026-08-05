@@ -8,6 +8,7 @@
 import { render as renderGameboard } from '../components/gameboard.js';
 import { render as renderPhaseHeader } from '../components/phase-header.js';
 import { renderCalendarActions } from '../components/calendar-actions.js';
+import { renderVideoCallLink } from '../components/video-call-link.js';
 import { formatStartTime } from '../utils/schedule-format.js';
 import { escapeHtml } from '../utils/escape.js';
 
@@ -48,6 +49,7 @@ export function render(state) {
       </p>
 
       ${renderCalendarActions()}
+      ${renderVideoCallLink(game.videoUrl)}
 
       <div class="online-lobby__divider"></div>
 

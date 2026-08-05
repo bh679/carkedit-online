@@ -50,6 +50,20 @@ describe('buildIcs', () => {
     assert.ok(ics.includes(`URL:${EVENT.joinUrl}`));
     assert.ok(ics.includes('TRIGGER:-PT15M'));
   });
+
+  test('without a call, the game link is the location', () => {
+    assert.ok(buildIcs(EVENT).includes(`LOCATION:${EVENT.joinUrl}`));
+  });
+
+  test('a video call takes over the location and joins the description', () => {
+    const call = 'https://meet.google.com/abc-defg-hij';
+    const ics = buildIcs({ ...EVENT, videoUrl: call });
+    // LOCATION is the field calendar apps turn into a "join" button.
+    assert.ok(ics.includes(`LOCATION:${call}`));
+    assert.ok(ics.includes(`Video call: ${call}`));
+    // The game link still has to be reachable from the event.
+    assert.ok(ics.includes(`URL:${EVENT.joinUrl}`));
+  });
 });
 
 describe('googleCalendarUrl', () => {
@@ -64,6 +78,14 @@ describe('googleCalendarUrl', () => {
   test('carries the join link so the invitee can get back to the game', () => {
     const url = new URL(googleCalendarUrl(EVENT));
     assert.equal(url.searchParams.get('location'), EVENT.joinUrl);
+    assert.ok(url.searchParams.get('details').includes(EVENT.joinUrl));
+  });
+
+  test('prefers the video call as the location when there is one', () => {
+    const call = 'https://meet.google.com/abc-defg-hij';
+    const url = new URL(googleCalendarUrl({ ...EVENT, videoUrl: call }));
+    assert.equal(url.searchParams.get('location'), call);
+    assert.ok(url.searchParams.get('details').includes(call));
     assert.ok(url.searchParams.get('details').includes(EVENT.joinUrl));
   });
 });

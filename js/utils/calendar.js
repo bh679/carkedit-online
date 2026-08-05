@@ -36,20 +36,33 @@ function escapeIcsText(value) {
     .replace(/\r?\n/g, '\\n');
 }
 
-function eventDescription(joinUrl) {
-  return [
+function eventDescription(joinUrl, videoUrl) {
+  const lines = [
     'CarkedIt is a party game about dying badly and being remembered fondly.',
     '',
     `Join here when it starts: ${joinUrl}`,
     'No account needed to play — just open the link, add your name, and wait for the host.',
-  ].join('\n');
+  ];
+  if (videoUrl) {
+    lines.push('', `Video call: ${videoUrl}`);
+  }
+  return lines.join('\n');
+}
+
+/**
+ * What the calendar shows as the event's place. A video call link goes here
+ * because that is the field calendar apps turn into a "join" button; without
+ * one the game link is the next best thing to put a tap on.
+ */
+function eventLocation(joinUrl, videoUrl) {
+  return videoUrl || joinUrl;
 }
 
 /**
  * Build a single-event .ics document.
- * @param {{title?: string, joinUrl: string, startsAt: string, durationMinutes?: number}} opts
+ * @param {{title?: string, joinUrl: string, videoUrl?: string, startsAt: string, durationMinutes?: number}} opts
  */
-export function buildIcs({ title, joinUrl, startsAt, durationMinutes = DEFAULT_DURATION_MINUTES }) {
+export function buildIcs({ title, joinUrl, videoUrl, startsAt, durationMinutes = DEFAULT_DURATION_MINUTES }) {
   const start = new Date(startsAt);
   const end = endFor(startsAt, durationMinutes);
   const stamp = toIcsStamp(new Date());
@@ -67,7 +80,8 @@ export function buildIcs({ title, joinUrl, startsAt, durationMinutes = DEFAULT_D
     `DTSTART:${toIcsStamp(start)}`,
     `DTEND:${toIcsStamp(end)}`,
     `SUMMARY:${escapeIcsText(title || 'CarkedIt game')}`,
-    `DESCRIPTION:${escapeIcsText(eventDescription(joinUrl))}`,
+    `DESCRIPTION:${escapeIcsText(eventDescription(joinUrl, videoUrl))}`,
+    `LOCATION:${escapeIcsText(eventLocation(joinUrl, videoUrl))}`,
     `URL:${escapeIcsText(joinUrl)}`,
     'BEGIN:VALARM',
     'TRIGGER:-PT15M',
@@ -94,13 +108,13 @@ export function downloadIcs(opts) {
 }
 
 /** One-click "add to Google Calendar" URL. */
-export function googleCalendarUrl({ title, joinUrl, startsAt, durationMinutes = DEFAULT_DURATION_MINUTES }) {
+export function googleCalendarUrl({ title, joinUrl, videoUrl, startsAt, durationMinutes = DEFAULT_DURATION_MINUTES }) {
   const params = new URLSearchParams({
     action: 'TEMPLATE',
     text: title || 'CarkedIt game',
     dates: toGoogleRange(new Date(startsAt), endFor(startsAt, durationMinutes)),
-    details: eventDescription(joinUrl),
-    location: joinUrl,
+    details: eventDescription(joinUrl, videoUrl),
+    location: eventLocation(joinUrl, videoUrl),
   });
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }

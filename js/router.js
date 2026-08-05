@@ -15,6 +15,7 @@ import { render as renderPhase1 } from './screens/phase1.js';
 import { render as renderPhase23, formatTime } from './screens/phase2-3.js';
 import { render as renderPhase4 } from './screens/phase4.js';
 import { render as renderAccount, renderGamesList, renderMyPacks } from './screens/account.js';
+import { render as renderScheduleGame } from './screens/schedule-game.js';
 import { render as renderScheduledCreated } from './screens/scheduled-created.js';
 import { render as renderScheduledGames, renderBody as renderScheduledGamesBody } from './screens/scheduled-games.js';
 import {
@@ -78,6 +79,7 @@ const SCREENS = {
   phase3:        (state) => renderPhase23('bye', state),
   phase4:        (state) => renderPhase4(state),
   account:       (state) => renderAccount(state),
+  'schedule-game':     (state) => renderScheduleGame(state),
   'scheduled-created': (state) => renderScheduledCreated(state),
   'scheduled-games':   (state) => renderScheduledGames(state),
 };
@@ -969,20 +971,15 @@ window.game = {
   },
   // Two-step unconnected lobby: details first, then the chosen account flow.
   openOnlineLobby() {
-    setState({ lobbyStep: 'details', lobbyCreateMode: 'now' });
+    setState({ lobbyStep: 'details' });
     showScreen('online-lobby');
   },
 
   // ── Scheduling ────────────────────────────────────
-  openScheduleForm() {
+  openScheduleScreen() {
     captureLobbyDetails();
-    setState({ lobbyCreateMode: 'schedule', scheduleError: null });
-    refreshCreateSection(getState());
-  },
-  closeScheduleForm() {
-    captureScheduleDraft();
-    setState({ lobbyCreateMode: 'now', scheduleError: null });
-    refreshCreateSection(getState());
+    setState({ scheduleError: null });
+    showScreen('schedule-game');
   },
   /**
    * Reserve a code + time. Unlike createRoom this opens no room — the
@@ -996,10 +993,10 @@ window.game = {
       return;
     }
     captureScheduleDraft();
-    const { startsAt, title } = getState().scheduleDraft;
+    const { startsAt, title, videoUrl } = getState().scheduleDraft;
     if (!startsAt) {
       setState({ scheduleError: 'Pick a date and time' });
-      refreshCreateSection(getState());
+      showScreen('schedule-game');
       return;
     }
     // `datetime-local` gives local wall-clock time; Date parses it in the
@@ -1007,24 +1004,25 @@ window.game = {
     const scheduledAt = new Date(startsAt);
     if (Number.isNaN(scheduledAt.getTime())) {
       setState({ scheduleError: 'That date and time is not valid' });
-      refreshCreateSection(getState());
+      showScreen('schedule-game');
       return;
     }
 
     setState({ connectionStatus: 'connecting', scheduleError: null });
-    refreshCreateSection(getState());
+    showScreen('schedule-game');
     try {
-      const game = await apiCreateScheduledGame({ scheduledAt: scheduledAt.toISOString(), title });
+      const game = await apiCreateScheduledGame({ scheduledAt: scheduledAt.toISOString(), title, videoUrl });
       setState({
         connectionStatus: 'disconnected',
         scheduledGame: game,
-        scheduleDraft: { startsAt: '', title: '' },
-        lobbyCreateMode: 'now',
+        scheduleDraft: { startsAt: '', title: '', videoUrl: '' },
       });
       showScreen('scheduled-created');
     } catch (err) {
+      // The server owns link validation, so its message is the one to show —
+      // the typed values survive because they were captured above.
       setState({ connectionStatus: 'disconnected', scheduleError: err.message || 'Failed to schedule the game' });
-      refreshCreateSection(getState());
+      showScreen('schedule-game');
     }
   },
   copyScheduledLink() {
@@ -1387,11 +1385,12 @@ function captureLobbyDetails() {
   setState({ lobbyDetails: { name, birthMonth, birthDay } });
 }
 
-/** Keep typed schedule values across the partial re-render of the form. */
+/** Keep typed schedule values across the re-render that shows a validation error. */
 function captureScheduleDraft() {
   const startsAt = document.getElementById('schedule-start-at')?.value || '';
   const title = document.getElementById('schedule-title')?.value?.trim() || '';
-  setState({ scheduleDraft: { startsAt, title } });
+  const videoUrl = document.getElementById('schedule-video-url')?.value?.trim() || '';
+  setState({ scheduleDraft: { startsAt, title, videoUrl } });
 }
 
 /**
@@ -1403,14 +1402,19 @@ function currentCalendarEvent() {
   const state = getState();
   if (state.screen === 'scheduled-created' && state.scheduledGame) {
     const g = state.scheduledGame;
-    return { title: g.title, joinUrl: buildJoinUrl(g.code), startsAt: g.scheduledAt };
+    return { title: g.title, joinUrl: buildJoinUrl(g.code), videoUrl: g.videoUrl, startsAt: g.scheduledAt };
   }
   if (state.screen === 'join-game' && state.scheduledInfo) {
     const info = state.scheduledInfo;
-    return { title: info.title, joinUrl: buildJoinUrl(info.code), startsAt: info.scheduledAt };
+    return { title: info.title, joinUrl: buildJoinUrl(info.code), videoUrl: info.videoUrl, startsAt: info.scheduledAt };
   }
   if (state.scheduledAt && state.roomCode) {
-    return { title: state.scheduledTitle, joinUrl: buildJoinUrl(state.roomCode), startsAt: state.scheduledAt };
+    return {
+      title: state.scheduledTitle,
+      joinUrl: buildJoinUrl(state.roomCode),
+      videoUrl: state.scheduledVideoUrl,
+      startsAt: state.scheduledAt,
+    };
   }
   return null;
 }
