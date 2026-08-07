@@ -348,7 +348,6 @@
           } catch (err) { /* leave the checking… hint */ }
         }, 400);
       },
-      // Expand a request into its inline edit form (minimises the create form).
       // Section headers.
       toggleRequests() { requestsOpen = !requestsOpen; paint(); },
       toggleCreate() {
@@ -356,12 +355,15 @@
         if (createOpen) expandedId = null;   // one editor at a time
         paint();
       },
+      // The row heading toggles its inline edit form, the same both ways —
+      // clicking the open row closes it. Expanding minimises the create form.
       expandRequest(id) {
-        expandedId = id;
+        const opening = expandedId !== id;
+        expandedId = opening ? id : null;
         submitted = null;
-        createOpen = false;   // minimise the create form while editing a request
-        requestsOpen = true;
+        if (opening) { createOpen = false; requestsOpen = true; }
         paint();
+        if (!opening) return;   // don't yank the page on collapse
         const el = document.querySelector('.brand-signup__brand-item--expanded');
         if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
       },
