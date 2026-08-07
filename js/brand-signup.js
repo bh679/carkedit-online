@@ -113,11 +113,31 @@ export function renderSuccessCard(brand, evangelist = 'Evangelist') {
 }
 
 /**
+ * The create/application section, as a collapsible panel. Collapsed it's just a
+ * dashed bar; expanded it's the bar (still a toggle, so it can be closed) plus
+ * the request form. Submitting collapses it — see brand-signup.html.
+ */
+export function renderCreateSection(evangelist = 'Evangelist', plan = null, email = '', open = true) {
+  const bar = `<button type="button" class="brand-signup__new-bar" aria-expanded="${open}"
+      onclick="window.brandSignup.toggleCreate()">
+      <span>+ New request</span>
+      <span class="brand-signup__brand-chevron" aria-hidden="true">${open ? '▾' : '▸'}</span>
+    </button>`;
+  if (!open) return `<div class="brand-signup__create">${bar}</div>`;
+  return `<div class="brand-signup__create">
+    ${bar}
+    <p class="brand-signup__intro">Submit a request and an admin will review it.</p>
+    ${renderRequestForm(evangelist, plan, email)}
+  </div>`;
+}
+
+/**
  * The user's existing brand requests with their review status (or empty).
  * Each row is clickable to expand it into an inline edit form; the row whose id
- * matches `expandedId` renders that form beneath it.
+ * matches `expandedId` renders that form beneath it. The section itself is
+ * collapsible via `open` (expanded by default).
  */
-export function renderMyBrands(brands, expandedId = null, evangelist = 'Evangelist') {
+export function renderMyBrands(brands, expandedId = null, evangelist = 'Evangelist', open = true) {
   if (!brands || brands.length === 0) return '';
   const items = brands.map((b) => {
     const id = escapeHtml(b.id);
@@ -141,8 +161,14 @@ export function renderMyBrands(brands, expandedId = null, evangelist = 'Evangeli
     </li>`;
   }).join('');
   return `<div class="brand-signup__brands">
-    <h2 class="brand-signup__brands-title">Your requests</h2>
-    <ul class="brand-signup__brands-list">${items}</ul>
+    <h2 class="brand-signup__brands-title">
+      <button type="button" class="brand-signup__section-toggle" aria-expanded="${open}"
+        onclick="window.brandSignup.toggleRequests()">
+        <span>Your requests</span>
+        <span class="brand-signup__brand-chevron" aria-hidden="true">${open ? '▾' : '▸'}</span>
+      </button>
+    </h2>
+    ${open ? `<ul class="brand-signup__brands-list">${items}</ul>` : ''}
   </div>`;
 }
 

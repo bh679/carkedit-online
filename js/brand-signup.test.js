@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   renderRequestForm,
   renderMyBrands,
+  renderCreateSection,
   renderSuccessCard,
   renderEditForm,
   renderPlanSelect,
@@ -81,6 +82,43 @@ test('renderMyBrands escapes brand name + slug', () => {
   const html = renderMyBrands([{ id: 'x1', slug: 'x', name: '<b>evil</b>', status: 'pending' }]);
   assert.doesNotMatch(html, /<b>evil<\/b>/);
   assert.match(html, /&lt;b&gt;evil/);
+});
+
+// ── collapsible sections ──────────────────────────────────
+
+test('renderMyBrands is expanded by default: rows shown, toggle wired', () => {
+  const html = renderMyBrands([SAMPLE_BRAND]);
+  assert.match(html, /Your requests/);
+  assert.match(html, /window\.brandSignup\.toggleRequests\(\)/);
+  assert.match(html, /aria-expanded="true"/);
+  assert.match(html, /brand-signup__brands-list/);
+});
+
+test('renderMyBrands collapsed keeps the header but drops the list', () => {
+  const html = renderMyBrands([SAMPLE_BRAND], null, 'Evangelist', false);
+  assert.match(html, /Your requests/);
+  assert.match(html, /aria-expanded="false"/);
+  assert.doesNotMatch(html, /brand-signup__brands-list/);
+  assert.doesNotMatch(html, /carkedit\.com\/acme/);
+});
+
+test('renderCreateSection collapsed is just the toggle bar — no form', () => {
+  const html = renderCreateSection('Death Evangelist', null, '', false);
+  assert.match(html, /New request/);
+  assert.match(html, /window\.brandSignup\.toggleCreate\(\)/);
+  assert.match(html, /aria-expanded="false"/);
+  assert.doesNotMatch(html, /id="brand-request-name"/);
+});
+
+test('renderCreateSection expanded shows the toggle bar plus the full form', () => {
+  const html = renderCreateSection('Death Evangelist', 'pro', 'me@example.com', true);
+  assert.match(html, /window\.brandSignup\.toggleCreate\(\)/);
+  assert.match(html, /aria-expanded="true"/);
+  assert.match(html, /id="brand-request-name"/);
+  assert.match(html, /id="brand-request-slug"/);
+  // Plan + email are threaded through to the form.
+  assert.match(html, /value="pro"\s+selected/);
+  assert.match(html, /id="brand-request-email"[^>]*value="me@example\.com"/);
 });
 
 // ── post-submit confirmation ──────────────────────────────
