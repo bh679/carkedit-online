@@ -51,5 +51,11 @@
       "runtimeArgs": ["http-server", ".", "-p", "4506", "-c-1"],
       "port": 4506
     }
+  ,{
+      "name": "admin-brands-plan-display-4507",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["http-server", ".", "-p", "4507", "-c-1"],
+      "port": 4507
+    }
   ]
 }

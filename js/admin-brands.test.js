@@ -5,9 +5,11 @@ import {
   statusBadge,
   filterOptions,
   actionsFor,
+  planBadge,
   renderBrandRow,
   renderBrandsTable,
 } from './admin-brands.js';
+import { PLANS } from './config/plans.js';
 
 const baseBrand = {
   id: 'brand_1',
@@ -17,6 +19,7 @@ const baseBrand = {
   owner_display_name: 'Jane Doe',
   owner_email: 'jane@example.com',
   status: 'pending',
+  plan: 'pro',
   created_at: '2026-06-20T10:00:00Z',
 };
 
@@ -51,6 +54,37 @@ test('renderBrandRow shows slug, name, owner name + email, and a status badge', 
   assert.match(row, /Jane Doe/);
   assert.match(row, /jane@example\.com/);
   assert.match(row, /admin-brands__badge--pending/);
+});
+
+test('planBadge labels every catalog tier with its own modifier class', () => {
+  for (const { key, name } of PLANS) {
+    const html = planBadge(key);
+    assert.match(html, new RegExp(`admin-brands__plan--${key}`));
+    assert.match(html, new RegExp(name));
+  }
+});
+
+test('planBadge accepts mixed-case / padded plan values', () => {
+  assert.match(planBadge('  ULTIMATE '), /admin-brands__plan--ultimate/);
+});
+
+test('planBadge renders a muted em-dash for missing or unknown plans', () => {
+  for (const v of [null, undefined, '', 'bogus', 'constructor', 42]) {
+    const html = planBadge(v);
+    assert.match(html, /admin-brands__plan--none/);
+    assert.match(html, /—/);
+  }
+});
+
+test('renderBrandRow shows the brand plan pill', () => {
+  assert.match(renderBrandRow(baseBrand), /admin-brands__plan--pro/);
+  assert.match(renderBrandRow({ ...baseBrand, plan: null }), /admin-brands__plan--none/);
+});
+
+test('renderBrandRow does not emit markup from a tampered plan value', () => {
+  const row = renderBrandRow({ ...baseBrand, plan: '"><script>alert(1)</script>' });
+  assert.doesNotMatch(row, /<script>alert/);
+  assert.match(row, /admin-brands__plan--none/);
 });
 
 test('renderBrandRow emits action buttons carrying brand id + target status', () => {
@@ -98,4 +132,11 @@ test('renderBrandsTable renders a header row + one row per brand', () => {
   assert.equal((html.match(/<tr>/g) || []).length, 3); // 1 header + 2 body
   assert.match(html, /\/acme/);
   assert.match(html, /\/beta/);
+});
+
+test('renderBrandsTable header and body have the same column count', () => {
+  const html = renderBrandsTable([baseBrand]);
+  const headCells = (html.match(/<th>/g) || []).length;
+  const bodyCells = (html.match(/<td[\s>]/g) || []).length;
+  assert.equal(headCells, bodyCells);
 });
