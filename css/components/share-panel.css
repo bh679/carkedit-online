@@ -1,0 +1,166 @@
+/* CarkedIt Online — Share / QR panel (header button + overlay) */
+
+/* ── Header button ───────────────────────────────────── */
+/* Matches the call/help/flag icon cluster rather than the boxed copy-link
+   button beside it — this is an icon, not a primary action. */
+
+.phase-header__qr-btn {
+  width: 34px;
+  height: 34px;
+  color: var(--color-white);
+  background: transparent;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.phase-header__qr-btn:active {
+  opacity: 0.8;
+}
+
+/* ── Overlay ─────────────────────────────────────────── */
+
+.share-panel__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: var(--color-overlay-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-md);
+}
+
+.share-panel__panel {
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  padding: var(--space-lg);
+  width: 100%;
+  max-width: 420px;
+  max-height: 90vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.share-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.share-panel__title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.share-panel__close {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: var(--space-xs);
+  cursor: pointer;
+}
+
+.share-panel__body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+/* ── QR code ─────────────────────────────────────────── */
+/* Always light-on-white, never themed: the app is dark, and an inverted QR
+   code fails to decode on a lot of phone cameras. The white padding doubles
+   as extra quiet zone on top of the 4 modules baked into the SVG. */
+
+.share-panel__qr {
+  background: #fff;
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm);
+  width: 100%;
+  max-width: 240px;
+  line-height: 0;
+}
+
+.share-panel__qr svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.share-panel__scan-hint {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  text-align: center;
+  margin: 0;
+}
+
+.share-panel__qr-error {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  text-align: center;
+  margin: 0;
+}
+
+/* ── Code + URL ──────────────────────────────────────── */
+
+.share-panel__code {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin-top: var(--space-xs);
+}
+
+.share-panel__code-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+}
+
+.share-panel__code-value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--color-text);
+}
+
+.share-panel__url {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  text-align: center;
+  margin: 0;
+  /* Long brand paths must wrap rather than stretch the panel. */
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+/* ── Actions ─────────────────────────────────────────── */
+
+.share-panel__actions {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.share-panel__actions .btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+}
+
+.share-panel__copy--done {
+  opacity: 0.85;
+}

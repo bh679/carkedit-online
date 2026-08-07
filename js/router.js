@@ -57,6 +57,8 @@ import { getOrCreate as registryGetOrCreate, get as registryGet } from './data/C
 import { renderLoginModal } from './components/auth-button.js';
 import { markOnlinePlayed, markHowToBannerDismissed, markVideoCallTipDone } from './components/how-to-play-overlay.js';
 import { renderPanel as renderVideoCallPanel, renderCallButton } from './components/video-call-panel.js';
+import { renderPanel as renderSharePanel } from './components/share-panel.js';
+import { buildJoinUrl } from './utils/join-url.js';
 import {
   buildDraft as buildVideoCallDraft,
   harvestDraft as harvestVideoCallDraft,
@@ -100,6 +102,9 @@ export function showScreen(name, updates = {}) {
   // flow route through here). Mark it as the error-relevance boundary so a later
   // issue report can separate this game's errors from stale earlier ones.
   if (name === 'phase1') markErrorContext();
+  // The share panel is a lobby affordance and is mounted on the body, so it
+  // would otherwise hang over the game once the host hits Start.
+  if (name !== 'online-lobby') unmountSharePanel();
   setState({ screen: name, ...updates });
   const state = getState();
   const app = document.getElementById('app');
@@ -433,6 +438,35 @@ function unmountVideoCallPanel() {
   document.getElementById('video-call-container')?.remove();
 }
 
+// ── Share / QR panel mounting ────────────────────────────
+// Body-level for the same reason as the video call panel: opening it must never
+// re-render the lobby out from under a player on mobile.
+
+const SHARE_CONTAINER_ID = 'share-panel-container';
+
+/** Escape closes the panel. Bound only while it is open. */
+function onShareKeydown(e) {
+  if (e.key === 'Escape') window.game.closeShare();
+}
+
+function mountSharePanel() {
+  unmountSharePanel();
+  const container = document.createElement('div');
+  container.id = SHARE_CONTAINER_ID;
+  // navigator.share exists but throws outside a secure context or without a
+  // user gesture; feature-detect here so the button only appears where it works.
+  container.innerHTML = renderSharePanel(getState(), currentJoinUrl(), {
+    nativeShare: typeof navigator !== 'undefined' && typeof navigator.share === 'function',
+  });
+  document.body.appendChild(container);
+  document.addEventListener('keydown', onShareKeydown);
+}
+
+function unmountSharePanel() {
+  document.getElementById(SHARE_CONTAINER_ID)?.remove();
+  document.removeEventListener('keydown', onShareKeydown);
+}
+
 /**
  * Re-renders whichever surface currently holds the editor — the body panel, or
  * the Call tab of the host's lobby drawer. Callers harvest the DOM into the
@@ -628,17 +662,25 @@ function cancelRecover() {
 }
 
 /**
+ * The room's invite URL for the current page, or null when there is no room.
+ * Single source of truth for the clipboard copies, the QR code and the native
+ * share sheet — see js/utils/join-url.js.
+ * @returns {string|null}
+ */
+function currentJoinUrl() {
+  return buildJoinUrl(getState().roomCode, window.location.href);
+}
+
+/**
  * Builds the room's invite URL and writes it to the clipboard.
- * Shared by the room-code card copy and the How-to-Play "Share the Link" step.
+ * Shared by the room-code card copy, the How-to-Play "Share the Link" step and
+ * the share panel's Copy Link button.
  * @returns {Promise<void>|null} the clipboard promise, or null when no room code
  */
 function writeJoinLinkToClipboard() {
-  const state = getState();
-  const code = state.roomCode;
-  if (!code) return null;
-  const url = new URL(window.location.href);
-  url.search = `?join=${encodeURIComponent(code)}`;
-  return navigator.clipboard.writeText(url.toString());
+  const url = currentJoinUrl();
+  if (!url) return null;
+  return navigator.clipboard.writeText(url);
 }
 
 // Expose game API for inline onclick handlers
@@ -1444,6 +1486,44 @@ window.game = {
           hint.classList.remove('online-lobby__code-hint--copied');
         }, 2200);
       }
+    }).catch(() => {});
+  },
+  // ── Share / QR panel ─────────────────────────────────────
+  // Separate from copyJoinLink(), which still copies instantly from the header
+  // link icon and the room-code card. This is the "show me something the person
+  // opposite can scan" path.
+  openShare() {
+    mountSharePanel();
+  },
+  closeShare() {
+    unmountSharePanel();
+  },
+  /** Copy from inside the panel — feedback flashes on the button, no re-render. */
+  copyShareLink() {
+    const copied = writeJoinLinkToClipboard();
+    if (!copied) return;
+    copied.then(() => {
+      const btn = document.querySelector('.share-panel__copy');
+      if (!btn) return;
+      const original = btn.innerHTML;
+      btn.textContent = 'Copied!';
+      btn.classList.add('share-panel__copy--done');
+      setTimeout(() => {
+        const el = document.querySelector('.share-panel__copy');
+        if (!el) return;
+        el.innerHTML = original;
+        el.classList.remove('share-panel__copy--done');
+      }, 1500);
+    }).catch(() => {});
+  },
+  /** OS share sheet. A cancelled share rejects — that is not an error. */
+  nativeShare() {
+    const url = currentJoinUrl();
+    if (!url || typeof navigator.share !== 'function') return;
+    navigator.share({
+      title: 'CarkedIt',
+      text: 'Join my game of CarkedIt',
+      url,
     }).catch(() => {});
   },
   // ── Video call details ───────────────────────────────────
