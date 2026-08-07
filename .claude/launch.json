@@ -14,48 +14,24 @@
       "runtimeArgs": ["http-server", ".", "-c-1"],
       "port": 4601,
       "autoPort": true
-    }
-  ,{
-      "name": "carkedit-21415",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": ["http-server", ".", "-p", "21415", "-c-1"],
-      "port": 21415
-    }
-  ,{
-      "name": "carkedit-4620",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": ["http-server", ".", "-p", "4620", "-c-1"],
-      "port": 4620
-    }
-  ,{
+    },
+    {
       "name": "firebase-per-env-4540",
       "runtimeExecutable": "npx",
       "runtimeArgs": ["http-server", ".", "-p", "4540", "-c-1"],
       "port": 4540
-    }
-  ,{
+    },
+    {
       "name": "shared-game-filters-4555",
       "runtimeExecutable": "npx",
       "runtimeArgs": ["http-server", ".", "-p", "4555", "-c-1"],
       "port": 4555
-    }
-  ,{
+    },
+    {
       "name": "fix-eulogy-picker-4501",
       "runtimeExecutable": "npx",
       "runtimeArgs": ["http-server", ".", "-p", "4501", "-c-1"],
       "port": 4501
-    }
-  ,{
-      "name": "fix-cardback-onload-null-4506",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": ["http-server", ".", "-p", "4506", "-c-1"],
-      "port": 4506
-    }
-  ,{
-      "name": "admin-brands-plan-display-4507",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": ["http-server", ".", "-p", "4507", "-c-1"],
-      "port": 4507
     }
   ]
 }
