@@ -57,6 +57,9 @@ import { getOrCreate as registryGetOrCreate, get as registryGet } from './data/C
 import { renderLoginModal } from './components/auth-button.js';
 import { markOnlinePlayed, markHowToBannerDismissed, markVideoCallTipDone } from './components/how-to-play-overlay.js';
 import { renderPanel as renderVideoCallPanel, renderCallButton } from './components/video-call-panel.js';
+import { renderPanel as renderSharePanel } from './components/share-panel.js';
+import { toQrSvg } from './utils/qr.js';
+import { appendJoinDetails, parseJoinDetails, hasJoinDetails, stripJoinDetails } from './utils/join-details.js';
 import {
   buildDraft as buildVideoCallDraft,
   harvestDraft as harvestVideoCallDraft,
@@ -100,6 +103,13 @@ export function showScreen(name, updates = {}) {
   // flow route through here). Mark it as the error-relevance boundary so a later
   // issue report can separate this game's errors from stale earlier ones.
   if (name === 'phase1') markErrorContext();
+  // The share panel is a lobby affordance and is mounted on the body, so it
+  // would otherwise hang over the game once the host hits Start.
+  if (name !== 'online-lobby') unmountSharePanel();
+  // Back on the menu, the invite they followed is no longer the context — a
+  // code typed after this point shouldn't inherit the desktop QR nudge, or the
+  // details that came in on someone else's link.
+  if (name === 'menu') setState({ arrivedViaJoinLink: false, joinPrefill: null });
   setState({ screen: name, ...updates });
   const state = getState();
   const app = document.getElementById('app');
@@ -278,10 +288,6 @@ function startPreload() {
   return _preloadPromise;
 }
 
-function isMobile() {
-  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-}
-
 // TODO (dev only): placeholder names for quick testing — remove or replace with proper UX before shipping
 const DEV_NAME_POOL = [
   { name: 'Brennan',   birthMonth: 11, birthDay: 1  },
@@ -431,6 +437,40 @@ function mountVideoCallPanel() {
 
 function unmountVideoCallPanel() {
   document.getElementById('video-call-container')?.remove();
+}
+
+// ── Share / QR panel mounting ────────────────────────────
+// Body-level for the same reason as the video call panel: opening it must never
+// re-render the lobby out from under a player on mobile.
+
+const SHARE_CONTAINER_ID = 'share-panel-container';
+
+// Re-encoding on every keystroke is wasted work; a short settle keeps the code
+// stable enough to scan while someone is still typing.
+const JOIN_QR_REFRESH_MS = 250;
+let _joinQrTimer = null;
+
+/** Escape closes the panel. Bound only while it is open. */
+function onShareKeydown(e) {
+  if (e.key === 'Escape') window.game.closeShare();
+}
+
+function mountSharePanel() {
+  unmountSharePanel();
+  const container = document.createElement('div');
+  container.id = SHARE_CONTAINER_ID;
+  // navigator.share exists but throws outside a secure context or without a
+  // user gesture; feature-detect here so the button only appears where it works.
+  container.innerHTML = renderSharePanel(getState(), currentJoinUrl(), {
+    nativeShare: typeof navigator !== 'undefined' && typeof navigator.share === 'function',
+  });
+  document.body.appendChild(container);
+  document.addEventListener('keydown', onShareKeydown);
+}
+
+function unmountSharePanel() {
+  document.getElementById(SHARE_CONTAINER_ID)?.remove();
+  document.removeEventListener('keydown', onShareKeydown);
 }
 
 /**
@@ -628,17 +668,29 @@ function cancelRecover() {
 }
 
 /**
+ * The live room's invite URL, or null when there is no room.
+ *
+ * Reuses buildJoinUrl() from the scheduled-games manager — the same builder
+ * scheduled invites already use — so the clipboard copies, the QR code, the
+ * native share sheet and scheduled-game links can never drift apart.
+ *
+ * @returns {string|null}
+ */
+function currentJoinUrl() {
+  const code = getState().roomCode;
+  return code ? buildJoinUrl(code) : null;
+}
+
+/**
  * Builds the room's invite URL and writes it to the clipboard.
- * Shared by the room-code card copy and the How-to-Play "Share the Link" step.
+ * Shared by the room-code card copy, the How-to-Play "Share the Link" step and
+ * the share panel's Copy Link button.
  * @returns {Promise<void>|null} the clipboard promise, or null when no room code
  */
 function writeJoinLinkToClipboard() {
-  const state = getState();
-  const code = state.roomCode;
-  if (!code) return null;
-  const url = new URL(window.location.href);
-  url.search = `?join=${encodeURIComponent(code)}`;
-  return navigator.clipboard.writeText(url.toString());
+  const url = currentJoinUrl();
+  if (!url) return null;
+  return navigator.clipboard.writeText(url);
 }
 
 // Expose game API for inline onclick handlers
@@ -1446,6 +1498,81 @@ window.game = {
       }
     }).catch(() => {});
   },
+  // ── Join QR live refresh ─────────────────────────────────
+  // Your Details is filled in AFTER the screen renders, and the values live in
+  // the DOM (joinRoom reads them straight off the inputs). So the QR has to
+  // re-encode as they type, or scanning it would hand the phone a blank form.
+  //
+  // Swaps only the code's innerHTML — re-rendering the screen would wipe the
+  // very fields we're trying to carry across.
+  refreshJoinQr() {
+    clearTimeout(_joinQrTimer);
+    _joinQrTimer = setTimeout(() => {
+      const holder = document.querySelector('.join-qr__code');
+      if (!holder) return; // mobile, or a code typed by hand — no QR on screen
+      const code = getState().roomCode;
+      if (!code) return;
+      const url = appendJoinDetails(buildJoinUrl(code), {
+        name: document.getElementById('online-player-name')?.value,
+        birthMonth: document.getElementById('online-birth-month')?.value,
+        birthDay: document.getElementById('online-birth-day')?.value,
+      });
+      try {
+        holder.innerHTML = toQrSvg(url, { label: `QR code to open room ${code} on your phone` });
+      } catch {
+        // Leave the last good code up rather than blanking it mid-typing.
+      }
+    }, JOIN_QR_REFRESH_MS);
+  },
+  // ── Desktop join opt-in ──────────────────────────────────
+  // "I can't use my phone, play from computer" on the join screen. Reveals in
+  // place instead of re-rendering: the name and birthday live in the DOM, not
+  // in state, so showScreen() here would throw away whatever they'd typed.
+  revealDesktopJoin() {
+    setState({ desktopJoinRevealed: true });
+    document.querySelector('.online-lobby__join-btn')
+      ?.classList.remove('online-lobby__join-btn--hidden');
+    document.querySelector('.join-qr__reveal')?.remove();
+    document.querySelector('.online-lobby__join-btn')?.focus();
+  },
+  // ── Share / QR panel ─────────────────────────────────────
+  // Separate from copyJoinLink(), which still copies instantly from the header
+  // link icon and the room-code card. This is the "show me something the person
+  // opposite can scan" path.
+  openShare() {
+    mountSharePanel();
+  },
+  closeShare() {
+    unmountSharePanel();
+  },
+  /** Copy from inside the panel — feedback flashes on the button, no re-render. */
+  copyShareLink() {
+    const copied = writeJoinLinkToClipboard();
+    if (!copied) return;
+    copied.then(() => {
+      const btn = document.querySelector('.share-panel__copy');
+      if (!btn) return;
+      const original = btn.innerHTML;
+      btn.textContent = 'Copied!';
+      btn.classList.add('share-panel__copy--done');
+      setTimeout(() => {
+        const el = document.querySelector('.share-panel__copy');
+        if (!el) return;
+        el.innerHTML = original;
+        el.classList.remove('share-panel__copy--done');
+      }, 1500);
+    }).catch(() => {});
+  },
+  /** OS share sheet. A cancelled share rejects — that is not an error. */
+  nativeShare() {
+    const url = currentJoinUrl();
+    if (!url || typeof navigator.share !== 'function') return;
+    navigator.share({
+      title: 'CarkedIt',
+      text: 'Join my game of CarkedIt',
+      url,
+    }).catch(() => {});
+  },
   // ── Video call details ───────────────────────────────────
   // The panel is mounted on document.body (like the issue report) so it opens
   // over the lobby AND over any game phase without navigating away — a player
@@ -1825,13 +1952,30 @@ document.addEventListener('DOMContentLoaded', () => {
         showScreen('menu');
       });
   } else if (joinCode) {
-    setState({ roomCode: joinCode.toUpperCase() });
+    // A QR scanned off someone's desktop carries the details they already typed
+    // there, so the phone arrives filled in. Validated on the way in — this came
+    // from a scanned code, which is data from outside the app.
+    const scannedDetails = parseJoinDetails(params);
+    // arrivedViaJoinLink distinguishes "followed someone's invite" from "typed
+    // a code on the join screen" — only the former gets the desktop QR nudge.
+    setState({
+      roomCode: joinCode.toUpperCase(),
+      arrivedViaJoinLink: true,
+      joinPrefill: hasJoinDetails(scannedDetails) ? scannedDetails : null,
+    });
     showScreen('join-game');
     // Pre-fill the room code input after render
     requestAnimationFrame(() => {
       const codeInput = document.getElementById('online-room-code');
       if (codeInput) codeInput.value = joinCode.toUpperCase();
     });
+    // Now that the details are in state, take them back out of the address bar.
+    // Left there they'd sit in browser history and ride along if this person
+    // forwarded the link on to someone else.
+    if (hasJoinDetails(scannedDetails)) {
+      const cleaned = stripJoinDetails(window.location.href);
+      if (cleaned !== window.location.href) window.history.replaceState(null, '', cleaned);
+    }
     // A scheduled link is often opened days early — resolve it so the screen
     // can offer the countdown, calendar and rules instead of a bare code box.
     loadScheduleInfoForCode(joinCode.toUpperCase());

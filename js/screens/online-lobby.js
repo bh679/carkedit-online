@@ -12,6 +12,7 @@ import { formatStartTime, hasStarted } from '../utils/schedule-format.js';
 import { renderCalendarActions } from '../components/calendar-actions.js';
 import { renderCountdown } from '../components/countdown.js';
 import { renderCallButton } from '../components/video-call-panel.js';
+import { renderShareButton } from '../components/share-panel.js';
 import { renderEditor as renderVideoCallEditor } from '../components/video-call-editor.js';
 
 const LINK_ICON = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -425,6 +426,7 @@ function renderConnectedLobby(state) {
       </div>
       <div class="phase-header__right">
         ${renderCallButton(state)}
+        ${renderShareButton(state)}
         ${renderHelpButton()}
         <button class="${flagClass}" aria-label="Report issue" onclick="window.game.openIssueReport()">
           ${FLAG_ICON}
