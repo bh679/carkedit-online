@@ -167,7 +167,10 @@ let _state = {
   scheduledGames: [],                // The host's own upcoming games
   scheduledGamesLoading: false,
   scheduledGamesError: null,
-  rescheduleId: null,                // Row currently being re-timed in the list
+  rescheduleId: null,                // Row currently being edited in the list
+  lobbyScheduleEditing: false,       // Countdown banner is showing its edit form
+  lobbyScheduledId: null,            // Reservation id behind the joined room, resolved on first edit
+  lobbyScheduleError: null,          // Validation/API/permission error on the banner editor
 };
 
 export function getState() {

@@ -50,3 +50,24 @@ export function formatCountdown(ms) {
 export function hasStarted(iso) {
   return msUntil(iso) === 0;
 }
+
+/** Minutes of lead time the server insists on; mirrored here as the input min. */
+export const MIN_LEAD_MINUTES = 5;
+
+/**
+ * `datetime-local` speaks local wall-clock time with no zone, so build its
+ * value from the local parts rather than slicing an ISO (UTC) string. Takes
+ * either an ISO string or epoch milliseconds — every screen that edits a start
+ * time needs one of the two.
+ */
+export function localDateTimeValue(when) {
+  const d = new Date(when);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** The earliest value a start-time input should accept, as of right now. */
+export function earliestStartValue() {
+  return localDateTimeValue(Date.now() + MIN_LEAD_MINUTES * 60_000);
+}

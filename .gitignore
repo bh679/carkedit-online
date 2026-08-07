@@ -8,3 +8,4 @@ deploy-status.json
 branch-state.json
 rescue.php
 config.json
+test-results/

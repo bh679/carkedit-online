@@ -87,6 +87,33 @@
   color: var(--color-text);
 }
 
+/* Quiet by design: the countdown is what the banner is for, and the host only
+   needs this when something has changed. */
+.schedule__banner-edit {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+/* Edit mode replaces the banner's centred stack with a left-aligned form —
+   labels sitting centre-stage above their fields would read as headings. */
+.schedule__banner-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  width: 100%;
+  text-align: left;
+}
+
+.schedule__banner-edit-actions {
+  display: flex;
+  gap: var(--space-xs);
+  margin-top: var(--space-xs);
+}
+
+.schedule__banner-edit-actions .btn {
+  flex: 1;
+}
+
 /* ── Countdown ─────────────────────────────────────
    Shown under a start time on every screen that has one. */
 .schedule__countdown {
@@ -264,6 +291,29 @@
   flex-direction: column;
   gap: var(--space-xs);
   margin-top: var(--space-xs);
+}
+
+/* Two fields stacked in a card that also carries four buttons — the labels stay
+   small and quiet so the row doesn't read as a form pretending to be a card. */
+.schedule__edit-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  margin-bottom: calc(var(--space-xs) * -0.5);
+}
+
+/* The label is uppercased; its "optional" note must not be, or the two run
+   together into one shouted phrase. */
+.schedule__edit-label .schedule__label-note {
+  text-transform: none;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.schedule__title-input {
+  width: 100%;
 }
 
 .schedule__cancel-btn {

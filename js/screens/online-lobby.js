@@ -8,7 +8,7 @@ import { renderAdvancedPanel, renderToggle } from './lobby.js';
 import { render as renderPackSelector } from '../components/pack-selector.js';
 import { renderHeaderCoBrand } from '../config/brand-config.js';
 import { renderHelpButton, renderFirstGameBanner, renderOverlay as renderHowToPlayOverlay } from '../components/how-to-play-overlay.js';
-import { formatStartTime, hasStarted } from '../utils/schedule-format.js';
+import { formatStartTime, hasStarted, localDateTimeValue, earliestStartValue } from '../utils/schedule-format.js';
 import { renderCalendarActions } from '../components/calendar-actions.js';
 import { renderCountdown } from '../components/countdown.js';
 import { renderCallButton } from '../components/video-call-panel.js';
@@ -294,12 +294,77 @@ function renderScheduleBanner(state) {
   // details stay reachable from the header button, in the lobby and in-game.
   if (hasStarted(scheduledAt)) return '';
 
+  if (state.lobbyScheduleEditing) {
+    return `<div class="schedule__banner">${renderScheduleEditor(state)}</div>`;
+  }
+
+  // Plans move, and by the time people are in the lobby the link is already
+  // out — so the host fixes the details here rather than cancelling and
+  // re-scheduling. Only the host sees it; the server checks ownership too.
+  const editHtml = state.isHost
+    ? `<button class="btn btn--ghost schedule__banner-edit" onclick="window.game.startLobbyScheduleEdit()">
+         &#9998; Edit details
+       </button>`
+    : '';
+
   return `
     <div class="schedule__banner">
       ${titleHtml}
       <span class="schedule__banner-when">${escapeHtml(formatStartTime(scheduledAt))}</span>
       ${renderCountdown(scheduledAt)}
       ${renderCalendarActions()}
+      ${editHtml}
+    </div>
+  `;
+}
+
+/**
+ * The banner's edit mode: the same two fields the Scheduled Games row offers,
+ * so a host who has used one already knows the other. Saving goes through the
+ * ordinary PATCH, which pushes the change back into this room — everyone
+ * waiting sees the new details without reloading.
+ */
+function renderScheduleEditor(state) {
+  const errorHtml = state.lobbyScheduleError
+    ? `<p class="online-lobby__error">${escapeHtml(state.lobbyScheduleError)}</p>`
+    : '';
+
+  // No reservation id means this account didn't schedule the game (or is a
+  // guest host), so there is nothing it may edit. Say so instead of showing a
+  // form whose Save could only ever fail.
+  if (!state.lobbyScheduledId) {
+    return `
+      ${errorHtml}
+      <button class="btn btn--ghost" onclick="window.game.cancelLobbyScheduleEdit()">Close</button>
+    `;
+  }
+
+  return `
+    <div class="schedule__banner-edit-form">
+      ${errorHtml}
+      <label class="schedule__edit-label" for="lobby-edit-title">
+        Occasion <span class="schedule__label-note">optional</span>
+      </label>
+      <input
+        type="text"
+        id="lobby-edit-title"
+        class="input schedule__title-input"
+        maxlength="60"
+        placeholder="Nan's wake, Dave's send-off…"
+        value="${escapeHtml(state.scheduledTitle || '')}"
+      >
+      <label class="schedule__edit-label" for="lobby-edit-at">When</label>
+      <input
+        type="datetime-local"
+        id="lobby-edit-at"
+        class="input schedule__datetime"
+        min="${escapeHtml(earliestStartValue())}"
+        value="${escapeHtml(localDateTimeValue(state.scheduledAt))}"
+      >
+      <div class="schedule__banner-edit-actions">
+        <button class="btn btn--ghost" onclick="window.game.cancelLobbyScheduleEdit()">Cancel</button>
+        <button class="btn btn--primary" onclick="window.game.saveLobbyScheduleEdit()">Save</button>
+      </div>
     </div>
   `;
 }

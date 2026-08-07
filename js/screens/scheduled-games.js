@@ -1,15 +1,15 @@
 // CarkedIt Online — "My Scheduled Games".
 //
 // The host's control panel for games they've arranged: re-share the link,
-// move the time, or call it off. Reschedule is edited inline on the row so
-// the list stays the single place a host manages upcoming games.
+// change the occasion and time, or call it off. Details are edited inline on
+// the row so the list stays the single place a host manages upcoming games.
 'use strict';
 
 import { render as renderGameboard } from '../components/gameboard.js';
 import { render as renderPhaseHeader } from '../components/phase-header.js';
 import { renderOverlay as renderHowToPlayOverlay } from '../components/how-to-play-overlay.js';
 import { renderCountdown } from '../components/countdown.js';
-import { formatStartTime } from '../utils/schedule-format.js';
+import { formatStartTime, localDateTimeValue, earliestStartValue } from '../utils/schedule-format.js';
 import { escapeHtml } from '../utils/escape.js';
 
 const STATUS_LABELS = {
@@ -107,10 +107,23 @@ function renderRow(game, state) {
   const editHtml = editing
     ? `
       <div class="schedule__row-edit">
+        <label class="schedule__edit-label" for="edit-title-${escapeHtml(game.id)}">
+          Occasion <span class="schedule__label-note">optional</span>
+        </label>
+        <input
+          type="text"
+          id="edit-title-${escapeHtml(game.id)}"
+          class="input schedule__title-input"
+          maxlength="60"
+          placeholder="Nan's wake, Dave's send-off…"
+          value="${escapeHtml(game.title || '')}"
+        >
+        <label class="schedule__edit-label" for="reschedule-at-${escapeHtml(game.id)}">When</label>
         <input
           type="datetime-local"
           id="reschedule-at-${escapeHtml(game.id)}"
           class="input schedule__datetime"
+          min="${escapeHtml(earliestStartValue())}"
           value="${escapeHtml(localDateTimeValue(game.scheduledAt))}"
         >
         <div class="schedule__row-actions">
@@ -122,7 +135,7 @@ function renderRow(game, state) {
       <div class="schedule__row-actions">
         <button class="btn btn--primary" onclick="window.game.joinScheduledGame('${escapeHtml(game.code)}')">Join</button>
         <button class="btn btn--secondary" onclick="window.game.copyScheduledLinkFor('${escapeHtml(game.code)}')">Copy Link</button>
-        <button class="btn btn--ghost" onclick="window.game.startReschedule('${escapeHtml(game.id)}')">Reschedule</button>
+        <button class="btn btn--ghost" onclick="window.game.startReschedule('${escapeHtml(game.id)}')">Edit Details</button>
         <button class="btn btn--ghost schedule__cancel-btn" onclick="window.game.cancelScheduledGame('${escapeHtml(game.id)}')">Cancel Game</button>
       </div>`;
 
@@ -140,12 +153,4 @@ function renderRow(game, state) {
       ${editHtml}
     </div>
   `;
-}
-
-/** ISO → the local wall-clock string `datetime-local` expects. */
-function localDateTimeValue(iso) {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
