@@ -110,15 +110,23 @@ test('renderCreateSection collapsed is just the toggle bar — no form', () => {
   assert.doesNotMatch(html, /id="brand-request-name"/);
 });
 
-test('renderCreateSection expanded shows the toggle bar plus the full form', () => {
+test('renderCreateSection expanded shows the form and hides the "+ New request" bar', () => {
   const html = renderCreateSection('Death Evangelist', 'pro', 'me@example.com', true);
-  assert.match(html, /window\.brandSignup\.toggleCreate\(\)/);
-  assert.match(html, /aria-expanded="true"/);
   assert.match(html, /id="brand-request-name"/);
   assert.match(html, /id="brand-request-slug"/);
+  // The bar is purely an open affordance — gone once the form is showing.
+  assert.doesNotMatch(html, /New request/);
+  assert.doesNotMatch(html, /brand-signup__new-bar/);
+  assert.doesNotMatch(html, /toggleCreate/);
   // Plan + email are threaded through to the form.
   assert.match(html, /value="pro"\s+selected/);
   assert.match(html, /id="brand-request-email"[^>]*value="me@example\.com"/);
+});
+
+test('renderCreateSection: the collapsed bar is the only expand/collapse control', () => {
+  const collapsed = renderCreateSection('Evangelist', null, '', false);
+  assert.equal((collapsed.match(/aria-expanded/g) || []).length, 1);
+  assert.equal((renderCreateSection('Evangelist', null, '', true).match(/aria-expanded/g) || []).length, 0);
 });
 
 // ── post-submit confirmation ──────────────────────────────

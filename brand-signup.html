@@ -215,10 +215,13 @@
     // page. renderSuccessCard/renderMyBrands render nothing when they're empty,
     // so a first-time user sees only the open create form.
     function paint() {
+      // With no requests there's nothing to fall back to, so the create section
+      // can never be collapsed shut — it stays open regardless of createOpen.
+      const createIsOpen = myBrands.length === 0 ? true : createOpen;
       document.getElementById('app').innerHTML = shell(`
         ${renderSuccessCard(submitted, EVANGELIST)}
         ${renderMyBrands(myBrands, expandedId, EVANGELIST, requestsOpen)}
-        ${renderCreateSection(EVANGELIST, SELECTED_PLAN, accountEmail, createOpen)}
+        ${renderCreateSection(EVANGELIST, SELECTED_PLAN, accountEmail, createIsOpen)}
       `);
     }
 

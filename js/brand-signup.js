@@ -113,19 +113,22 @@ export function renderSuccessCard(brand, evangelist = 'Evangelist') {
 }
 
 /**
- * The create/application section, as a collapsible panel. Collapsed it's just a
- * dashed bar; expanded it's the bar (still a toggle, so it can be closed) plus
- * the request form. Submitting collapses it — see brand-signup.html.
+ * The create/application section. Collapsed it's just the dashed "+ New request"
+ * bar, which is the only control — opening is a click, closing happens when
+ * something else takes over (a submit, or expanding a request to edit). So the
+ * bar is hidden once the form is showing; see brand-signup.html.
  */
 export function renderCreateSection(evangelist = 'Evangelist', plan = null, email = '', open = true) {
-  const bar = `<button type="button" class="brand-signup__new-bar" aria-expanded="${open}"
-      onclick="window.brandSignup.toggleCreate()">
-      <span>+ New request</span>
-      <span class="brand-signup__brand-chevron" aria-hidden="true">${open ? '▾' : '▸'}</span>
-    </button>`;
-  if (!open) return `<div class="brand-signup__create">${bar}</div>`;
+  if (!open) {
+    return `<div class="brand-signup__create">
+      <button type="button" class="brand-signup__new-bar" aria-expanded="false"
+        onclick="window.brandSignup.toggleCreate()">
+        <span>+ New request</span>
+        <span class="brand-signup__brand-chevron" aria-hidden="true">▸</span>
+      </button>
+    </div>`;
+  }
   return `<div class="brand-signup__create">
-    ${bar}
     <p class="brand-signup__intro">Submit a request and an admin will review it.</p>
     ${renderRequestForm(evangelist, plan, email)}
   </div>`;
