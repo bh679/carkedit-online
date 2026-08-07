@@ -60,9 +60,35 @@
         .brand-signup__status--err { color: var(--color-danger); }
         .brand-signup__note { font-size: 0.78rem; color: var(--color-text-muted); margin: var(--space-xs) 0 0; }
 
+        /* Post-submit confirmation — the surface card recipe, accented "live". */
+        .brand-signup__success {
+            display: flex; flex-direction: column; gap: var(--space-xs);
+            background: var(--color-surface); border: 1px solid var(--color-live);
+            border-radius: var(--radius-md); padding: var(--space-md);
+        }
+        .brand-signup__success-title {
+            display: flex; align-items: center; gap: var(--space-xs);
+            font-size: 1.1rem; font-weight: 800; color: var(--color-live); margin: 0;
+        }
+        .brand-signup__success-tick { font-size: 1.2rem; line-height: 1; }
+        .brand-signup__success-body {
+            display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-xs);
+            font-size: 0.9rem; color: var(--color-text-90); margin: 0;
+        }
+        .brand-signup__success-dismiss { align-self: flex-start; margin-top: var(--space-xs); }
+
         /* "Your requests" — surface cards, matching the pricing tiers. */
         .brand-signup__brands { display: flex; flex-direction: column; gap: var(--space-sm); }
         .brand-signup__brands-title { font-size: 1.25rem; font-weight: 800; color: var(--color-text); margin: 0; }
+        /* The section headings double as expand/collapse toggles. */
+        .brand-signup__section-toggle {
+            display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm);
+            width: 100%; padding: 0; cursor: pointer; text-align: left;
+            background: none; border: none; color: inherit;
+            font-size: inherit; font-weight: inherit; font-family: inherit;
+        }
+        .brand-signup__section-toggle:hover { color: var(--color-primary); }
+        .brand-signup__create { display: flex; flex-direction: column; gap: var(--space-sm); }
         .brand-signup__brands-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-xs); }
         .brand-signup__brand {
             display: flex; align-items: center; gap: var(--space-sm);
@@ -99,8 +125,9 @@
         .brand-signup__edit-logo { width: 48px; height: 48px; border-radius: var(--radius-sm); object-fit: contain; background: var(--color-input-bg); }
         .brand-signup__cancel { flex: 0 0 auto; }
 
-        /* Minimised create form while editing. */
+        /* Header bar for the create section (collapsed or expanded). */
         .brand-signup__new-bar {
+            display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm);
             width: 100%; text-align: left; cursor: pointer;
             padding: var(--space-sm) var(--space-md); font-size: 0.95rem; font-weight: 600;
             color: var(--color-text-90); background: var(--color-surface);
@@ -118,7 +145,7 @@
     import { guardPage } from './js/managers/page-permission-guard.js';
     import { getFirebaseConfig } from './js/firebase-config.js';
     import { ROLE_LABELS } from './js/config/brand-labels.js';
-    import { renderRequestForm, renderMyBrands, normalisePlan } from './js/brand-signup.js';
+    import { renderCreateSection, renderMyBrands, renderSuccessCard, normalisePlan } from './js/brand-signup.js';
     import { escapeHtml } from './js/utils/escape.js';
 
     // Player-level page: renders for everyone; submit needs a token (backend
@@ -137,6 +164,10 @@
     let accountEmail = '';   // pre-fills the contact email from the signed-in account
     let myBrands = [];       // cache of the user's requests (/brands/mine)
     let expandedId = null;   // id of the request currently expanded for editing
+    let submitted = null;    // { name, slug } of a just-submitted request, shown as a confirmation card
+    let requestsOpen = true; // "Your requests" section — expanded by default
+    let createOpen = true;   // "New request" section — collapsed once the user has requests
+    let firstLoad = true;    // only the initial /brands/mine decides createOpen; later refreshes don't
 
     async function loadFirebaseAuth() {
       const [appMod, authMod] = await Promise.all([
@@ -179,22 +210,18 @@
       });
     }
 
-    // The create/application section: full form normally, or a minimised bar
-    // while a request is expanded for editing.
-    function renderCreateSection() {
-      if (expandedId !== null) {
-        return `<button type="button" class="brand-signup__new-bar"
-          onclick="window.brandSignup.newRequest()">+ Request another brand</button>`;
-      }
-      return `
-        <p class="brand-signup__intro">Submit a request and an admin will review it.</p>
-        ${renderRequestForm(CHAMPION, SELECTED_PLAN, accountEmail)}`;
-    }
-
+    // Confirmation, then two collapsible sections. Submitting collapses "New
+    // Brand" and expands "Your requests" in place, rather than swapping the
+    // page. renderSuccessCard/renderMyBrands render nothing when they're empty,
+    // so a first-time user sees only the open create form.
     function paint() {
+      // With no requests there's nothing to fall back to, so the create section
+      // can never be collapsed shut — it stays open regardless of createOpen.
+      const createIsOpen = myBrands.length === 0 ? true : createOpen;
       document.getElementById('app').innerHTML = shell(`
-        ${renderCreateSection()}
-        ${renderMyBrands(myBrands, expandedId, CHAMPION)}
+        ${renderSuccessCard(submitted, CHAMPION)}
+        ${renderMyBrands(myBrands, expandedId, CHAMPION, requestsOpen)}
+        ${renderCreateSection(CHAMPION, SELECTED_PLAN, accountEmail, createIsOpen)}
       `);
     }
 
@@ -206,6 +233,10 @@
           myBrands = Array.isArray(data.brands) ? data.brands : [];
         }
       } catch (err) { /* non-fatal */ }
+      // First load picks the landing state: nothing to list → open the form;
+      // returning user → their list, form collapsed. Later refreshes leave the
+      // user's own toggling alone.
+      if (firstLoad) { createOpen = myBrands.length === 0; firstLoad = false; }
       paint();
     }
 
@@ -244,11 +275,13 @@
           const res = await authFetch('/api/carkedit/brands', { method: 'POST', body: form });
           const data = await res.json().catch(() => ({}));
           if (res.ok) {
-            setStatus('Request submitted — pending review', 'brand-signup__status--ok');
-            nameEl.value = ''; slugEl.value = ''; if (phoneEl) phoneEl.value = ''; if (logoEl) logoEl.value = '';
-            const hint = document.getElementById('brand-slug-hint');
-            if (hint) { hint.textContent = 'play.carkedit.com/<your-url>'; hint.className = 'brand-signup__slug-hint'; }
-            loadMyBrands();
+            // The repaint below replaces this whole form (fields reset with it),
+            // so the confirmation lives in module state, not in the status span.
+            submitted = { name, slug };
+            createOpen = false;     // collapse the form, expand the list — in place
+            requestsOpen = true;
+            expandedId = null;
+            await loadMyBrands();   // refresh cache, then one repaint shows card + new row
           } else {
             setStatus(data.error || 'Request failed', 'brand-signup__status--err');
           }
@@ -315,10 +348,22 @@
           } catch (err) { /* leave the checking… hint */ }
         }, 400);
       },
-      // Expand a request into its inline edit form (minimises the create form).
-      expandRequest(id) {
-        expandedId = id;
+      // Section headers.
+      toggleRequests() { requestsOpen = !requestsOpen; paint(); },
+      toggleCreate() {
+        createOpen = !createOpen;
+        if (createOpen) expandedId = null;   // one editor at a time
         paint();
+      },
+      // The row heading toggles its inline edit form, the same both ways —
+      // clicking the open row closes it. Expanding minimises the create form.
+      expandRequest(id) {
+        const opening = expandedId !== id;
+        expandedId = opening ? id : null;
+        submitted = null;
+        if (opening) { createOpen = false; requestsOpen = true; }
+        paint();
+        if (!opening) return;   // don't yank the page on collapse
         const el = document.querySelector('.brand-signup__brand-item--expanded');
         if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
       },
@@ -326,8 +371,8 @@
         if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.expandRequest(id); }
       },
       // Close the editor / reopen the create form.
-      collapseRequest() { expandedId = null; paint(); },
-      newRequest() { expandedId = null; paint(); },
+      collapseRequest() { expandedId = null; submitted = null; paint(); },
+      dismissSuccess() { submitted = null; paint(); },
       async saveEdit(event, id) {
         if (event) event.preventDefault();
         const g = (s) => document.getElementById(s);

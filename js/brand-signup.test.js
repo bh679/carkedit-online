@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {
   renderRequestForm,
   renderMyBrands,
+  renderCreateSection,
+  renderSuccessCard,
   renderEditForm,
   renderPlanSelect,
   normalisePlan,
@@ -80,6 +82,87 @@ test('renderMyBrands escapes brand name + slug', () => {
   const html = renderMyBrands([{ id: 'x1', slug: 'x', name: '<b>evil</b>', status: 'pending' }]);
   assert.doesNotMatch(html, /<b>evil<\/b>/);
   assert.match(html, /&lt;b&gt;evil/);
+});
+
+// ── collapsible sections ──────────────────────────────────
+
+test('renderMyBrands is expanded by default: rows shown, toggle wired', () => {
+  const html = renderMyBrands([SAMPLE_BRAND]);
+  assert.match(html, /Your requests/);
+  assert.match(html, /window\.brandSignup\.toggleRequests\(\)/);
+  assert.match(html, /aria-expanded="true"/);
+  assert.match(html, /brand-signup__brands-list/);
+});
+
+test('renderMyBrands collapsed keeps the header but drops the list', () => {
+  const html = renderMyBrands([SAMPLE_BRAND], null, 'Champion', false);
+  assert.match(html, /Your requests/);
+  assert.match(html, /aria-expanded="false"/);
+  assert.doesNotMatch(html, /brand-signup__brands-list/);
+  assert.doesNotMatch(html, /carkedit\.com\/acme/);
+});
+
+test('renderCreateSection collapsed is just the toggle bar — no form', () => {
+  const html = renderCreateSection('Champion', null, '', false);
+  assert.match(html, /New Brand/);
+  assert.match(html, /window\.brandSignup\.toggleCreate\(\)/);
+  assert.match(html, /aria-expanded="false"/);
+  assert.doesNotMatch(html, /id="brand-request-name"/);
+});
+
+test('renderCreateSection expanded shows the form and hides the "+ New request" bar', () => {
+  const html = renderCreateSection('Champion', 'pro', 'me@example.com', true);
+  assert.match(html, /id="brand-request-name"/);
+  assert.match(html, /id="brand-request-slug"/);
+  // The bar is purely an open affordance — gone once the form is showing.
+  assert.doesNotMatch(html, /New Brand/);
+  assert.doesNotMatch(html, /brand-signup__new-bar/);
+  assert.doesNotMatch(html, /toggleCreate/);
+  // Plan + email are threaded through to the form.
+  assert.match(html, /value="pro"\s+selected/);
+  assert.match(html, /id="brand-request-email"[^>]*value="me@example\.com"/);
+});
+
+test('renderCreateSection: the collapsed bar is the only expand/collapse control', () => {
+  const collapsed = renderCreateSection('Champion', null, '', false);
+  assert.equal((collapsed.match(/aria-expanded/g) || []).length, 1);
+  assert.equal((renderCreateSection('Champion', null, '', true).match(/aria-expanded/g) || []).length, 0);
+});
+
+// ── post-submit confirmation ──────────────────────────────
+
+test('renderSuccessCard renders nothing without a submitted request', () => {
+  assert.equal(renderSuccessCard(null), '');
+  assert.equal(renderSuccessCard(undefined), '');
+});
+
+test('renderSuccessCard confirms the submission with the brand name, URL and pending status', () => {
+  const html = renderSuccessCard({ name: 'Acme Co', slug: 'acme' });
+  assert.match(html, /Request Submitted Successfully/);
+  assert.match(html, /Acme Co/);
+  assert.match(html, /carkedit\.com\/acme/);
+  assert.match(html, /brand-signup__brand-status--pending/);
+  assert.match(html, /Pending/);
+  assert.match(html, /role="status"/);
+});
+
+test('renderSuccessCard wires the dismiss control', () => {
+  const html = renderSuccessCard({ name: 'Acme Co', slug: 'acme' });
+  assert.match(html, /window\.brandSignup\.dismissSuccess\(\)/);
+});
+
+test('renderSuccessCard escapes brand name + slug', () => {
+  const html = renderSuccessCard({ name: '<b>evil</b>', slug: '"x' });
+  assert.doesNotMatch(html, /<b>evil<\/b>/);
+  assert.match(html, /&lt;b&gt;evil/);
+  assert.match(html, /&quot;x/);
+});
+
+test('renderSuccessCard uses the configurable role label in copy', () => {
+  const html = renderSuccessCard({ name: 'Acme Co', slug: 'acme' }, 'Grim Reaper');
+  assert.match(html, /Grim Reaper/);
+  // Not hardcoded to the default label.
+  assert.doesNotMatch(html, /Champion/);
 });
 
 // ── click-to-edit ─────────────────────────────────────────
