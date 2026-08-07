@@ -11,9 +11,8 @@
 import { render as renderGameboard } from '../components/gameboard.js';
 import { render as renderPhaseHeader } from '../components/phase-header.js';
 import { escapeHtml } from '../utils/escape.js';
+import { localDateTimeValue, earliestStartValue } from '../utils/schedule-format.js';
 
-/** Minutes of lead time the server insists on; mirrored here as the input min. */
-const MIN_LEAD_MINUTES = 5;
 const DEFAULT_LEAD_MINUTES = 60;
 
 export function render(state) {
@@ -36,7 +35,7 @@ export function render(state) {
         type="datetime-local"
         id="schedule-start-at"
         class="input schedule__datetime"
-        min="${escapeHtml(localDateTimeValue(Date.now() + MIN_LEAD_MINUTES * 60_000))}"
+        min="${escapeHtml(earliestStartValue())}"
         value="${escapeHtml(typed.startsAt || localDateTimeValue(Date.now() + DEFAULT_LEAD_MINUTES * 60_000))}"
         ${connecting ? 'disabled' : ''}
       >
@@ -92,12 +91,3 @@ export function render(state) {
   `;
 }
 
-/**
- * `datetime-local` speaks local wall-clock time with no zone, so build its
- * value from the local parts rather than slicing an ISO (UTC) string.
- */
-function localDateTimeValue(ms) {
-  const d = new Date(ms);
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}

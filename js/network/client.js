@@ -14,6 +14,17 @@ let _serverUrl = _origin;
 let _restBaseUrl = _origin;
 let _configLoaded = false;
 
+/**
+ * The banner's schedule editor is scoped to one room: its resolved reservation
+ * id would point at the wrong game if it survived into the next one, so every
+ * transition in or out of a room clears it.
+ */
+const RESET_LOBBY_SCHEDULE_EDIT = {
+  lobbyScheduleEditing: false,
+  lobbyScheduledId: null,
+  lobbyScheduleError: null,
+};
+
 let _client = null;
 let _room = null;
 let _onScreenChange = null;
@@ -508,6 +519,23 @@ function setupRoomListeners(room, onUpdate) {
     if (onUpdate) onUpdate(syncPlayersFromRoom(room));
   });
 
+  // The host can rename or move a scheduled game while everyone waits in the
+  // lobby. Both fields are seeded once at join, so without these listeners the
+  // other players would sit in front of the old name, time and countdown until
+  // the room disposed. A full re-render (rather than a partial repaint) is what
+  // re-points the countdown ticker at the banner's new element.
+  const rerenderLobby = () => {
+    if (getState().screen === 'online-lobby' && _onScreenChange) _onScreenChange('online-lobby');
+  };
+  $(room.state).listen('scheduledAt', (value) => {
+    setState({ scheduledAt: value || null });
+    rerenderLobby();
+  });
+  $(room.state).listen('scheduledTitle', (value) => {
+    setState({ scheduledTitle: value || '' });
+    rerenderLobby();
+  });
+
   // Listen for game settings changes (synced from server to local gameSettings)
   const settingKeys = [
     'rounds', 'handSize', 'enableDie', 'enableLive', 'enableBye', 'enableEulogy',
@@ -974,6 +1002,7 @@ export async function createRoom({ name, birthMonth, birthDay, isPrivate = true,
       roomCode: room.state?.roomCode || null,
       scheduledAt: null,
       scheduledTitle: '',
+      ...RESET_LOBBY_SCHEDULE_EDIT,
       gameMode: 'online',
       onlinePlayers: syncPlayersFromRoom(room),
       mySessionId: room.sessionId,
@@ -1059,6 +1088,7 @@ export async function joinRoom(code, { name, birthMonth, birthDay, isDevName = f
       roomCode: code.toUpperCase(),
       scheduledAt: room.state?.scheduledAt || null,
       scheduledTitle: room.state?.scheduledTitle || '',
+      ...RESET_LOBBY_SCHEDULE_EDIT,
       gameMode: 'online',
       onlinePlayers: syncPlayersFromRoom(room),
       mySessionId: room.sessionId,
@@ -1187,6 +1217,7 @@ export async function leaveRoom() {
     roomCode: null,
     scheduledAt: null,
     scheduledTitle: '',
+    ...RESET_LOBBY_SCHEDULE_EDIT,
     gameMode: 'local',
     onlinePlayers: [],
     onlineError: null,

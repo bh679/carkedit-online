@@ -1250,8 +1250,11 @@ window.game = {
       refreshScheduledGamesBody();
       return;
     }
+    // Sent unconditionally, empty string included — clearing the field is how a
+    // host removes an occasion they no longer want on the row.
+    const title = document.getElementById(`edit-title-${id}`)?.value ?? '';
     try {
-      await apiRescheduleGame(id, { scheduledAt: at.toISOString() });
+      await apiRescheduleGame(id, { scheduledAt: at.toISOString(), title });
       setState({ rescheduleId: null, scheduledGamesError: null });
     } catch (err) {
       setState({ scheduledGamesError: err.message || 'Failed to update the game' });
@@ -1267,6 +1270,61 @@ window.game = {
     }
     await refreshScheduledGames();
   },
+
+  /**
+   * Open the schedule editor on the lobby's countdown banner.
+   *
+   * The room's state deliberately never carries the reservation's internal id,
+   * so resolve it from the host's own list by room code. That doubles as the
+   * permission check: a guest host, or anyone who isn't the account that
+   * scheduled this game, simply finds no match and is told so rather than
+   * being handed a form whose Save could only 404.
+   */
+  async startLobbyScheduleEdit() {
+    const { roomCode, lobbyScheduledId } = getState();
+    setState({ lobbyScheduleEditing: true, lobbyScheduleError: null });
+    showScreen('online-lobby');
+    if (lobbyScheduledId) return;
+    try {
+      const games = await fetchMyScheduledGames();
+      const mine = games.find((g) => g.code === roomCode);
+      setState(mine
+        ? { lobbyScheduledId: mine.id }
+        : { lobbyScheduleError: 'Only the host who scheduled this game can change its details' });
+    } catch (err) {
+      setState({ lobbyScheduleError: err.message || 'Could not load this game’s details' });
+    }
+    showScreen('online-lobby');
+  },
+  cancelLobbyScheduleEdit() {
+    setState({ lobbyScheduleEditing: false, lobbyScheduleError: null });
+    showScreen('online-lobby');
+  },
+  async saveLobbyScheduleEdit() {
+    const id = getState().lobbyScheduledId;
+    if (!id) return;
+    const value = document.getElementById('lobby-edit-at')?.value;
+    if (!value) return;
+    const at = new Date(value);
+    if (Number.isNaN(at.getTime())) {
+      setState({ lobbyScheduleError: 'That date and time is not valid' });
+      showScreen('online-lobby');
+      return;
+    }
+    const title = document.getElementById('lobby-edit-title')?.value ?? '';
+    try {
+      await apiRescheduleGame(id, { scheduledAt: at.toISOString(), title });
+      // The server pushes the change into this room, so the banner's own
+      // values arrive over the schema listeners — close the editor and let
+      // that repaint land.
+      setState({ lobbyScheduleEditing: false, lobbyScheduleError: null });
+      invalidateScheduledGamesCache();
+    } catch (err) {
+      setState({ lobbyScheduleError: err.message || 'Failed to update the game' });
+    }
+    showScreen('online-lobby');
+  },
+
   lobbyEmailAuth() {
     captureLobbyDetails();
     setState({ lobbyStep: 'email-auth', loginError: null, loginNotice: null });
