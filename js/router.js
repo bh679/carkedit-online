@@ -58,7 +58,6 @@ import { renderLoginModal } from './components/auth-button.js';
 import { markOnlinePlayed, markHowToBannerDismissed, markVideoCallTipDone } from './components/how-to-play-overlay.js';
 import { renderPanel as renderVideoCallPanel, renderCallButton } from './components/video-call-panel.js';
 import { renderPanel as renderSharePanel } from './components/share-panel.js';
-import { buildJoinUrl } from './utils/join-url.js';
 import {
   buildDraft as buildVideoCallDraft,
   harvestDraft as harvestVideoCallDraft,
@@ -662,13 +661,17 @@ function cancelRecover() {
 }
 
 /**
- * The room's invite URL for the current page, or null when there is no room.
- * Single source of truth for the clipboard copies, the QR code and the native
- * share sheet — see js/utils/join-url.js.
+ * The live room's invite URL, or null when there is no room.
+ *
+ * Reuses buildJoinUrl() from the scheduled-games manager — the same builder
+ * scheduled invites already use — so the clipboard copies, the QR code, the
+ * native share sheet and scheduled-game links can never drift apart.
+ *
  * @returns {string|null}
  */
 function currentJoinUrl() {
-  return buildJoinUrl(getState().roomCode, window.location.href);
+  const code = getState().roomCode;
+  return code ? buildJoinUrl(code) : null;
 }
 
 /**
