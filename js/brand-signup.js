@@ -123,7 +123,7 @@ export function renderCreateSection(evangelist = 'Evangelist', plan = null, emai
     return `<div class="brand-signup__create">
       <button type="button" class="brand-signup__new-bar" aria-expanded="false"
         onclick="window.brandSignup.toggleCreate()">
-        <span>+ New request</span>
+        <span>+ New Brand</span>
         <span class="brand-signup__brand-chevron" aria-hidden="true">▸</span>
       </button>
     </div>`;

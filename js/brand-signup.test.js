@@ -104,7 +104,7 @@ test('renderMyBrands collapsed keeps the header but drops the list', () => {
 
 test('renderCreateSection collapsed is just the toggle bar — no form', () => {
   const html = renderCreateSection('Death Evangelist', null, '', false);
-  assert.match(html, /New request/);
+  assert.match(html, /New Brand/);
   assert.match(html, /window\.brandSignup\.toggleCreate\(\)/);
   assert.match(html, /aria-expanded="false"/);
   assert.doesNotMatch(html, /id="brand-request-name"/);
@@ -115,7 +115,7 @@ test('renderCreateSection expanded shows the form and hides the "+ New request" 
   assert.match(html, /id="brand-request-name"/);
   assert.match(html, /id="brand-request-slug"/);
   // The bar is purely an open affordance — gone once the form is showing.
-  assert.doesNotMatch(html, /New request/);
+  assert.doesNotMatch(html, /New Brand/);
   assert.doesNotMatch(html, /brand-signup__new-bar/);
   assert.doesNotMatch(html, /toggleCreate/);
   // Plan + email are threaded through to the form.
