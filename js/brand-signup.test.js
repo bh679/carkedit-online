@@ -23,7 +23,7 @@ const SAMPLE_BRAND = {
 };
 
 test('renderRequestForm includes name, slug, email, phone, logo inputs and a submit button', () => {
-  const html = renderRequestForm('Death Evangelist');
+  const html = renderRequestForm('Champion');
   assert.match(html, /id="brand-request-name"/);
   assert.match(html, /id="brand-request-slug"/);
   assert.match(html, /id="brand-request-email"/);
@@ -37,10 +37,10 @@ test('renderRequestForm includes name, slug, email, phone, logo inputs and a sub
 });
 
 test('renderRequestForm pre-fills the contact email from the account (escaped)', () => {
-  const html = renderRequestForm('Death Evangelist', null, 'me@example.com');
+  const html = renderRequestForm('Champion', null, 'me@example.com');
   assert.match(html, /id="brand-request-email"[^>]*value="me@example\.com"/);
   // Empty email leaves the field blank.
-  assert.match(renderRequestForm('Death Evangelist'), /id="brand-request-email"[^>]*value=""/);
+  assert.match(renderRequestForm('Champion'), /id="brand-request-email"[^>]*value=""/);
 });
 
 test('renderRequestForm wires the inline controller hooks', () => {
@@ -95,7 +95,7 @@ test('renderMyBrands is expanded by default: rows shown, toggle wired', () => {
 });
 
 test('renderMyBrands collapsed keeps the header but drops the list', () => {
-  const html = renderMyBrands([SAMPLE_BRAND], null, 'Evangelist', false);
+  const html = renderMyBrands([SAMPLE_BRAND], null, 'Champion', false);
   assert.match(html, /Your requests/);
   assert.match(html, /aria-expanded="false"/);
   assert.doesNotMatch(html, /brand-signup__brands-list/);
@@ -103,7 +103,7 @@ test('renderMyBrands collapsed keeps the header but drops the list', () => {
 });
 
 test('renderCreateSection collapsed is just the toggle bar — no form', () => {
-  const html = renderCreateSection('Death Evangelist', null, '', false);
+  const html = renderCreateSection('Champion', null, '', false);
   assert.match(html, /New Brand/);
   assert.match(html, /window\.brandSignup\.toggleCreate\(\)/);
   assert.match(html, /aria-expanded="false"/);
@@ -111,7 +111,7 @@ test('renderCreateSection collapsed is just the toggle bar — no form', () => {
 });
 
 test('renderCreateSection expanded shows the form and hides the "+ New request" bar', () => {
-  const html = renderCreateSection('Death Evangelist', 'pro', 'me@example.com', true);
+  const html = renderCreateSection('Champion', 'pro', 'me@example.com', true);
   assert.match(html, /id="brand-request-name"/);
   assert.match(html, /id="brand-request-slug"/);
   // The bar is purely an open affordance — gone once the form is showing.
@@ -124,9 +124,9 @@ test('renderCreateSection expanded shows the form and hides the "+ New request" 
 });
 
 test('renderCreateSection: the collapsed bar is the only expand/collapse control', () => {
-  const collapsed = renderCreateSection('Evangelist', null, '', false);
+  const collapsed = renderCreateSection('Champion', null, '', false);
   assert.equal((collapsed.match(/aria-expanded/g) || []).length, 1);
-  assert.equal((renderCreateSection('Evangelist', null, '', true).match(/aria-expanded/g) || []).length, 0);
+  assert.equal((renderCreateSection('Champion', null, '', true).match(/aria-expanded/g) || []).length, 0);
 });
 
 // ── post-submit confirmation ──────────────────────────────
@@ -159,9 +159,10 @@ test('renderSuccessCard escapes brand name + slug', () => {
 });
 
 test('renderSuccessCard uses the configurable role label in copy', () => {
-  const html = renderSuccessCard({ name: 'Acme Co', slug: 'acme' }, 'Death Evangelist');
-  assert.match(html, /Death Evangelist/);
-  assert.doesNotMatch(html, /Partner/);
+  const html = renderSuccessCard({ name: 'Acme Co', slug: 'acme' }, 'Grim Reaper');
+  assert.match(html, /Grim Reaper/);
+  // Not hardcoded to the default label.
+  assert.doesNotMatch(html, /Champion/);
 });
 
 // ── click-to-edit ─────────────────────────────────────────
@@ -184,7 +185,7 @@ test('renderMyBrands renders the edit form only for the expanded id', () => {
 });
 
 test('renderEditForm pre-fills fields, selects the plan, and wires save/cancel', () => {
-  const html = renderEditForm(SAMPLE_BRAND, 'Death Evangelist');
+  const html = renderEditForm(SAMPLE_BRAND, 'Champion');
   assert.match(html, /id="edit-brand-name"[^>]*value="Acme Co"/);
   assert.match(html, /id="edit-brand-slug"[^>]*value="acme"/);
   assert.match(html, /id="edit-brand-email"[^>]*value="owner@example.com"/);
@@ -197,7 +198,7 @@ test('renderEditForm pre-fills fields, selects the plan, and wires save/cancel',
 });
 
 test('renderEditForm wires a live URL availability check, anchored to the current slug', () => {
-  const html = renderEditForm(SAMPLE_BRAND, 'Death Evangelist');
+  const html = renderEditForm(SAMPLE_BRAND, 'Champion');
   assert.match(html, /window\.brandSignup\.checkEditSlug\(\)/);
   assert.match(html, /id="edit-brand-slug-hint"/);
   assert.match(html, /id="edit-brand-slug"[^>]*data-current="acme"/);
@@ -247,7 +248,7 @@ test('renderPlanSelect: an unknown plan falls back to no selection', () => {
 });
 
 test('renderRequestForm: always includes the switchable plan select', () => {
-  assert.match(renderRequestForm('Evangelist', 'ultimate'), /<select id="brand-request-plan"/);
-  assert.match(renderRequestForm('Evangelist', 'ultimate'), /value="ultimate"\s+selected/);
-  assert.match(renderRequestForm('Evangelist'), /<select id="brand-request-plan"/);
+  assert.match(renderRequestForm('Champion', 'ultimate'), /<select id="brand-request-plan"/);
+  assert.match(renderRequestForm('Champion', 'ultimate'), /value="ultimate"\s+selected/);
+  assert.match(renderRequestForm('Champion'), /<select id="brand-request-plan"/);
 });

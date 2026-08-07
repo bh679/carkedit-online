@@ -1,4 +1,4 @@
-// CarkedIt Online — Partner-brand ("Evangelist") owner admin panel.
+// CarkedIt Online — Partner-brand ("Champion") owner admin panel.
 //
 // Pure, DOM-free rendering + brand-resolution helpers for brand-admin.html.
 // The real access boundary is the server-side requireBrandOwner middleware; this

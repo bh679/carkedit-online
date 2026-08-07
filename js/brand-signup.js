@@ -1,4 +1,4 @@
-// CarkedIt Online — Brand-request ("Evangelist") render helpers.
+// CarkedIt Online — Brand-request ("Champion") render helpers.
 //
 // Pure, DOM-free HTML builders for brand-signup.html (the self-serve request
 // page linked from the account screen). Kept out of the page's inline boot so
@@ -44,13 +44,13 @@ export function renderPlanSelect(plan, id = 'brand-request-plan') {
 }
 
 /**
- * The request form. `evangelist` is the configurable role label for copy;
+ * The request form. `champion` is the configurable role label for copy;
  * `plan` (optional) is the tier chosen on the pricing page, pre-selected in the
  * plan picker (the user can switch it here); `email` (optional) pre-fills the
  * contact email from the signed-in account.
  */
-export function renderRequestForm(evangelist = 'Evangelist', plan = null, email = '') {
-  const who = escapeHtml(evangelist);
+export function renderRequestForm(champion = 'Champion', plan = null, email = '') {
+  const who = escapeHtml(champion);
   return `
     <form id="brand-request-form" class="brand-signup__form" onsubmit="return window.brandSignup.submit(event)">
       ${renderPlanSelect(plan)}
@@ -92,9 +92,9 @@ export function renderRequestForm(evangelist = 'Evangelist', plan = null, email 
  * paints this above the list, so the confirmation survives the repaint that the
  * post-submit refresh triggers. Dismissed via the controller.
  */
-export function renderSuccessCard(brand, evangelist = 'Evangelist') {
+export function renderSuccessCard(brand, champion = 'Champion') {
   if (!brand) return '';
-  const who = escapeHtml(evangelist);
+  const who = escapeHtml(champion);
   return `
     <div class="brand-signup__success" role="status">
       <p class="brand-signup__success-title">
@@ -118,7 +118,7 @@ export function renderSuccessCard(brand, evangelist = 'Evangelist') {
  * something else takes over (a submit, or expanding a request to edit). So the
  * bar is hidden once the form is showing; see brand-signup.html.
  */
-export function renderCreateSection(evangelist = 'Evangelist', plan = null, email = '', open = true) {
+export function renderCreateSection(champion = 'Champion', plan = null, email = '', open = true) {
   if (!open) {
     return `<div class="brand-signup__create">
       <button type="button" class="brand-signup__new-bar" aria-expanded="false"
@@ -130,7 +130,7 @@ export function renderCreateSection(evangelist = 'Evangelist', plan = null, emai
   }
   return `<div class="brand-signup__create">
     <p class="brand-signup__intro">Submit a request and an admin will review it.</p>
-    ${renderRequestForm(evangelist, plan, email)}
+    ${renderRequestForm(champion, plan, email)}
   </div>`;
 }
 
@@ -140,7 +140,7 @@ export function renderCreateSection(evangelist = 'Evangelist', plan = null, emai
  * matches `expandedId` renders that form beneath it. The section itself is
  * collapsible via `open` (expanded by default).
  */
-export function renderMyBrands(brands, expandedId = null, evangelist = 'Evangelist', open = true) {
+export function renderMyBrands(brands, expandedId = null, champion = 'Champion', open = true) {
   if (!brands || brands.length === 0) return '';
   const items = brands.map((b) => {
     const id = escapeHtml(b.id);
@@ -160,7 +160,7 @@ export function renderMyBrands(brands, expandedId = null, evangelist = 'Evangeli
         <span class="brand-signup__brand-status brand-signup__brand-status--${escapeHtml(b.status)}">${escapeHtml(label)}</span>
         <span class="brand-signup__brand-chevron" aria-hidden="true">${expanded ? '▾' : '▸'}</span>
       </div>
-      ${expanded ? renderEditForm(b, evangelist) : ''}
+      ${expanded ? renderEditForm(b, champion) : ''}
     </li>`;
   }).join('');
   return `<div class="brand-signup__brands">
@@ -180,9 +180,9 @@ export function renderMyBrands(brands, expandedId = null, evangelist = 'Evangeli
  * edit-prefixed ids so it never collides with the create form, and submits to
  * window.brandSignup.saveEdit. Status is shown read-only (edits never change it).
  */
-export function renderEditForm(brand, evangelist = 'Evangelist') {
+export function renderEditForm(brand, champion = 'Champion') {
   const id = escapeHtml(brand.id);
-  const who = escapeHtml(evangelist);
+  const who = escapeHtml(champion);
   const label = STATUS_LABEL[brand.status] || brand.status;
   const logoPreview = brand.logo_url
     ? `<img class="brand-signup__edit-logo" src="${escapeHtml(brand.logo_url)}" alt="current logo" onerror="this.style.display='none'" />`
