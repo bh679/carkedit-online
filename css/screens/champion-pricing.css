@@ -1,4 +1,4 @@
-/* CarkedIt Online — Evangelist Pricing page
+/* CarkedIt Online — Champion Pricing page
  * Colours: only var(--color-*) tokens (see css/colors.css). No hardcoded values.
  * Layout mirrors css/screens/how-to-play.css.
  */
@@ -6,13 +6,13 @@
 /* ── Scrolling override ───────────────────────────────────
  * Game screens lock the body to no-scroll; this informational page scrolls,
  * mirroring css/screens/how-to-play.css (body.page--how-to-play).             */
-body.page--evangelist-pricing {
+body.page--champion-pricing {
   overflow-y: auto;
   height: auto;
   min-height: 100dvh;
 }
 
-body.page--evangelist-pricing #app {
+body.page--champion-pricing #app {
   overflow: visible;
   height: auto;
   min-height: 100dvh;

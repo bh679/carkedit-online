@@ -4,9 +4,9 @@
 import { renderPackGrid } from '../components/pack-card.js';
 import { ROLE_LABELS } from '../config/brand-labels.js';
 
-// Configurable partner-brand role label (e.g. "Death Evangelist") — never
+// Configurable partner-brand role label (e.g. "Champion") — never
 // hardcode the display name; it lives in brand-labels.js.
-const EVANGELIST = ROLE_LABELS.evangelist.singular;
+const CHAMPION = ROLE_LABELS.champion.singular;
 
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({
@@ -92,10 +92,10 @@ export function render(state) {
       </section>
 
       <section class="account__section">
-        <h2 class="account__section-title">Become a ${esc(EVANGELIST)}</h2>
+        <h2 class="account__section-title">Become a ${esc(CHAMPION)}</h2>
         <p class="account__hint">Run co-branded games at your own URL (<code>carkedit.com/your-url</code>).
           Apply for a partner brand — an admin will review your request.</p>
-        <a class="btn btn--primary account__cta" href="brand-signup">Become a ${esc(EVANGELIST)}</a>
+        <a class="btn btn--primary account__cta" href="brand-signup">Become a ${esc(CHAMPION)}</a>
       </section>
       <button class="btn mode-select__back-btn" onclick="window.game.showScreen('menu')">← Back</button>
     </div>

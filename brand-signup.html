@@ -6,7 +6,7 @@
     <title>CarkedIt — Brand Sign-up</title>
     <link rel="stylesheet" href="css/base.css?v=1.09.0008">
     <link rel="stylesheet" href="css/components/auth.css?v=1.09.0008">
-    <!-- Styling mirrors the Evangelist pricing page (css/screens/evangelist-pricing.css):
+    <!-- Styling mirrors the Champion pricing page (css/screens/champion-pricing.css):
          design tokens only, same header / surface-card / input look. -->
     <style>
         /* Scrollable info page (game screens lock the body). */
@@ -125,8 +125,8 @@
     // stays requireAuth). guardPage still honours an admin role override.
     await guardPage('brand-signup').catch((err) => { throw err; });
 
-    const EVANGELIST = ROLE_LABELS.evangelist.singular;
-    document.title = `CarkedIt — Become a ${EVANGELIST}`;   // configurable label, not hardcoded "Partner"
+    const CHAMPION = ROLE_LABELS.champion.singular;
+    document.title = `CarkedIt — Become a ${CHAMPION}`;   // configurable label, not hardcoded "Partner"
     // Plan tier chosen on the pricing page (?plan=…); null when reached directly.
     const SELECTED_PLAN = normalisePlan(new URLSearchParams(window.location.search).get('plan'));
     const FIREBASE_CONFIG = getFirebaseConfig();
@@ -158,11 +158,11 @@
         <header class="brand-signup__header">
           <img class="brand-signup__logo" src="assets/CarkedIt-skull.webp" alt=""
             onerror="this.style.display='none'" />
-          <h1 class="brand-signup__title">Become a ${escapeHtml(EVANGELIST)}</h1>
+          <h1 class="brand-signup__title">Become a ${escapeHtml(CHAMPION)}</h1>
           <p class="brand-signup__subtitle">Run co-branded games at your own URL</p>
         </header>
         ${inner}
-        <a class="brand-signup__back" href="evangelist-pricing" aria-label="Back to pricing">← Pricing</a>
+        <a class="brand-signup__back" href="champion-pricing" aria-label="Back to pricing">← Pricing</a>
       </div>`;
     }
 
@@ -188,13 +188,13 @@
       }
       return `
         <p class="brand-signup__intro">Submit a request and an admin will review it.</p>
-        ${renderRequestForm(EVANGELIST, SELECTED_PLAN, accountEmail)}`;
+        ${renderRequestForm(CHAMPION, SELECTED_PLAN, accountEmail)}`;
     }
 
     function paint() {
       document.getElementById('app').innerHTML = shell(`
         ${renderCreateSection()}
-        ${renderMyBrands(myBrands, expandedId, EVANGELIST)}
+        ${renderMyBrands(myBrands, expandedId, CHAMPION)}
       `);
     }
 

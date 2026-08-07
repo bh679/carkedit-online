@@ -326,8 +326,8 @@ function renderConnectedLobby(state) {
           !p.connected ? ' player-list__chip--disconnected' : '',
         ].join('');
         const status = isFD
-          ? (p.ready ? 'Ready to Die' : 'Funeral Director')
-          : p.ready ? 'Ready to Die' : p.connected ? 'Connected' : 'Disconnected';
+          ? (p.ready ? 'Ready' : 'Funeral Director')
+          : p.ready ? 'Ready' : p.connected ? 'Connected' : 'Disconnected';
         return `
           <div class="player-list__chip${modifiers}">
             <span class="player-list__icon">${icon}</span>
@@ -361,7 +361,7 @@ function renderConnectedLobby(state) {
 
   const readyLabel = isHost
     ? (amReady ? 'Not Ready' : 'Ready')
-    : (amReady ? 'Not Ready' : 'Ready to Die');
+    : (amReady ? 'Not Ready' : "I'm Ready");
 
   const readyBtn = `
     <button
