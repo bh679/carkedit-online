@@ -60,6 +60,23 @@
         .brand-signup__status--err { color: var(--color-danger); }
         .brand-signup__note { font-size: 0.78rem; color: var(--color-text-muted); margin: var(--space-xs) 0 0; }
 
+        /* Post-submit confirmation — the surface card recipe, accented "live". */
+        .brand-signup__success {
+            display: flex; flex-direction: column; gap: var(--space-xs);
+            background: var(--color-surface); border: 1px solid var(--color-live);
+            border-radius: var(--radius-md); padding: var(--space-md);
+        }
+        .brand-signup__success-title {
+            display: flex; align-items: center; gap: var(--space-xs);
+            font-size: 1.1rem; font-weight: 800; color: var(--color-live); margin: 0;
+        }
+        .brand-signup__success-tick { font-size: 1.2rem; line-height: 1; }
+        .brand-signup__success-body {
+            display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-xs);
+            font-size: 0.9rem; color: var(--color-text-90); margin: 0;
+        }
+        .brand-signup__success-dismiss { align-self: flex-start; margin-top: var(--space-xs); }
+
         /* "Your requests" — surface cards, matching the pricing tiers. */
         .brand-signup__brands { display: flex; flex-direction: column; gap: var(--space-sm); }
         .brand-signup__brands-title { font-size: 1.25rem; font-weight: 800; color: var(--color-text); margin: 0; }
@@ -118,7 +135,7 @@
     import { guardPage } from './js/managers/page-permission-guard.js';
     import { getFirebaseConfig } from './js/firebase-config.js';
     import { ROLE_LABELS } from './js/config/brand-labels.js';
-    import { renderRequestForm, renderMyBrands, normalisePlan } from './js/brand-signup.js';
+    import { renderRequestForm, renderMyBrands, renderSuccessCard, normalisePlan } from './js/brand-signup.js';
     import { escapeHtml } from './js/utils/escape.js';
 
     // Player-level page: renders for everyone; submit needs a token (backend
@@ -137,6 +154,7 @@
     let accountEmail = '';   // pre-fills the contact email from the signed-in account
     let myBrands = [];       // cache of the user's requests (/brands/mine)
     let expandedId = null;   // id of the request currently expanded for editing
+    let submitted = null;    // { name, slug } of a just-submitted request, shown as a confirmation card
 
     async function loadFirebaseAuth() {
       const [appMod, authMod] = await Promise.all([
@@ -191,10 +209,15 @@
         ${renderRequestForm(EVANGELIST, SELECTED_PLAN, accountEmail)}`;
     }
 
+    // Confirmation first, then the user's requests, then the create form — a
+    // submitted request lands where it can be seen, not below a long form.
+    // renderSuccessCard/renderMyBrands render nothing when there's none, so a
+    // first-time user still sees just the form.
     function paint() {
       document.getElementById('app').innerHTML = shell(`
-        ${renderCreateSection()}
+        ${renderSuccessCard(submitted, EVANGELIST)}
         ${renderMyBrands(myBrands, expandedId, EVANGELIST)}
+        ${renderCreateSection()}
       `);
     }
 
@@ -244,11 +267,10 @@
           const res = await authFetch('/api/carkedit/brands', { method: 'POST', body: form });
           const data = await res.json().catch(() => ({}));
           if (res.ok) {
-            setStatus('Request submitted — pending review', 'brand-signup__status--ok');
-            nameEl.value = ''; slugEl.value = ''; if (phoneEl) phoneEl.value = ''; if (logoEl) logoEl.value = '';
-            const hint = document.getElementById('brand-slug-hint');
-            if (hint) { hint.textContent = 'play.carkedit.com/<your-url>'; hint.className = 'brand-signup__slug-hint'; }
-            loadMyBrands();
+            // The repaint below replaces this whole form (fields reset with it),
+            // so the confirmation lives in module state, not in the status span.
+            submitted = { name, slug };
+            await loadMyBrands();   // refresh cache, then one repaint shows card + new row
           } else {
             setStatus(data.error || 'Request failed', 'brand-signup__status--err');
           }
@@ -318,6 +340,7 @@
       // Expand a request into its inline edit form (minimises the create form).
       expandRequest(id) {
         expandedId = id;
+        submitted = null;
         paint();
         const el = document.querySelector('.brand-signup__brand-item--expanded');
         if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
@@ -326,8 +349,9 @@
         if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.expandRequest(id); }
       },
       // Close the editor / reopen the create form.
-      collapseRequest() { expandedId = null; paint(); },
-      newRequest() { expandedId = null; paint(); },
+      collapseRequest() { expandedId = null; submitted = null; paint(); },
+      newRequest() { expandedId = null; submitted = null; paint(); },
+      dismissSuccess() { submitted = null; paint(); },
       async saveEdit(event, id) {
         if (event) event.preventDefault();
         const g = (s) => document.getElementById(s);

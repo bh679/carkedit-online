@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   renderRequestForm,
   renderMyBrands,
+  renderSuccessCard,
   renderEditForm,
   renderPlanSelect,
   normalisePlan,
@@ -80,6 +81,41 @@ test('renderMyBrands escapes brand name + slug', () => {
   const html = renderMyBrands([{ id: 'x1', slug: 'x', name: '<b>evil</b>', status: 'pending' }]);
   assert.doesNotMatch(html, /<b>evil<\/b>/);
   assert.match(html, /&lt;b&gt;evil/);
+});
+
+// ── post-submit confirmation ──────────────────────────────
+
+test('renderSuccessCard renders nothing without a submitted request', () => {
+  assert.equal(renderSuccessCard(null), '');
+  assert.equal(renderSuccessCard(undefined), '');
+});
+
+test('renderSuccessCard confirms the submission with the brand name, URL and pending status', () => {
+  const html = renderSuccessCard({ name: 'Acme Co', slug: 'acme' });
+  assert.match(html, /Request Submitted Successfully/);
+  assert.match(html, /Acme Co/);
+  assert.match(html, /carkedit\.com\/acme/);
+  assert.match(html, /brand-signup__brand-status--pending/);
+  assert.match(html, /Pending/);
+  assert.match(html, /role="status"/);
+});
+
+test('renderSuccessCard wires the dismiss control', () => {
+  const html = renderSuccessCard({ name: 'Acme Co', slug: 'acme' });
+  assert.match(html, /window\.brandSignup\.dismissSuccess\(\)/);
+});
+
+test('renderSuccessCard escapes brand name + slug', () => {
+  const html = renderSuccessCard({ name: '<b>evil</b>', slug: '"x' });
+  assert.doesNotMatch(html, /<b>evil<\/b>/);
+  assert.match(html, /&lt;b&gt;evil/);
+  assert.match(html, /&quot;x/);
+});
+
+test('renderSuccessCard uses the configurable role label in copy', () => {
+  const html = renderSuccessCard({ name: 'Acme Co', slug: 'acme' }, 'Death Evangelist');
+  assert.match(html, /Death Evangelist/);
+  assert.doesNotMatch(html, /Partner/);
 });
 
 // ── click-to-edit ─────────────────────────────────────────

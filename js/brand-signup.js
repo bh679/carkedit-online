@@ -87,6 +87,32 @@ export function renderRequestForm(evangelist = 'Evangelist', plan = null, email 
 }
 
 /**
+ * Confirmation card for a request that was just submitted (or empty when there
+ * isn't one). The page keeps the submitted `{ name, slug }` in module state and
+ * paints this above the list, so the confirmation survives the repaint that the
+ * post-submit refresh triggers. Dismissed via the controller.
+ */
+export function renderSuccessCard(brand, evangelist = 'Evangelist') {
+  if (!brand) return '';
+  const who = escapeHtml(evangelist);
+  return `
+    <div class="brand-signup__success" role="status">
+      <p class="brand-signup__success-title">
+        <span class="brand-signup__success-tick" aria-hidden="true">✓</span>
+        Request Submitted Successfully
+      </p>
+      <p class="brand-signup__success-body">
+        <strong>${escapeHtml(brand.name || '')}</strong> —
+        <span class="brand-signup__brand-slug">play.carkedit.com/${escapeHtml(brand.slug || '')}</span>
+        <span class="brand-signup__brand-status brand-signup__brand-status--pending">${escapeHtml(STATUS_LABEL.pending)}</span>
+      </p>
+      <p class="brand-signup__note">Your ${who} request is now with an admin for review — you can edit it below until it's approved.</p>
+      <button type="button" class="btn btn--secondary brand-signup__success-dismiss"
+        onclick="window.brandSignup.dismissSuccess()">Dismiss</button>
+    </div>`;
+}
+
+/**
  * The user's existing brand requests with their review status (or empty).
  * Each row is clickable to expand it into an inline edit form; the row whose id
  * matches `expandedId` renders that form beneath it.
