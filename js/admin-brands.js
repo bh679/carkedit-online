@@ -7,6 +7,7 @@
 'use strict';
 
 import { escapeHtml } from './utils/escape.js';
+import { PLAN_BY_KEY, normalisePlan } from './config/plans.js';
 
 /** Brand lifecycle states (mirrors the API BrandStatus union). */
 export const BRAND_STATUSES = ['pending', 'approved', 'rejected', 'suspended'];
@@ -22,6 +23,19 @@ const STATUS_LABEL = {
 export function statusBadge(status) {
   const s = BRAND_STATUSES.includes(status) ? status : 'pending';
   return `<span class="admin-brands__badge admin-brands__badge--${s}">${STATUS_LABEL[s]}</span>`;
+}
+
+/**
+ * Plan pill for a brand, using the shared plan catalog for tier names so the
+ * admin view can't drift from the pricing page / signup picker. Brands created
+ * before plans existed (and any unknown value) render a muted em-dash instead
+ * of a broken pill.
+ */
+export function planBadge(plan) {
+  const key = normalisePlan(plan);
+  if (!key) return '<span class="admin-brands__plan admin-brands__plan--none">—</span>';
+  const tier = PLAN_BY_KEY[key];
+  return `<span class="admin-brands__plan admin-brands__plan--${key}">${escapeHtml(tier.name)}</span>`;
 }
 
 /** <option> list for the status filter ('' = All). */
@@ -98,6 +112,7 @@ export function renderBrandRow(brand) {
     <td>${logoCell(brand)}</td>
     <td>${slugCell(brand)}</td>
     <td>${escapeHtml(brand.name)}</td>
+    <td>${planBadge(brand.plan)}</td>
     <td>${ownerCell(brand)}</td>
     <td>${fmtDate(brand.created_at)}</td>
     <td>${statusBadge(brand.status)}</td>
@@ -113,7 +128,7 @@ export function renderBrandsTable(brands) {
   const rows = brands.map(renderBrandRow).join('');
   return `<table class="admin-brands__table">
     <thead><tr>
-      <th>Logo</th><th>URL</th><th>Name</th><th>Owner</th><th>Requested</th><th>Status</th><th>Actions</th>
+      <th>Logo</th><th>URL</th><th>Name</th><th>Plan</th><th>Owner</th><th>Requested</th><th>Status</th><th>Actions</th>
     </tr></thead>
     <tbody>${rows}</tbody>
   </table>`;
