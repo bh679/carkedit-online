@@ -277,9 +277,10 @@ export function refreshCreateSection(state) {
 }
 
 /**
- * Pre-start banner for a scheduled game: how long to wait, how to put it in a
- * calendar, and how the game works. Disappears the moment the start time
- * arrives — from then on the lobby is an ordinary one.
+ * Pre-start banner for a scheduled game: how long to wait and how to put it in
+ * a calendar. Disappears the moment the start time arrives — from then on the
+ * lobby is an ordinary one. How to play is reached from the first-time bar or
+ * the header button, so the banner doesn't repeat it.
  */
 function renderScheduleBanner(state) {
   const { scheduledAt, scheduledTitle } = state;
@@ -299,9 +300,6 @@ function renderScheduleBanner(state) {
       <span class="schedule__banner-when">${escapeHtml(formatStartTime(scheduledAt))}</span>
       ${renderCountdown(scheduledAt)}
       ${renderCalendarActions()}
-      <button class="btn btn--ghost schedule__how-btn" onclick="window.game.openHowToPlay()">
-        How to play
-      </button>
     </div>
   `;
 }
