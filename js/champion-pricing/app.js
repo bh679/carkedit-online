@@ -1,12 +1,12 @@
-// CarkedIt Online — Evangelist Pricing page
-// Standalone informational page presenting the three co-branding ("Evangelist")
+// CarkedIt Online — Champion Pricing page
+// Standalone informational page presenting the three co-branding ("Champion")
 // subscription tiers (Basic / Pro / Ultimate). Each tier's CTA links to the
 // self-serve brand-signup request page.
 //
 // Pure render/logic functions are exported and import-safe (no DOM at load time)
 // so they can be unit tested; the DOM bootstrap at the bottom is guarded.
 //
-// The "Evangelist" wording is NOT hardcoded: it comes from ROLE_LABELS.evangelist
+// The "Champion" wording is NOT hardcoded: it comes from ROLE_LABELS.champion
 // (js/config/brand-labels.js), which hydrates from the API at runtime so the term
 // can change in one place. Mirrors brand-signup.html's pattern.
 'use strict';
@@ -73,8 +73,8 @@ export function signupUrl(selected) {
 
 // ── Rendering (pure: returns HTML strings) ────────────────
 
-export function renderHeader(evangelist = 'Evangelist') {
-  const who = escapeHtml(evangelist);
+export function renderHeader(champion = 'Champion') {
+  const who = escapeHtml(champion);
   return `
     <header class="evp-header">
       <img
@@ -114,8 +114,8 @@ export function renderTier(tier, selected) {
       aria-checked="${on}"
       tabindex="${on ? '0' : '-1'}"
       data-plan="${tier.key}"
-      onclick="window.evangelistPricing.selectTier('${tier.key}')"
-      onkeydown="window.evangelistPricing.onKey(event, '${tier.key}')"
+      onclick="window.championPricing.selectTier('${tier.key}')"
+      onkeydown="window.championPricing.onKey(event, '${tier.key}')"
     >
       <div class="evp-tier__head">
         ${badge}
@@ -142,14 +142,14 @@ export function renderTiers(tiers, selected) {
   `;
 }
 
-export function renderActions(evangelist = 'Evangelist', selected) {
-  const label = `Become ${escapeHtml(`a ${evangelist}`)}`;
+export function renderActions(champion = 'Champion', selected) {
+  const label = `Become ${escapeHtml(`a ${champion}`)}`;
   return `
     <div class="evp-actions">
       <button
         type="button"
         class="btn btn--primary evp-actions__cta"
-        onclick="window.evangelistPricing.goToSignup()"
+        onclick="window.championPricing.goToSignup()"
       >${label} &rarr;</button>
     </div>
   `;
@@ -167,15 +167,15 @@ export function renderWhiteLabel() {
   `;
 }
 
-export function render(evangelist = 'Evangelist', selected = DEFAULT_PLAN) {
+export function render(champion = 'Champion', selected = DEFAULT_PLAN) {
   return `
     <div class="evp">
-      ${renderHeader(evangelist)}
+      ${renderHeader(champion)}
       <p class="evp-intro">
         Your brand, your community. Tap a plan to choose it.
       </p>
       ${renderTiers(tiers(), selected)}
-      ${renderActions(evangelist, selected)}
+      ${renderActions(champion, selected)}
       ${renderWhiteLabel()}
       <p class="evp-foot">All plans are billed yearly. Questions? Submit a request and an admin will be in touch.</p>
       ${renderBack()}
@@ -190,9 +190,9 @@ function tiers() {
 
 // ── DOM behaviour (browser only) ──────────────────────────
 
-function evangelistTerm() {
-  const ev = ROLE_LABELS && ROLE_LABELS.evangelist;
-  return (ev && ev.singular) || 'Evangelist';
+function championTerm() {
+  const ch = ROLE_LABELS && ROLE_LABELS.champion;
+  return (ch && ch.singular) || 'Champion';
 }
 
 let selectedPlan = DEFAULT_PLAN;
@@ -236,11 +236,11 @@ function onKey(event, key) {
 function mount() {
   const app = document.getElementById('app');
   if (!app) return;
-  app.innerHTML = render(evangelistTerm(), selectedPlan);
+  app.innerHTML = render(championTerm(), selectedPlan);
 }
 
 if (typeof document !== 'undefined') {
-  window.evangelistPricing = { selectTier, goToSignup, onKey };
+  window.championPricing = { selectTier, goToSignup, onKey };
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', mount);
   } else {
