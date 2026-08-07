@@ -1,4 +1,9 @@
-/* CarkedIt Online — Share / QR panel (header button + overlay) */
+/* CarkedIt Online — QR surfaces
+ *
+ * Two places show a join QR:
+ *   1. the lobby share panel (header button + overlay) — .share-panel__*
+ *   2. the desktop join screen's "use your phone" block — .join-qr__*
+ * Both keep the code dark-on-white regardless of theme. */
 
 /* ── Header button ───────────────────────────────────── */
 /* Matches the call/help/flag icon cluster rather than the boxed copy-link
@@ -163,4 +168,73 @@
 
 .share-panel__copy--done {
   opacity: 0.85;
+}
+
+/* ── Desktop join screen block ───────────────────────── */
+/* Shown only when a share link is opened on a desktop — see js/components/join-qr.js. */
+
+.join-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.join-qr__title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--color-text);
+  text-align: center;
+  margin: 0;
+}
+
+.join-qr__code {
+  background: #fff;
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm);
+  width: 100%;
+  max-width: 200px;
+  line-height: 0;
+}
+
+.join-qr__code svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.join-qr__scan {
+  font-size: 0.9rem;
+  color: var(--color-text);
+  text-align: center;
+  margin: 0;
+}
+
+.join-qr__why {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+  text-align: center;
+  margin: 0;
+}
+
+/* Hands off to the join form below: a rule with the label sitting in it. */
+.join-qr__or {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  margin-top: var(--space-xs);
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.join-qr__or::before,
+.join-qr__or::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--color-border);
 }

@@ -104,6 +104,9 @@ export function showScreen(name, updates = {}) {
   // The share panel is a lobby affordance and is mounted on the body, so it
   // would otherwise hang over the game once the host hits Start.
   if (name !== 'online-lobby') unmountSharePanel();
+  // Back on the menu, the invite they followed is no longer the context — a
+  // code typed after this point shouldn't inherit the desktop QR nudge.
+  if (name === 'menu') setState({ arrivedViaJoinLink: false });
   setState({ screen: name, ...updates });
   const state = getState();
   const app = document.getElementById('app');
@@ -280,10 +283,6 @@ function startPreload() {
     }
   });
   return _preloadPromise;
-}
-
-function isMobile() {
-  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 }
 
 // TODO (dev only): placeholder names for quick testing — remove or replace with proper UX before shipping
@@ -1908,7 +1907,9 @@ document.addEventListener('DOMContentLoaded', () => {
         showScreen('menu');
       });
   } else if (joinCode) {
-    setState({ roomCode: joinCode.toUpperCase() });
+    // arrivedViaJoinLink distinguishes "followed someone's invite" from "typed
+    // a code on the join screen" — only the former gets the desktop QR nudge.
+    setState({ roomCode: joinCode.toUpperCase(), arrivedViaJoinLink: true });
     showScreen('join-game');
     // Pre-fill the room code input after render
     requestAnimationFrame(() => {

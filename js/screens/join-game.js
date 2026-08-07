@@ -8,6 +8,9 @@ import { renderOverlay as renderHowToPlayOverlay } from '../components/how-to-pl
 import { renderVideoCallLink } from '../components/video-call-link.js';
 import { renderCountdown } from '../components/countdown.js';
 import { formatStartTime, hasStarted } from '../utils/schedule-format.js';
+import { buildJoinQrBanner } from '../components/join-qr.js';
+import { isMobileDevice } from '../utils/device.js';
+import { buildJoinUrl } from '../managers/scheduled-games.js';
 
 const UNAVAILABLE_MESSAGES = {
   ended: 'This game has already been played.',
@@ -77,8 +80,19 @@ export function render(state) {
   const prefillBM = state.authUser?.birth_month || 0;
   const prefillBD = state.authUser?.birth_day || 0;
 
+  // Someone who followed a share link on a laptop is on the wrong device for a
+  // game with a private hand. Lead with the QR so they can move to their phone
+  // before joining; the form below still works if they'd rather not.
+  const joinQrHtml = buildJoinQrBanner({
+    roomCode: state.roomCode,
+    joinUrl: state.roomCode ? buildJoinUrl(state.roomCode) : '',
+    isDesktop: !isMobileDevice(),
+    viaShareLink: !!state.arrivedViaJoinLink,
+  });
+
   const boardContent = `
     <div class="online-lobby__forms">
+      ${joinQrHtml}
       <div id="join-schedule-banner">${renderScheduleBanner(state)}</div>
       <h2 class="online-lobby__heading">Your Details</h2>
       <input
