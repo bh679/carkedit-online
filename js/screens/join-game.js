@@ -8,7 +8,7 @@ import { renderOverlay as renderHowToPlayOverlay } from '../components/how-to-pl
 import { renderVideoCallLink } from '../components/video-call-link.js';
 import { renderCountdown } from '../components/countdown.js';
 import { formatStartTime, hasStarted } from '../utils/schedule-format.js';
-import { buildJoinQrBanner } from '../components/join-qr.js';
+import { buildJoinQrBanner, shouldNudgeToPhone } from '../components/join-qr.js';
 import { isMobileDevice } from '../utils/device.js';
 import { buildJoinUrl } from '../managers/scheduled-games.js';
 
@@ -81,18 +81,26 @@ export function render(state) {
   const prefillBD = state.authUser?.birth_day || 0;
 
   // Someone who followed a share link on a laptop is on the wrong device for a
-  // game with a private hand. Lead with the QR so they can move to their phone
-  // before joining; the form below still works if they'd rather not.
-  const joinQrHtml = buildJoinQrBanner({
+  // game with a private hand. Make the phone the default: hide the Join button
+  // and offer the QR underneath, with an explicit way back to joining here.
+  const nudgeArgs = {
     roomCode: state.roomCode,
-    joinUrl: state.roomCode ? buildJoinUrl(state.roomCode) : '',
     isDesktop: !isMobileDevice(),
     viaShareLink: !!state.arrivedViaJoinLink,
+  };
+  const nudging = shouldNudgeToPhone(nudgeArgs);
+  const joinQrHtml = buildJoinQrBanner({
+    ...nudgeArgs,
+    joinUrl: state.roomCode ? buildJoinUrl(state.roomCode) : '',
+    revealed: !!state.desktopJoinRevealed,
   });
+
+  // Rendered either way, hidden by class — revealDesktopJoin() un-hides it in
+  // place rather than re-rendering, which would discard anything already typed.
+  const joinBtnHidden = nudging && !state.desktopJoinRevealed;
 
   const boardContent = `
     <div class="online-lobby__forms">
-      ${joinQrHtml}
       <div id="join-schedule-banner">${renderScheduleBanner(state)}</div>
       <h2 class="online-lobby__heading">Your Details</h2>
       <input
@@ -131,7 +139,7 @@ export function render(state) {
           ${connecting ? 'disabled' : ''}
         >
         <button
-          class="btn btn--primary"
+          class="btn btn--primary online-lobby__join-btn${joinBtnHidden ? ' online-lobby__join-btn--hidden' : ''}"
           onclick="window.game.joinRoom(event)"
           ${connecting ? 'disabled' : ''}
         >
@@ -140,6 +148,7 @@ export function render(state) {
       </div>
 
       ${errorHtml}
+      ${joinQrHtml}
     </div>
   `;
 

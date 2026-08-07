@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildJoinQrBanner } from './join-qr.js';
+import { buildJoinQrBanner, shouldNudgeToPhone } from './join-qr.js';
 
 const JOIN_URL = 'https://play.carkedit.com/?join=KXQZ';
 const DESKTOP_ARRIVAL = {
@@ -9,6 +9,19 @@ const DESKTOP_ARRIVAL = {
   isDesktop: true,
   viaShareLink: true,
 };
+
+// ── The shared gate ───────────────────────────────────────
+// One function decides both the QR block and the hidden Join button, so the
+// two can't disagree and leave someone with neither.
+
+test('shouldNudgeToPhone: only a desktop that followed a share link', () => {
+  const args = { roomCode: 'KXQZ', isDesktop: true, viaShareLink: true };
+  assert.equal(shouldNudgeToPhone(args), true);
+  assert.equal(shouldNudgeToPhone({ ...args, isDesktop: false }), false, 'phones and tablets');
+  assert.equal(shouldNudgeToPhone({ ...args, viaShareLink: false }), false, 'code typed by hand');
+  assert.equal(shouldNudgeToPhone({ ...args, roomCode: '' }), false, 'no room');
+  assert.equal(shouldNudgeToPhone(), false, 'called with nothing');
+});
 
 // ── Gating ────────────────────────────────────────────────
 
@@ -44,15 +57,37 @@ test('leads with the QR code and says why', () => {
   assert.ok(html.includes('your cards are private'), 'says why a shared screen will not do');
 });
 
-test('the QR comes before the "or join on this computer" hand-off', () => {
+// ── The escape hatch ──────────────────────────────────────
+
+test('offers a way to play on the computer anyway', () => {
   const html = buildJoinQrBanner(DESKTOP_ARRIVAL);
-  assert.ok(html.indexOf('<svg ') < html.indexOf('or join on this computer'));
+  assert.ok(html.includes("I can't use my phone, play from computer"), 'the escape hatch is worded plainly');
+  assert.ok(html.includes('window.game.revealDesktopJoin()'), 'it reveals the Join button');
+  assert.ok(html.includes('<button type="button"'), 'a real button — it acts, it does not navigate');
 });
 
-test('does not disable or replace the join form — it only prepends a block', () => {
+test('the escape hatch comes after the QR and the reason', () => {
+  const html = buildJoinQrBanner(DESKTOP_ARRIVAL);
+  assert.ok(html.indexOf('<svg ') < html.indexOf('revealDesktopJoin'), 'QR first');
+  assert.ok(html.indexOf('cards are private') < html.indexOf('revealDesktopJoin'), 'reason before the opt-out');
+});
+
+test('once revealed the block stays but the escape hatch is spent', () => {
+  const html = buildJoinQrBanner({ ...DESKTOP_ARRIVAL, revealed: true });
+  assert.ok(html.includes('<svg '), 'the QR is still offered');
+  assert.ok(!html.includes('revealDesktopJoin'), 'no second reveal control');
+});
+
+test('does not disable or replace the join form — it only adds a block', () => {
   const html = buildJoinQrBanner(DESKTOP_ARRIVAL);
   assert.ok(!html.includes('disabled'), 'nothing is disabled');
   assert.ok(!html.includes('online-room-code'), 'the form is untouched');
+});
+
+test('is separated from the form by the screen\'s usual divider', () => {
+  const html = buildJoinQrBanner(DESKTOP_ARRIVAL);
+  assert.ok(html.includes('online-lobby__divider'), 'reuses the join screen divider');
+  assert.ok(html.indexOf('online-lobby__divider') < html.indexOf('join-qr__title'), 'sits above the block');
 });
 
 test('QR carries an accessible label naming the room', () => {

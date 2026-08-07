@@ -1490,6 +1490,17 @@ window.game = {
       }
     }).catch(() => {});
   },
+  // ── Desktop join opt-in ──────────────────────────────────
+  // "I can't use my phone, play from computer" on the join screen. Reveals in
+  // place instead of re-rendering: the name and birthday live in the DOM, not
+  // in state, so showScreen() here would throw away whatever they'd typed.
+  revealDesktopJoin() {
+    setState({ desktopJoinRevealed: true });
+    document.querySelector('.online-lobby__join-btn')
+      ?.classList.remove('online-lobby__join-btn--hidden');
+    document.querySelector('.join-qr__reveal')?.remove();
+    document.querySelector('.online-lobby__join-btn')?.focus();
+  },
   // ── Share / QR panel ─────────────────────────────────────
   // Separate from copyJoinLink(), which still copies instantly from the header
   // link icon and the room-code card. This is the "show me something the person

@@ -218,23 +218,27 @@
   margin: 0;
 }
 
-/* Hands off to the join form below: a rule with the label sitting in it. */
-.join-qr__or {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  width: 100%;
+/* The escape hatch. A <button> because it acts rather than navigates, styled
+   as a link so it reads as the quiet secondary option it is. */
+.join-qr__reveal {
   margin-top: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  background: none;
+  border: none;
   color: var(--color-text-muted);
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font: inherit;
+  font-size: 0.78rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
 }
 
-.join-qr__or::before,
-.join-qr__or::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--color-border);
+.join-qr__reveal:hover,
+.join-qr__reveal:focus-visible {
+  color: var(--color-text);
+}
+
+/* Hidden until they opt in — see js/components/join-qr.js. */
+.online-lobby__join-btn--hidden {
+  display: none;
 }
