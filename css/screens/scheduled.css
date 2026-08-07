@@ -304,6 +304,14 @@
   margin-bottom: calc(var(--space-xs) * -0.5);
 }
 
+/* The label is uppercased; its "optional" note must not be, or the two run
+   together into one shouted phrase. */
+.schedule__edit-label .schedule__label-note {
+  text-transform: none;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
 .schedule__title-input {
   width: 100%;
 }
