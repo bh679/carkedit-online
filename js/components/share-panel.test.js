@@ -81,6 +81,22 @@ test('renderPanel: escapes the room code and URL', () => {
   assert.ok(!html.includes('<script>'), 'URL cannot inject markup');
 });
 
+test('renderPanel: carries no personal details — this URL goes out to a group', () => {
+  // The join screen's QR deliberately embeds the scanner's own name and
+  // birthday (js/utils/join-details.js). The host's share panel must not: it
+  // is broadcast to everyone invited, and the host's details are not theirs
+  // to hand out. Guards against someone wiring appendJoinDetails in here.
+  const html = renderPanel(CONNECTED, JOIN_URL);
+  // Match on param boundaries — a bare 'n=' also occurs inside 'join='.
+  for (const param of ['n', 'bm', 'bd']) {
+    assert.ok(
+      !new RegExp(`[?&]${param}=`).test(html),
+      `share panel URL is free of the '${param}' param`,
+    );
+  }
+  assert.ok(html.includes('?join=KXQZ'), 'still the plain invite');
+});
+
 test('renderPanel: is a dialog labelled for screen readers', () => {
   const html = renderPanel(CONNECTED, JOIN_URL);
   assert.ok(html.includes('role="dialog"'));

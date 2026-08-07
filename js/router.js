@@ -58,6 +58,8 @@ import { renderLoginModal } from './components/auth-button.js';
 import { markOnlinePlayed, markHowToBannerDismissed, markVideoCallTipDone } from './components/how-to-play-overlay.js';
 import { renderPanel as renderVideoCallPanel, renderCallButton } from './components/video-call-panel.js';
 import { renderPanel as renderSharePanel } from './components/share-panel.js';
+import { toQrSvg } from './utils/qr.js';
+import { appendJoinDetails, parseJoinDetails, hasJoinDetails, stripJoinDetails } from './utils/join-details.js';
 import {
   buildDraft as buildVideoCallDraft,
   harvestDraft as harvestVideoCallDraft,
@@ -105,8 +107,9 @@ export function showScreen(name, updates = {}) {
   // would otherwise hang over the game once the host hits Start.
   if (name !== 'online-lobby') unmountSharePanel();
   // Back on the menu, the invite they followed is no longer the context — a
-  // code typed after this point shouldn't inherit the desktop QR nudge.
-  if (name === 'menu') setState({ arrivedViaJoinLink: false });
+  // code typed after this point shouldn't inherit the desktop QR nudge, or the
+  // details that came in on someone else's link.
+  if (name === 'menu') setState({ arrivedViaJoinLink: false, joinPrefill: null });
   setState({ screen: name, ...updates });
   const state = getState();
   const app = document.getElementById('app');
@@ -441,6 +444,11 @@ function unmountVideoCallPanel() {
 // re-render the lobby out from under a player on mobile.
 
 const SHARE_CONTAINER_ID = 'share-panel-container';
+
+// Re-encoding on every keystroke is wasted work; a short settle keeps the code
+// stable enough to scan while someone is still typing.
+const JOIN_QR_REFRESH_MS = 250;
+let _joinQrTimer = null;
 
 /** Escape closes the panel. Bound only while it is open. */
 function onShareKeydown(e) {
@@ -1490,6 +1498,32 @@ window.game = {
       }
     }).catch(() => {});
   },
+  // ── Join QR live refresh ─────────────────────────────────
+  // Your Details is filled in AFTER the screen renders, and the values live in
+  // the DOM (joinRoom reads them straight off the inputs). So the QR has to
+  // re-encode as they type, or scanning it would hand the phone a blank form.
+  //
+  // Swaps only the code's innerHTML — re-rendering the screen would wipe the
+  // very fields we're trying to carry across.
+  refreshJoinQr() {
+    clearTimeout(_joinQrTimer);
+    _joinQrTimer = setTimeout(() => {
+      const holder = document.querySelector('.join-qr__code');
+      if (!holder) return; // mobile, or a code typed by hand — no QR on screen
+      const code = getState().roomCode;
+      if (!code) return;
+      const url = appendJoinDetails(buildJoinUrl(code), {
+        name: document.getElementById('online-player-name')?.value,
+        birthMonth: document.getElementById('online-birth-month')?.value,
+        birthDay: document.getElementById('online-birth-day')?.value,
+      });
+      try {
+        holder.innerHTML = toQrSvg(url, { label: `QR code to open room ${code} on your phone` });
+      } catch {
+        // Leave the last good code up rather than blanking it mid-typing.
+      }
+    }, JOIN_QR_REFRESH_MS);
+  },
   // ── Desktop join opt-in ──────────────────────────────────
   // "I can't use my phone, play from computer" on the join screen. Reveals in
   // place instead of re-rendering: the name and birthday live in the DOM, not
@@ -1918,15 +1952,30 @@ document.addEventListener('DOMContentLoaded', () => {
         showScreen('menu');
       });
   } else if (joinCode) {
+    // A QR scanned off someone's desktop carries the details they already typed
+    // there, so the phone arrives filled in. Validated on the way in — this came
+    // from a scanned code, which is data from outside the app.
+    const scannedDetails = parseJoinDetails(params);
     // arrivedViaJoinLink distinguishes "followed someone's invite" from "typed
     // a code on the join screen" — only the former gets the desktop QR nudge.
-    setState({ roomCode: joinCode.toUpperCase(), arrivedViaJoinLink: true });
+    setState({
+      roomCode: joinCode.toUpperCase(),
+      arrivedViaJoinLink: true,
+      joinPrefill: hasJoinDetails(scannedDetails) ? scannedDetails : null,
+    });
     showScreen('join-game');
     // Pre-fill the room code input after render
     requestAnimationFrame(() => {
       const codeInput = document.getElementById('online-room-code');
       if (codeInput) codeInput.value = joinCode.toUpperCase();
     });
+    // Now that the details are in state, take them back out of the address bar.
+    // Left there they'd sit in browser history and ride along if this person
+    // forwarded the link on to someone else.
+    if (hasJoinDetails(scannedDetails)) {
+      const cleaned = stripJoinDetails(window.location.href);
+      if (cleaned !== window.location.href) window.history.replaceState(null, '', cleaned);
+    }
     // A scheduled link is often opened days early — resolve it so the screen
     // can offer the countdown, calendar and rules instead of a bare code box.
     loadScheduleInfoForCode(joinCode.toUpperCase());

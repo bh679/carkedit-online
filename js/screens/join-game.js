@@ -11,6 +11,7 @@ import { formatStartTime, hasStarted } from '../utils/schedule-format.js';
 import { buildJoinQrBanner, shouldNudgeToPhone } from '../components/join-qr.js';
 import { isMobileDevice } from '../utils/device.js';
 import { buildJoinUrl } from '../managers/scheduled-games.js';
+import { appendJoinDetails } from '../utils/join-details.js';
 
 const UNAVAILABLE_MESSAGES = {
   ended: 'This game has already been played.',
@@ -76,9 +77,11 @@ export function render(state) {
     ? `<p class="online-lobby__error">${escapeHtml(onlineError)}</p>`
     : '';
 
-  const prefillName = state.authUser?.display_name || '';
-  const prefillBM = state.authUser?.birth_month || 0;
-  const prefillBD = state.authUser?.birth_day || 0;
+  // Details scanned in from a desktop QR win over the signed-in profile — they
+  // are what this player just typed, on purpose, for this game.
+  const prefillName = state.joinPrefill?.name || state.authUser?.display_name || '';
+  const prefillBM = state.joinPrefill?.birthMonth || state.authUser?.birth_month || 0;
+  const prefillBD = state.joinPrefill?.birthDay || state.authUser?.birth_day || 0;
 
   // Someone who followed a share link on a laptop is on the wrong device for a
   // game with a private hand. Make the phone the default: hide the Join button
@@ -89,9 +92,18 @@ export function render(state) {
     viaShareLink: !!state.arrivedViaJoinLink,
   };
   const nudging = shouldNudgeToPhone(nudgeArgs);
+  // The QR carries Your Details across so the phone arrives pre-filled. These
+  // fields are typed after this render, so window.game.refreshJoinQr() re-encodes
+  // it live as they go — this only seeds the initial code.
   const joinQrHtml = buildJoinQrBanner({
     ...nudgeArgs,
-    joinUrl: state.roomCode ? buildJoinUrl(state.roomCode) : '',
+    joinUrl: state.roomCode
+      ? appendJoinDetails(buildJoinUrl(state.roomCode), {
+          name: prefillName,
+          birthMonth: prefillBM,
+          birthDay: prefillBD,
+        })
+      : '',
     revealed: !!state.desktopJoinRevealed,
   });
 
@@ -110,15 +122,18 @@ export function render(state) {
         class="input"
         maxlength="24"
         value="${escapeHtml(prefillName)}"
+        oninput="window.game.refreshJoinQr()"
         ${connecting ? 'disabled' : ''}
       >
       <div class="online-lobby__birthday-row">
-        <select id="online-birth-month" class="input online-lobby__birthday-select" ${connecting ? 'disabled' : ''}>
+        <select id="online-birth-month" class="input online-lobby__birthday-select"
+                onchange="window.game.refreshJoinQr()" ${connecting ? 'disabled' : ''}>
           <option value="">Birth Month</option>
           ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
             .map((m, i) => `<option value="${i + 1}"${prefillBM === i + 1 ? ' selected' : ''}>${m}</option>`).join('')}
         </select>
-        <select id="online-birth-day" class="input online-lobby__birthday-select" ${connecting ? 'disabled' : ''}>
+        <select id="online-birth-day" class="input online-lobby__birthday-select"
+                onchange="window.game.refreshJoinQr()" ${connecting ? 'disabled' : ''}>
           <option value="">Birth Day</option>
           ${Array.from({ length: 31 }, (_, i) =>
             `<option value="${i + 1}"${prefillBD === i + 1 ? ' selected' : ''}>${i + 1}</option>`).join('')}
