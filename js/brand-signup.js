@@ -87,11 +87,60 @@ export function renderRequestForm(champion = 'Champion', plan = null, email = ''
 }
 
 /**
+ * Confirmation card for a request that was just submitted (or empty when there
+ * isn't one). The page keeps the submitted `{ name, slug }` in module state and
+ * paints this above the list, so the confirmation survives the repaint that the
+ * post-submit refresh triggers. Dismissed via the controller.
+ */
+export function renderSuccessCard(brand, champion = 'Champion') {
+  if (!brand) return '';
+  const who = escapeHtml(champion);
+  return `
+    <div class="brand-signup__success" role="status">
+      <p class="brand-signup__success-title">
+        <span class="brand-signup__success-tick" aria-hidden="true">✓</span>
+        Request Submitted Successfully
+      </p>
+      <p class="brand-signup__success-body">
+        <strong>${escapeHtml(brand.name || '')}</strong> —
+        <span class="brand-signup__brand-slug">play.carkedit.com/${escapeHtml(brand.slug || '')}</span>
+        <span class="brand-signup__brand-status brand-signup__brand-status--pending">${escapeHtml(STATUS_LABEL.pending)}</span>
+      </p>
+      <p class="brand-signup__note">Your ${who} request is now with an admin for review — you can edit it below until it's approved.</p>
+      <button type="button" class="btn btn--secondary brand-signup__success-dismiss"
+        onclick="window.brandSignup.dismissSuccess()">Dismiss</button>
+    </div>`;
+}
+
+/**
+ * The create/application section. Collapsed it's just the dashed "+ New request"
+ * bar, which is the only control — opening is a click, closing happens when
+ * something else takes over (a submit, or expanding a request to edit). So the
+ * bar is hidden once the form is showing; see brand-signup.html.
+ */
+export function renderCreateSection(champion = 'Champion', plan = null, email = '', open = true) {
+  if (!open) {
+    return `<div class="brand-signup__create">
+      <button type="button" class="brand-signup__new-bar" aria-expanded="false"
+        onclick="window.brandSignup.toggleCreate()">
+        <span>+ New Brand</span>
+        <span class="brand-signup__brand-chevron" aria-hidden="true">▸</span>
+      </button>
+    </div>`;
+  }
+  return `<div class="brand-signup__create">
+    <p class="brand-signup__intro">Submit a request and an admin will review it.</p>
+    ${renderRequestForm(champion, plan, email)}
+  </div>`;
+}
+
+/**
  * The user's existing brand requests with their review status (or empty).
  * Each row is clickable to expand it into an inline edit form; the row whose id
- * matches `expandedId` renders that form beneath it.
+ * matches `expandedId` renders that form beneath it. The section itself is
+ * collapsible via `open` (expanded by default).
  */
-export function renderMyBrands(brands, expandedId = null, champion = 'Champion') {
+export function renderMyBrands(brands, expandedId = null, champion = 'Champion', open = true) {
   if (!brands || brands.length === 0) return '';
   const items = brands.map((b) => {
     const id = escapeHtml(b.id);
@@ -115,8 +164,14 @@ export function renderMyBrands(brands, expandedId = null, champion = 'Champion')
     </li>`;
   }).join('');
   return `<div class="brand-signup__brands">
-    <h2 class="brand-signup__brands-title">Your requests</h2>
-    <ul class="brand-signup__brands-list">${items}</ul>
+    <h2 class="brand-signup__brands-title">
+      <button type="button" class="brand-signup__section-toggle" aria-expanded="${open}"
+        onclick="window.brandSignup.toggleRequests()">
+        <span>Your requests</span>
+        <span class="brand-signup__brand-chevron" aria-hidden="true">${open ? '▾' : '▸'}</span>
+      </button>
+    </h2>
+    ${open ? `<ul class="brand-signup__brands-list">${items}</ul>` : ''}
   </div>`;
 }
 
