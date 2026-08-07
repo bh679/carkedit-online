@@ -44,9 +44,9 @@ test('TIERS: Pro and Ultimate inherit lower tiers; Basic does not', () => {
 
 // ── renderHeader ──────────────────────────────────────────
 
-test('renderHeader: uses the configurable evangelist term in the title', () => {
-  const html = renderHeader('Death Evangelist');
-  assert.match(html, /Death Evangelist Pricing/);
+test('renderHeader: uses the configurable champion term in the title', () => {
+  const html = renderHeader('Champion');
+  assert.match(html, /Champion Pricing/);
 });
 
 test('renderBack: links back to the menu (moved out of the header in #291)', () => {
@@ -56,7 +56,7 @@ test('renderBack: links back to the menu (moved out of the header in #291)', () 
 });
 
 test('render: page still contains the back-to-menu link', () => {
-  assert.match(render('Evangelist'), /href="\/"/);
+  assert.match(render('Champion'), /href="\/"/);
 });
 
 test('renderHeader: escapes the injected term', () => {
@@ -124,17 +124,17 @@ test('renderTiers: is a radiogroup with exactly one checked option', () => {
 });
 
 test('renderActions: a single signup button, no per-tier links', () => {
-  const html = renderActions('Death Evangelist', 'pro');
+  const html = renderActions('Champion', 'pro');
   const buttons = html.match(/<button/g) || [];
   assert.equal(buttons.length, 1);
   assert.match(html, /goToSignup\(\)/);
-  assert.match(html, /Become a Death Evangelist/);
+  assert.match(html, /Become a Champion/);
 });
 
-test('render: includes all tier names, the evangelist term, and one button', () => {
-  const html = render('Death Evangelist');
+test('render: includes all tier names, the champion term, and one button', () => {
+  const html = render('Champion');
   ['Basic', 'Pro', 'Ultimate'].forEach((n) => assert.match(html, new RegExp(n)));
-  assert.match(html, /Death Evangelist/);
+  assert.match(html, /Champion/);
   const buttons = html.match(/<button/g) || [];
   assert.equal(buttons.length, 1, 'page should have exactly one button');
 });
@@ -150,5 +150,5 @@ test('renderWhiteLabel: offers a white label via an inline mailto link (no butto
 });
 
 test('render: includes the white-label contact email', () => {
-  assert.match(render('Evangelist'), new RegExp(`mailto:${WHITELABEL_EMAIL}`));
+  assert.match(render('Champion'), new RegExp(`mailto:${WHITELABEL_EMAIL}`));
 });

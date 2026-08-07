@@ -1,4 +1,4 @@
-// CarkedIt Online — Partner-brand ("Evangelist") co-branding.
+// CarkedIt Online — Partner-brand ("Champion") co-branding.
 //
 // Reads window.__BRAND__ (injected by the API slug resolver when the page is
 // served from a partner vanity URL, carkedit.com/<slug>) and exposes a

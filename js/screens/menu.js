@@ -49,8 +49,8 @@ export function render(state) {
 
 const HOW_TO_PLAY_BTN = `<a class="btn btn--secondary menu__site-link" href="how-to-play">How to Play</a>`;
 const EXPANSIONS_BTN = `<a class="btn btn--secondary menu__site-link" href="expansions">Expansions</a>`;
-// Links to the evangelist pricing page (404s until that feature merges).
-const PARTNER_BTN = `<a class="btn btn--secondary menu__site-link" href="evangelist-pricing">Partner</a>`;
+// Links to the champion pricing page (404s until that feature merges).
+const PARTNER_BTN = `<a class="btn btn--secondary menu__site-link" href="champion-pricing">Partner</a>`;
 const SCHEDULED_GAMES_BTN = `<button class="btn btn--secondary" onclick="window.game.openScheduledGames()">Scheduled Games</button>`;
 
 /**

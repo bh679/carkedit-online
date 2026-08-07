@@ -1,6 +1,6 @@
-// CarkedIt Online — Evangelist plan catalog (single source of truth).
+// CarkedIt Online — Champion plan catalog (single source of truth).
 //
-// Shared by the pricing page (js/evangelist-pricing/app.js) and the brand-signup
+// Shared by the pricing page (js/champion-pricing/app.js) and the brand-signup
 // plan picker (js/brand-signup.js) so tier names + prices never drift. Keep the
 // keys in sync with the API's allowed plan enum (carkedit-api POST /brands).
 'use strict';
