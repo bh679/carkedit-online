@@ -57,11 +57,13 @@ test('renderFirstHostDiscordBar: a quote in the URL cannot break out of the href
 // ── Hidden states ─────────────────────────────────────────
 
 test('renderFirstHostDiscordBar: hidden without a configured invite', () => {
+  // Blanking the constant must pull the bar rather than render a dead link.
   assert.equal(renderFirstHostDiscordBar(HOST, { url: '' }), '');
-  // The shipped default is an empty constant — the bar must stay silent until
-  // a real invite is filled in, so a half-configured build shows no dead link.
-  assert.equal(DISCORD_INVITE_URL, '');
-  assert.equal(renderFirstHostDiscordBar(HOST), '');
+});
+
+test('the configured invite is a real Discord URL and is what the bar links to', () => {
+  assert.match(DISCORD_INVITE_URL, /^https:\/\/discord\.gg\/[A-Za-z0-9]+$/);
+  assert.ok(renderFirstHostDiscordBar(HOST).includes(`href="${DISCORD_INVITE_URL}"`));
 });
 
 test('renderFirstHostDiscordBar: hidden for players who are not the host', () => {
