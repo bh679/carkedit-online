@@ -56,6 +56,7 @@ import { buildCard } from './data/card.js';
 import { getOrCreate as registryGetOrCreate, get as registryGet } from './data/CardRegistry.js';
 import { renderLoginModal } from './components/auth-button.js';
 import { markOnlinePlayed, markHowToBannerDismissed, markVideoCallTipDone } from './components/how-to-play-overlay.js';
+import { markOnlineHosted, markDiscordBarDismissed } from './components/first-host-discord.js';
 import { renderPanel as renderVideoCallPanel, renderCallButton } from './components/video-call-panel.js';
 import { renderPanel as renderSharePanel } from './components/share-panel.js';
 import { toQrSvg } from './utils/qr.js';
@@ -1731,6 +1732,10 @@ window.game = {
     markVideoCallTipDone();
     showScreen('online-lobby');
   },
+  dismissDiscordBar() {
+    markDiscordBarDismissed();
+    showScreen('online-lobby');
+  },
   // Copy triggered from the overlay's "Share the Link" step: same link as the
   // room-code card, but the feedback flashes in place on the step's hint line
   // (no re-render, so the overlay and scroll position stay put).
@@ -1938,6 +1943,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // drop the emphasized "How to Play" CTA in future lobbies.
     if (typeof screenName === 'string' && screenName.startsWith('phase')) {
       markOnlinePlayed();
+      // Same moment, but only for the host: their first hosted game is under way,
+      // so the lobby's Discord prompt has done its job and retires.
+      if (getState().isHost) markOnlineHosted();
     }
     showScreen(screenName);
   });
