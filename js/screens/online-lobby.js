@@ -14,6 +14,7 @@ import { renderCountdown } from '../components/countdown.js';
 import { renderCallButton } from '../components/video-call-panel.js';
 import { renderShareButton } from '../components/share-panel.js';
 import { renderEditor as renderVideoCallEditor } from '../components/video-call-editor.js';
+import { renderFirstHostDiscordBar } from '../components/first-host-discord.js';
 
 const LINK_ICON = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
   <path d="M6.5 9.5L9.5 6.5" stroke="#374151" stroke-width="1.5" stroke-linecap="round"/>
@@ -465,6 +466,7 @@ function renderConnectedLobby(state) {
       ${settingsHtml}
       <div class="online-lobby__divider"></div>
       ${hostControls}
+      ${renderFirstHostDiscordBar(state)}
     </div>
   `;
 
