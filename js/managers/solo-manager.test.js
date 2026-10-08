@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createSolo, pickCard, dealPair, playableCards, currentDeck, SOLO_DECKS } from './solo-manager.js';
+import { createSolo, pickCard, dealPair, playableCards, currentDeck, SOLO_DECKS, buildSoloUrl, stripSoloParam } from './solo-manager.js';
 
 function deck(type, n, extra = () => ({})) {
   return Array.from({ length: n }, (_, i) => ({ id: i + 1, deckType: type, compositeId: `${type}:${i + 1}`, ...extra(i) }));
@@ -55,4 +55,14 @@ test('pickCard does not mutate the previous state', () => {
   const before = JSON.stringify(s);
   pickCard(s, 0, decks);
   assert.equal(JSON.stringify(s), before);
+});
+
+test('buildSoloUrl: origin → /?solo=1, tolerates trailing slash', () => {
+  assert.equal(buildSoloUrl('https://play.carkedit.com'), 'https://play.carkedit.com/?solo=1');
+  assert.equal(buildSoloUrl('https://play.carkedit.com/'), 'https://play.carkedit.com/?solo=1');
+});
+
+test('stripSoloParam removes only the solo param', () => {
+  assert.equal(stripSoloParam('https://x.test/?solo=1'), 'https://x.test/');
+  assert.equal(stripSoloParam('https://x.test/?solo=1&join=ABCD'), 'https://x.test/?join=ABCD');
 });

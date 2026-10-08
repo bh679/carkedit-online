@@ -142,3 +142,27 @@
 .solo__actions {
   width: 100%;
 }
+
+/* ── Share link ─────────────────────────────────────────── */
+
+.solo__share-btn {
+  width: 100%;
+  transition: color 0.15s ease;
+}
+
+.solo__share-btn--copied {
+  color: var(--color-live);
+}
+
+.solo__share-link {
+  text-align: center;
+  font-size: 14px;
+  color: var(--color-text-80);
+}
+
+.solo__share-url {
+  user-select: all;
+  -webkit-user-select: all;
+  font-weight: 600;
+  color: var(--color-text);
+}
