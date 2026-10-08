@@ -15,7 +15,7 @@ import { render as renderPhase1 } from './screens/phase1.js';
 import { render as renderPhase23, formatTime } from './screens/phase2-3.js';
 import { render as renderPhase4 } from './screens/phase4.js';
 import { render as renderSolo } from './screens/solo.js';
-import { createSolo, pickCard as soloPickCard } from './managers/solo-manager.js';
+import { createSolo, pickCard as soloPickCard, buildSoloUrl, stripSoloParam, SOLO_QUERY_PARAM } from './managers/solo-manager.js';
 import { render as renderAccount, renderGamesList, renderMyPacks } from './screens/account.js';
 import { render as renderScheduleGame } from './screens/schedule-game.js';
 import { render as renderScheduledCreated } from './screens/scheduled-created.js';
@@ -731,10 +731,36 @@ function soloPick(index) {
   }
 }
 
+/** Back to the menu from a solo game, dropping ?solo=1 so the menu doesn't carry it. */
+function soloMenu() {
+  const cleaned = stripSoloParam(window.location.href);
+  if (cleaned !== window.location.href) window.history.replaceState(null, '', cleaned);
+  showScreen('menu');
+}
+
+function copySoloLink() {
+  const btn = document.querySelector('.solo__share-btn');
+  navigator.clipboard.writeText(buildSoloUrl(window.location.origin)).then(() => {
+    if (!btn) return;
+    const original = btn.textContent;
+    btn.textContent = 'Link copied';
+    btn.classList.add('solo__share-btn--copied');
+    setTimeout(() => {
+      btn.textContent = original;
+      btn.classList.remove('solo__share-btn--copied');
+    }, 2000);
+  }).catch((err) => {
+    console.error('[solo] copy link failed', err);
+    if (btn) btn.textContent = 'Copy failed';
+  });
+}
+
 window.game = {
   showScreen,
   soloStart,
   soloPick,
+  soloMenu,
+  copySoloLink,
   cancelRecover,
   addPlayer,
   selectPlayerRemoval,
@@ -2094,6 +2120,10 @@ document.addEventListener('DOMContentLoaded', () => {
       setState({ lobbyStep: authReturn.lobbyStep, lobbyDetails: authReturn.lobbyDetails });
     }
     showScreen(authReturn.screen);
+  } else if (params.has(SOLO_QUERY_PARAM)) {
+    // Shareable single-player link — anyone can play, no sign-in. The param
+    // stays in the address bar so a reload restarts the solo game.
+    soloStart();
   } else if (params.has('host')) {
     // Deep-link from the How to Play page — straight to "Your Details / Create a Room"
     // (mirrors window.game.openOnlineLobby()).

@@ -97,8 +97,11 @@ function renderSummary(solo) {
       </div>
       <div class="phase__actions solo__actions">
         <button class="btn btn--primary" onclick="window.game.soloStart()">Play Again</button>
-        <button class="btn btn--secondary" onclick="window.game.showScreen('menu')">Menu</button>
+        <button class="btn btn--secondary" onclick="window.game.soloMenu()">Menu</button>
       </div>
+      <button class="btn btn--ghost solo__share-btn" onclick="window.game.copySoloLink()">
+        Share Single Player
+      </button>
     </div>
   `;
 }

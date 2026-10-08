@@ -142,3 +142,14 @@
 .solo__actions {
   width: 100%;
 }
+
+/* ── Share link ─────────────────────────────────────────── */
+
+.solo__share-btn {
+  width: 100%;
+  transition: color 0.15s ease;
+}
+
+.solo__share-btn--copied {
+  color: var(--color-live);
+}

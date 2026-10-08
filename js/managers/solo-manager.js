@@ -12,6 +12,23 @@
 
 import { isWildcard as isWildcardCard } from '../data/card.js';
 
+export const SOLO_QUERY_PARAM = 'solo';
+
+/**
+ * Shareable link that starts a solo game for anyone, signed in or not.
+ * @param {string} origin — e.g. window.location.origin
+ */
+export function buildSoloUrl(origin) {
+  return `${String(origin ?? '').replace(/\/$/, '')}/?${SOLO_QUERY_PARAM}=1`;
+}
+
+/** Remove the solo param from a URL so the menu doesn't carry it. Pure. */
+export function stripSoloParam(href) {
+  const url = new URL(href);
+  url.searchParams.delete(SOLO_QUERY_PARAM);
+  return url.toString();
+}
+
 export const SOLO_DECKS = Object.freeze(['die', 'live', 'bye']);
 export const ROUNDS_PER_DECK = 3;
 const PAIR_SIZE = 2;
