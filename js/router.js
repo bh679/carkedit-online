@@ -14,6 +14,8 @@ import { render as renderJoinGame } from './screens/join-game.js';
 import { render as renderPhase1 } from './screens/phase1.js';
 import { render as renderPhase23, formatTime } from './screens/phase2-3.js';
 import { render as renderPhase4 } from './screens/phase4.js';
+import { render as renderSolo } from './screens/solo.js';
+import { createSolo, pickCard as soloPickCard } from './managers/solo-manager.js';
 import { render as renderAccount, renderGamesList, renderMyPacks } from './screens/account.js';
 import { render as renderScheduleGame } from './screens/schedule-game.js';
 import { render as renderScheduledCreated } from './screens/scheduled-created.js';
@@ -86,6 +88,7 @@ import {
 const SCREENS = {
   menu:          (state) => renderMenu(state),
   'mode-select': (state) => renderModeSelect(state),
+  'solo': (state) => renderSolo(state),
   lobby:         (state) => renderLobby(state),
   'online-lobby': (state) => renderOnlineLobby(state),
   'join-game':    (state) => renderJoinGame(state),
@@ -138,7 +141,7 @@ export function showScreen(name, updates = {}) {
       container.classList.toggle('player-list-container--scrollable', list.scrollWidth > list.clientWidth);
     }
     // Trigger card flip animation after browser paints the initial state
-    const flipEls = document.querySelectorAll('[data-pitch-reveal], [data-die-reveal]');
+    const flipEls = document.querySelectorAll('[data-pitch-reveal], [data-die-reveal], [data-solo-reveal]');
     if (flipEls.length) {
       requestAnimationFrame(() => {
         flipEls.forEach(el => el.classList.add('card-flip--revealed'));
@@ -695,8 +698,43 @@ function writeJoinLinkToClipboard() {
 }
 
 // Expose game API for inline onclick handlers
+// ── Single player ───────────────────────────────────────────
+// Cards come from the same preloaded, shuffled decks the lobby uses; the
+// loading screen shows until they're in.
+async function soloStart() {
+  setState({ solo: null, gameMode: 'local' });
+  showScreen('solo');
+  try {
+    await startPreload();
+    const { decks } = getState();
+    const reshuffled = {
+      die: shuffle(decks.die ?? []),
+      live: shuffle(decks.live ?? []),
+      bye: shuffle(decks.bye ?? []),
+    };
+    setState({ decks: reshuffled });
+    showScreen('solo', { solo: createSolo(reshuffled) });
+  } catch (err) {
+    console.error('[solo] failed to start', err);
+    showScreen('menu');
+  }
+}
+
+function soloPick(index) {
+  const state = getState();
+  if (!state.solo || state.screen !== 'solo') return;
+  try {
+    showScreen('solo', { solo: soloPickCard(state.solo, index, state.decks) });
+  } catch (err) {
+    console.error('[solo] pick failed', err);
+    showScreen('solo', { solo: { ...state.solo, done: true } });
+  }
+}
+
 window.game = {
   showScreen,
+  soloStart,
+  soloPick,
   cancelRecover,
   addPlayer,
   selectPlayerRemoval,

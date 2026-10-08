@@ -29,6 +29,9 @@ export function render(state) {
         <button class="btn btn--secondary" onclick="window.game.showScreen('lobby')">
           Shared Device
         </button>
+        <button class="btn btn--secondary" onclick="window.game.soloStart()">
+          Single Player
+        </button>
         <button class="btn mode-select__back-btn" onclick="window.game.showScreen('menu')">
           &larr; Back
         </button>
