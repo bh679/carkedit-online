@@ -9,6 +9,7 @@ import { createPhase4Manager } from './phase4-manager.js';
 import { computeDodTurnOrder } from '../utils/turn-order.js';
 import { shuffle } from '../utils/shuffle.js';
 import { sendMessage, getRoom } from '../network/client.js';
+import { buildCard, isWildcard } from '../data/card.js';
 
 let currentPhaseManager = null;
 
@@ -141,14 +142,15 @@ export function startPhase3() {
   // Apply wildcard count setting to bye deck
   const { forceWildcards, wildcardCount } = getState().gameSettings;
   const byeDeck = getState().decks.bye ?? [];
-  const wildcards = byeDeck.filter(c => c.special === 'Wildcard');
-  const nonWildcards = byeDeck.filter(c => c.special !== 'Wildcard');
+  const wildcards = byeDeck.filter(c => isWildcard(c));
+  const nonWildcards = byeDeck.filter(c => !isWildcard(c));
   let keepWildcards = [];
   if (forceWildcards !== 'everyone' && wildcardCount > 0) {
-    const template = wildcards[0] ?? { title: 'Wildcard Eulogy', description: 'Save this card until the end, for a chance at bonus points!', special: 'Wildcard', illustrationKey: 'wildcard-eulogy' };
-    keepWildcards = Array.from({ length: wildcardCount }, (_, i) => ({
+    const template = wildcards[0] ?? { title: 'Wildcard Eulogy', description: 'Save this card until the end, for a chance at bonus points!', special: 'wildcard', illustrationKey: 'wildcard-eulogy' };
+    keepWildcards = Array.from({ length: wildcardCount }, (_, i) => buildCard({
       ...template,
       id: `wildcard-${i}`,
+      deckType: 'bye',
     }));
   }
   const combined = shuffle([...nonWildcards, ...keepWildcards]);

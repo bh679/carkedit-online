@@ -10,6 +10,8 @@
 // touch the DOM.
 'use strict';
 
+import { isWildcard as isWildcardCard } from '../data/card.js';
+
 export const SOLO_DECKS = Object.freeze(['die', 'live', 'bye']);
 export const ROUNDS_PER_DECK = 3;
 const PAIR_SIZE = 2;
@@ -32,12 +34,13 @@ export function playableCards(cards) {
   return (cards ?? []).filter((c) => c && !isWildcard(c));
 }
 
-// `Card` normalises the raw "Wildcard" special to null, so fall back to the
-// illustration key, which survives normalisation.
+// Prefer the canonical `special === 'wildcard'` marker (see js/data/card.js);
+// keep the illustration-key fallback for plain objects that never went
+// through `buildCard()`.
 function isWildcard(card) {
-  const special = String(card.special ?? '').toLowerCase();
+  if (isWildcardCard(card)) return true;
   const key = String(card.illustrationKey ?? '').toLowerCase();
-  return special === 'wildcard' || key === 'wildcard-eulogy';
+  return key === 'wildcard-eulogy';
 }
 
 /**
