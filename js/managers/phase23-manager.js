@@ -3,6 +3,7 @@
 
 import { getState } from '../state.js';
 import { getPitchOrder } from '../utils/turn-order.js';
+import { isWildcard } from '../data/card.js';
 
 const DEFAULT_PITCH_DURATION = 120; // seconds — overridable via state.pitchDuration
 
@@ -147,7 +148,7 @@ export function createPhase23Manager({ deckType, onStateChange, onPhaseComplete 
         // but also keep them in the player's hand so they're visible
         if (deckType === 'bye') {
           for (const card of dealt) {
-            if (card.special === 'Wildcard') {
+            if (isWildcard(card)) {
               const existing = wildcardCards[player.name] ?? [];
               wildcardCards[player.name] = [...existing, card];
             }
@@ -350,7 +351,7 @@ export function createPhase23Manager({ deckType, onStateChange, onPhaseComplete 
     if (!card) return;
 
     // Block wildcard submission if setting is off
-    if (deckType === 'bye' && card.special === 'Wildcard' && !(state.gameSettings?.playableWildcards ?? true)) return;
+    if (deckType === 'bye' && isWildcard(card) && !(state.gameSettings?.playableWildcards ?? true)) return;
 
     const newHand = hand.filter(c => String(c.id) !== String(cardId));
     const newSubmitted = { ...state.submittedCards, [player.name]: card };
@@ -511,7 +512,7 @@ export function createPhase23Manager({ deckType, onStateChange, onPhaseComplete 
     const wildcardCards = { ...(state.wildcardCards ?? {}) };
 
     // Transfer wildcard ownership to Living Dead if they picked a wildcard
-    if (deckType === 'bye' && winningCard?.special === 'Wildcard') {
+    if (deckType === 'bye' && isWildcard(winningCard)) {
       const pitcherWildcards = wildcardCards[playerName] ?? [];
       wildcardCards[playerName] = pitcherWildcards.filter(c => String(c.id) !== String(winningCard.id));
       const deadWildcards = wildcardCards[livingDeadName] ?? [];
@@ -524,7 +525,7 @@ export function createPhase23Manager({ deckType, onStateChange, onPhaseComplete 
         const dealt = deck.splice(0, Math.min(needed, deck.length));
         if (deckType === 'bye') {
           for (const card of dealt) {
-            if (card.special === 'Wildcard') {
+            if (isWildcard(card)) {
               const existing = wildcardCards[player.name] ?? [];
               wildcardCards[player.name] = [...existing, card];
             }
