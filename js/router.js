@@ -750,8 +750,11 @@ function copySoloLink() {
       btn.classList.remove('solo__share-btn--copied');
     }, 2000);
   }).catch((err) => {
-    console.error('[solo] copy link failed', err);
-    if (btn) btn.textContent = 'Copy failed';
+    // Clipboard access can be denied (permissions policy, insecure context,
+    // some in-app browsers). Show the link itself so it can be copied by hand.
+    console.warn('[solo] clipboard unavailable, showing link', err);
+    if (!btn) return;
+    btn.outerHTML = `<p class="solo__share-link">Share this link: <span class="solo__share-url">${escapeHtml(buildSoloUrl(window.location.origin))}</span></p>`;
   });
 }
 
