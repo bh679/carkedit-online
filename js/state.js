@@ -21,6 +21,9 @@ let _state = {
 
   // Network / online multiplayer state
   gameMode: 'local',               // 'local' | 'online'
+
+  // Single player (see managers/solo-manager.js) — null when not in a solo game
+  solo: null,
   isHost: false,
   roomCode: null,
   connectionStatus: 'disconnected', // 'disconnected' | 'connecting' | 'connected'

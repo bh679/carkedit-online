@@ -1,0 +1,144 @@
+/* CarkedIt Online — Single Player Screen */
+
+.screen--solo {
+  align-items: center;
+}
+
+.solo__prompt {
+  text-align: center;
+  padding: 0 var(--space-sm);
+}
+
+.solo__loading {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.solo__loading-text {
+  color: var(--color-text-80);
+  font-style: italic;
+}
+
+/* ── The pair ───────────────────────────────────────────── */
+
+.solo__pair {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-sm);
+  align-items: start;
+  container-type: size;
+}
+
+.solo__choice {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  transition: transform 0.15s ease, filter 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.solo__choice:hover,
+.solo__choice:focus-visible {
+  transform: translateY(-4px) scale(1.02);
+  filter: drop-shadow(0 8px 12px var(--color-shadow-sm));
+  outline: none;
+}
+
+.solo__choice:active {
+  transform: scale(0.98);
+}
+
+/* Cards share the viewport: never taller than the pair area. */
+.solo__choice .card-flip {
+  width: min(100%, calc(100cqh * 5 / 7));
+  margin: 0 auto;
+}
+
+.solo__choice .card-flip__inner {
+  transition-delay: var(--solo-delay, 0ms);
+}
+
+.solo__hint {
+  font-size: 13px;
+  font-style: italic;
+  color: var(--color-text-80);
+  text-align: center;
+}
+
+/* ── Deck progress dots ─────────────────────────────────── */
+
+.solo__progress {
+  display: flex;
+  gap: var(--space-xs);
+  justify-content: center;
+  padding-bottom: var(--space-xs);
+}
+
+.solo__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--color-border);
+  opacity: 0.4;
+}
+
+.solo__dot--die  { border-color: var(--color-die); }
+.solo__dot--live { border-color: var(--color-live); }
+.solo__dot--bye  { border-color: var(--color-bye); }
+
+.solo__dot--active { opacity: 1; }
+.solo__dot--done { opacity: 1; }
+.solo__dot--done.solo__dot--die  { background: var(--color-die); }
+.solo__dot--done.solo__dot--live { background: var(--color-live); }
+.solo__dot--done.solo__dot--bye  { background: var(--color-bye); }
+
+/* ── Summary ────────────────────────────────────────────── */
+
+.solo__summary {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-sm);
+  align-items: start;
+  container-type: size;
+}
+
+.solo__pick {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.solo__pick .card {
+  width: min(100%, calc((100cqh - 2em) * 5 / 7));
+}
+
+.solo__pick-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-80);
+}
+
+.solo__pick--die  .solo__pick-label { color: var(--color-die); }
+.solo__pick--live .solo__pick-label { color: var(--color-live); }
+.solo__pick--bye  .solo__pick-label { color: var(--color-bye); }
+
+.solo__actions {
+  width: 100%;
+}
