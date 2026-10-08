@@ -40,15 +40,19 @@ function renderRound(solo) {
   const isFinal = solo.round === ROUNDS_PER_DECK;
   const roundLabel = isFinal ? 'Final' : `Round ${solo.round} of ${ROUNDS_PER_DECK}`;
   const prompt = isFinal ? 'Your two favourites. Which one wins?' : meta.prompt;
+  // A <div role=button> rather than <button>: Chromium flattens 3D transforms
+  // inside <button>, which breaks the card flip.
   const cards = solo.pair.map((card, i) => `
-    <button class="solo__choice" type="button" aria-label="Pick card ${i + 1}" onclick="window.game.soloPick(${i})">
+    <div class="solo__choice" role="button" tabindex="0" aria-label="Pick card ${i + 1}"
+         onclick="window.game.soloPick(${i})"
+         onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); window.game.soloPick(${i}); }">
       <div class="card-flip" data-solo-reveal style="--solo-delay: ${i * 120}ms">
         <div class="card-flip__inner">
           <div class="card-flip__back">${renderCardBack({ deckType: deck })}</div>
           <div class="card-flip__front">${renderCard(card)}</div>
         </div>
       </div>
-    </button>
+    </div>
   `).join('');
 
   return `
