@@ -34,9 +34,7 @@ export function render(state) {
         <button class="btn btn--secondary" onclick="window.game.showScreen('join-game')">
           Join Game
         </button>
-        <button class="btn btn--secondary" onclick="window.game.soloStart()">
-          Single Player
-        </button>
+        ${renderSinglePlayerButton(state)}
         ${renderMenuMiddle(state)}
         <a class="btn btn--ghost menu__site-link menu__shop-link" href="https://carkedit.com/shop/all-products/games/carked-it/" target="_blank" rel="noopener noreferrer">Buy Physical Game</a>
       </div>
@@ -48,6 +46,18 @@ export function render(state) {
       ${reconnecting ? renderRecoveringOverlay(state) : ''}
     </div>
   `;
+}
+
+/**
+ * Single Player is admin-only while it's being trialled, so it stays off the
+ * public menu. The mode-select screen still lists it for everyone.
+ */
+function renderSinglePlayerButton(state) {
+  if (!state.authUser?.is_admin) return '';
+  return `
+        <button class="btn btn--secondary" onclick="window.game.soloStart()">
+          Single Player
+        </button>`;
 }
 
 const HOW_TO_PLAY_BTN = `<a class="btn btn--secondary menu__site-link" href="how-to-play">How to Play</a>`;
