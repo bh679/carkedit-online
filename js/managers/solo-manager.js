@@ -3,7 +3,9 @@
 // One person, no server, no points. For each deck (DIE → LIVE → BYE) the
 // player sees four cards and picks a favourite, twice; the third and final
 // round pits the two favourites against each other. The winner of that
-// round is the pick for the deck. Picking a `?` (mystery) card pauses the
+// round is the pick for the deck. Tapping a card opens a full-screen preview
+// (`inspectIndex`) and the pick is confirmed from there.
+// Picking a `?` (mystery) card pauses the
 // game on an answer step so the player can say what the card asks.
 //
 // Everything here is a pure transition over a `solo` object held in state
@@ -103,6 +105,7 @@ export function createSolo(decks) {
     picks: {},
     answers: {},
     pendingAnswer: null,
+    inspectIndex: null,
     usedIds,
     done: false,
   });
@@ -117,8 +120,35 @@ function isMystery(card) {
  * hasn't been answered yet. Pure.
  */
 function withPendingAnswer(next, chosen, answers) {
-  if (!isMystery(chosen) || answers[cardId(chosen)] !== undefined) return Object.freeze(next);
-  return Object.freeze({ ...next, pendingAnswer: chosen });
+  const cleared = { ...next, inspectIndex: null };
+  if (!isMystery(chosen) || answers[cardId(chosen)] !== undefined) return Object.freeze(cleared);
+  return Object.freeze({ ...cleared, pendingAnswer: chosen });
+}
+
+/**
+ * Open the full-screen preview of one of the dealt cards. Confirming from
+ * there is `pickCard`. Pure; no-op when there is nothing to inspect.
+ * @param {object} solo
+ * @param {number} index
+ */
+export function inspectCard(solo, index) {
+  if (solo.done || solo.pendingAnswer || !solo.pair[index]) return solo;
+  return Object.freeze({ ...solo, inspectIndex: index });
+}
+
+/** Close the preview without picking. Pure. */
+export function dismissInspect(solo) {
+  if (solo.inspectIndex === null || solo.inspectIndex === undefined) return solo;
+  return Object.freeze({ ...solo, inspectIndex: null });
+}
+
+/** Move the preview to the previous (-1) or next (+1) card, wrapping. Pure. */
+export function stepInspect(solo, delta) {
+  if (solo.inspectIndex === null || solo.inspectIndex === undefined) return solo;
+  const n = solo.pair.length;
+  if (!n) return solo;
+  const next = (((solo.inspectIndex + delta) % n) + n) % n;
+  return Object.freeze({ ...solo, inspectIndex: next });
 }
 
 /**

@@ -1,7 +1,8 @@
 // CarkedIt Online — Single Player Screen
 //
 // Pure render(state) over `state.solo` (see managers/solo-manager.js).
-// Four cards, tap your favourite. Three rounds per deck (the final is the
+// Four cards; tap one to preview it full-screen and confirm the pick
+// (same overlay as the multiplayer hand). Three rounds per deck (the final is the
 // two favourites), three decks, then a summary of the three picks and a
 // space to write your own eulogy. Picking a `?` card shows an answer step.
 'use strict';
@@ -9,6 +10,7 @@
 import { render as renderPhaseHeader } from '../components/phase-header.js';
 import { render as renderCard } from '../components/card.js';
 import { render as renderCardBack } from '../components/cardBack.js';
+import { renderInspectOverlay } from '../components/hand.js';
 import { escapeHtml } from '../utils/escape.js';
 import { currentDeck, DECK_LABELS, ROUNDS_PER_DECK, SOLO_DECKS, SUMMARY_ORDER, answerFor } from '../managers/solo-manager.js';
 
@@ -46,8 +48,8 @@ function renderRound(solo) {
   // inside <button>, which breaks the card flip.
   const cards = solo.pair.map((card, i) => `
     <div class="solo__choice" role="button" tabindex="0" aria-label="Pick card ${i + 1}"
-         onclick="window.game.soloPick(${i})"
-         onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); window.game.soloPick(${i}); }">
+         onclick="window.game.soloInspect(${i})"
+         onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); window.game.soloInspect(${i}); }">
       <div class="card-flip" data-solo-reveal style="--solo-delay: ${i * 120}ms">
         <div class="card-flip__inner">
           <div class="card-flip__back">${renderCardBack({ deckType: deck })}</div>
@@ -64,10 +66,28 @@ function renderRound(solo) {
       <div class="solo__pair solo__pair--${deck}${solo.pair.length > 2 ? ' solo__pair--four' : ''}">
         ${cards}
       </div>
-      <p class="solo__hint">Tap your favourite</p>
+      <p class="solo__hint">Tap a card to take a closer look</p>
       ${renderProgress(solo)}
+      ${renderInspect(solo, deck, isFinal)}
     </div>
   `;
+}
+
+/** Full-screen preview of the tapped card, reusing the multiplayer hand overlay. */
+function renderInspect(solo, deck, isFinal) {
+  const index = solo.inspectIndex;
+  if (index === null || index === undefined) return '';
+  const card = solo.pair[index];
+  if (!card) return '';
+  return renderInspectOverlay({
+    selectedCard: card,
+    deckType: deck,
+    submitLabel: isFinal ? 'This one wins' : 'Pick this card',
+    onSubmit: `window.game.soloPick(${index})`,
+    onDismiss: 'window.game.soloDismissInspect()',
+    onPrev: solo.pair.length > 1 ? 'window.game.soloStepInspect(-1)' : null,
+    onNext: solo.pair.length > 1 ? 'window.game.soloStepInspect(1)' : null,
+  });
 }
 
 /**

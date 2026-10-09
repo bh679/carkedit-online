@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createSolo, pickCard, answerCard, answerFor, buildEulogyText, dealPair, playableCards, currentDeck, SOLO_DECKS, SUMMARY_ORDER, CHOICE_SIZE, buildSoloUrl, stripSoloParam } from './solo-manager.js';
+import { createSolo, pickCard, inspectCard, dismissInspect, stepInspect, answerCard, answerFor, buildEulogyText, dealPair, playableCards, currentDeck, SOLO_DECKS, SUMMARY_ORDER, CHOICE_SIZE, buildSoloUrl, stripSoloParam } from './solo-manager.js';
 
 function deck(type, n, extra = () => ({})) {
   return Array.from({ length: n }, (_, i) => ({ id: i + 1, deckType: type, compositeId: `${type}:${i + 1}`, ...extra(i) }));
@@ -142,4 +142,27 @@ test('buildEulogyText lists life, death, afterlife then the eulogy', () => {
     'Your life: Pirate\nYour death: Pick the Best Way to Die — Laughing\nYour afterlife: Heaven\n\nGone too soon.'
   );
   assert.equal(buildEulogyText({ picks: {}, answers: {} }, ''), '');
+});
+
+test('inspect: tap previews, arrows wrap, dismiss closes, pick clears', () => {
+  const s = createSolo(decks);
+  assert.equal(s.inspectIndex, null);
+  assert.equal(inspectCard(s, 9), s);
+  const open = inspectCard(s, 1);
+  assert.equal(open.inspectIndex, 1);
+  assert.equal(stepInspect(open, 1).inspectIndex, 2);
+  assert.equal(stepInspect(open, -1).inspectIndex, 0);
+  assert.equal(stepInspect(stepInspect(open, -1), -1).inspectIndex, 3);
+  assert.equal(stepInspect(inspectCard(s, 3), 1).inspectIndex, 0);
+  assert.equal(dismissInspect(open).inspectIndex, null);
+  assert.equal(dismissInspect(s), s);
+  assert.equal(stepInspect(s, 1), s);
+  assert.equal(pickCard(open, 1, decks).inspectIndex, null);
+  assert.equal(s.inspectIndex, null);
+});
+
+test('inspect is ignored while a ? answer is pending or the game is done', () => {
+  const pending = pickCard(createSolo(mysteryDecks), 0, mysteryDecks);
+  assert.equal(inspectCard(pending, 0), pending);
+  assert.equal(pickCard(pending, 0, mysteryDecks).inspectIndex, null);
 });
