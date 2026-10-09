@@ -34,7 +34,7 @@
   container-type: size;
 }
 
-/* Four-up rounds: 2x2 on phones, one row on wide screens. */
+/* Four-up rounds: always two rows of two, so both rows fit the viewport. */
 .solo__pair--four {
   grid-template-columns: repeat(2, 1fr);
   align-content: start;
@@ -42,16 +42,6 @@
 
 .solo__pair--four .solo__choice .card-flip {
   width: min(100%, calc((50cqh - var(--space-sm)) * 5 / 7));
-}
-
-@media (min-width: 720px) {
-  .solo__pair--four {
-    grid-template-columns: repeat(4, 1fr);
-  }
-
-  .solo__pair--four .solo__choice .card-flip {
-    width: min(100%, calc(100cqh * 5 / 7));
-  }
 }
 
 .solo__choice {
