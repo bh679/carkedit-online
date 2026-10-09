@@ -15,7 +15,7 @@ import { render as renderPhase1 } from './screens/phase1.js';
 import { render as renderPhase23, formatTime } from './screens/phase2-3.js';
 import { render as renderPhase4 } from './screens/phase4.js';
 import { render as renderSolo } from './screens/solo.js';
-import { createSolo, pickCard as soloPickCard, inspectCard as soloInspectCard, dismissInspect as soloDismissInspectCard, stepInspect as soloStepInspectCard, answerCard as soloAnswerCard, buildEulogyText, buildSoloUrl, stripSoloParam, SOLO_QUERY_PARAM } from './managers/solo-manager.js';
+import { createSolo, pickCard as soloPickCard, inspectCard as soloInspectCard, dismissInspect as soloDismissInspectCard, stepInspect as soloStepInspectCard, continueStory as soloContinueStory, openEulogy as soloOpenEulogyStage, answerCard as soloAnswerCard, buildEulogyText, buildSoloUrl, stripSoloParam, SOLO_QUERY_PARAM } from './managers/solo-manager.js';
 import { render as renderAccount, renderGamesList, renderMyPacks } from './screens/account.js';
 import { render as renderScheduleGame } from './screens/schedule-game.js';
 import { render as renderScheduledCreated } from './screens/scheduled-created.js';
@@ -759,6 +759,16 @@ function updateSolo(transition) {
   if (next !== state.solo) showScreen('solo', { solo: next });
 }
 
+/** Leave the mid-game story screen. */
+function soloContinue() {
+  updateSolo(soloContinueStory);
+}
+
+/** From the finished story to the write-your-own-eulogy screen. */
+function soloOpenEulogy() {
+  updateSolo(soloOpenEulogyStage);
+}
+
 /** Answer the pending `?` card with whatever is in the text box. */
 function soloAnswer() {
   const text = document.getElementById('solo-answer')?.value ?? '';
@@ -819,6 +829,8 @@ window.game = {
   soloInspect,
   soloDismissInspect,
   soloStepInspect,
+  soloContinue,
+  soloOpenEulogy,
   soloMenu,
   soloAnswer,
   soloSkipAnswer,

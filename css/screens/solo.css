@@ -198,24 +198,33 @@
 
 /* ── Write your own eulogy ──────────────────────────────── */
 
-.solo__eulogy {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-xs);
-  padding-top: var(--space-sm);
-  border-top: 1px solid var(--color-border);
+.solo__eulogy-screen {
+  gap: var(--space-sm);
 }
 
-.solo__eulogy-title {
-  margin: 0;
-  font-size: 16px;
+/* The three picks, small, in a row across the top. */
+.solo__eulogy-cards {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-sm);
+  align-items: start;
+}
+
+.solo__eulogy-cards .solo__pick .card {
+  width: min(100%, 110px);
+}
+
+/* The text box takes most of the screen. */
+.solo__textarea--eulogy {
+  flex: 1;
+  min-height: 40vh;
+  max-width: none;
+  resize: none;
 }
 
 .solo__eulogy-copy {
   width: 100%;
-  max-width: 480px;
   transition: color 0.15s ease;
 }
 

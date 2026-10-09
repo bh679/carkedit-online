@@ -106,6 +106,7 @@ export function createSolo(decks) {
     answers: {},
     pendingAnswer: null,
     inspectIndex: null,
+    stage: 'round',
     usedIds,
     done: false,
   });
@@ -132,7 +133,7 @@ function withPendingAnswer(next, chosen, answers) {
  * @param {number} index
  */
 export function inspectCard(solo, index) {
-  if (solo.done || solo.pendingAnswer || !solo.pair[index]) return solo;
+  if (solo.done || solo.pendingAnswer || !isRound(solo) || !solo.pair[index]) return solo;
   return Object.freeze({ ...solo, inspectIndex: index });
 }
 
@@ -201,7 +202,7 @@ export function currentDeck(solo) {
  * @param {{ die: object[], live: object[], bye: object[] }} decks
  */
 export function pickCard(solo, index, decks) {
-  if (solo.done || solo.pendingAnswer) return solo;
+  if (solo.done || solo.pendingAnswer || !isRound(solo)) return solo;
   const chosen = solo.pair[index];
   if (!chosen) throw new Error(`Invalid pick index ${index}`);
   const answers = solo.answers ?? {};
@@ -222,13 +223,30 @@ function advance(solo, chosen, decks) {
     return { ...solo, round: ROUNDS_PER_DECK, pair: favourites, favourites };
   }
 
-  // Final round — chosen is the pick for this deck.
+  // Final round — chosen is the pick for this deck; show the story so far.
   const picks = { ...solo.picks, [deck]: chosen };
   const nextIndex = solo.deckIndex + 1;
   if (nextIndex >= SOLO_DECKS.length) {
-    return { ...solo, picks, favourites: [], pair: [], done: true };
+    return { ...solo, picks, favourites: [], pair: [], done: true, stage: 'story' };
   }
   const nextDeck = SOLO_DECKS[nextIndex];
   const { pair, usedIds } = dealPair(decks[nextDeck], solo.usedIds);
-  return { ...solo, deckIndex: nextIndex, round: 1, pair, usedIds, favourites: [], picks };
+  return { ...solo, deckIndex: nextIndex, round: 1, pair, usedIds, favourites: [], picks, stage: 'story' };
+}
+
+/** Screens between rounds: 'round' (dealt cards), 'story' (picks so far), 'eulogy'. */
+function isRound(solo) {
+  return (solo.stage ?? 'round') === 'round';
+}
+
+/** Leave the mid-game story screen and deal into the next deck's rounds. Pure. */
+export function continueStory(solo) {
+  if (solo.done || solo.stage !== 'story') return solo;
+  return Object.freeze({ ...solo, stage: 'round' });
+}
+
+/** Open the write-your-own-eulogy screen once the story is complete. Pure. */
+export function openEulogy(solo) {
+  if (!solo.done || solo.stage === 'eulogy') return solo;
+  return Object.freeze({ ...solo, stage: 'eulogy' });
 }

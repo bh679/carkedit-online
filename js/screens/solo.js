@@ -21,8 +21,9 @@ import { currentDeck, DECK_LABELS, ROUNDS_PER_DECK, SOLO_DECKS, SUMMARY_ORDER, a
 export function render(state) {
   const solo = state.solo;
   if (!solo) return renderLoading(state);
-  if (solo.done) return renderSummary(solo);
   if (solo.pendingAnswer) return renderAnswer(solo);
+  if (solo.stage === 'eulogy') return renderEulogyScreen(solo);
+  if (solo.stage === 'story' || solo.done) return renderStory(solo);
   return renderRound(solo);
 }
 
@@ -126,8 +127,9 @@ function renderProgress(solo) {
   return `<div class="solo__progress" aria-hidden="true">${dots}</div>`;
 }
 
-function renderSummary(solo) {
-  const picks = SUMMARY_ORDER.map((deck) => {
+/** The picks so far, in life → death → afterlife order. */
+function renderPicks(solo, { compact = false } = {}) {
+  return SUMMARY_ORDER.map((deck) => {
     const card = solo.picks[deck];
     if (!card) return '';
     const answer = answerFor(solo, card);
@@ -135,41 +137,58 @@ function renderSummary(solo) {
       <div class="solo__pick solo__pick--${deck}">
         <span class="solo__pick-label">${escapeHtml(DECK_LABELS[deck].pickLabel)}</span>
         ${renderCard(card)}
-        ${answer ? `<p class="solo__answer">“${escapeHtml(answer)}”</p>` : ''}
+        ${answer && !compact ? `<p class="solo__answer">“${escapeHtml(answer)}”</p>` : ''}
       </div>
     `;
   }).join('');
+}
 
+/**
+ * Story screen: after each deck's final, the picks so far. After the last
+ * deck it is the ending, with a button through to the eulogy.
+ */
+function renderStory(solo) {
+  const done = solo.done;
+  const prompt = done ? 'This is how you carked it.' : 'Your story so far.';
+  const action = done
+    ? `<button class="btn btn--primary" onclick="window.game.soloOpenEulogy()">Write your eulogy</button>`
+    : `<button class="btn btn--primary" onclick="window.game.soloContinue()">Continue</button>`;
   return `
     <div class="screen screen--phase screen--solo" data-phase="solo">
-      ${renderPhaseHeader({ phase: 'solo', label: 'Single Player - Your Story' })}
-      <p class="phase__prompt solo__prompt">This is how you carked it.</p>
+      ${renderPhaseHeader({ phase: 'solo', label: done ? 'Single Player - Your Story' : 'Single Player - So Far' })}
+      <p class="phase__prompt solo__prompt">${escapeHtml(prompt)}</p>
       <div class="solo__summary">
-        ${picks}
+        ${renderPicks(solo)}
       </div>
-      ${renderEulogy()}
       <div class="phase__actions solo__actions">
-        <button class="btn btn--primary" onclick="window.game.soloStart()">Play Again</button>
-        <button class="btn btn--secondary" onclick="window.game.soloMenu()">Menu</button>
+        ${action}
       </div>
+      ${done ? `
       <button class="btn btn--ghost solo__share-btn" onclick="window.game.copySoloLink()">
         Share Single Player
-      </button>
+      </button>` : ''}
     </div>
   `;
 }
 
-/** "Write your own eulogy" section on the summary. */
-function renderEulogy() {
+/** Write-your-own-eulogy screen: the three picks small on top, a big text box below. */
+function renderEulogyScreen(solo) {
   return `
-    <section class="solo__eulogy" aria-labelledby="solo-eulogy-title">
-      <h2 id="solo-eulogy-title" class="solo__eulogy-title">Write your own eulogy</h2>
+    <div class="screen screen--phase screen--solo solo__eulogy-screen" data-phase="solo">
+      ${renderPhaseHeader({ phase: 'solo', label: 'Single Player - Your Eulogy' })}
+      <div class="solo__eulogy-cards">
+        ${renderPicks(solo, { compact: true })}
+      </div>
       <p class="solo__hint">Here lies you. Say a few words.</p>
-      <textarea id="solo-eulogy" class="solo__textarea" rows="4" maxlength="600"
+      <textarea id="solo-eulogy" class="solo__textarea solo__textarea--eulogy" maxlength="1000"
                 placeholder="They lived, they died, and then…" aria-label="Your eulogy"></textarea>
-      <button class="btn btn--ghost solo__eulogy-copy" onclick="window.game.copySoloEulogy()">
+      <button class="btn btn--primary solo__eulogy-copy" onclick="window.game.copySoloEulogy()">
         Copy eulogy
       </button>
-    </section>
+      <div class="phase__actions solo__actions">
+        <button class="btn btn--secondary" onclick="window.game.soloStart()">Play Again</button>
+        <button class="btn btn--secondary" onclick="window.game.soloMenu()">Menu</button>
+      </div>
+    </div>
   `;
 }

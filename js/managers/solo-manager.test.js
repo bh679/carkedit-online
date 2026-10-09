@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createSolo, pickCard, inspectCard, dismissInspect, stepInspect, answerCard, answerFor, buildEulogyText, dealPair, playableCards, currentDeck, SOLO_DECKS, SUMMARY_ORDER, CHOICE_SIZE, buildSoloUrl, stripSoloParam } from './solo-manager.js';
+import { createSolo, pickCard, continueStory, openEulogy, inspectCard, dismissInspect, stepInspect, answerCard, answerFor, buildEulogyText, dealPair, playableCards, currentDeck, SOLO_DECKS, SUMMARY_ORDER, CHOICE_SIZE, buildSoloUrl, stripSoloParam } from './solo-manager.js';
 
 function deck(type, n, extra = () => ({})) {
   return Array.from({ length: n }, (_, i) => ({ id: i + 1, deckType: type, compositeId: `${type}:${i + 1}`, ...extra(i) }));
@@ -47,14 +47,33 @@ test('round flow: two picks then a final between the favourites', () => {
   assert.equal(currentDeck(s), 'live');
   assert.equal(s.round, 1);
   assert.deepEqual(s.favourites, []);
+  // Story screen between decks: input is ignored until Continue.
+  assert.equal(s.stage, 'story');
+  assert.equal(pickCard(s, 0, decks), s);
+  assert.equal(inspectCard(s, 0), s);
+  assert.equal(openEulogy(s), s);
+  s = continueStory(s);
+  assert.equal(s.stage, 'round');
+  assert.equal(continueStory(s), s);
 });
 
-test('finishes after BYE final with one pick per deck', () => {
+function playThrough(decks) {
   let s = createSolo(decks);
-  for (let i = 0; i < SOLO_DECKS.length * 3; i++) s = pickCard(s, 0, decks);
+  for (let i = 0; i < SOLO_DECKS.length * 3; i++) s = continueStory(pickCard(s, 0, decks));
+  return s;
+}
+
+test('finishes after BYE final with one pick per deck, then story → eulogy', () => {
+  const s = playThrough(decks);
   assert.equal(s.done, true);
+  assert.equal(s.stage, 'story');
   assert.deepEqual(Object.keys(s.picks), SOLO_DECKS);
   assert.equal(pickCard(s, 0, decks), s);
+  assert.equal(continueStory(s), s);
+  const e = openEulogy(s);
+  assert.equal(e.stage, 'eulogy');
+  assert.equal(openEulogy(e), e);
+  assert.equal(createSolo(decks).stage, 'round');
 });
 
 test('pickCard does not mutate the previous state', () => {
