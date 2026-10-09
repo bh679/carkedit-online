@@ -32,6 +32,12 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": ["http-server", ".", "-p", "4501", "-c-1"],
       "port": 4501
+    },
+    {
+      "name": "solo-four-cards-4602",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["http-server", ".", "-p", "4602", "-c-1"],
+      "port": 4602
     }
   ]
 }

@@ -34,6 +34,26 @@
   container-type: size;
 }
 
+/* Four-up rounds: 2x2 on phones, one row on wide screens. */
+.solo__pair--four {
+  grid-template-columns: repeat(2, 1fr);
+  align-content: start;
+}
+
+.solo__pair--four .solo__choice .card-flip {
+  width: min(100%, calc((50cqh - var(--space-sm)) * 5 / 7));
+}
+
+@media (min-width: 720px) {
+  .solo__pair--four {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .solo__pair--four .solo__choice .card-flip {
+    width: min(100%, calc(100cqh * 5 / 7));
+  }
+}
+
 .solo__choice {
   appearance: none;
   background: none;
@@ -141,6 +161,72 @@
 
 .solo__actions {
   width: 100%;
+}
+
+/* ── ? answer step ──────────────────────────────────────── */
+
+.solo__answer-step {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  container-type: size;
+}
+
+.solo__answer-card .card {
+  width: min(60vw, calc((100cqh - 6em) * 5 / 7));
+  margin: 0 auto;
+}
+
+.solo__textarea {
+  width: 100%;
+  max-width: 480px;
+  padding: var(--space-sm);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface, transparent);
+  color: var(--color-text);
+  font: inherit;
+  resize: vertical;
+}
+
+.solo__textarea:focus-visible {
+  outline: none;
+  border-color: var(--color-live);
+}
+
+.solo__answer {
+  margin: 0;
+  font-size: 13px;
+  font-style: italic;
+  text-align: center;
+  color: var(--color-text-80);
+}
+
+/* ── Write your own eulogy ──────────────────────────────── */
+
+.solo__eulogy {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--color-border);
+}
+
+.solo__eulogy-title {
+  margin: 0;
+  font-size: 16px;
+}
+
+.solo__eulogy-copy {
+  width: 100%;
+  max-width: 480px;
+  transition: color 0.15s ease;
 }
 
 /* ── Share link ─────────────────────────────────────────── */

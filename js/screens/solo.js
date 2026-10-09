@@ -1,15 +1,16 @@
 // CarkedIt Online — Single Player Screen
 //
 // Pure render(state) over `state.solo` (see managers/solo-manager.js).
-// Two cards, tap your favourite. Three rounds per deck, three decks, then
-// a summary of the three picks.
+// Four cards, tap your favourite. Three rounds per deck (the final is the
+// two favourites), three decks, then a summary of the three picks and a
+// space to write your own eulogy. Picking a `?` card shows an answer step.
 'use strict';
 
 import { render as renderPhaseHeader } from '../components/phase-header.js';
 import { render as renderCard } from '../components/card.js';
 import { render as renderCardBack } from '../components/cardBack.js';
 import { escapeHtml } from '../utils/escape.js';
-import { currentDeck, DECK_LABELS, ROUNDS_PER_DECK, SOLO_DECKS } from '../managers/solo-manager.js';
+import { currentDeck, DECK_LABELS, ROUNDS_PER_DECK, SOLO_DECKS, SUMMARY_ORDER, answerFor } from '../managers/solo-manager.js';
 
 /**
  * @param {object} state
@@ -19,6 +20,7 @@ export function render(state) {
   const solo = state.solo;
   if (!solo) return renderLoading(state);
   if (solo.done) return renderSummary(solo);
+  if (solo.pendingAnswer) return renderAnswer(solo);
   return renderRound(solo);
 }
 
@@ -59,10 +61,38 @@ function renderRound(solo) {
     <div class="screen screen--phase screen--solo" data-phase="${meta.phase}">
       ${renderPhaseHeader({ phase: meta.phase, label: `${meta.label} - ${roundLabel}` })}
       <p class="phase__prompt solo__prompt">${escapeHtml(prompt)}</p>
-      <div class="solo__pair solo__pair--${deck}">
+      <div class="solo__pair solo__pair--${deck}${solo.pair.length > 2 ? ' solo__pair--four' : ''}">
         ${cards}
       </div>
       <p class="solo__hint">Tap your favourite</p>
+      ${renderProgress(solo)}
+    </div>
+  `;
+}
+
+/**
+ * Answer step for a `?` card: the card asks a question, the player answers.
+ * Continue stores the text; Skip moves on without one.
+ */
+function renderAnswer(solo) {
+  const card = solo.pendingAnswer;
+  // After the BYE final the deck index no longer advances, so fall back to
+  // the last deck's label.
+  const deck = solo.done ? SOLO_DECKS[SOLO_DECKS.length - 1] : currentDeck(solo);
+  const meta = DECK_LABELS[deck];
+  return `
+    <div class="screen screen--phase screen--solo" data-phase="${meta.phase}">
+      ${renderPhaseHeader({ phase: meta.phase, label: `${meta.label} - Your answer` })}
+      <p class="phase__prompt solo__prompt">${escapeHtml(card.title ?? 'What do you say?')}</p>
+      <div class="solo__answer-step">
+        <div class="solo__answer-card">${renderCard(card)}</div>
+        <textarea id="solo-answer" class="solo__textarea" rows="3" maxlength="140"
+                  placeholder="Your answer…" aria-label="Your answer"></textarea>
+      </div>
+      <div class="phase__actions solo__actions">
+        <button class="btn btn--primary" onclick="window.game.soloAnswer()">Continue</button>
+        <button class="btn btn--secondary" onclick="window.game.soloSkipAnswer()">Skip</button>
+      </div>
       ${renderProgress(solo)}
     </div>
   `;
@@ -77,13 +107,15 @@ function renderProgress(solo) {
 }
 
 function renderSummary(solo) {
-  const picks = SOLO_DECKS.map((deck) => {
+  const picks = SUMMARY_ORDER.map((deck) => {
     const card = solo.picks[deck];
     if (!card) return '';
+    const answer = answerFor(solo, card);
     return `
       <div class="solo__pick solo__pick--${deck}">
         <span class="solo__pick-label">${escapeHtml(DECK_LABELS[deck].pickLabel)}</span>
         ${renderCard(card)}
+        ${answer ? `<p class="solo__answer">“${escapeHtml(answer)}”</p>` : ''}
       </div>
     `;
   }).join('');
@@ -95,6 +127,7 @@ function renderSummary(solo) {
       <div class="solo__summary">
         ${picks}
       </div>
+      ${renderEulogy()}
       <div class="phase__actions solo__actions">
         <button class="btn btn--primary" onclick="window.game.soloStart()">Play Again</button>
         <button class="btn btn--secondary" onclick="window.game.soloMenu()">Menu</button>
@@ -103,5 +136,20 @@ function renderSummary(solo) {
         Share Single Player
       </button>
     </div>
+  `;
+}
+
+/** "Write your own eulogy" section on the summary. */
+function renderEulogy() {
+  return `
+    <section class="solo__eulogy" aria-labelledby="solo-eulogy-title">
+      <h2 id="solo-eulogy-title" class="solo__eulogy-title">Write your own eulogy</h2>
+      <p class="solo__hint">Here lies you. Say a few words.</p>
+      <textarea id="solo-eulogy" class="solo__textarea" rows="4" maxlength="600"
+                placeholder="They lived, they died, and then…" aria-label="Your eulogy"></textarea>
+      <button class="btn btn--ghost solo__eulogy-copy" onclick="window.game.copySoloEulogy()">
+        Copy eulogy
+      </button>
+    </section>
   `;
 }
