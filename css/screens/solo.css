@@ -34,6 +34,16 @@
   container-type: size;
 }
 
+/* Four-up rounds: always two rows of two, so both rows fit the viewport. */
+.solo__pair--four {
+  grid-template-columns: repeat(2, 1fr);
+  align-content: start;
+}
+
+.solo__pair--four .solo__choice .card-flip {
+  width: min(100%, calc((50cqh - var(--space-sm)) * 5 / 7));
+}
+
 .solo__choice {
   appearance: none;
   background: none;
@@ -141,6 +151,81 @@
 
 .solo__actions {
   width: 100%;
+}
+
+/* ── ? answer step ──────────────────────────────────────── */
+
+.solo__answer-step {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  container-type: size;
+}
+
+.solo__answer-card .card {
+  width: min(60vw, calc((100cqh - 6em) * 5 / 7));
+  margin: 0 auto;
+}
+
+.solo__textarea {
+  width: 100%;
+  max-width: 480px;
+  padding: var(--space-sm);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface, transparent);
+  color: var(--color-text);
+  font: inherit;
+  resize: vertical;
+}
+
+.solo__textarea:focus-visible {
+  outline: none;
+  border-color: var(--color-live);
+}
+
+.solo__answer {
+  margin: 0;
+  font-size: 13px;
+  font-style: italic;
+  text-align: center;
+  color: var(--color-text-80);
+}
+
+/* ── Write your own eulogy ──────────────────────────────── */
+
+.solo__eulogy-screen {
+  gap: var(--space-sm);
+}
+
+/* The three picks, small, in a row across the top. */
+.solo__eulogy-cards {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-sm);
+  align-items: start;
+}
+
+.solo__eulogy-cards .solo__pick .card {
+  width: min(100%, 110px);
+}
+
+/* The text box takes most of the screen. */
+.solo__textarea--eulogy {
+  flex: 1;
+  min-height: 40vh;
+  max-width: none;
+  resize: none;
+}
+
+.solo__eulogy-copy {
+  width: 100%;
+  transition: color 0.15s ease;
 }
 
 /* ── Share link ─────────────────────────────────────────── */

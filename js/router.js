@@ -15,7 +15,7 @@ import { render as renderPhase1 } from './screens/phase1.js';
 import { render as renderPhase23, formatTime } from './screens/phase2-3.js';
 import { render as renderPhase4 } from './screens/phase4.js';
 import { render as renderSolo } from './screens/solo.js';
-import { createSolo, pickCard as soloPickCard, buildSoloUrl, stripSoloParam, SOLO_QUERY_PARAM } from './managers/solo-manager.js';
+import { createSolo, pickCard as soloPickCard, inspectCard as soloInspectCard, dismissInspect as soloDismissInspectCard, stepInspect as soloStepInspectCard, continueStory as soloContinueStory, openEulogy as soloOpenEulogyStage, answerCard as soloAnswerCard, buildEulogyText, buildSoloUrl, stripSoloParam, SOLO_QUERY_PARAM } from './managers/solo-manager.js';
 import { render as renderAccount, renderGamesList, renderMyPacks } from './screens/account.js';
 import { render as renderScheduleGame } from './screens/schedule-game.js';
 import { render as renderScheduledCreated } from './screens/scheduled-created.js';
@@ -738,23 +738,87 @@ function soloMenu() {
   showScreen('menu');
 }
 
+/** Open the full-screen preview of a dealt card; the pick is confirmed from there. */
+function soloInspect(index) {
+  updateSolo((solo) => soloInspectCard(solo, index));
+}
+
+function soloDismissInspect() {
+  updateSolo(soloDismissInspectCard);
+}
+
+function soloStepInspect(delta) {
+  updateSolo((solo) => soloStepInspectCard(solo, delta));
+}
+
+/** Apply a pure solo transition and re-render, if a solo game is on screen. */
+function updateSolo(transition) {
+  const state = getState();
+  if (!state.solo || state.screen !== 'solo') return;
+  const next = transition(state.solo);
+  if (next !== state.solo) showScreen('solo', { solo: next });
+}
+
+/** Leave the mid-game story screen. */
+function soloContinue() {
+  updateSolo(soloContinueStory);
+}
+
+/** From the finished story to the write-your-own-eulogy screen. */
+function soloOpenEulogy() {
+  updateSolo(soloOpenEulogyStage);
+}
+
+/** Answer the pending `?` card with whatever is in the text box. */
+function soloAnswer() {
+  const text = document.getElementById('solo-answer')?.value ?? '';
+  applySoloAnswer(text);
+}
+
+/** Move past the `?` card without an answer. */
+function soloSkipAnswer() {
+  applySoloAnswer('');
+}
+
+function applySoloAnswer(text) {
+  const state = getState();
+  if (!state.solo?.pendingAnswer || state.screen !== 'solo') return;
+  showScreen('solo', { solo: soloAnswerCard(state.solo, text) });
+}
+
 function copySoloLink() {
   const btn = document.querySelector('.solo__share-btn');
-  navigator.clipboard.writeText(buildSoloUrl(window.location.origin)).then(() => {
+  copyToClipboard(buildSoloUrl(window.location.origin), btn, 'Link copied', 'Share this link:');
+}
+
+/** Copy the summary plus the player's own eulogy as plain text. */
+function copySoloEulogy() {
+  const state = getState();
+  if (!state.solo) return;
+  const btn = document.querySelector('.solo__eulogy-copy');
+  const words = document.getElementById('solo-eulogy')?.value ?? '';
+  copyToClipboard(buildEulogyText(state.solo, words), btn, 'Eulogy copied', 'Copy this by hand:');
+}
+
+/**
+ * Write text to the clipboard and flash the button. Clipboard access can be
+ * denied (permissions policy, insecure context, some in-app browsers), so on
+ * failure the text itself is shown so it can be copied by hand.
+ */
+function copyToClipboard(text, btn, copiedLabel, fallbackLabel) {
+  navigator.clipboard.writeText(text).then(() => {
     if (!btn) return;
     const original = btn.textContent;
-    btn.textContent = 'Link copied';
+    btn.textContent = copiedLabel;
     btn.classList.add('solo__share-btn--copied');
     setTimeout(() => {
       btn.textContent = original;
       btn.classList.remove('solo__share-btn--copied');
     }, 2000);
   }).catch((err) => {
-    // Clipboard access can be denied (permissions policy, insecure context,
-    // some in-app browsers). Show the link itself so it can be copied by hand.
-    console.warn('[solo] clipboard unavailable, showing link', err);
+    console.warn('[solo] clipboard unavailable, showing text', err);
     if (!btn) return;
-    btn.outerHTML = `<p class="solo__share-link">Share this link: <span class="solo__share-url">${escapeHtml(buildSoloUrl(window.location.origin))}</span></p>`;
+    btn.outerHTML = `<p class="solo__share-link">${escapeHtml(fallbackLabel)} <span class="solo__share-url">${escapeHtml(text)}</span></p>`;
   });
 }
 
@@ -762,8 +826,16 @@ window.game = {
   showScreen,
   soloStart,
   soloPick,
+  soloInspect,
+  soloDismissInspect,
+  soloStepInspect,
+  soloContinue,
+  soloOpenEulogy,
   soloMenu,
+  soloAnswer,
+  soloSkipAnswer,
   copySoloLink,
+  copySoloEulogy,
   cancelRecover,
   addPlayer,
   selectPlayerRemoval,
