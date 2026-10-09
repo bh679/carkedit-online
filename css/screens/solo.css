@@ -163,12 +163,23 @@
   flex-direction: column;
   align-items: center;
   gap: var(--space-sm);
+}
+
+/* The card gets whatever room the text box and buttons leave, and is sized
+   by whichever of width or height runs out first — never cropped. */
+.solo__answer-card {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   container-type: size;
 }
 
 .solo__answer-card .card {
-  width: min(60vw, calc((100cqh - 6em) * 5 / 7));
-  margin: 0 auto;
+  width: min(100%, calc(100cqh * 5 / 7));
+  max-height: 100%;
 }
 
 .solo__textarea {
