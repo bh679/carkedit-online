@@ -1,9 +1,10 @@
 #!/bin/bash
 # setup-worktree-assets.sh
 #
-# When running in a git worktree, assets/illustrations and assets/CarkedIt.webp
-# are gitignored and won't be present. This script creates symlinks to the main
-# repo's assets so worktrees can reference images without duplicating them.
+# When running in a git worktree, assets/illustrations is gitignored and won't be
+# present. This script creates symlinks to the main repo's assets so worktrees can
+# reference images without duplicating them. CarkedIt-skull.webp is tracked; the
+# loop below only links it as a fallback if it is somehow missing.
 
 # Find the common git directory (main repo's .git)
 GIT_COMMON_DIR=$(git rev-parse --git-common-dir 2>/dev/null) || exit 0
@@ -29,7 +30,7 @@ if [ ! -e "$ILLUSTRATIONS_DIR" ] && [ ! -L "$ILLUSTRATIONS_DIR" ]; then
 fi
 
 # Symlink asset files from the main repo
-for ASSET_FILE in CarkedIt.webp CarkedIt-skull.webp; do
+for ASSET_FILE in CarkedIt-skull.webp; do
   LOCAL="./assets/$ASSET_FILE"
   if [ ! -e "$LOCAL" ] && [ ! -L "$LOCAL" ]; then
     MAIN="$MAIN_REPO_ROOT/assets/$ASSET_FILE"
