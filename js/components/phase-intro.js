@@ -36,6 +36,13 @@ const PHASE_CARD_LABEL = {
   '4': 'Wildcard Eulogy',
 };
 
+const READY_LABELS = {
+  '1': 'Ready to DIE',
+  '2': 'Ready to LIVE',
+  '3': 'Ready to say BYE',
+  '4': 'Funeral Ready',
+};
+
 function buildWildcardCardHtml() {
   const wildcardDisplayCard = buildCard({
     id: 'wildcard-intro',
@@ -85,7 +92,7 @@ export function render({
   const cardHtml = renderActiveCard(cardInner, { label: cardLabel });
 
   const readyControls = isOnline
-    ? renderOnlineControls({ players, amReady, isFuneralDirector, allReady })
+    ? renderOnlineControls({ phaseNumber, players, amReady, isFuneralDirector, allReady })
     : renderLocalControls();
 
   const innerChildren = `
@@ -116,13 +123,14 @@ function renderLocalControls() {
   `;
 }
 
-function renderOnlineControls({ players, amReady, isFuneralDirector, allReady }) {
+function renderOnlineControls({ phaseNumber, players, amReady, isFuneralDirector, allReady }) {
+  const readyText = READY_LABELS[phaseNumber] ?? 'Ready to Die';
   const chips = players.map(p => {
     const ready = !!p.ready;
     const cls = ready
       ? 'phase-intro__ready-chip phase-intro__ready-chip--ready'
       : 'phase-intro__ready-chip';
-    const status = ready ? 'Ready to Die' : 'Not Ready';
+    const status = ready ? readyText : 'Not Ready';
     return `
       <div class="${cls}">
         <span class="phase-intro__ready-chip-name">${escapeHtml(p.name)}</span>
@@ -131,7 +139,7 @@ function renderOnlineControls({ players, amReady, isFuneralDirector, allReady })
     `;
   }).join('');
 
-  const readyLabel = amReady ? 'Not Ready' : 'Ready to Die';
+  const readyLabel = amReady ? 'Not Ready' : readyText;
   const readyClass = amReady ? 'btn--secondary' : 'btn--primary';
 
   const startAnywayBtn = (isFuneralDirector && !allReady)
