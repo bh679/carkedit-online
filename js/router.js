@@ -15,7 +15,7 @@ import { render as renderPhase1 } from './screens/phase1.js';
 import { render as renderPhase23, formatTime } from './screens/phase2-3.js';
 import { render as renderPhase4 } from './screens/phase4.js';
 import { render as renderSolo } from './screens/solo.js';
-import { createSolo, pickCard as soloPickCard, inspectCard as soloInspectCard, dismissInspect as soloDismissInspectCard, stepInspect as soloStepInspectCard, continueStory as soloContinueStory, openEulogy as soloOpenEulogyStage, answerCard as soloAnswerCard, buildStoryRequest, startStory as soloStartStory, finishStory as soloFinishStory, failStory as soloFailStory, buildStoryText, buildSoloUrl, stripSoloParam, SOLO_QUERY_PARAM } from './managers/solo-manager.js';
+import { createSolo, pickCard as soloPickCard, inspectCard as soloInspectCard, dismissInspect as soloDismissInspectCard, stepInspect as soloStepInspectCard, continueStory as soloContinueStory, openEulogy as soloOpenEulogyStage, answerCard as soloAnswerCard, buildStoryRequest, startStory as soloStartStory, finishStory as soloFinishStory, failStory as soloFailStory, buildSoloUrl, stripSoloParam, SOLO_QUERY_PARAM } from './managers/solo-manager.js';
 import { render as renderAccount, renderGamesList, renderMyPacks } from './screens/account.js';
 import { render as renderScheduleGame } from './screens/schedule-game.js';
 import { render as renderScheduledCreated } from './screens/scheduled-created.js';
@@ -847,14 +847,6 @@ async function requestSoloStory(solo, eulogy) {
   }
 }
 
-/** Copy the picks, eulogy and story as plain text. */
-function copySoloStory() {
-  const state = getState();
-  if (!state.solo) return;
-  const btn = document.querySelector('.solo__story-copy');
-  copyToClipboard(buildStoryText(state.solo), btn, 'Story copied', 'Copy this by hand:');
-}
-
 // ── Share the life story ──
 // Share builds the image first, then opens the panel; "Share image" is a second
 // tap so navigator.share runs inside a fresh user gesture (iOS requires it).
@@ -969,7 +961,6 @@ window.game = {
   soloDone,
   soloRetryStory,
   soloBackToEulogy,
-  copySoloStory,
   soloShareStory,
   soloShareImage,
   soloDownloadImage,

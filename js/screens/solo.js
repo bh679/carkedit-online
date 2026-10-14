@@ -223,10 +223,7 @@ function renderStoryBody(story) {
       .map((p) => `<p>${escapeHtml(p)}</p>`).join('');
     return `
       <article class="solo__story" aria-live="polite">${paragraphs}</article>
-      <div class="solo__story-actions">
-        <button class="btn btn--primary solo__story-share" onclick="window.game.soloShareStory()">Share</button>
-        <button class="btn btn--secondary solo__story-copy" onclick="window.game.copySoloStory()">Copy story</button>
-      </div>
+      <button class="btn btn--primary solo__story-share" onclick="window.game.soloShareStory()">Share</button>
     `;
   }
   if (story.status === 'error') {
