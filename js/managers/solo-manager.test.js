@@ -23,6 +23,25 @@ test('dealPair throws when the deck is exhausted', () => {
   assert.throws(() => dealPair(deck('die', 3)));
 });
 
+test('dealPair deals at most one split and one ? card per hand', () => {
+  const specials = ['split', 'split', 'split', 'mystery', 'mystery', 'mystery'];
+  const d = deck('die', 12, (i) => (specials[i] ? { special: specials[i] } : {}));
+  const a = dealPair(d);
+  const count = (pair, kind) => pair.filter((c) => c.special === kind).length;
+  assert.equal(count(a.pair, 'split'), 1);
+  assert.equal(count(a.pair, 'mystery'), 1);
+  assert.deepEqual(a.pair.map((c) => c.id), [1, 4, 7, 8]);
+  const b = dealPair(d, a.usedIds);
+  assert.equal(count(b.pair, 'split'), 1);
+  assert.equal(count(b.pair, 'mystery'), 1);
+  assert.deepEqual(b.pair.map((c) => c.id), [2, 5, 9, 10]);
+});
+
+test('dealPair tops up with capped specials when nothing else is left', () => {
+  const d = deck('die', 4, () => ({ special: 'mystery' }));
+  assert.equal(dealPair(d).pair.length, CHOICE_SIZE);
+});
+
 test('playableCards drops BYE wildcards', () => {
   const bye = deck('bye', 3, (i) => (i === 0 ? { illustrationKey: 'wildcard-eulogy' } : {}));
   assert.equal(playableCards(bye).length, 2);
