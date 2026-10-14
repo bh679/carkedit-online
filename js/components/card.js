@@ -20,6 +20,7 @@
 
 import { Card } from '../data/card.js';
 import { get as registryGet } from '../data/CardRegistry.js';
+import { illustratedImgHtml } from '../data/cardRender.js';
 
 /** HTML-attribute escape helper. Exported for test / designer reuse. */
 export function escAttr(s) {
@@ -211,11 +212,10 @@ export function render(cardOrId) {
     // HTML is generated from the SAME `renderInner` call the text-only
     // branch uses, so the two code paths can't drift.
     const fallback = renderInner(card, spec).replace(/\s+/g, ' ').trim();
-    const onError = `this.parentElement.classList.add('card--text-only');this.outerHTML='${escAttr(fallback)}';`;
     const altText = [card.title, card.description, card.prompt].filter(Boolean).join(' — ');
     return `
     <div class="card card--${deckType}${spec.extraClasses}">
-      <img src="${escAttr(card.image)}" alt="${escAttr(altText)}" class="card__img" draggable="false" onerror="${onError}">
+      ${illustratedImgHtml(card.image, altText, fallback)}
       ${brandHtml}
       ${spec.isMystery ? '<span class="card__mystery-badge">?</span>' : ''}
     </div>`;
