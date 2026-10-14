@@ -61,6 +61,8 @@ import { markOnlinePlayed, markHowToBannerDismissed, markVideoCallTipDone } from
 import { markOnlineHosted, markDiscordBarDismissed } from './components/first-host-discord.js';
 import { renderPanel as renderVideoCallPanel, renderCallButton } from './components/video-call-panel.js';
 import { renderPanel as renderSharePanel } from './components/share-panel.js';
+import { renderStorySharePanel, buildSocialLinks, SHARE_TEXT } from './components/story-share-panel.js';
+import { renderStoryImage } from './utils/story-image.js';
 import { toQrSvg } from './utils/qr.js';
 import { appendJoinDetails, parseJoinDetails, hasJoinDetails, stripJoinDetails } from './utils/join-details.js';
 import {
@@ -853,6 +855,82 @@ function copySoloStory() {
   copyToClipboard(buildStoryText(state.solo), btn, 'Story copied', 'Copy this by hand:');
 }
 
+// ── Share the life story ──
+// Share builds the image first, then opens the panel; "Share image" is a second
+// tap so navigator.share runs inside a fresh user gesture (iOS requires it).
+const STORY_SHARE_CONTAINER_ID = 'story-share-container';
+const STORY_IMAGE_NAME = 'carkedit-life-story.png';
+let storyShare = null; // { blob, url }
+
+function onStoryShareKeydown(e) {
+  if (e.key === 'Escape') closeStoryShare();
+}
+
+function canShareFiles(file) {
+  try {
+    return typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] });
+  } catch {
+    return false;
+  }
+}
+
+async function soloShareStory() {
+  const state = getState();
+  if (state.solo?.lifeStory?.status !== 'ready' || state.screen !== 'solo') return;
+  const btn = document.querySelector('.solo__story-share');
+  const label = btn?.textContent ?? 'Share';
+  const setButton = (text, disabled) => {
+    const b = document.querySelector('.solo__story-share');
+    if (b) { b.textContent = text; b.disabled = disabled; }
+  };
+  setButton('Preparing…', true);
+  try {
+    const blob = await renderStoryImage(state.solo, { origin: window.location.origin });
+    closeStoryShare();
+    storyShare = { blob, url: URL.createObjectURL(blob) };
+    const file = new File([blob], STORY_IMAGE_NAME, { type: 'image/png' });
+    const container = document.createElement('div');
+    container.id = STORY_SHARE_CONTAINER_ID;
+    container.innerHTML = renderStorySharePanel({
+      previewUrl: storyShare.url,
+      canShareFiles: canShareFiles(file),
+      links: buildSocialLinks(SHARE_TEXT, buildSoloUrl(window.location.origin)),
+    });
+    document.body.appendChild(container);
+    document.addEventListener('keydown', onStoryShareKeydown);
+    setButton(label, false);
+  } catch (err) {
+    console.error('[solo] could not build share image', err);
+    setButton("Couldn't make the image", false);
+    setTimeout(() => setButton(label, false), 2500);
+  }
+}
+
+/** OS share sheet with the image. A cancelled share rejects — that is not an error. */
+function soloShareImage() {
+  if (!storyShare) return;
+  const file = new File([storyShare.blob], STORY_IMAGE_NAME, { type: 'image/png' });
+  navigator.share({ files: [file], title: 'How I carked it', text: `${SHARE_TEXT} ${buildSoloUrl(window.location.origin)}` })
+    .catch((err) => { if (err?.name !== 'AbortError') console.warn('[solo] share failed', err); });
+}
+
+function soloDownloadImage() {
+  if (!storyShare) return;
+  const a = document.createElement('a');
+  a.href = storyShare.url;
+  a.download = STORY_IMAGE_NAME;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+function closeStoryShare() {
+  document.getElementById(STORY_SHARE_CONTAINER_ID)?.remove();
+  document.removeEventListener('keydown', onStoryShareKeydown);
+  if (storyShare) URL.revokeObjectURL(storyShare.url);
+  storyShare = null;
+}
+
 /**
  * Write text to the clipboard and flash the button. Clipboard access can be
  * denied (permissions policy, insecure context, some in-app browsers), so on
@@ -892,6 +970,10 @@ window.game = {
   soloRetryStory,
   soloBackToEulogy,
   copySoloStory,
+  soloShareStory,
+  soloShareImage,
+  soloDownloadImage,
+  closeStoryShare,
   cancelRecover,
   addPlayer,
   selectPlayerRemoval,
