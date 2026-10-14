@@ -25,6 +25,18 @@ export function getErrorLog() {
   return errorMonitor.getState().errors;
 }
 
+// Captured errors, each tagged with a `relevant` flag relative to the last
+// markErrorContext() call (errors before it are stale / likely unrelated).
+export function getTaggedErrorLog() {
+  return errorMonitor.getTaggedErrors();
+}
+
+// Mark "now" as the start of the current game/context so later reports can
+// separate this game's errors from stale ones earlier in the page session.
+export function markErrorContext() {
+  errorMonitor.markBoundary();
+}
+
 export function clearErrorState() {
   errorMonitor.clear();
 }

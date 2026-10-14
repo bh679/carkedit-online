@@ -1,0 +1,313 @@
+/* CarkedIt Online — Video Call Details (header button, panel, host editor) */
+
+/* ── Header button ───────────────────────────────────── */
+
+.phase-header__call-btn {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  color: var(--color-white);
+  background: transparent;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.phase-header__call-btn:active {
+  opacity: 0.8;
+}
+
+/* Dot marks "there are details to see" — the button is otherwise identical to
+   the host's empty "add details" state. */
+.phase-header__call-dot {
+  position: absolute;
+  top: 6px;
+  right: 5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-live);
+}
+
+/* ── Panel ───────────────────────────────────────────── */
+
+.video-call__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: var(--color-overlay-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-md);
+}
+
+.video-call__panel {
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  padding: var(--space-lg);
+  width: 100%;
+  max-width: 420px;
+  max-height: 90vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.video-call__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.video-call__title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.video-call__close {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: var(--space-xs);
+  cursor: pointer;
+}
+
+.video-call__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.video-call__empty {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+/* ── Entry rows ──────────────────────────────────────── */
+
+.video-call__row {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-sm);
+}
+
+.video-call__action {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  text-align: center;
+  font-weight: 700;
+  padding: var(--space-sm) var(--space-md);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Label-and-value pair — used for phone numbers (pressable) and codes. */
+.video-call__field {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-sm);
+  background: var(--color-input-bg);
+  border: 1px solid var(--color-border);
+  text-decoration: none;
+}
+
+.video-call__field-label {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.video-call__field-value {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 1rem;
+  letter-spacing: 0.04em;
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+a.video-call__field:active {
+  border-color: var(--color-primary);
+}
+
+.video-call__copy {
+  flex-shrink: 0;
+  min-width: 2.75rem;
+  padding: 0 var(--space-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-input-bg);
+  color: var(--color-text);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.video-call__copy:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.video-call__copy--done {
+  color: var(--color-live);
+  border-color: var(--color-live);
+}
+
+/* ── Instructions ────────────────────────────────────── */
+
+.video-call__notes {
+  margin-top: var(--space-xs);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--color-border);
+}
+
+.video-call__notes-title {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 var(--space-xs);
+}
+
+.video-call__notes-body {
+  font-size: 0.9375rem;
+  color: var(--color-text);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.video-call__edit-btn {
+  width: 100%;
+}
+
+/* ── Host editor ─────────────────────────────────────── */
+
+.vc-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.vc-editor__field-label {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+.vc-editor__paste,
+.vc-editor__notes {
+  resize: vertical;
+  min-height: 72px;
+  width: 100%;
+}
+
+.vc-editor__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.vc-editor__empty {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.vc-editor__row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.vc-editor__row-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.vc-editor__remove {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  padding: var(--space-xs);
+  cursor: pointer;
+}
+
+.vc-editor__remove:hover {
+  color: var(--color-danger);
+}
+
+/* The label is the row's title, so it reads as one. */
+.vc-editor__label {
+  flex: 1;
+  min-width: 0;
+  font-weight: 700;
+}
+
+.vc-editor__add-row {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.vc-editor__add-row .btn {
+  flex: 1;
+  font-size: 0.8125rem;
+}
+
+.vc-editor__hint {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.vc-editor__remember {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: 0.875rem;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.vc-editor__remember input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.vc-editor__actions {
+  display: flex;
+  gap: var(--space-sm);
+  justify-content: flex-end;
+}
+
+.vc-editor__actions .btn {
+  min-width: 90px;
+}

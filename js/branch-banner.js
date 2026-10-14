@@ -2,19 +2,31 @@
  * Branch Banner — shows a thin bar at the top of every page when the site
  * is deployed on a non-production env (dev or staging) on a non-main branch.
  *
+ * Reads from the carkedit-deploy service:
+ *   GET /api/admin/deploy/versions
+ *   => { envTier, versions: { client: { deployed: { version, ref: {kind,value,sha} } }, api: { deployed: {...} } } }
+ *
+ * Banner is hidden when:
+ *   - envTier === 'prod' (production never gets a branch banner)
+ *   - client.deployed.ref.kind !== 'branch' (tag pins on staging/prod)
+ *   - client.deployed.ref.value === 'main'
+ *
  * Self-contained: all styles are inline, no external CSS dependencies.
- * Fetches branch-info.php which returns branch, version, commit, and envName.
- * Fails silently if the endpoint is missing or we're on production.
+ * Fails silently if the endpoint is missing or unreachable.
  *
  * Banner actions navigate to deploy.html (the carkedit-deploy host page),
  * which handles auth + the actual branch switch / pull.
  */
 (function () {
-  fetch('branch-info.php')
+  fetch('/api/admin/deploy/versions')
     .then(function (r) { return r.ok ? r.json() : null; })
-    .then(function (info) {
-      if (!info || info.envName === 'production') return;
-      if (!info.client || info.client === 'main') return;
+    .then(function (data) {
+      if (!data || data.envTier === 'prod') return;
+      var client = data.versions && data.versions.client && data.versions.client.deployed;
+      if (!client || !client.ref || client.ref.kind !== 'branch') return;
+      if (!client.ref.value || client.ref.value === 'main') return;
+
+      var api = data.versions && data.versions.api && data.versions.api.deployed;
 
       var bar = document.createElement('div');
       bar.id = 'branch-banner';
@@ -26,31 +38,27 @@
 
       // Branch name (links to deploy page)
       var branchLink = document.createElement('a');
-      branchLink.textContent = info.client;
+      branchLink.textContent = client.ref.value;
       branchLink.href = 'deploy.html';
       branchLink.style.cssText = 'color:#fff;text-decoration:none;font-weight:700;';
 
-      // Version
+      // Version meta
       var parts = [];
-      if (info.version) parts.push('client v' + info.version);
-      if (info.apiVersion) parts.push('api v' + info.apiVersion);
-      if (info.commitSha) parts.push(info.commitSha);
-      if (info.commitDate) parts.push(info.commitDate);
+      if (client.version) parts.push('client v' + client.version);
+      if (api && api.version) parts.push('api v' + api.version);
+      if (client.ref.sha) parts.push(String(client.ref.sha).slice(0, 7));
 
       var meta = document.createElement('span');
       meta.style.cssText = 'opacity:0.85;font-weight:400;';
       meta.textContent = parts.join(' · ');
 
-      // Commit message
-      var msg = document.createElement('span');
-      msg.style.cssText = 'opacity:0.7;font-weight:400;font-style:italic;' +
-        'max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
-      if (info.commitMsg) msg.textContent = '— ' + info.commitMsg;
-
-      // Switch to main button (absolute right so text stays centered)
+      // Switch to main button (absolute right so text stays centered).
+      // ?reset=main&auto=1 seeds the carkedit-deploy fragment's reset chain
+      // (sessionStorage `cd-reset-chain`) so api → client → deploy each get
+      // reset back to main / latest tag with no extra clicks after sign-in.
       var btn = document.createElement('a');
       btn.textContent = 'Switch to main';
-      btn.href = 'deploy.html';
+      btn.href = 'deploy.html?reset=main&auto=1';
       btn.style.cssText =
         'color:#fff;background:rgba(255,255,255,.25);padding:2px 10px;' +
         'border-radius:3px;text-decoration:none;font-size:11px;font-weight:600;' +
@@ -58,7 +66,6 @@
 
       bar.appendChild(branchLink);
       bar.appendChild(meta);
-      if (info.commitMsg) bar.appendChild(msg);
       bar.appendChild(btn);
       document.body.insertBefore(bar, document.body.firstChild);
       document.body.style.paddingTop = '28px';

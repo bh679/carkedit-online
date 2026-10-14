@@ -1,6 +1,7 @@
 // CarkedIt Online — All Games (See All page)
 'use strict';
 
+import { guardPage } from './managers/page-permission-guard.js';
 import { renderAdminHeader, bindAdminHeader, resetAdminHeaderMenu } from './components/admin-header.js';
 import {
   renderGameFilters,
@@ -9,6 +10,11 @@ import {
   renderPlayerChips,
 } from './components/game-filters.js';
 import { getFirebaseConfig, getProdFirebaseConfig } from './firebase-config.js';
+import { renderGameDetail, init as initGameDetail } from './components/game-detail.js';
+import { getOrCreate as registryGetOrCreate } from './data/CardRegistry.js';
+import { escapeHtml } from './utils/escape.js';
+
+await guardPage('stats-games').catch((err) => { throw err; });
 
 const FIREBASE_CONFIG = getFirebaseConfig();
 const PROD_API_ORIGIN = 'https://play.carkedit.com';
@@ -63,6 +69,9 @@ let filterHidePlayers  = new Set();
 let expandedGroups     = new Set();
 let filterCounts = { total: 0, date: {}, errors: {}, dev: {}, status: {}, groups: {}, raw: {}, duration: {}, players: {} };
 
+let expandedGameId = null;
+const gameDetailCache = {};
+
 function parseCsvSet(value) {
   if (!value) return new Set();
   return new Set(value.split(',').filter(Boolean));
@@ -111,7 +120,8 @@ async function loadFirebaseAuth() {
     import('https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js'),
     import('https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js'),
   ]);
-  const app = appMod.initializeApp(FIREBASE_CONFIG);
+  // Idempotent: guardPage may have already initialized the default app.
+  const app = appMod.getApps().length ? appMod.getApp() : appMod.initializeApp(FIREBASE_CONFIG);
   firebaseAuth = authMod.getAuth(app);
   return authMod;
 }
@@ -175,10 +185,7 @@ async function doSignOut() {
   renderGate('Sign in to view stats.', true);
 }
 
-function maskName(name) {
-  if (!name || name.length <= 1) return '*';
-  return name[0] + '*'.repeat(name.length - 1);
-}
+// Names arrive pre-masked from the API for non-Admin viewers; escape only.
 
 const isMobile = () => window.matchMedia('(max-width: 768px)').matches;
 
@@ -410,6 +417,26 @@ function toggleStateMetric() {
   renderPage();
 }
 
+async function toggleGame(gameId) {
+  if (expandedGameId === gameId) {
+    expandedGameId = null;
+    renderPage();
+    return;
+  }
+  expandedGameId = gameId;
+  const cached = gameDetailCache[gameId];
+  const isLive = !cached || cached.live_status === 'live';
+  if (!cached || isLive) {
+    try {
+      const res = await authFetch(`${apiBase()}/api/carkedit/games/${gameId}`);
+      if (res.ok) gameDetailCache[gameId] = await res.json();
+    } catch (err) {
+      console.warn('[stats-games] Failed to fetch game detail:', err);
+    }
+  }
+  renderPage();
+}
+
 async function toggleGameDev(id, next) {
   if (dataSource === 'prod') return; // read-only in prod-preview mode
   try {
@@ -537,11 +564,18 @@ function renderGameCard(game) {
   const playersDisplay = `${game.player_count} ${ICON_PERSON}`;
   const statusLiveDisplay = `${statusDot(game.live_status)}${statusLabel(game.status)}`;
 
+  const expanded = expandedGameId === game.id;
+  let detail = '';
+  if (expanded) {
+    const gd = gameDetailCache[game.id] || game;
+    detail = renderGameDetail(gd);
+  }
+
   return `
-    <div class="dashboard__card ${cls}">
+    <div class="dashboard__card ${cls}" onclick="window.statsGames.toggleGame('${game.id}')">
       <div class="dashboard__card-row">
         <span class="dashboard__cell dashboard__cell--date">${dateDisplay}</span>
-        <span class="dashboard__cell dashboard__cell--host">${maskName(game.host_name)}</span>
+        <span class="dashboard__cell dashboard__cell--host">${escapeHtml(game.host_name)}</span>
         <span class="dashboard__cell dashboard__cell--players">${playersDisplay}</span>
         <span class="dashboard__cell dashboard__cell--time">${playTime}</span>
         <span class="dashboard__cell dashboard__cell--status">${statusLabel(game.status)}</span>
@@ -551,6 +585,7 @@ function renderGameCard(game) {
         <span class="dashboard__cell dashboard__cell--error">${errorFlag}</span>
         <span class="dashboard__cell dashboard__cell--issue">${issueFlag}</span>
       </div>
+      ${detail}
     </div>
   `;
 }
@@ -632,8 +667,47 @@ function renderPage() {
   bindAdminHeader(app, { user: firebaseUserInfo, onSignOut: doSignOut });
 }
 
+// Populate the shared CardRegistry so renderGameDetail's mini-cards in the
+// Phase panel can resolve card text + image. Without this, renderCard() falls
+// back to an empty placeholder and the mini-cards render as blank rectangles.
+// Mirrors what dashboard.js's loadCardData does, minus the dashboard-only
+// cardDataMap/packList/authorList bookkeeping (which the See-All page has no
+// UI for).
+async function loadCardData() {
+  const deckFiles = [
+    { file: 'js/data/cards/die.json',  deckType: 'die'  },
+    { file: 'js/data/cards/live.json', deckType: 'live' },
+    { file: 'js/data/cards/bye.json',  deckType: 'bye'  },
+  ];
+  await Promise.all(deckFiles.map(async ({ file, deckType }) => {
+    try {
+      const res = await fetch(file);
+      if (!res.ok) return;
+      for (const c of await res.json()) registryGetOrCreate({ ...c, deckType });
+    } catch {}
+  }));
+  try {
+    const res = await authFetch(`${apiBase()}/api/carkedit/packs`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const packs = data.packs ?? data ?? [];
+    await Promise.all(packs.map(async (p) => {
+      try {
+        const pr = await authFetch(`${apiBase()}/api/carkedit/packs/${p.id}`);
+        if (!pr.ok) return;
+        const pack = await pr.json();
+        for (const c of (pack.cards ?? [])) {
+          const deckType = c.deck_type === 'live' ? 'live' : c.deck_type;
+          registryGetOrCreate({ ...c, deckType });
+        }
+      } catch {}
+    }));
+  } catch {}
+}
+
 async function boot() {
-  await Promise.all([fetchGames(false), fetchStats()]);
+  initGameDetail({ authFetch, apiBase });
+  await Promise.all([fetchGames(false), fetchStats(), loadCardData()]);
   renderPage();
 }
 
@@ -641,7 +715,7 @@ window.statsGames = {
   cycleStatus, cycleDev, cycleDateRange,
   setGameFilter,
   toggleHideGroup, toggleHideRaw, toggleHideDuration, toggleHidePlayers, toggleExpandGroup,
-  loadMore, toggleGameDev, cycleDataSource,
+  loadMore, toggleGame, toggleGameDev, cycleDataSource,
   cycleSortMode, toggleStateMetric,
 };
 

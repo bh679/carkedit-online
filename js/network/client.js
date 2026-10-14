@@ -7,18 +7,41 @@ import { getOrCreate as registryGetOrCreate } from '../data/CardRegistry.js';
 import { startPlayCardTimer, clearPlayCardTimer, startPitchTimer, clearPitchTimer, clearAllTimers } from '../managers/online-timer.js';
 import { startRevealSequence, clearRevealTimer } from '../managers/reveal-timer.js';
 import { saveGameToHistory } from '../managers/game-history.js';
+import { saveSession, loadSession, clearSession } from '../managers/session-recovery.js';
 
 const _origin = window.location.origin;
 let _serverUrl = _origin;
 let _restBaseUrl = _origin;
 let _configLoaded = false;
 
+/**
+ * The banner's schedule editor is scoped to one room: its resolved reservation
+ * id would point at the wrong game if it survived into the next one, so every
+ * transition in or out of a room clears it.
+ */
+const RESET_LOBBY_SCHEDULE_EDIT = {
+  lobbyScheduleEditing: false,
+  lobbyScheduledId: null,
+  lobbyScheduleError: null,
+};
+
 let _client = null;
 let _room = null;
 let _onScreenChange = null;
 let _onSettingsChange = null;
+// Video-call details are reachable from every screen (lobby and in-game), so
+// they get their own callback rather than riding on _onSettingsChange, which
+// only fires while the online lobby is showing.
+let _onVideoCallChange = null;
 let _lastOnUpdate = null;
+let _lastIdentity = null;
 let _reconnecting = false;
+// index.html loads router.js with a cache-buster, while game-manager.js
+// imports it without one. The browser treats those as two module URLs and
+// both register DOMContentLoaded, which would otherwise call attemptRecover
+// twice. client.js is single-instance, so memoising the in-flight promise
+// here de-dupes safely.
+let _recoverPromise = null;
 
 async function loadConfig() {
   if (_configLoaded) return;
@@ -210,6 +233,15 @@ function syncLivingPhaseState(room) {
     }
   }
 
+  // Only clear the local card preview when the phase actually changes, or when
+  // the previously previewed hand card is no longer in hand (i.e. the user
+  // just submitted it). Without these guards, every remote-player submission
+  // would wipe the local preview because syncLivingPhaseState runs on every
+  // server state change.
+  const phaseChanged = state.onlinePhase !== onlinePhase;
+  const selectedHandCardGone = !!state.selectedCard
+    && !hand.some(c => String(c.id) === String(state.selectedCard.id));
+
   // Count submitters and collect submitted player names
   // Mirror server's allPlayersSubmitted() logic: skip late joiners awaiting die card
   // and players with empty hands so the "X/Y submitted" display matches the server.
@@ -287,17 +319,24 @@ function syncLivingPhaseState(room) {
     roundWinnerCard,
     // During select/winner phases, build the submittedCards map (keyed by player name)
     // so that confirmWinner/findSubmittedCardIndex can look up cards reliably.
-    // Outside those phases, reset submittedCards and selectedCard.
+    // Outside those phases, reset submittedCards. selectedCard is only cleared
+    // on phase transitions or when the previewed hand card is no longer in hand.
     ...(onlinePhase === 'select' || onlinePhase === 'winner'
-      ? { submittedCards: (() => {
-          const map = {};
-          for (const card of submittedCards) {
-            const p = players.find(pl => pl.sessionId === card.submittedBy);
-            if (p) map[p.name] = card;
-          }
-          return map;
-        })() }
-      : { submittedCards: {}, selectedCard: null }),
+      ? {
+          submittedCards: (() => {
+            const map = {};
+            for (const card of submittedCards) {
+              const p = players.find(pl => pl.sessionId === card.submittedBy);
+              if (p) map[p.name] = card;
+            }
+            return map;
+          })(),
+          ...(phaseChanged ? { selectedCard: null } : {}),
+        }
+      : {
+          submittedCards: {},
+          ...((phaseChanged || selectedHandCardGone) ? { selectedCard: null } : {}),
+        }),
     phaseComplete: false,
   };
 }
@@ -340,6 +379,12 @@ function syncEulogyPhaseState(room) {
     return p?.name ?? id;
   });
   const onlineEulogistNames = selectedEulogists;
+  // Pair each eulogist's session ID with their name so the judge UI can send the
+  // authoritative session ID instead of re-deriving it from a (non-unique) name.
+  const selectedEulogistList = eulogistIds.map(id => {
+    const p = room.state.players.get(id);
+    return { sessionId: id, name: p?.name ?? id };
+  });
 
   // Current eulogist
   const currentEulogistIndex = room.state.currentEulogistIndex ?? 0;
@@ -362,6 +407,7 @@ function syncEulogyPhaseState(room) {
     wildcardPlayers,
     currentWildcardIndex: room.state.currentWildcardIndex ?? 0,
     selectedEulogists,
+    selectedEulogistList,
     currentEulogistIndex,
     bestEulogist,
     currentCard,
@@ -425,8 +471,11 @@ export function resyncFromRoomState() {
       startPlayCardTimer();
     } else if (lbState.onlinePhase === 'reveal') {
       clearAllTimers();
-      // Start reveal animation after DOM renders
-      requestAnimationFrame(() => startRevealSequence());
+      if (getState().gameSettings?.showCardReveal) {
+        requestAnimationFrame(() => startRevealSequence());
+      } else {
+        sendMessage('reveal_complete');
+      }
     } else if (lbState.onlinePhase === 'convince') {
       clearPlayCardTimer();
       clearRevealTimer();
@@ -477,13 +526,38 @@ function setupRoomListeners(room, onUpdate) {
     if (onUpdate) onUpdate(syncPlayersFromRoom(room));
   });
 
+  // The host seat can move after everyone has joined: in a scheduled game the
+  // first arrival holds it only until the scheduler turns up. Every client
+  // needs to see that swap, not just the two players involved.
+  $(room.state).listen('hostId', (value) => {
+    setState({ isHost: value === room.sessionId });
+    if (onUpdate) onUpdate(syncPlayersFromRoom(room));
+  });
+
+  // The host can rename or move a scheduled game while everyone waits in the
+  // lobby. Both fields are seeded once at join, so without these listeners the
+  // other players would sit in front of the old name, time and countdown until
+  // the room disposed. A full re-render (rather than a partial repaint) is what
+  // re-points the countdown ticker at the banner's new element.
+  const rerenderLobby = () => {
+    if (getState().screen === 'online-lobby' && _onScreenChange) _onScreenChange('online-lobby');
+  };
+  $(room.state).listen('scheduledAt', (value) => {
+    setState({ scheduledAt: value || null });
+    rerenderLobby();
+  });
+  $(room.state).listen('scheduledTitle', (value) => {
+    setState({ scheduledTitle: value || '' });
+    rerenderLobby();
+  });
+
   // Listen for game settings changes (synced from server to local gameSettings)
   const settingKeys = [
     'rounds', 'handSize', 'enableDie', 'enableLive', 'enableBye', 'enableEulogy',
     'forceWildcards', 'playableWildcards', 'wildcardCount', 'eulogistCount',
     'handRedraws', 'timerEnabled', 'pitchTimerEnabled', 'playCardTimerEnabled',
     'timerCountUp', 'pitchDuration', 'timerVisible', 'timerAutoAdvance',
-    'ultraQuickMode', 'optionalCardPlay',
+    'ultraQuickMode', 'optionalCardPlay', 'showCardReveal',
   ];
   for (const key of settingKeys) {
     $(room.state).listen(key, (value) => {
@@ -563,9 +637,12 @@ function setupRoomListeners(room, onUpdate) {
         startPlayCardTimer();
       } else if (lbState.onlinePhase === 'reveal') {
         clearAllTimers();
-        // Start reveal animation after DOM renders
         if (_onScreenChange) _onScreenChange(lbState.screenName);
-        requestAnimationFrame(() => startRevealSequence());
+        if (getState().gameSettings?.showCardReveal) {
+          requestAnimationFrame(() => startRevealSequence());
+        } else {
+          sendMessage('reveal_complete');
+        }
         return;
       } else if (lbState.onlinePhase === 'convince') {
         clearPlayCardTimer();
@@ -709,6 +786,18 @@ function setupRoomListeners(room, onUpdate) {
   $(room.state.selectedPackIds).onAdd(syncSelectedPackIds);
   $(room.state.selectedPackIds).onRemove(syncSelectedPackIds);
 
+  // Sync the host's video-call details. Fires on every screen — a player can
+  // open the call panel mid-game, and the host can edit it mid-game.
+  const syncVideoCall = () => {
+    setState({ videoCall: videoCallFromRoom(room), videoCallNotes: room.state.videoCallNotes || '' });
+    if (_onVideoCallChange) _onVideoCallChange();
+  };
+  if (room.state.videoCall) {
+    $(room.state.videoCall).onAdd(syncVideoCall);
+    $(room.state.videoCall).onRemove(syncVideoCall);
+  }
+  $(room.state).listen('videoCallNotes', syncVideoCall);
+
   // Sync disabledPackDecks (per-pack deck enablement) from server to local state
   const syncDisabledPackDecks = () => {
     const keys = Array.from(room.state.disabledPackDecks ?? []);
@@ -851,14 +940,23 @@ function setupRoomListeners(room, onUpdate) {
         connectionStatus: 'connected',
         onlinePlayers: syncPlayersFromRoom(reconnectedRoom),
         mySessionId: reconnectedRoom.sessionId,
+        roomCode: reconnectedRoom.state?.roomCode || getState().roomCode,
       });
       setupRoomListeners(reconnectedRoom, _lastOnUpdate);
+      // Persist the rotated reconnection token so a page reload right after
+      // a WebSocket reconnect can still recover.
+      saveSession({
+        roomCode: reconnectedRoom.state?.roomCode || getState().roomCode,
+        reconnectionToken: reconnectedRoom.reconnectionToken,
+        identity: _lastIdentity,
+      });
       resyncFromRoomState();
       console.log('[client] Reconnected successfully');
     } catch (err) {
       console.log(`[client] Reconnection failed: ${err.message}`);
       _reconnecting = false;
       _room = null;
+      clearSession();
       setState({
         connectionStatus: 'disconnected',
         onlineError: `Disconnected — could not reconnect`,
@@ -897,7 +995,7 @@ function syncGameSettingsFromRoom(room) {
     'forceWildcards', 'playableWildcards', 'wildcardCount', 'eulogistCount',
     'handRedraws', 'timerEnabled', 'pitchTimerEnabled', 'playCardTimerEnabled',
     'timerCountUp', 'pitchDuration', 'timerVisible', 'timerAutoAdvance',
-    'ultraQuickMode', 'optionalCardPlay',
+    'ultraQuickMode', 'optionalCardPlay', 'showCardReveal',
   ];
   const settings = {};
   for (const key of keys) {
@@ -908,7 +1006,14 @@ function syncGameSettingsFromRoom(room) {
   return settings;
 }
 
-export async function createRoom({ name, birthMonth, birthDay, isPrivate = true, isDevName = false, devMode = false, userId = '' }, onUpdate) {
+/** Plain-object copy of the room's video-call entries for local state. */
+function videoCallFromRoom(room) {
+  return Array.from(room.state?.videoCall ?? []).map((e) => ({
+    kind: e.kind, platform: e.platform, value: e.value, label: e.label,
+  }));
+}
+
+export async function createRoom({ name, birthMonth, birthDay, isPrivate = true, isDevName = false, devMode = false, userId = '', authToken = null }, onUpdate) {
   setState({ connectionStatus: 'connecting', onlineError: null });
   try {
     const client = await getColyseusClient();
@@ -920,6 +1025,11 @@ export async function createRoom({ name, birthMonth, birthDay, isPrivate = true,
       isDevName,
       devMode,
       userId,
+      // Brand PLAY attribution: the brand URL the host created the room on
+      // (window.brand is set on /<slug>/...). Server validates it to a real brand.
+      brandId: (typeof window !== 'undefined' && window.brand) ? window.brand.id : undefined,
+      // Verified server-side: hosting requires a signed-up account
+      authToken: authToken || undefined,
     });
     _room = room;
 
@@ -930,15 +1040,26 @@ export async function createRoom({ name, birthMonth, birthDay, isPrivate = true,
       connectionStatus: 'connected',
       isHost: true,
       roomCode: room.state?.roomCode || null,
+      scheduledAt: null,
+      scheduledTitle: '',
+      ...RESET_LOBBY_SCHEDULE_EDIT,
       gameMode: 'online',
       onlinePlayers: syncPlayersFromRoom(room),
       mySessionId: room.sessionId,
       gameSettings: { ...state.gameSettings, ...syncGameSettingsFromRoom(room) },
       selectedPackIds: Array.from(room.state.selectedPackIds ?? []),
       disabledPackDecks: Array.from(room.state.disabledPackDecks ?? []),
+      videoCall: videoCallFromRoom(room),
+      videoCallNotes: room.state.videoCallNotes || '',
     });
     _lastOnUpdate = onUpdate;
+    _lastIdentity = { name, birthMonth: birthMonth || 0, birthDay: birthDay || 0, isDevName, userId };
     setupRoomListeners(room, onUpdate);
+    saveSession({
+      roomCode: room.state?.roomCode || null,
+      reconnectionToken: room.reconnectionToken,
+      identity: _lastIdentity,
+    });
     return room;
   } catch (err) {
     setState({
@@ -949,18 +1070,38 @@ export async function createRoom({ name, birthMonth, birthDay, isPrivate = true,
   }
 }
 
-export async function joinRoom(code, { name, birthMonth, birthDay, isDevName = false, userId = '' }, onUpdate) {
+/**
+ * Map a code to a joinable roomId. A scheduled game usually has no room
+ * running — its reservation lives in the DB — so when the live-room lookup
+ * misses we ask the server to spin one up from the reservation. That request
+ * is also what lets a guest open the waiting room before the host arrives.
+ */
+async function resolveRoomId(code) {
+  const upper = code.toUpperCase();
+  const res = await fetch(`${_restBaseUrl}/api/carkedit/rooms/lookup?code=${encodeURIComponent(upper)}`);
+  if (res.ok) return (await res.json()).roomId;
+  if (res.status !== 404) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Room not found (${res.status})`);
+  }
+
+  const scheduled = await fetch(`${_restBaseUrl}/api/carkedit/scheduled/${encodeURIComponent(upper)}/room`, {
+    method: 'POST',
+  });
+  if (!scheduled.ok) {
+    const body = await scheduled.json().catch(() => ({}));
+    // 404 here means the code isn't a scheduled game either — report the
+    // plain "not found" a player expects from a mistyped code.
+    throw new Error(body.error || (scheduled.status === 404 ? 'Room not found' : 'Could not open the game room'));
+  }
+  return (await scheduled.json()).roomId;
+}
+
+export async function joinRoom(code, { name, birthMonth, birthDay, isDevName = false, userId = '', authToken = null }, onUpdate) {
   setState({ connectionStatus: 'connecting', onlineError: null });
   try {
     await loadConfig();
-    const lookupUrl = `${_restBaseUrl}/api/carkedit/rooms/lookup?code=${encodeURIComponent(code.toUpperCase())}`;
-    const res = await fetch(lookupUrl);
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new Error(body.error || `Room not found (${res.status})`);
-    }
-    const lookupData = await res.json();
-    const { roomId } = lookupData;
+    const roomId = await resolveRoomId(code);
 
     const client = await getColyseusClient();
     const room = await client.joinById(roomId, {
@@ -969,6 +1110,10 @@ export async function joinRoom(code, { name, birthMonth, birthDay, isDevName = f
       birthDay: birthDay || 0,
       isDevName,
       userId,
+      // Only meaningful for a scheduled game: proves this joiner is the account
+      // that scheduled it, so they take the host seat back from whoever opened
+      // the lobby first.
+      authToken: authToken || undefined,
     });
     _room = room;
 
@@ -977,23 +1122,112 @@ export async function joinRoom(code, { name, birthMonth, birthDay, isDevName = f
     const state = getState();
     setState({
       connectionStatus: 'connected',
-      isHost: false,
+      // Normally false, but the scheduler of a scheduled game is handed the
+      // host seat on join — trust the server's hostId rather than assuming.
+      isHost: room.state?.hostId === room.sessionId,
       roomCode: code.toUpperCase(),
+      scheduledAt: room.state?.scheduledAt || null,
+      scheduledTitle: room.state?.scheduledTitle || '',
+      ...RESET_LOBBY_SCHEDULE_EDIT,
       gameMode: 'online',
       onlinePlayers: syncPlayersFromRoom(room),
       mySessionId: room.sessionId,
       gameSettings: { ...state.gameSettings, ...syncGameSettingsFromRoom(room) },
       selectedPackIds: Array.from(room.state.selectedPackIds ?? []),
       disabledPackDecks: Array.from(room.state.disabledPackDecks ?? []),
+      videoCall: videoCallFromRoom(room),
+      videoCallNotes: room.state.videoCallNotes || '',
     });
     _lastOnUpdate = onUpdate;
+    _lastIdentity = { name, birthMonth: birthMonth || 0, birthDay: birthDay || 0, isDevName, userId };
     setupRoomListeners(room, onUpdate);
+    saveSession({
+      roomCode: code.toUpperCase(),
+      reconnectionToken: room.reconnectionToken,
+      identity: _lastIdentity,
+    });
     return room;
   } catch (err) {
     setState({
       connectionStatus: 'disconnected',
       onlineError: err.message || 'Failed to join room',
     });
+    throw err;
+  }
+}
+
+/**
+ * Restore an online session after a page reload. Tries the Colyseus
+ * reconnection token first (preserves seat + hand during active phases).
+ * Falls back to a fresh joinRoom() with the saved identity (covers the
+ * lobby phase where the server has already dropped the player).
+ *
+ * Returns the reconnected/rejoined room on success. Throws if both
+ * paths fail — caller is responsible for clearing the saved session
+ * and showing the menu.
+ */
+export function attemptRecover(onUpdate) {
+  if (_recoverPromise) return _recoverPromise;
+  if (_room) return Promise.resolve(_room);
+  _recoverPromise = _doRecover(onUpdate).finally(() => { _recoverPromise = null; });
+  return _recoverPromise;
+}
+
+async function _doRecover(onUpdate) {
+  const saved = loadSession();
+  if (!saved) throw new Error('no saved session');
+
+  setState({
+    connectionStatus: 'reconnecting',
+    onlineError: null,
+    roomCode: saved.roomCode,
+    gameMode: 'online',
+  });
+
+  // Path 1: Colyseus reconnect (preserves seat/hand during active phases)
+  try {
+    const client = await getColyseusClient();
+    const room = await client.reconnect(saved.reconnectionToken);
+    _room = room;
+
+    await waitForState(room);
+
+    const state = getState();
+    setState({
+      connectionStatus: 'connected',
+      roomCode: room.state?.roomCode || saved.roomCode,
+      gameMode: 'online',
+      onlinePlayers: syncPlayersFromRoom(room),
+      mySessionId: room.sessionId,
+      gameSettings: { ...state.gameSettings, ...syncGameSettingsFromRoom(room) },
+      selectedPackIds: Array.from(room.state.selectedPackIds ?? []),
+      disabledPackDecks: Array.from(room.state.disabledPackDecks ?? []),
+      videoCall: videoCallFromRoom(room),
+      videoCallNotes: room.state.videoCallNotes || '',
+    });
+    _lastOnUpdate = onUpdate;
+    _lastIdentity = saved.identity;
+    setupRoomListeners(room, onUpdate);
+    saveSession({
+      roomCode: room.state?.roomCode || saved.roomCode,
+      reconnectionToken: room.reconnectionToken,
+      identity: saved.identity,
+    });
+    console.log('[client] Recovered session via Colyseus reconnect');
+    return room;
+  } catch (err) {
+    console.log(`[client] Token-based recover failed (${err.message}); trying joinRoom fallback`);
+  }
+
+  // Path 2: fresh join by room code (covers lobby — server already removed us)
+  if (!saved.identity?.name) {
+    clearSession();
+    throw new Error('no identity for join fallback');
+  }
+  try {
+    return await joinRoom(saved.roomCode, saved.identity, onUpdate);
+  } catch (err) {
+    clearSession();
     throw err;
   }
 }
@@ -1011,6 +1245,8 @@ export async function lookupRoom(code) {
 
 export async function leaveRoom() {
   clearAllTimers();
+  clearSession();
+  _lastIdentity = null;
   if (_room) {
     await _room.leave();
     _room = null;
@@ -1019,6 +1255,9 @@ export async function leaveRoom() {
     connectionStatus: 'disconnected',
     isHost: false,
     roomCode: null,
+    scheduledAt: null,
+    scheduledTitle: '',
+    ...RESET_LOBBY_SCHEDULE_EDIT,
     gameMode: 'local',
     onlinePlayers: [],
     onlineError: null,
@@ -1048,4 +1287,8 @@ export function onScreenChange(callback) {
 /** Register a callback for game settings changes from the server */
 export function onSettingsChange(callback) {
   _onSettingsChange = callback;
+}
+
+export function onVideoCallChange(callback) {
+  _onVideoCallChange = callback;
 }

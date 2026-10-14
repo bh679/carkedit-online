@@ -40,7 +40,7 @@ export function render(cardOrIdOrOpts = {}) {
            src="assets/card-backs/${deckType}-back.jpg"
            alt="${deckType} deck back"
            draggable="false"
-           onload="this.closest('.card-back').querySelector('.card-back__fallback').style.display='none'"
+           onload="var b=this.closest('.card-back'),f=b&&b.querySelector('.card-back__fallback');if(f)f.style.display='none'"
            onerror="this.style.display='none'">
       <div class="card-back__fallback">
         ${words}

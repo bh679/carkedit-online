@@ -14,36 +14,30 @@
       "runtimeArgs": ["http-server", ".", "-c-1"],
       "port": 4601,
       "autoPort": true
-    }
-  ,{
-      "name": "carkedit-21415",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": ["http-server", ".", "-p", "21415", "-c-1"],
-      "port": 21415
-    }
-  ,{
-      "name": "carkedit-4620",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": ["http-server", ".", "-p", "4620", "-c-1"],
-      "port": 4620
-    }
-  ,{
+    },
+    {
       "name": "firebase-per-env-4540",
       "runtimeExecutable": "npx",
       "runtimeArgs": ["http-server", ".", "-p", "4540", "-c-1"],
       "port": 4540
-    }
-  ,{
+    },
+    {
       "name": "shared-game-filters-4555",
       "runtimeExecutable": "npx",
       "runtimeArgs": ["http-server", ".", "-p", "4555", "-c-1"],
       "port": 4555
-    }
-  ,{
+    },
+    {
       "name": "fix-eulogy-picker-4501",
       "runtimeExecutable": "npx",
       "runtimeArgs": ["http-server", ".", "-p", "4501", "-c-1"],
       "port": 4501
+    },
+    {
+      "name": "solo-four-cards-4602",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["http-server", ".", "-p", "4602", "-c-1"],
+      "port": 4602
     }
   ]
 }

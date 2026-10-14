@@ -2,6 +2,11 @@
 'use strict';
 
 import { renderPackGrid } from '../components/pack-card.js';
+import { ROLE_LABELS } from '../config/brand-labels.js';
+
+// Configurable partner-brand role label (e.g. "Champion") — never
+// hardcode the display name; it lives in brand-labels.js.
+const CHAMPION = ROLE_LABELS.champion.singular;
 
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({
@@ -38,13 +43,12 @@ export function render(state) {
     return `
       <div class="screen screen--account">
         <div class="marketplace__header">
-          <button class="marketplace__back" onclick="window.game.showScreen('menu')">← Back</button>
           <h1 class="marketplace__title">Manage Account</h1>
-          <span></span>
         </div>
         <p class="marketplace__empty">Sign in to manage your account.<br><br>
           <button class="btn btn--primary" onclick="window.game.showLogin()">Sign in</button>
         </p>
+        <button class="btn mode-select__back-btn" onclick="window.game.showScreen('menu')">← Back</button>
       </div>
     `;
   }
@@ -52,9 +56,7 @@ export function render(state) {
   return `
     <div class="screen screen--account">
       <div class="marketplace__header">
-        <button class="marketplace__back" onclick="window.game.showScreen('menu')">← Back</button>
         <h1 class="marketplace__title">Manage Account</h1>
-        <span></span>
       </div>
 
       <section class="account__section">
@@ -88,6 +90,14 @@ export function render(state) {
         <h2 class="account__section-title">My Expansion Packs</h2>
         <div id="account-packs-mount"><p class="marketplace__empty">Loading…</p></div>
       </section>
+
+      <section class="account__section">
+        <h2 class="account__section-title">Become a ${esc(CHAMPION)}</h2>
+        <p class="account__hint">Run co-branded games at your own URL (<code>carkedit.com/your-url</code>).
+          Apply for a partner brand — an admin will review your request.</p>
+        <a class="btn btn--primary account__cta" href="brand-signup">Become a ${esc(CHAMPION)}</a>
+      </section>
+      <button class="btn mode-select__back-btn" onclick="window.game.showScreen('menu')">← Back</button>
     </div>
   `;
 }

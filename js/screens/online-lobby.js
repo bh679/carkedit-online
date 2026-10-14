@@ -1,16 +1,30 @@
 // CarkedIt Online — Online Lobby Screen
 'use strict';
 
-import { render as renderPhaseHeader } from '../components/phase-header.js';
 import { render as renderGameboard } from '../components/gameboard.js';
+import { renderAuthButton } from '../components/auth-button.js';
 import { PERSON_ICON, STAR_ICON, formatBirthday } from '../components/player-list.js';
 import { renderAdvancedPanel, renderToggle } from './lobby.js';
 import { render as renderPackSelector } from '../components/pack-selector.js';
+import { renderHeaderCoBrand } from '../config/brand-config.js';
+import { renderHelpButton, renderFirstGameBanner, renderOverlay as renderHowToPlayOverlay } from '../components/how-to-play-overlay.js';
+import { formatStartTime, hasStarted, localDateTimeValue, earliestStartValue } from '../utils/schedule-format.js';
+import { renderCalendarActions } from '../components/calendar-actions.js';
+import { renderCountdown } from '../components/countdown.js';
+import { renderCallButton } from '../components/video-call-panel.js';
+import { renderShareButton } from '../components/share-panel.js';
+import { renderEditor as renderVideoCallEditor } from '../components/video-call-editor.js';
+import { renderFirstHostDiscordBar } from '../components/first-host-discord.js';
 
 const LINK_ICON = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
   <path d="M6.5 9.5L9.5 6.5" stroke="#374151" stroke-width="1.5" stroke-linecap="round"/>
   <path d="M9 10L10.5 8.5C11.9 7.1 11.9 4.9 10.5 3.5C9.1 2.1 6.9 2.1 5.5 3.5L4 5" stroke="#374151" stroke-width="1.5" stroke-linecap="round"/>
   <path d="M7 6L5.5 7.5C4.1 8.9 4.1 11.1 5.5 12.5C6.9 13.9 9.1 13.9 10.5 12.5L12 11" stroke="#374151" stroke-width="1.5" stroke-linecap="round"/>
+</svg>`;
+
+const FLAG_ICON = `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <path d="M3 2v12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M3 2h8l-2 3 2 3H3" fill="currentColor"/>
 </svg>`;
 
 /**
@@ -30,15 +44,62 @@ export function render(state) {
 }
 
 function renderJoinCreate(state, connecting, error) {
+  // Two-step flow while unconnected: details first, then (if signed out and
+  // the player picked Email) an in-page account screen. A successful sign-in
+  // resolves back to details automatically.
+  const step = (!state.authUser && state.lobbyStep === 'email-auth') ? 'email-auth' : 'details';
+
+  const boardContent = step === 'email-auth'
+    ? renderEmailAuthStep(state)
+    : renderDetailsStep(state, connecting, error);
+
+  // Inline header so the right side carries the profile/auth button (like the
+  // main menu) instead of the shared phase-header's inert settings button.
+  const headerHtml = `
+    <header class="phase-header" data-phase="online">
+      <div class="phase-header__left">
+        <div class="phase-header__title-row">
+          <span class="phase-header__app-name">CarkedIt</span>
+          ${renderHeaderCoBrand((typeof window !== 'undefined' && window.brand) ? window.brand : null)}
+        </div>
+        <span class="phase-header__phase-label">Online</span>
+      </div>
+      <div class="phase-header__right">
+        <button class="phase-header__flag-btn" aria-label="Report issue" onclick="window.game.openIssueReport()">
+          ${FLAG_ICON}
+        </button>
+        ${renderAuthButton(state)}
+      </div>
+    </header>
+  `;
+  const backBtn = step === 'email-auth'
+    ? `<button class="btn mode-select__back-btn" onclick="window.game.lobbyBackToDetails()">&larr; Back</button>`
+    : `<button class="btn mode-select__back-btn" onclick="window.game.showScreen('menu')">&larr; Back</button>`;
+
+  return `
+    <div class="screen screen--online-lobby">
+      ${headerHtml}
+      ${renderGameboard(boardContent)}
+      <div class="online-lobby__actions">
+        ${backBtn}
+      </div>
+    </div>
+  `;
+}
+
+function renderDetailsStep(state, connecting, error) {
   const errorHtml = error
     ? `<p class="online-lobby__error">${escapeHtml(error)}</p>`
     : '';
 
-  const prefillName = state.authUser?.display_name || '';
-  const prefillBM = state.authUser?.birth_month || 0;
-  const prefillBD = state.authUser?.birth_day || 0;
+  // Typed values survive step changes and the post-sign-in re-render;
+  // fall back to the account profile for returning players.
+  const typed = state.lobbyDetails || {};
+  const prefillName = typed.name || state.authUser?.display_name || '';
+  const prefillBM = typed.birthMonth || state.authUser?.birth_month || 0;
+  const prefillBD = typed.birthDay || state.authUser?.birth_day || 0;
 
-  const boardContent = `
+  return `
     <div class="online-lobby__forms">
       <h2 class="online-lobby__heading">Your Details</h2>
       <input
@@ -62,32 +123,248 @@ function renderJoinCreate(state, connecting, error) {
             .map((m, i) => `<option value="${i + 1}"${prefillBM === i + 1 ? ' selected' : ''}>${m}</option>`).join('')}
         </select>
       </div>
+      <p class="online-lobby__field-note">Your birthdate is used in the game, recommended but optional</p>
 
       <div class="online-lobby__divider"></div>
 
-      <h2 class="online-lobby__heading">Create a Room</h2>
-      <button
-        class="btn btn--primary online-lobby__action-btn"
-        onclick="window.game.createRoom(event)"
-        ${connecting ? 'disabled' : ''}
-      >
-        ${connecting ? 'Creating...' : 'Create Private Room'}
-      </button>
+      ${renderCreateSection(state, connecting)}
 
       ${errorHtml}
     </div>
   `;
+}
 
-  const headerHtml = renderPhaseHeader({ phase: 'online', label: 'Online' });
+function renderEmailAuthStep(state) {
+  return `
+    <div class="online-lobby__forms">
+      <div id="online-lobby-create-section">
+        ${renderEmailAuthInner(state)}
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Hosting requires a signed-up account (enforced server-side in
+ * GameRoom.onCreate); joining a game does not. Signed-out users get the
+ * account form inline here — no popup — since an account is the only way
+ * to continue.
+ */
+function renderCreateSection(state, connecting) {
+  return `
+    <div id="online-lobby-create-section">
+      ${renderCreateSectionInner(state, connecting)}
+    </div>
+  `;
+}
+
+function renderCreateSectionInner(state, connecting) {
+  const heading = '<h2 class="online-lobby__heading">Create a Room</h2>';
+
+  if (state.authLoading) {
+    return `
+      ${heading}
+      <button class="btn btn--primary online-lobby__action-btn" disabled>
+        Checking sign-in...
+      </button>
+    `;
+  }
+
+  if (!state.authUser) {
+    return `
+      <h2 class="online-lobby__heading">Create Account</h2>
+      <div class="online-lobby__auth-choice-row">
+        <button class="btn btn--google" onclick="window.game.lobbyGoogleAuth()">
+          Google
+        </button>
+        <button class="btn btn--primary" onclick="window.game.lobbyEmailAuth()">
+          Email
+        </button>
+      </div>
+      <p class="online-lobby__field-note">
+        Hosting a game needs a free account.<br>Joining a game doesn't.
+      </p>
+    `;
+  }
+
+  // Scheduling opens its own screen rather than swapping this section: it
+  // collects different information (time, occasion, video call) and creates
+  // nothing immediately, so it isn't a variant of "create a room".
+  return `
+    ${heading}
+    <button
+      class="btn btn--primary online-lobby__action-btn"
+      onclick="window.game.createRoom(event)"
+      ${connecting ? 'disabled' : ''}
+    >
+      ${connecting ? 'Creating...' : 'Create Private Room'}
+    </button>
+    <button
+      class="btn btn--secondary online-lobby__action-btn"
+      onclick="window.game.openScheduleScreen()"
+      ${connecting ? 'disabled' : ''}
+    >
+      Schedule for Later
+    </button>
+  `;
+}
+
+/**
+ * The email account screen (step 2): create an account or sign in without
+ * leaving the page. Lives inside the refreshable container so errors and
+ * mode toggles update in place, keeping the typed email.
+ */
+function renderEmailAuthInner(state) {
+  const isSignUp = (state.lobbyAuthMode || 'signup') === 'signup';
+  const title = isSignUp ? 'Create Account' : 'Sign In';
+  const toggleHtml = isSignUp
+    ? `Already have an account? <a href="#" onclick="window.game.setLobbyAuthMode('signin'); return false;">Sign In</a>`
+    : `Don't have an account? <a href="#" onclick="window.game.setLobbyAuthMode('signup'); return false;">Sign Up</a>`;
+  const errorHtml = state.loginError
+    ? `<p class="online-lobby__error">${escapeHtml(state.loginError)}</p>`
+    : '';
+  const noticeHtml = state.loginNotice
+    ? `<p class="online-lobby__notice">${escapeHtml(state.loginNotice)}</p>`
+    : '';
+  // Password reset only applies when signing in (sign-up has no password yet).
+  const forgotHtml = isSignUp
+    ? ''
+    : `<button type="button" class="online-lobby__forgot-link" onclick="window.game.lobbyForgotPassword()">Forgot password?</button>`;
 
   return `
-    <div class="screen screen--online-lobby">
-      ${headerHtml}
-      ${renderGameboard(boardContent)}
-      <div class="online-lobby__actions">
-        <button class="btn mode-select__back-btn" onclick="window.game.showScreen('mode-select')">
-          &larr; Back
-        </button>
+    <h2 class="online-lobby__heading">${title}</h2>
+    <form class="online-lobby__auth-form" onsubmit="window.game.submitLobbyAuth(event)">
+      <input
+        type="email"
+        name="email"
+        class="input"
+        placeholder="Email"
+        required
+        autocomplete="email"
+        value="${escapeHtml(state.lobbyAuthEmail || '')}"
+      >
+      <input
+        type="password"
+        name="password"
+        class="input"
+        placeholder="Password"
+        required
+        minlength="6"
+        autocomplete="${isSignUp ? 'new-password' : 'current-password'}"
+      >
+      ${forgotHtml}
+      ${errorHtml}
+      ${noticeHtml}
+      <button type="submit" class="btn btn--primary online-lobby__action-btn">
+        ${title}
+      </button>
+    </form>
+    <p class="online-lobby__auth-toggle">${toggleHtml}</p>
+  `;
+}
+
+/**
+ * Partial update of just the create/auth section so inline-form errors and
+ * mode toggles don't re-render the whole screen (which would drop focus and
+ * typed values). Mirrors the refreshEditDrawerPackTabLabel pattern.
+ */
+export function refreshCreateSection(state) {
+  const el = document.getElementById('online-lobby-create-section');
+  if (!el) return;
+  const step = (!state.authUser && state.lobbyStep === 'email-auth') ? 'email-auth' : 'details';
+  el.innerHTML = step === 'email-auth'
+    ? renderEmailAuthInner(state)
+    : renderCreateSectionInner(state, state.connectionStatus === 'connecting');
+}
+
+/**
+ * Pre-start banner for a scheduled game: how long to wait and how to put it in
+ * a calendar. Disappears the moment the start time arrives — from then on the
+ * lobby is an ordinary one. How to play is reached from the first-time bar or
+ * the header button, so the banner doesn't repeat it.
+ */
+function renderScheduleBanner(state) {
+  const { scheduledAt, scheduledTitle } = state;
+  if (!scheduledAt) return '';
+
+  const titleHtml = scheduledTitle
+    ? `<span class="schedule__banner-title">${escapeHtml(scheduledTitle)}</span>`
+    : '';
+
+  // Once the countdown is spent the banner has nothing left to say. The call
+  // details stay reachable from the header button, in the lobby and in-game.
+  if (hasStarted(scheduledAt)) return '';
+
+  if (state.lobbyScheduleEditing) {
+    return `<div class="schedule__banner">${renderScheduleEditor(state)}</div>`;
+  }
+
+  // Plans move, and by the time people are in the lobby the link is already
+  // out — so the host fixes the details here rather than cancelling and
+  // re-scheduling. Only the host sees it; the server checks ownership too.
+  const editHtml = state.isHost
+    ? `<button class="btn btn--ghost schedule__banner-edit" onclick="window.game.startLobbyScheduleEdit()">
+         &#9998; Edit details
+       </button>`
+    : '';
+
+  return `
+    <div class="schedule__banner">
+      ${titleHtml}
+      <span class="schedule__banner-when">${escapeHtml(formatStartTime(scheduledAt))}</span>
+      ${renderCountdown(scheduledAt)}
+      ${renderCalendarActions()}
+      ${editHtml}
+    </div>
+  `;
+}
+
+/**
+ * The banner's edit mode: the same two fields the Scheduled Games row offers,
+ * so a host who has used one already knows the other. Saving goes through the
+ * ordinary PATCH, which pushes the change back into this room — everyone
+ * waiting sees the new details without reloading.
+ */
+function renderScheduleEditor(state) {
+  const errorHtml = state.lobbyScheduleError
+    ? `<p class="online-lobby__error">${escapeHtml(state.lobbyScheduleError)}</p>`
+    : '';
+
+  // No reservation id means this account didn't schedule the game (or is a
+  // guest host), so there is nothing it may edit. Say so instead of showing a
+  // form whose Save could only ever fail.
+  if (!state.lobbyScheduledId) {
+    return `
+      ${errorHtml}
+      <button class="btn btn--ghost" onclick="window.game.cancelLobbyScheduleEdit()">Close</button>
+    `;
+  }
+
+  return `
+    <div class="schedule__banner-edit-form">
+      ${errorHtml}
+      <label class="schedule__edit-label" for="lobby-edit-title">
+        Occasion <span class="schedule__label-note">optional</span>
+      </label>
+      <input
+        type="text"
+        id="lobby-edit-title"
+        class="input schedule__title-input"
+        maxlength="60"
+        placeholder="Nan's wake, Dave's send-off…"
+        value="${escapeHtml(state.scheduledTitle || '')}"
+      >
+      <label class="schedule__edit-label" for="lobby-edit-at">When</label>
+      <input
+        type="datetime-local"
+        id="lobby-edit-at"
+        class="input schedule__datetime"
+        min="${escapeHtml(earliestStartValue())}"
+        value="${escapeHtml(localDateTimeValue(state.scheduledAt))}"
+      >
+      <div class="schedule__banner-edit-actions">
+        <button class="btn btn--ghost" onclick="window.game.cancelLobbyScheduleEdit()">Cancel</button>
+        <button class="btn btn--primary" onclick="window.game.saveLobbyScheduleEdit()">Save</button>
       </div>
     </div>
   `;
@@ -96,6 +373,9 @@ function renderJoinCreate(state, connecting, error) {
 function renderConnectedLobby(state) {
   const { roomCode, isHost, onlinePlayers, onlineSettings } = state;
   const allReady = onlinePlayers.length > 0 && onlinePlayers.every(p => p.ready);
+  // Before the scheduled time the host may still start early ("Start now");
+  // everyone else is told what they're waiting for.
+  const awaitingSchedule = !!state.scheduledAt && !hasStarted(state.scheduledAt);
 
   const playerListHtml = onlinePlayers.length === 0
     ? '<p class="online-lobby__empty">No players yet...</p>'
@@ -110,8 +390,8 @@ function renderConnectedLobby(state) {
           !p.connected ? ' player-list__chip--disconnected' : '',
         ].join('');
         const status = isFD
-          ? (p.ready ? 'Ready to Die' : 'Funeral Director')
-          : p.ready ? 'Ready to Die' : p.connected ? 'Connected' : 'Disconnected';
+          ? (p.ready ? 'Ready' : 'Funeral Director')
+          : p.ready ? 'Ready' : p.connected ? 'Connected' : 'Disconnected';
         return `
           <div class="player-list__chip${modifiers}">
             <span class="player-list__icon">${icon}</span>
@@ -128,6 +408,7 @@ function renderConnectedLobby(state) {
     ? `<div class="online-lobby__room-code" onclick="window.game.copyJoinLink()" style="cursor:pointer" title="Click to copy join link">
         <span class="online-lobby__code-label">Room Code</span>
         <span class="online-lobby__code-value">${escapeHtml(roomCode)}</span>
+        <span class="online-lobby__code-hint">Click to invite players</span>
        </div>`
     : '';
 
@@ -144,7 +425,7 @@ function renderConnectedLobby(state) {
 
   const readyLabel = isHost
     ? (amReady ? 'Not Ready' : 'Ready')
-    : (amReady ? 'Not Ready' : 'Ready to Die');
+    : (amReady ? 'Not Ready' : "I'm Ready");
 
   const readyBtn = `
     <button
@@ -163,17 +444,21 @@ function renderConnectedLobby(state) {
           onclick="window.game.startOnlineGame()"
           ${onlinePlayers.length < 2 ? 'disabled' : ''}
         >
-          Start Game
+          ${awaitingSchedule ? 'Start Now' : 'Start Game'}
         </button>
        </div>`
     : `${readyBtn}
-       <p class="online-lobby__waiting">Waiting for The Funeral Director to start the game...</p>`;
+       <p class="online-lobby__waiting">${awaitingSchedule
+          ? 'Waiting for the scheduled start — The Funeral Director can begin early.'
+          : 'Waiting for The Funeral Director to start the game...'}</p>`;
 
   const boardContent = `
     <div class="online-lobby__connected">
+      ${renderFirstGameBanner(state)}
+      ${renderScheduleBanner(state)}
       ${codeDisplay}
       <div class="online-lobby__divider"></div>
-      <h2 class="online-lobby__heading">Players</h2>
+      <h2 class="online-lobby__heading">${onlinePlayers.length > 1 ? `${onlinePlayers.length} ` : ''}Players${onlinePlayers.length < 3 ? ' <span class="online-lobby__heading-note">— Minimum 3</span>' : ''}</h2>
       <div class="online-lobby__player-list">
         ${playerListHtml}
       </div>
@@ -181,6 +466,7 @@ function renderConnectedLobby(state) {
       ${settingsHtml}
       <div class="online-lobby__divider"></div>
       ${hostControls}
+      ${renderFirstHostDiscordBar(state)}
     </div>
   `;
 
@@ -197,10 +483,16 @@ function renderConnectedLobby(state) {
   const headerHtml = `
     <header class="phase-header">
       <div class="phase-header__left">
-        <span class="phase-header__app-name">CarkedIt</span>
+        <div class="phase-header__title-row">
+          <span class="phase-header__app-name">CarkedIt</span>
+          ${renderHeaderCoBrand((typeof window !== 'undefined' && window.brand) ? window.brand : null)}
+        </div>
         <span class="phase-header__phase-label">Online Lobby</span>
       </div>
       <div class="phase-header__right">
+        ${renderCallButton(state)}
+        ${renderShareButton(state)}
+        ${renderHelpButton()}
         <button class="${flagClass}" aria-label="Report issue" onclick="window.game.openIssueReport()">
           ${FLAG_ICON}
         </button>
@@ -221,6 +513,7 @@ function renderConnectedLobby(state) {
         </button>
       </div>
       ${drawerHtml}
+      ${state.showHowToPlay ? renderHowToPlayOverlay(state) : ''}
     </div>
   `;
 }
@@ -250,6 +543,7 @@ function renderEditDrawer(state) {
         ${tabBtn('mode', 'Mode')}
         ${tabBtn('rules', 'Rules')}
         ${tabBtn('packs', packLabel)}
+        ${tabBtn('call', 'Call')}
       </div>
       <div id="online-lobby__edit-body" class="online-lobby__edit-body">
         ${renderEditDrawerBody(state)}
@@ -268,6 +562,7 @@ export function renderEditDrawerBody(state) {
   if (tab === 'mode')  return renderModeTab(state);
   if (tab === 'rules') return renderAdvancedPanel(state, { force: true });
   if (tab === 'packs') return renderPackSelector(state, { isHost: true });
+  if (tab === 'call')  return renderVideoCallEditor(state);
   return '';
 }
 
@@ -294,9 +589,9 @@ function renderModeTab(state) {
   return `
     <div class="lobby__mode-toggle">
       <button class="btn lobby__mode-btn ${isQuick ? 'btn--primary' : 'btn--secondary'}"
-        onclick="window.game.setGameMode('quick')">Quick</button>
+        onclick="window.game.setGameMode('quick')">Normal</button>
       <button class="btn lobby__mode-btn ${isNormal ? 'btn--primary' : 'btn--secondary'}"
-        onclick="window.game.setGameMode('normal')">Normal</button>
+        onclick="window.game.setGameMode('normal')">Classic</button>
       ${pc > 6 ? `<button class="btn lobby__mode-btn ${isBigGroup ? 'btn--primary' : 'btn--secondary'}"
         onclick="window.game.setGameMode('big-group')">Big Group</button>` : ''}
       ${pc > 9 ? `<button class="btn lobby__mode-btn ${isHugeGroup ? 'btn--primary' : 'btn--secondary'}"
@@ -317,15 +612,15 @@ const REDRAW_LABELS = {
 };
 
 const DEFAULTS = {
-  rounds: 2, handSize: 5, enableLive: true, enableBye: true, enableEulogy: true,
+  rounds: 1, handSize: 5, enableLive: true, enableBye: true, enableEulogy: true,
   forceWildcards: 'atLeastOne', playableWildcards: true, wildcardCount: 2, eulogistCount: 2,
   handRedraws: 'once_per_phase', timerEnabled: false, ultraQuickMode: false,
-  optionalCardPlay: false,
+  optionalCardPlay: false, showCardReveal: false,
 };
 
 const MODE_PRESETS = {
-  Quick:        { rounds: 1, ultraQuickMode: false, optionalCardPlay: false },
-  Normal:       { rounds: 2, ultraQuickMode: false, optionalCardPlay: false },
+  Normal:       { rounds: 1, ultraQuickMode: false, optionalCardPlay: false },
+  Classic:      { rounds: 2, ultraQuickMode: false, optionalCardPlay: false },
   'Big Group':  { rounds: 1, ultraQuickMode: false, optionalCardPlay: true },
   'Ultra Quick':{ rounds: 1, ultraQuickMode: true,  optionalCardPlay: false },
   'Huge Group': { rounds: 1, ultraQuickMode: true,  optionalCardPlay: true },
@@ -340,7 +635,7 @@ export function renderSettingsSummary(state) {
   const isBigGroup   = !gs.ultraQuickMode && gs.rounds === 1 &&  gs.optionalCardPlay;
   const isUltraQuick =  gs.ultraQuickMode &&                    !gs.optionalCardPlay;
   const isHugeGroup  =  gs.ultraQuickMode &&                     gs.optionalCardPlay;
-  const modeName = isQuick ? 'Quick' : isNormal ? 'Normal'
+  const modeName = isQuick ? 'Normal' : isNormal ? 'Classic'
     : isBigGroup ? 'Big Group' : isUltraQuick ? 'Ultra Quick'
     : isHugeGroup ? 'Huge Group' : null;
 
@@ -349,7 +644,7 @@ export function renderSettingsSummary(state) {
 
   const cards = [];
 
-  // Show mode chip if not Normal (no label prefix, just the mode name)
+  // Show mode chip unless it's Normal — the default (no label prefix, just the mode name)
   if (modeName && modeName !== 'Normal') cards.push([null, modeName]);
 
   // Only show settings that differ from the effective defaults

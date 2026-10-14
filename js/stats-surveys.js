@@ -1,8 +1,11 @@
 // CarkedIt Online — All Survey Responses (See All page)
 'use strict';
 
+import { guardPage } from './managers/page-permission-guard.js';
 import { renderAdminHeader, bindAdminHeader, resetAdminHeaderMenu } from './components/admin-header.js';
 import { getFirebaseConfig } from './firebase-config.js';
+
+await guardPage('stats-surveys').catch((err) => { throw err; });
 
 const FIREBASE_CONFIG = getFirebaseConfig();
 const API_BASE = '';
@@ -37,7 +40,8 @@ async function loadFirebaseAuth() {
     import('https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js'),
     import('https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js'),
   ]);
-  const app = appMod.initializeApp(FIREBASE_CONFIG);
+  // Idempotent: guardPage may have already initialized the default app.
+  const app = appMod.getApps().length ? appMod.getApp() : appMod.initializeApp(FIREBASE_CONFIG);
   firebaseAuth = authMod.getAuth(app);
   return authMod;
 }
@@ -130,12 +134,35 @@ function renderFilters() {
   `;
 }
 
+const TRUNCATE_CHAR_THRESHOLD = 280;
+const TRUNCATE_LINE_THRESHOLD = 5;
+
+function shouldTruncate(text) {
+  if (!text) return false;
+  if (text.length > TRUNCATE_CHAR_THRESHOLD) return true;
+  return text.split('\n').length > TRUNCATE_LINE_THRESHOLD;
+}
+
+function fieldClass(text) {
+  return shouldTruncate(text)
+    ? 'survey-response__field survey-response__field--truncatable'
+    : 'survey-response__field';
+}
+
+function fieldOnclick(text) {
+  return shouldTruncate(text)
+    ? ` onclick="this.classList.toggle('survey-response__field--expanded')"`
+    : '';
+}
+
 function renderResponse(r) {
   const date = new Date(r.created_at).toLocaleString();
   const bucket = npsBucketClass(r.nps_score);
   const player = r.player_name || '(anonymous)';
-  const comment = escapeHtml(r.comment || '');
-  const improvement = escapeHtml(r.improvement || '');
+  const rawComment = r.comment || '';
+  const rawImprovement = r.improvement || '';
+  const comment = escapeHtml(rawComment);
+  const improvement = escapeHtml(rawImprovement);
   const sid = escAttr(String(r.id));
   return `
     <div class="survey-response">
@@ -145,8 +172,8 @@ function renderResponse(r) {
         <span class="survey-response__date">${date}</span>
         <button class="dashboard__dev-toggle ${r.is_dev ? 'is-on' : ''}" title="Toggle dev" onclick="window.statsSurveys.toggleSurveyDev('${sid}', ${!r.is_dev})">DEV</button>
       </div>
-      ${comment ? `<div class="survey-response__field"><strong>Comment:</strong> ${comment}</div>` : ''}
-      ${improvement ? `<div class="survey-response__field"><strong>Improve:</strong> ${improvement}</div>` : ''}
+      ${comment ? `<div class="${fieldClass(rawComment)}"${fieldOnclick(rawComment)}><strong>Comment:</strong> ${comment}</div>` : ''}
+      ${improvement ? `<div class="${fieldClass(rawImprovement)}"${fieldOnclick(rawImprovement)}><strong>Improve:</strong> ${improvement}</div>` : ''}
     </div>
   `;
 }

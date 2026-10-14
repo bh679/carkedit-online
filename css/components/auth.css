@@ -217,6 +217,28 @@
   text-align: center;
 }
 
+.login-modal__notice {
+  color: #6bd16b;
+  font-size: 0.85em;
+  text-align: center;
+}
+
+/* Link-styled button — sits inside the flex-column modal form, right-aligned. */
+.login-modal__forgot {
+  align-self: flex-end;
+  margin-top: -0.25em;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent, #4285f4);
+  font-size: 0.8em;
+  cursor: pointer;
+}
+
+.login-modal__forgot:hover {
+  text-decoration: underline;
+}
+
 .login-modal__toggle {
   text-align: center;
   margin-top: 1em;

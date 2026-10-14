@@ -30,7 +30,8 @@ async function loadFirebase() {
     import('https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js'),
     import('https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js'),
   ]);
-  firebaseApp = appMod.initializeApp(FIREBASE_CONFIG);
+  // Idempotent: guardPage may have already initialized the default app.
+  firebaseApp = appMod.getApps().length ? appMod.getApp() : appMod.initializeApp(FIREBASE_CONFIG);
   firebaseAuth = authMod.getAuth(firebaseApp);
   firebaseModules = { app: appMod, auth: authMod };
   return firebaseModules;
@@ -53,21 +54,32 @@ export async function initAuth(onUserChanged) {
       if (firebaseUser) {
         const token = await firebaseUser.getIdToken();
         const localUser = await linkOrFetchUser(firebaseUser, token);
+        // Firebase sign-in succeeded but the account service returned no
+        // user — surface it instead of silently appearing signed out.
+        const accountError = localUser
+          ? null
+          : "Signed in, but couldn't reach the account service — please try again.";
         _setState({
           authUser: localUser,
           firebaseUser: { displayName: firebaseUser.displayName, photoURL: firebaseUser.photoURL, email: firebaseUser.email },
           authToken: token,
           authLoading: false,
-          loginError: null,
-          showLoginModal: false,
+          loginError: accountError,
+          showLoginModal: accountError ? _getState().showLoginModal : false,
         });
         if (onUserChanged) onUserChanged();
+        // Owned partner brands → drives the "Brand Admin" link in the user menu.
+        fetchMyBrands(token).then((brands) => {
+          _setState({ myBrands: brands });
+          if (onUserChanged) onUserChanged();
+        });
       } else {
         _setState({
           authUser: null,
           firebaseUser: null,
           authToken: null,
           authLoading: false,
+          myBrands: [],
         });
         if (onUserChanged) onUserChanged();
       }
@@ -81,7 +93,7 @@ export async function initAuth(onUserChanged) {
 
 export async function signInWithGoogle() {
   try {
-    _setState({ loginError: null });
+    _setState({ loginError: null, loginNotice: null });
     const { auth: authMod } = await loadFirebase();
     const provider = new authMod.GoogleAuthProvider();
     if (isMobile()) {
@@ -97,7 +109,7 @@ export async function signInWithGoogle() {
 
 export async function signInWithEmail(email, password) {
   try {
-    _setState({ loginError: null });
+    _setState({ loginError: null, loginNotice: null });
     const { auth: authMod } = await loadFirebase();
     await authMod.signInWithEmailAndPassword(firebaseAuth, email, password);
   } catch (err) {
@@ -108,11 +120,23 @@ export async function signInWithEmail(email, password) {
 
 export async function signUpWithEmail(email, password) {
   try {
-    _setState({ loginError: null });
+    _setState({ loginError: null, loginNotice: null });
     const { auth: authMod } = await loadFirebase();
     await authMod.createUserWithEmailAndPassword(firebaseAuth, email, password);
   } catch (err) {
     console.error('[CarkedIt Auth] Sign-up error:', err);
+    _setState({ loginError: friendlyError(err.code) });
+  }
+}
+
+export async function sendPasswordReset(email) {
+  try {
+    _setState({ loginError: null, loginNotice: null });
+    const { auth: authMod } = await loadFirebase();
+    await authMod.sendPasswordResetEmail(firebaseAuth, email);
+    _setState({ loginNotice: 'Reset email sent — check your inbox' });
+  } catch (err) {
+    console.error('[CarkedIt Auth] Password reset error:', err);
     _setState({ loginError: friendlyError(err.code) });
   }
 }
@@ -151,9 +175,27 @@ export async function updateUserProfile({ display_name, birth_month, birth_day }
   }
 }
 
+// Partner brands this user owns (any status). Empty on failure — the menu
+// simply omits the Brand Admin link.
+async function fetchMyBrands(token) {
+  try {
+    const res = await fetch(`${window.location.origin}/api/carkedit/brands/mine`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return [];
+    return (await res.json()).brands || [];
+  } catch (err) {
+    console.warn('[CarkedIt Auth] fetch my brands failed:', err);
+    return [];
+  }
+}
+
 async function linkOrFetchUser(firebaseUser, token) {
   const API_BASE = `${window.location.origin}/api/carkedit`;
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+  // Partner-brand attribution: when signing up on a brand vanity URL, tag the
+  // new account with the brand (server validates + writes it once, at creation).
+  const brandId = (typeof window !== 'undefined' && window.brand) ? window.brand.id : undefined;
 
   const anonymousId = localStorage.getItem('carkedit-user-id');
   if (anonymousId) {
@@ -161,7 +203,7 @@ async function linkOrFetchUser(firebaseUser, token) {
       const res = await fetch(`${API_BASE}/users/link`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ anonymous_user_id: anonymousId }),
+        body: JSON.stringify({ anonymous_user_id: anonymousId, brand_id: brandId }),
       });
       if (res.ok) {
         const user = await res.json();
@@ -179,10 +221,13 @@ async function linkOrFetchUser(firebaseUser, token) {
       method: 'POST',
       headers,
       body: JSON.stringify({
-        display_name: firebaseUser.displayName || 'User',
+        // New accounts start nameless — the player provides their name when
+        // creating a room. Google sign-in keeps its displayName.
+        display_name: firebaseUser.displayName || '',
         firebase_uid: firebaseUser.uid,
         email: firebaseUser.email,
         avatar_url: firebaseUser.photoURL,
+        brand_id: brandId,
       }),
     });
     if (res.ok) {
@@ -205,6 +250,8 @@ function friendlyError(code) {
     'auth/weak-password': 'Password must be at least 6 characters',
     'auth/invalid-credential': 'Invalid email or password',
     'auth/too-many-requests': 'Too many attempts. Try again later',
+    'auth/missing-email': 'Please enter your email address',
+    'auth/operation-not-allowed': "Email sign-up isn't enabled for this environment",
   };
   return map[code] || 'Authentication failed';
 }

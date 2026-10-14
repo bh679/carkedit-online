@@ -35,16 +35,26 @@ export function normaliseDeckType(raw) {
 
 /**
  * Normalise any `special` marker into the canonical enum.
- *  - `'?'`     → `'mystery'`
- *  - `'Split'` → `'split'`
- *  - falsy     → `null`
+ *  - `'?'`        → `'mystery'`
+ *  - `'Split'`    → `'split'`
+ *  - `'Wildcard'` → `'wildcard'`  (BYE deck Eulogy wildcards, static JSON + server)
+ *  - falsy        → `null`
  */
 export function normaliseSpecial(raw) {
   const v = raw?.special ?? raw?.card_special ?? null;
   if (!v) return null;
   if (v === '?' || v === 'mystery') return 'mystery';
   if (v === 'Split' || v === 'split') return 'split';
+  if (v === 'Wildcard' || v === 'wildcard') return 'wildcard';
   return null;
+}
+
+/**
+ * True when a (normalised) card is a BYE-deck Eulogy wildcard.
+ * Use this instead of comparing `card.special` to a raw string.
+ */
+export function isWildcard(card) {
+  return card?.special === 'wildcard';
 }
 
 /**

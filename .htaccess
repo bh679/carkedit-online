@@ -3,6 +3,12 @@
 # so staging (Apache) and production (Express) resolve URLs identically.
 RewriteEngine On
 
+# The pricing page was renamed evangelist-pricing → champion-pricing with the
+# "Champion" relabel. Keeps old links/bookmarks working. Production (Express)
+# mirrors this in carkedit-api/src/index.ts. Must precede the rule below, which
+# would otherwise rewrite the old path to a now-missing .html file.
+RewriteRule ^evangelist-pricing/?$ /champion-pricing [R=301,L]
+
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^([^.]+)$ $1.html [L]

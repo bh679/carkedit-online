@@ -24,6 +24,9 @@ let _state = {
 
   // Network / online multiplayer state
   gameMode: 'local',               // 'local' | 'online'
+
+  // Single player (see managers/solo-manager.js) — null when not in a solo game
+  solo: null,
   isHost: false,
   roomCode: null,
   connectionStatus: 'disconnected', // 'disconnected' | 'connecting' | 'connected'
@@ -49,7 +52,7 @@ let _state = {
   },
 
   gameSettings: {
-    rounds: 2,
+    rounds: 1,
     handSize: 5,
     enableDie: true,
     enableLive: true,
@@ -69,16 +72,29 @@ let _state = {
     timerAutoAdvance: true,
     ultraQuickMode: false,
     optionalCardPlay: false,
+    showCardReveal: false,
   },
   showAdvancedSettings: false,
   showExpansionPacks: false,
 
   // Online lobby host editor (drawer)
   lobbyEditOpen: false,
-  lobbyEditTab: 'mode', // 'mode' | 'rules' | 'packs'
+  lobbyEditTab: 'mode', // 'mode' | 'rules' | 'packs' | 'call'
+
+  // Host's video-call details (synced from the room) + the host editor's
+  // working copy. The panel itself is mounted on document.body, so only the
+  // data lives here.
+  videoCall: [],          // [{ kind, platform, value, label }]
+  videoCallNotes: '',
+  videoCallEditOpen: false,
+  videoCallDraft: null,   // { entries, notes, remember, paste } while editing
+
+  // How to Play overlay (online lobby) — instructions shown over the lobby
+  showHowToPlay: false,
+  howToPlayTab: 'setup', // 'setup' | 'play'
 
   // Phase 2/3 state
-  totalRounds: 2,
+  totalRounds: 1,
   livingDeadIndex: 0,
   phase23Round: 0,
   playerHands: {},
@@ -110,6 +126,7 @@ let _state = {
   wildcardPlayers: [],
   currentWildcardIndex: 0,
   selectedEulogists: [],
+  selectedEulogistList: [],         // [{ sessionId, name }] for the online judge UI
   currentEulogistIndex: 0,
   bestEulogist: null,
 
@@ -140,6 +157,26 @@ let _state = {
   showLoginModal: false,             // Show login/signup modal
   loginMode: 'signin',              // 'signin' | 'signup'
   loginError: null,                  // Auth error message
+  loginNotice: null,                 // Auth success/notice message (e.g. password-reset sent)
+  lobbyAuthMode: 'signup',           // Inline lobby auth form mode: 'signup' | 'signin'
+  lobbyAuthEmail: '',                // Preserves typed email across inline form re-renders
+  lobbyStep: 'details',              // Unconnected lobby sub-step: 'details' | 'email-auth'
+  lobbyDetails: { name: '', birthMonth: 0, birthDay: 0 }, // Typed details kept across step/auth re-renders
+
+  // ── Scheduled games ────────────────────────────────
+  scheduleDraft: { startsAt: '', title: '', videoCallText: '' }, // Typed schedule form values, kept across re-renders
+  scheduleError: null,               // Validation/API error on the schedule form
+  scheduledGame: null,               // The reservation just created (confirmation screen)
+  scheduledInfo: null,               // Resolved schedule for a ?join= code, shown on the join screen
+  scheduledAt: null,                 // ISO start time of the joined room, null for a walk-up game
+  scheduledTitle: '',                // Optional occasion name for the joined room
+  scheduledGames: [],                // The host's own upcoming games
+  scheduledGamesLoading: false,
+  scheduledGamesError: null,
+  rescheduleId: null,                // Row currently being edited in the list
+  lobbyScheduleEditing: false,       // Countdown banner is showing its edit form
+  lobbyScheduledId: null,            // Reservation id behind the joined room, resolved on first edit
+  lobbyScheduleError: null,          // Validation/API/permission error on the banner editor
 };
 
 export function getState() {

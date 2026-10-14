@@ -34,6 +34,34 @@
   margin-top: var(--space-xs);
 }
 
+/* Partner co-brand lockup — shown ADDITIONALLY on a brand vanity URL.
+   CarkedIt's own logo/title above are never swapped. */
+.menu__cobrand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-top: var(--space-md);
+}
+
+.menu__cobrand-logo {
+  max-height: 56px;
+  max-width: min(220px, 60vw);
+  width: auto;
+  object-fit: contain;
+}
+
+.menu__cobrand-text {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  letter-spacing: 0.2px;
+}
+
+.menu__cobrand-name {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
 .menu__actions {
   display: flex;
   flex-direction: column;
@@ -49,6 +77,24 @@
 .menu__site-link {
   text-decoration: none;
   text-align: center;
+}
+
+.menu__more-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+}
+
+.menu__more-arrow {
+  display: inline-block;
+  transition: transform 0.15s ease;
+  font-size: 0.85em;
+  line-height: 1;
+}
+
+.menu__more-toggle--open .menu__more-arrow {
+  transform: rotate(180deg);
 }
 
 .menu__shop-link {
@@ -78,4 +124,76 @@
 
 .menu__version:hover {
   opacity: 0.8;
+}
+
+.menu__recover-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.menu__recover-card {
+  background: var(--color-surface, #1a1a1a);
+  border-radius: 12px;
+  padding: var(--space-xl, 2rem);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md, 1rem);
+  max-width: 320px;
+  text-align: center;
+}
+
+.menu__recover-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--color-text-muted, #888);
+  border-top-color: var(--color-primary, #e63946);
+  border-radius: 50%;
+  animation: menu-recover-spin 0.9s linear infinite;
+}
+
+@keyframes menu-recover-spin {
+  to { transform: rotate(360deg); }
+}
+
+.menu__recover-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-text, #fff);
+  margin: 0;
+}
+
+.menu__recover-sub {
+  font-size: 0.85rem;
+  color: var(--color-text-muted, #aaa);
+  letter-spacing: 0.05em;
+  margin: 0;
+}
+
+.menu__recover-cancel {
+  margin-top: var(--space-sm, 0.75rem);
+  min-width: 120px;
+}
+
+/* ── Scheduled games (promoted) ─────────────────────
+   Only shown when the host actually has games coming up, so it carries the
+   count and the next start time rather than being a bare label. */
+.menu__scheduled-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.5em;
+}
+
+.menu__scheduled-when {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
 }

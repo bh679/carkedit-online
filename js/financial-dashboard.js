@@ -1,8 +1,11 @@
 // CarkedIt Online — Financial Dashboard
 'use strict';
 
+import { guardPage } from './managers/page-permission-guard.js';
 import { renderAdminHeader, bindAdminHeader } from './components/admin-header.js';
 import { getFirebaseConfig } from './firebase-config.js';
+
+await guardPage('financial-dashboard').catch((err) => { throw err; });
 
 // ── Constants ─────────────────────────────────────────
 const FIREBASE_CONFIG = getFirebaseConfig();
@@ -114,6 +117,78 @@ function renderSummaryCards(data, aws) {
       </div>
     </div>
     ${totals.estimated_count > 0 ? `<div class="fin-note">* ${totals.estimated_count} of ${totals.all_time_count} generations use estimated costs (pre-tracking)</div>` : ''}`;
+}
+
+// ── Environment Breakdown ─────────────────────────────
+const ENV_META = {
+  dev:      { label: 'Dev',         bg: 'rgba(59, 130, 246, 0.15)', fg: '#2563eb' },
+  staging:  { label: 'Staging',     bg: 'rgba(245, 158, 11, 0.15)', fg: '#d97706' },
+  prod:     { label: 'Prod',        bg: 'rgba(34, 197, 94, 0.15)',  fg: '#16a34a' },
+  untagged: { label: 'Untagged',    bg: 'var(--color-input-bg)',    fg: 'var(--color-text-muted)' },
+};
+const ENV_ORDER = ['dev', 'staging', 'prod'];
+
+function getEnvMeta(env) {
+  return ENV_META[env] || { label: env, bg: 'var(--color-input-bg)', fg: 'var(--color-text-muted)' };
+}
+
+// Merge per-environment image-gen costs (summary.by_environment) with
+// per-environment server costs (aws.by_environment) into one table.
+function renderEnvironmentTable(data, aws) {
+  const imgByEnv = {};
+  (data.by_environment || []).forEach(e => { imgByEnv[e.environment] = e.total_usd; });
+
+  const awsConfigured = !!(aws && aws.configured);
+  const srvByEnv = {};
+  (awsConfigured ? (aws.by_environment || []) : []).forEach(e => { srvByEnv[e.environment] = e.total_usd; });
+  const hasServer = awsConfigured && (aws.by_environment || []).length > 0;
+
+  const seen = new Set([...Object.keys(imgByEnv), ...Object.keys(srvByEnv)]);
+  const envs = [
+    ...ENV_ORDER.filter(e => seen.has(e)),
+    ...[...seen].filter(e => !ENV_ORDER.includes(e)).sort(),
+  ];
+
+  if (envs.length === 0) {
+    return '<div class="fin-empty">No per-environment cost data yet.</div>';
+  }
+
+  let totImg = 0, totSrv = 0;
+  const rows = envs.map(env => {
+    const img = imgByEnv[env] || 0;
+    const srv = srvByEnv[env] || 0;
+    totImg += img; totSrv += srv;
+    const meta = getEnvMeta(env);
+    return `<tr>
+      <td><span class="fin-badge" style="background:${meta.bg};color:${meta.fg}">${esc(meta.label)}</span></td>
+      <td class="fin-table__num">${usd(img)}</td>
+      <td class="fin-table__num">${hasServer ? usd(srv) : '—'}</td>
+      <td class="fin-table__num">${usd(img + srv)}</td>
+    </tr>`;
+  }).join('');
+
+  const note = !awsConfigured
+    ? '<div class="fin-note">Server (AWS) costs need AWS credentials — showing image-gen costs per environment only.</div>'
+    : (!hasServer
+        ? '<div class="fin-note">Per-environment server costs appear once the AWS <code>Environment</code> cost-allocation tag is activated (~24–48h, forward-only).</div>'
+        : '');
+
+  return `
+    <table class="fin-table">
+      <thead>
+        <tr><th>Environment</th><th>Image Gen</th><th>Server (AWS)</th><th>Total</th></tr>
+      </thead>
+      <tbody>
+        ${rows}
+        <tr class="fin-table__total">
+          <td><strong>Total</strong></td>
+          <td class="fin-table__num"><strong>${usd(totImg)}</strong></td>
+          <td class="fin-table__num"><strong>${hasServer ? usd(totSrv) : '—'}</strong></td>
+          <td class="fin-table__num"><strong>${usd(totImg + totSrv)}</strong></td>
+        </tr>
+      </tbody>
+    </table>
+    ${note}`;
 }
 
 function renderProviderBreakdown(data) {
@@ -304,6 +379,11 @@ function renderDashboard(data, aws) {
           <div id="section-summary">${renderSummaryCards(data, aws)}</div>
         </div>
 
+        <div class="fin-card fin-card--full">
+          <div class="fin-card__title">Cost by Environment</div>
+          <div id="section-environments">${renderEnvironmentTable(data, aws)}</div>
+        </div>
+
         <div class="fin-card fin-card--wide">
           <div class="fin-card__title">Provider Breakdown</div>
           <div id="section-providers">${renderProviderBreakdown(data)}</div>
@@ -373,14 +453,19 @@ function renderAuthGate(msg, showSignIn = false) {
   bindAdminHeader(app, {});
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
+// Module scripts run after DOM parse; using a DOMContentLoaded listener here
+// breaks when the top-level `await guardPage(...)` above delays evaluation past
+// the actual DOMContentLoaded event — the listener registers too late and the
+// page renders blank. See dashboard.js for the same fix.
+(async () => {
   renderAuthGate('Loading...', false);
   try {
     const [appMod, authMod] = await Promise.all([
       import('https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js'),
       import('https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js'),
     ]);
-    const fbApp = appMod.initializeApp(FIREBASE_CONFIG);
+    // Idempotent: guardPage may have already initialized the default app.
+    const fbApp = appMod.getApps().length ? appMod.getApp() : appMod.initializeApp(FIREBASE_CONFIG);
     const fbAuth = authMod.getAuth(fbApp);
     _fbAuth = fbAuth;
 
@@ -408,10 +493,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const res = await fetch('/api/carkedit/users/me', { headers: { Authorization: `Bearer ${token}` } });
         if (!res.ok) { window.location.href = '/'; return; }
         const me = await res.json();
-        if (!me.is_admin) {
-          const bRes = await fetch('/api/carkedit/admin/bootstrap', { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
-          if (!bRes.ok) { window.location.href = '/'; return; }
-        }
+        // Admin status is granted only via the ADMIN_EMAILS allowlist
+        // (server-side, on sign-in) — no in-app self-promotion.
+        if (!me.is_admin) { window.location.href = '/'; return; }
       } catch { window.location.href = '/'; return; }
       _fbUserInfo = { displayName: user.displayName, photoURL: user.photoURL, email: user.email };
       await init();
@@ -420,4 +504,4 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.warn('[financial-dashboard] Firebase init failed:', err);
     renderAuthGate('Authentication service unavailable.', false);
   }
-});
+})();

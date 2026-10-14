@@ -3,7 +3,9 @@
 // dashboard USERS section and the bottom of admin-users.html. Supports
 // clickable row expansion: each row opens to show that player's games,
 // each with an optional DEV-flag toggle (requires patchDevFlag + confirm
-// helpers to be passed in).
+// helpers to be passed in). When fetchGameDetail + renderGameDetail are
+// supplied, clicking a game row expands it inline with the same detail
+// view used by the main Games list.
 'use strict';
 
 const DEV_FILTER_CYCLE = ['nodev', 'all', 'dev'];
@@ -53,7 +55,28 @@ function formatBirth(month, day) {
   return `${String(month).padStart(2, '0')}/${String(day).padStart(2, '0')}`;
 }
 
-function renderPlayerGames(nameKey, games, canToggleDev) {
+// "Signed up" cell: which brand URL the matched account was created under.
+// Brand name when signed up under a partner; "Root" for an account created on
+// the main site (no brand); "—" for an anonymous player with no account.
+function renderSignupCell(p) {
+  let label, title;
+  if (!p.matched_user_id) {
+    label = '—';
+    title = 'Anonymous player — no registered account';
+  } else if (p.signup_brand_name) {
+    label = p.signup_brand_name;
+    title = `Signed up on ${p.signup_brand_name}`;
+  } else {
+    label = 'Root';
+    title = 'Signed up on the main site (no brand)';
+  }
+  return `<div class="user-stats__metric">
+    <span class="user-stats__metric-value user-stats__signup" title="${escAttr(title)}">${escapeHtml(label)}</span>
+    <span class="user-stats__metric-label">signed up</span>
+  </div>`;
+}
+
+function renderPlayerGames(nameKey, games, canToggleDev, canExpandGame, expandedGameId, gameDetailCache, renderGameDetailFn) {
   if (games === undefined) {
     return `<div class="user-stats__games user-stats__games--loading" data-ps-stop>Loading games…</div>`;
   }
@@ -72,15 +95,30 @@ function renderPlayerGames(nameKey, games, canToggleDev) {
       : '';
     const devBtn = canToggleDev
       ? `<button class="dashboard__dev-toggle ${devOn}" title="Toggle dev for this game" data-ps-action="toggle-game-dev" data-ps-game-id="${gid}" data-ps-name-key="${nameKeyAttr}" data-ps-next="${g.is_dev ? '0' : '1'}">DEV</button>`
-      : '';
+      : `<span class="dashboard__dev-toggle ${devOn}" title="Read-only in prod preview" style="opacity:0.4;cursor:not-allowed" data-ps-stop>DEV</span>`;
+    const isExpanded = canExpandGame && expandedGameId === g.id;
+    const rowAction = canExpandGame ? ` data-ps-action="toggle-game-expand" data-ps-game-id="${gid}"` : '';
+    const rowExpandedCls = isExpanded ? ' user-stats__game-row--expanded' : '';
+    let detail = '';
+    if (isExpanded) {
+      const gd = gameDetailCache[g.id];
+      if (gd === undefined) {
+        detail = `<div class="user-stats__game-detail user-stats__game-detail--loading" data-ps-stop>Loading game…</div>`;
+      } else if (gd === null) {
+        detail = `<div class="user-stats__game-detail user-stats__game-detail--empty" data-ps-stop>Could not load game detail.</div>`;
+      } else {
+        detail = `<div class="user-stats__game-detail" data-ps-stop>${renderGameDetailFn(gd)}</div>`;
+      }
+    }
     return `
-      <div class="user-stats__game-row">
+      <div class="user-stats__game-row${rowExpandedCls}"${rowAction}>
         <span class="user-stats__game-date">${date}</span>
         <span class="user-stats__game-host">${host}</span>
         <span class="user-stats__game-meta">${g.player_count}p · ${formatDuration(g.duration_seconds)}</span>
         <span class="user-stats__game-status">${status} ${live}</span>
         ${devBtn}
       </div>
+      ${detail}
     `;
   }).join('');
   return `
@@ -91,7 +129,7 @@ function renderPlayerGames(nameKey, games, canToggleDev) {
   `;
 }
 
-function renderRow(p, expandedKey, playerGamesCache, canToggleDev) {
+function renderRow(p, expandedKey, playerGamesCache, canToggleDev, canExpandGame, expandedGameId, gameDetailCache, renderGameDetailFn) {
   const verified = p.matched_user_id
     ? '<span class="user-stats__badge user-stats__badge--verified" title="Matches a registered user">✓</span>'
     : '';
@@ -114,7 +152,7 @@ function renderRow(p, expandedKey, playerGamesCache, canToggleDev) {
   const expandedCls = expanded ? ' user-stats__row--expanded' : '';
   const nameKeyAttr = escAttr(p.name_key);
   const detail = expanded
-    ? renderPlayerGames(p.name_key, playerGamesCache[p.name_key], canToggleDev)
+    ? renderPlayerGames(p.name_key, playerGamesCache[p.name_key], canToggleDev, canExpandGame, expandedGameId, gameDetailCache, renderGameDetailFn)
     : '';
 
   return `
@@ -131,6 +169,7 @@ function renderRow(p, expandedKey, playerGamesCache, canToggleDev) {
       <div class="user-stats__metric"><span class="user-stats__metric-value">${formatDuration(p.total_seconds)}</span><span class="user-stats__metric-label">play time</span></div>
       <div class="user-stats__metric"><span class="user-stats__metric-value">${formatDate(p.first_game_at)}</span><span class="user-stats__metric-label">first</span></div>
       <div class="user-stats__metric"><span class="user-stats__metric-value">${formatDate(p.last_game_at)}</span><span class="user-stats__metric-label">last</span></div>
+      ${renderSignupCell(p)}
       ${detail}
     </div>
   `;
@@ -171,29 +210,85 @@ export function mountPlayerStats(rootEl, opts) {
   const {
     authFetch,
     apiBase = '',
+    // Path segment between apiBase and the resource. Default keeps the global
+    // admin routes (Stats page, admin-users.html). Pass '/api/carkedit/brands/<id>'
+    // to brand-scope the Users viewer (hits /brands/:id/users/stats + /brands/:id/games).
+    statsBasePath = '/api/carkedit',
     showSeeAllLink = false,
     expansionSteps = DEFAULT_EXPANSION_STEPS,
     patchDevFlag = null,
     confirmDevToggle = null,
     onGameDevToggled = null,
+    fetchGameDetail = null,
+    renderGameDetail = null,
+    // When set ({ id, name }) the list is a brand-scoped view: the sign-up
+    // location dropdown collapses other brands into "Other" so their names
+    // aren't leaked. Null on the global Stats page (lists each brand by name).
+    brandScope = null,
   } = opts;
 
   const canToggleDev = typeof patchDevFlag === 'function';
+  const canExpandGame = typeof fetchGameDetail === 'function' && typeof renderGameDetail === 'function';
 
   const state = {
     devFilter: 'nodev',
+    // One combined filter — account presence AND sign-up location:
+    // 'all' | 'accounts' | 'noaccount' | 'root' | '<brandId>' | '__other__'
+    filter: 'all',
     displayLimit: INITIAL_LIMIT,
     data: { players: [], total_distinct: 0, total_matched_users: 0 },
     loading: false,
     error: null,
     expandedPlayerKey: null,
     playerGamesCache: {},
+    expandedGameId: null,
+    gameDetailCache: {},
   };
+
+  // ── Combined account + sign-up-location filter ──────────────────────────────
+  function passesFilters(p) {
+    const f = state.filter;
+    if (f === 'all') return true;
+    if (f === 'noaccount') return !p.matched_user_id;
+    if (f === 'accounts') return !!p.matched_user_id;
+    // Remaining options are sign-up locations — each implies a registered account.
+    if (!p.matched_user_id) return false;
+    if (f === 'root') return !p.signup_brand_id;                 // signed up on the main site
+    if (f === '__other__') {                                     // signed up under a DIFFERENT brand
+      return !!p.signup_brand_id && (!brandScope || p.signup_brand_id !== brandScope.id);
+    }
+    return p.signup_brand_id === f;                              // a specific brand id
+  }
+
+  // One dropdown combining account presence + sign-up location.
+  // Brand view: All players / With account / No account / Root / <brand> / Other.
+  // Global view: … / Root / one entry per brand present in the data.
+  function filterOptions() {
+    const opts = [
+      { value: 'all', label: 'All players' },
+      { value: 'accounts', label: 'With account' },
+      { value: 'noaccount', label: 'No account' },
+      { value: 'root', label: 'Root' },
+    ];
+    if (brandScope) {
+      opts.push({ value: brandScope.id, label: brandScope.name || 'This brand' });
+      opts.push({ value: '__other__', label: 'Other brand' });
+    } else {
+      const seen = new Map();
+      for (const p of (state.data.players || [])) {
+        if (p.signup_brand_id && p.signup_brand_name && !seen.has(p.signup_brand_id)) {
+          seen.set(p.signup_brand_id, p.signup_brand_name);
+        }
+      }
+      for (const [id, name] of seen) opts.push({ value: id, label: name });
+    }
+    return opts;
+  }
 
   async function fetchData() {
     state.loading = true;
     try {
-      const res = await authFetch(`${apiBase}/api/carkedit/users/stats?dev=${state.devFilter}&limit=${FETCH_LIMIT}`);
+      const res = await authFetch(`${apiBase}${statsBasePath}/users/stats?dev=${state.devFilter}&limit=${FETCH_LIMIT}`);
       if (res.ok) {
         state.data = await res.json();
         state.error = null;
@@ -210,7 +305,7 @@ export function mountPlayerStats(rootEl, opts) {
 
   async function fetchPlayerGames(nameKey) {
     try {
-      const res = await authFetch(`${apiBase}/api/carkedit/games?playerName=${encodeURIComponent(nameKey)}&dev=all&limit=${PLAYER_GAMES_LIMIT}`);
+      const res = await authFetch(`${apiBase}${statsBasePath}/games?playerName=${encodeURIComponent(nameKey)}&dev=all&limit=${PLAYER_GAMES_LIMIT}`);
       if (res.ok) {
         const data = await res.json();
         state.playerGamesCache[nameKey] = data.games || [];
@@ -227,38 +322,46 @@ export function mountPlayerStats(rootEl, opts) {
     if (!rootEl.isConnected) return;
 
     const devActive = state.devFilter !== 'all' ? 'dashboard__filter-btn--active' : '';
+    const filterOpts = filterOptions().map((o) =>
+      `<option value="${escAttr(o.value)}"${o.value === state.filter ? ' selected' : ''}>${escapeHtml(o.label)}</option>`
+    ).join('');
     const filterBar = `
       <div class="dashboard__filter-bar">
         <button class="dashboard__filter-btn ${devActive}" data-ps-action="cycle-dev">${DEV_FILTER_LABELS[state.devFilter]}</button>
+        <select class="dashboard__filter-select" data-ps-select="filter" aria-label="Players and sign-up filter">${filterOpts}</select>
       </div>
     `;
 
-    const players = state.data.players || [];
-    const total = players.length;
+    const allPlayers = state.data.players || [];
 
-    if (state.loading && total === 0) {
+    if (state.loading && allPlayers.length === 0) {
       rootEl.innerHTML = `${filterBar}<p class="dashboard__empty">Loading…</p>`;
       return;
     }
-
-    if (state.error && total === 0) {
+    if (state.error && allPlayers.length === 0) {
       rootEl.innerHTML = `${filterBar}<p class="dashboard__empty">${escapeHtml(state.error)}</p>`;
       return;
     }
 
+    const players = allPlayers.filter(passesFilters);
+    const total = players.length;
+    const filtered = state.filter !== 'all';
+
     if (total === 0) {
-      rootEl.innerHTML = `${filterBar}<p class="dashboard__empty">No player data yet.</p>`;
+      rootEl.innerHTML = `${filterBar}<p class="dashboard__empty">${filtered ? 'No one matches this filter.' : 'No player data yet.'}</p>`;
       return;
     }
 
     const visibleCount = Math.min(state.displayLimit, total);
     const rows = players.slice(0, visibleCount)
-      .map(p => renderRow(p, state.expandedPlayerKey, state.playerGamesCache, canToggleDev))
+      .map(p => renderRow(p, state.expandedPlayerKey, state.playerGamesCache, canToggleDev, canExpandGame, state.expandedGameId, state.gameDetailCache, renderGameDetail))
       .join('');
 
+    const noun = state.filter === 'noaccount' ? 'players (no account)'
+      : (state.filter !== 'all') ? 'accounts' : 'players';
     const summary = `
       <div class="user-stats__summary">
-        ${state.data.total_distinct} distinct players · ${state.data.total_matched_users} matched to user accounts
+        ${total} ${noun}${filtered ? ' (filtered)' : ` · ${state.data.total_matched_users} with accounts`}
         <span class="user-stats__summary-meta">· showing ${visibleCount} of ${total}</span>
       </div>
     `;
@@ -279,15 +382,41 @@ export function mountPlayerStats(rootEl, opts) {
   async function togglePlayer(nameKey) {
     if (state.expandedPlayerKey === nameKey) {
       state.expandedPlayerKey = null;
+      state.expandedGameId = null;
       render();
       return;
     }
     state.expandedPlayerKey = nameKey;
+    state.expandedGameId = null;
     if (!state.playerGamesCache[nameKey]) {
       render();
       await fetchPlayerGames(nameKey);
     }
     render();
+  }
+
+  async function toggleGameExpansion(gameId) {
+    if (!canExpandGame) return;
+    if (state.expandedGameId === gameId) {
+      state.expandedGameId = null;
+      render();
+      return;
+    }
+    state.expandedGameId = gameId;
+    const cached = state.gameDetailCache[gameId];
+    const isLive = cached && cached.live_status === 'live';
+    // Show "Loading…" while fetching only when there's no cached snapshot yet.
+    if (cached === undefined) render();
+    if (cached === undefined || isLive) {
+      try {
+        const detail = await fetchGameDetail(gameId);
+        state.gameDetailCache[gameId] = detail || null;
+      } catch (err) {
+        console.warn('[player-stats] fetch game detail failed:', err);
+        state.gameDetailCache[gameId] = null;
+      }
+    }
+    if (state.expandedGameId === gameId) render();
   }
 
   async function togglePlayerGameDev(gameId, nameKey, next) {
@@ -311,10 +440,28 @@ export function mountPlayerStats(rootEl, opts) {
     }
   }
 
+  // Combined account + sign-up-location dropdown (client-side filter).
+  rootEl.addEventListener('change', (e) => {
+    const sel = e.target.closest('[data-ps-select="filter"]');
+    if (!sel) return;
+    state.filter = sel.value;
+    state.displayLimit = INITIAL_LIMIT;
+    state.expandedPlayerKey = null;
+    render();
+  });
+
   rootEl.addEventListener('click', async (e) => {
-    if (e.target.closest('[data-ps-stop]')) return;
     const target = e.target.closest('[data-ps-action]');
     if (!target) return;
+    // Honor data-ps-stop only when the stop boundary sits *between* the click
+    // and the action element (i.e. clicks in empty space inside a stop region
+    // shouldn't bubble up to a parent action). Buttons that are themselves
+    // data-ps-action inside a stop region must still fire.
+    let n = e.target;
+    while (n && n !== target) {
+      if (n.dataset && n.dataset.psStop !== undefined) return;
+      n = n.parentElement;
+    }
     const action = target.getAttribute('data-ps-action');
 
     if (action === 'cycle-dev') {
@@ -356,6 +503,13 @@ export function mountPlayerStats(rootEl, opts) {
       const nameKey = target.getAttribute('data-ps-name-key');
       const next = target.getAttribute('data-ps-next') === '1';
       if (gameId && nameKey) togglePlayerGameDev(gameId, nameKey, next);
+      return;
+    }
+
+    if (action === 'toggle-game-expand') {
+      e.stopPropagation();
+      const gameId = target.getAttribute('data-ps-game-id');
+      if (gameId) toggleGameExpansion(gameId);
       return;
     }
   });

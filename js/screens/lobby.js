@@ -133,7 +133,7 @@ export function renderStepper(label, value, onDec, onInc, decDisabled, incDisabl
 
 export function renderAdvancedPanel(state, { force = false } = {}) {
   if (!force && !state.showAdvancedSettings) return '';
-  const { rounds, handSize, enableLive, enableBye, enableEulogy, forceWildcards, playableWildcards = true, wildcardCount, eulogistCount, handRedraws = 'once_per_phase', timerEnabled, pitchTimerEnabled, playCardTimerEnabled, timerCountUp, pitchDuration, timerVisible, timerAutoAdvance, ultraQuickMode, optionalCardPlay } = state.gameSettings;
+  const { rounds, handSize, enableLive, enableBye, enableEulogy, forceWildcards, playableWildcards = true, wildcardCount, eulogistCount, handRedraws = 'once_per_phase', timerEnabled, pitchTimerEnabled, playCardTimerEnabled, timerCountUp, pitchDuration, timerVisible, timerAutoAdvance, ultraQuickMode, optionalCardPlay, showCardReveal = false } = state.gameSettings;
   const rawPlayerCount = state.gameMode === 'online'
     ? (state.onlinePlayers?.length ?? 0)
     : state.players.length;
@@ -239,6 +239,7 @@ export function renderAdvancedPanel(state, { force = false } = {}) {
         "window.game.toggleSetting('optionalCardPlay')",
         { disabled: playerCount <= 3 },
       )}
+      ${renderToggle('Card Reveal Animation', showCardReveal, "window.game.toggleSetting('showCardReveal')")}
       ${renderToggle('Timer', timerEnabled, "window.game.toggleSetting('timerEnabled')")}
       ${timerSubSettings}
       <div class="lobby__advanced-divider"></div>
@@ -302,9 +303,9 @@ export function render(state) {
         return `
           <div id="lobby-mode-toggle" class="lobby__mode-toggle">
             <button class="btn lobby__mode-btn ${isQuick ? 'btn--primary' : 'btn--secondary'}"
-              onclick="window.game.setGameMode('quick')">Quick</button>
+              onclick="window.game.setGameMode('quick')">Normal</button>
             <button class="btn lobby__mode-btn ${isNormal ? 'btn--primary' : 'btn--secondary'}"
-              onclick="window.game.setGameMode('normal')">Normal</button>
+              onclick="window.game.setGameMode('normal')">Classic</button>
             ${pc > 6 ? `<button class="btn lobby__mode-btn ${isBigGroup ? 'btn--primary' : 'btn--secondary'}"
               onclick="window.game.setGameMode('big-group')">Big Group</button>` : ''}
             ${pc > 9 ? `<button class="btn lobby__mode-btn ${isHugeGroup ? 'btn--primary' : 'btn--secondary'}"

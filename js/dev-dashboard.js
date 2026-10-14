@@ -1,10 +1,13 @@
 // CarkedIt Online — Dev Dashboard
 'use strict';
 
+import { guardPage } from './managers/page-permission-guard.js';
 import { loadAllCards } from './data/cardTypes.js';
 import { render as renderCard } from './components/card.js';
 import { renderAdminHeader, bindAdminHeader } from './components/admin-header.js';
 import { getFirebaseConfig } from './firebase-config.js';
+
+await guardPage('dev-dashboard').catch((err) => { throw err; });
 
 // ── Utilities ────────────────────────────────────────
 function escapeHtml(str) {
@@ -1051,14 +1054,19 @@ function renderAuthGate(msg, showSignIn = false) {
   bindAdminHeader(app, {});
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
+// Module scripts run after DOM parse; using a DOMContentLoaded listener here
+// breaks when the top-level `await guardPage(...)` above delays evaluation past
+// the actual DOMContentLoaded event — the listener registers too late and the
+// page renders blank. See dashboard.js for the same fix.
+(async () => {
   renderAuthGate('Loading...', false);
   try {
     const [appMod, authMod] = await Promise.all([
       import('https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js'),
       import('https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js'),
     ]);
-    const fbApp = appMod.initializeApp(FIREBASE_CONFIG);
+    // Idempotent: guardPage may have already initialized the default app.
+    const fbApp = appMod.getApps().length ? appMod.getApp() : appMod.initializeApp(FIREBASE_CONFIG);
     const fbAuth = authMod.getAuth(fbApp);
     _fbAuth = fbAuth;
 
@@ -1087,11 +1095,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const res = await fetch('/api/carkedit/users/me', { headers: { Authorization: `Bearer ${token}` } });
         if (!res.ok) { window.location.href = '/'; return; }
         const me = await res.json();
-        if (!me.is_admin) {
-          // Try bootstrap
-          const bRes = await fetch('/api/carkedit/admin/bootstrap', { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
-          if (!bRes.ok) { window.location.href = '/'; return; }
-        }
+        // Admin status is granted only via the ADMIN_EMAILS allowlist
+        // (server-side, on sign-in) — no in-app self-promotion.
+        if (!me.is_admin) { window.location.href = '/'; return; }
       } catch { window.location.href = '/'; return; }
       _fbUserInfo = { displayName: user.displayName, photoURL: user.photoURL, email: user.email };
       await init();
@@ -1100,4 +1106,4 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.warn('[dev-dashboard] Firebase init failed:', err);
     renderAuthGate('Authentication service unavailable.', false);
   }
-});
+})();

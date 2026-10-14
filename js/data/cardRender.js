@@ -18,6 +18,19 @@ export function escAttr(s) {
     .replace(/>/g, '&gt;');
 }
 
+// Fixed handler: the fallback markup is read from data-fallback, never
+// interpolated into the JS, so card text (apostrophes, backslashes,
+// newlines) can't break out of a string literal.
+const IMG_FALLBACK_ONERROR = "this.parentElement.classList.add('card--text-only');this.outerHTML=this.dataset.fallback;";
+
+/**
+ * Illustrated-card <img>. If the image fails to load, the wrapper switches
+ * to the text-only variant and the <img> is replaced by `fallbackHtml`.
+ */
+export function illustratedImgHtml(src, altText, fallbackHtml) {
+  return `<img src="${escAttr(src)}" alt="${escAttr(altText)}" class="card__img" draggable="false" data-fallback="${escAttr(fallbackHtml)}" onerror="${IMG_FALLBACK_ONERROR}">`;
+}
+
 /**
  * Shared classification of a card's `special` state.
  * @param {{special: ?string, options: ?[string,string]}} card
@@ -145,11 +158,10 @@ export function renderFrontHtml(card) {
 
   if (card.image) {
     const fallback = renderInner(card, spec).replace(/\s+/g, ' ').trim();
-    const onError = `this.parentElement.classList.add('card--text-only');this.outerHTML='${escAttr(fallback)}';`;
     const altText = [card.title, card.description, card.prompt].filter(Boolean).join(' — ');
     return `
     <div class="card card--${deckType}${spec.extraClasses}">
-      <img src="${escAttr(card.image)}" alt="${escAttr(altText)}" class="card__img" draggable="false" onerror="${onError}">
+      ${illustratedImgHtml(card.image, altText, fallback)}
       ${brandHtml}
       ${spec.isMystery ? '<span class="card__mystery-badge">?</span>' : ''}
     </div>`;
@@ -186,7 +198,7 @@ export function renderBackHtml(deckType = 'die') {
            src="assets/card-backs/${deckType}-back.jpg"
            alt="${deckType} deck back"
            draggable="false"
-           onload="this.closest('.card-back').querySelector('.card-back__fallback').style.display='none'"
+           onload="var b=this.closest('.card-back'),f=b&&b.querySelector('.card-back__fallback');if(f)f.style.display='none'"
            onerror="this.style.display='none'">
       <div class="card-back__fallback">
         ${words}

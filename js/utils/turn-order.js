@@ -43,3 +43,24 @@ export function computeDodTurnOrder(players) {
 
   return [...players.slice(pivotIndex), ...players.slice(0, pivotIndex)];
 }
+
+/**
+ * Returns player names in pitch order for the current round.
+ * Pitch order starts with the player immediately after The Living Dead
+ * (clockwise/seat order in the players array), then continues clockwise,
+ * wrapping past the LD. Length is players.length - 1.
+ *
+ * @param {Array<{ name: string }>} players
+ * @param {number} livingDeadIndex
+ * @returns {string[]}
+ */
+export function getPitchOrder(players, livingDeadIndex) {
+  const n = players.length;
+  if (n <= 1) return [];
+  const order = [];
+  for (let offset = 1; offset < n; offset++) {
+    const idx = (livingDeadIndex + offset) % n;
+    order.push(players[idx].name);
+  }
+  return order;
+}

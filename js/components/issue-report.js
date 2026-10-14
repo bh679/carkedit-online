@@ -2,7 +2,7 @@
 'use strict';
 
 import { getState } from '../state.js';
-import { getErrorLog, clearErrorState } from '../utils/error-logger.js';
+import { getTaggedErrorLog, clearErrorState } from '../utils/error-logger.js';
 
 const CATEGORIES = [
   { id: 'connection',  label: 'Connection Issue' },
@@ -68,7 +68,9 @@ export async function submit() {
   const categories = Array.from(checkboxes).map(cb => cb.value);
 
   const description = document.getElementById('issue-description')?.value?.trim() || '';
-  const errorLog = getErrorLog();
+  // Tagged so the dashboard can separate this game's errors from stale ones that
+  // were already in the buffer before the game started.
+  const errorLog = getTaggedErrorLog();
 
   if (categories.length === 0 && !description && errorLog.length === 0) {
     _showStatus('Please select an issue type, describe the problem, or have errors to attach.', true);
@@ -134,12 +136,19 @@ export async function submit() {
 }
 
 function _renderErrorCount() {
-  const errors = getErrorLog();
+  const errors = getTaggedErrorLog();
   const count = errors.length;
   if (count === 0) {
     return '<p class="issue-report__error-count">No errors detected</p>';
   }
-  return `<p class="issue-report__error-count issue-report__error-count--has-errors">${count} error${count !== 1 ? 's' : ''} detected &mdash; will be attached to report</p>`;
+  const relevant = errors.filter(e => e.relevant).length;
+  const stale = count - relevant;
+  // Show the split so the player understands stale errors are still attached but
+  // flagged as likely unrelated.
+  const detail = stale > 0
+    ? `${relevant} from this game &middot; ${stale} earlier (likely unrelated)`
+    : `${count} error${count !== 1 ? 's' : ''}`;
+  return `<p class="issue-report__error-count issue-report__error-count--has-errors">${detail} detected &mdash; will be attached to report</p>`;
 }
 
 function _showStatus(message, isError) {

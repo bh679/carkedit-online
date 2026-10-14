@@ -1,10 +1,15 @@
 // CarkedIt Online — Game Dashboard (standalone)
 'use strict';
 
+import { guardPage } from './managers/page-permission-guard.js';
 import { render as renderCardList, fromStatRow, bindScrollArrows } from './components/card-list.js';
 import { render as renderCard } from './components/card.js';
 import { renderAdminHeader, bindAdminHeader, resetAdminHeaderMenu } from './components/admin-header.js';
 import { mountPlayerStats } from './components/player-stats.js';
+import { mountPackStats } from './components/packs-stats-viewer.js';
+import { mountGamesStats } from './components/games-stats-viewer.js';
+import { mountSurveyResponses } from './components/survey-responses-viewer.js';
+import { mountCardStats } from './components/cards-stats-viewer.js';
 import {
   renderGameFilters,
   renderStatusChips,
@@ -13,6 +18,9 @@ import {
 } from './components/game-filters.js';
 import { getOrCreate as registryGetOrCreate } from './data/CardRegistry.js';
 import { getFirebaseConfig, getProdFirebaseConfig } from './firebase-config.js';
+import { renderGameDetail, init as initGameDetail } from './components/game-detail.js';
+
+await guardPage('stats').catch((err) => { throw err; });
 
 // ── Firebase Auth for Admin Gate ────────────────────
 const FIREBASE_CONFIG = getFirebaseConfig();
@@ -50,7 +58,8 @@ async function loadFirebaseAuth() {
     import('https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js'),
     import('https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js'),
   ]);
-  const app = appMod.initializeApp(FIREBASE_CONFIG);
+  // Idempotent: guardPage may have already initialized the default app.
+  const app = appMod.getApps().length ? appMod.getApp() : appMod.initializeApp(FIREBASE_CONFIG);
   firebaseAuth = authMod.getAuth(app);
   return authMod;
 }
@@ -247,12 +256,6 @@ function getCardImage(cardId, cardDeck) {
     return `assets/illustrations/${deckType}/${data.illustrationKey}.jpg`;
   }
   return null;
-}
-
-// ── PII Masking ──────────────────────────────────────
-function maskName(name) {
-  if (!name || name.length <= 1) return '*';
-  return name[0] + '*'.repeat(name.length - 1);
 }
 
 // ── Responsive Helper ───────────────────────────────────
@@ -748,63 +751,48 @@ function buildSurveysSeeAllHref() {
   return qs ? `stats-surveys.html?${qs}` : 'stats-surveys.html';
 }
 
+// Survey responses now render via the shared mountSurveyResponses() module (the
+// NPS summary cards stay in the stats bar). Mount-once/refresh; dev-toggle reused
+// via callback (read-only in prod preview). Handlers register on window.dash.
+let surveyResponsesHandle = null;
 function renderSurveyResponses() {
   const el = document.getElementById('survey-responses');
   if (!el) return;
-
-  const devLabels = { all: 'With Dev', nodev: 'No Dev', dev: 'Only Dev' };
-  const devActive = surveyDevFilter !== 'all' ? 'dashboard__filter-btn--active' : '';
-  const filterBar = `
-    <div class="dashboard__filter-bar">
-      <button class="dashboard__filter-btn ${devActive}" onclick="window.dash.cycleSurveyDev()">${devLabels[surveyDevFilter]}</button>
-    </div>
-  `;
-
-  const seeAllBtn = `<a class="dashboard__see-all" href="${buildSurveysSeeAllHref()}">See all</a>`;
-
-  if (surveyResponses.length === 0) {
-    el.innerHTML = `${filterBar}<p class="dashboard__empty">No survey responses yet.</p>`;
-    return;
+  if (el.dataset.svMounted !== '1') {
+    el.dataset.svMounted = '1';
+    surveyResponsesHandle = mountSurveyResponses(el, {
+      authFetch,
+      surveyBase: `${apiBase()}/api/carkedit`,
+      ns: 'dash',
+      pageSize: surveyPageSize,
+      patchDevFlag: dataSource === 'prod' ? null : patchDevFlag,
+      confirmDevToggle,
+      seeAllHref: buildSurveysSeeAllHref,
+    });
+  } else if (surveyResponsesHandle) {
+    surveyResponsesHandle.refresh();
   }
+}
 
-  const rows = surveyResponses.map(r => {
-    const date = new Date(r.created_at).toLocaleString();
-    const bucket = npsBucketClass(r.nps_score);
-    const player = r.player_name || '(anonymous)';
-    const comment = escapeHtml(r.comment || '');
-    const improvement = escapeHtml(r.improvement || '');
-    const sid = escAttr(String(r.id));
-    return `
-      <div class="survey-response">
-        <div class="survey-response__header">
-          <span class="nps-chip ${bucket}">${r.nps_score}</span>
-          <span class="survey-response__player">${escapeHtml(player)}</span>
-          <span class="survey-response__date">${date}</span>
-          ${dataSource === 'prod'
-            ? `<span class="dashboard__dev-toggle ${r.is_dev ? 'is-on' : ''}" title="Read-only in prod preview" style="opacity:0.4;cursor:not-allowed">DEV</span>`
-            : `<button class="dashboard__dev-toggle ${r.is_dev ? 'is-on' : ''}" title="Toggle dev" onclick="window.dash.toggleSurveyDev('${sid}', ${!r.is_dev})">DEV</button>`}
-        </div>
-        ${comment ? `<div class="survey-response__field"><strong>Comment:</strong> ${comment}</div>` : ''}
-        ${improvement ? `<div class="survey-response__field"><strong>Improve:</strong> ${improvement}</div>` : ''}
-      </div>
-    `;
-  }).join('');
+const SURVEY_TRUNCATE_CHAR_THRESHOLD = 280;
+const SURVEY_TRUNCATE_LINE_THRESHOLD = 5;
 
-  const hasMore = surveyResponses.length < surveyTotal;
-  const loadMoreBtn = hasMore
-    ? `<button class="dashboard__load-more" onclick="window.dash.loadMoreSurveys()">Load more (${surveyResponses.length} of ${surveyTotal})</button>`
+function surveyShouldTruncate(text) {
+  if (!text) return false;
+  if (text.length > SURVEY_TRUNCATE_CHAR_THRESHOLD) return true;
+  return text.split('\n').length > SURVEY_TRUNCATE_LINE_THRESHOLD;
+}
+
+function surveyFieldClass(text) {
+  return surveyShouldTruncate(text)
+    ? 'survey-response__field survey-response__field--truncatable'
+    : 'survey-response__field';
+}
+
+function surveyFieldOnclick(text) {
+  return surveyShouldTruncate(text)
+    ? ` onclick="this.classList.toggle('survey-response__field--expanded')"`
     : '';
-  const actionsClass = hasMore ? 'dashboard__list-actions' : 'dashboard__list-actions dashboard__list-actions--solo';
-  const actions = `<div class="${actionsClass}">${loadMoreBtn}${seeAllBtn}</div>`;
-
-  el.innerHTML = `
-    ${filterBar}
-    <div class="survey-responses__summary">
-      Showing ${surveyResponses.length} of ${surveyTotal} responses
-    </div>
-    <div class="survey-responses__list">${rows}</div>
-    ${actions}
-  `;
 }
 
 function renderUserStats() {
@@ -823,6 +811,24 @@ function renderUserStats() {
         const mi = games.findIndex(x => x.id === gameId);
         if (mi >= 0) games[mi] = { ...games[mi], is_dev: isDev };
       },
+      // Re-use the dashboard's gameDetailCache and renderGameDetail so the
+      // per-player game expansion matches the main Games-list expansion 1:1.
+      // The returned HTML references window.dash.* handlers, which exist on
+      // this page.
+      fetchGameDetail: async (gameId) => {
+        const cached = gameDetailCache[gameId];
+        const isLive = !cached || cached.live_status === 'live';
+        if (!cached || isLive) {
+          try {
+            const res = await authFetch(`${apiBase()}/api/carkedit/games/${gameId}`);
+            if (res.ok) gameDetailCache[gameId] = await res.json();
+          } catch (err) {
+            console.warn('[dashboard] fetch game detail (player-stats) failed:', err);
+          }
+        }
+        return gameDetailCache[gameId] || null;
+      },
+      renderGameDetail,
     });
   } else if (playerStatsHandle) {
     playerStatsHandle.refresh();
@@ -942,362 +948,6 @@ function closePreview() {
   previewIndex = -1;
 }
 
-// ── Game Detail Rendering (3-row expanded view) ──────
-
-function renderMiniCard(text, deck, cardId) {
-  const deckType = deck === 'living' ? 'live' : deck === 'bye' ? 'bye' : 'die';
-  const compositeId = `${deckType}:${cardId}`;
-  const idAttr = cardId ? `, '${escAttr(cardId)}'` : '';
-  const innerHtml = renderCard(compositeId)
-    || `<div class="card card--${deckType} card--text-only"><div class="card__body card__body--text-only"><h3 class="card__title card__title--${deckType}">${text}</h3></div></div>`;
-  return `
-    <div class="detail__mini-card" onclick="event.stopPropagation(); window.dash.previewCard('${escAttr(text)}', '${escAttr(deck)}'${idAttr})">
-      ${innerHtml}
-    </div>`;
-}
-
-function renderSettingsCard(gd) {
-  let settings = {};
-  try { settings = gd.settings_json ? JSON.parse(gd.settings_json) : {}; } catch {}
-
-  const settingRows = Object.entries(settings).map(([k, v]) =>
-    `<div class="detail__setting-row"><span class="detail__setting-key">${k}</span><span class="detail__setting-val">${v}</span></div>`
-  ).join('');
-
-  return `
-    <div class="detail__panel">
-      <h4 class="detail__panel-title">Settings & Versions</h4>
-      <div class="detail__versions">
-        <span>API: ${gd.api_version || '—'}</span>
-        <span>Client: ${gd.client_version || '—'}</span>
-        <span>Mode: ${gd.mode}</span>
-        <span>Rounds: ${gd.rounds}</span>
-        ${gd.room_code ? `<span>Room: ${gd.room_code}</span>` : ''}
-      </div>
-      ${settingRows ? `<div class="detail__settings-grid">${settingRows}</div>` : ''}
-    </div>`;
-}
-
-function renderPlayersCard(gd) {
-  const cardPlays = gd.card_plays || [];
-  const players = (gd.players || []).map(p => {
-    // Find cards this player played
-    const played = cardPlays.filter(c => c.player_name === p.player_name);
-    const winningCards = played.filter(c => c.is_winner);
-    const isWinner = false;
-
-    const cardsHtml = played.length > 0
-      ? `<div class="detail__player-cards">${played.map(c =>
-          `<div class="detail__mini-card-wrap ${c.is_winner ? 'detail__mini-card-wrap--winner' : ''}">
-            ${renderMiniCard(c.card_text, c.card_deck, c.card_id)}
-          </div>`
-        ).join('')}</div>`
-      : '';
-
-    const scoreText = `${p.score} wins`;
-
-    return `
-      <div class="detail__player ${isWinner ? 'detail__player--winner' : ''}">
-        <div class="detail__player-header">
-          <span class="detail__player-rank">#${p.rank}</span>
-          <span class="detail__player-name">${maskName(p.player_name)}${isWinner ? ' ★' : ''}</span>
-          <span class="detail__player-score">${scoreText}</span>
-        </div>
-        ${cardsHtml}
-      </div>`;
-  }).join('');
-
-  return `
-    <div class="detail__panel detail__panel--wide">
-      <h4 class="detail__panel-title">Players</h4>
-      ${players}
-    </div>`;
-}
-
-function getActivePhaseKey(status) {
-  if (!status) return null;
-  if (status.startsWith('die')) return 'die';
-  if (status.startsWith('living')) return 'living';
-  if (status.startsWith('bye')) return 'bye';
-  if (status.startsWith('eulogy')) return 'eulogy';
-  return null;
-}
-
-// Phase order for display — key matches card_plays phase values
-const PHASE_DEFS = [
-  { key: 'die',     label: 'Die',    settingKey: 'enableDie',    color: 'die' },
-  { key: 'living',  label: 'Live',   settingKey: 'enableLive',   color: 'live' },
-  { key: 'bye',     label: 'Bye',    settingKey: 'enableBye',    color: 'bye' },
-  { key: 'eulogy',  label: 'Eulogy', settingKey: 'enableEulogy', color: 'eulogy' },
-];
-
-const PHASE_ORDER = ['die', 'living', 'bye', 'eulogy'];
-
-function renderPhaseCards(gd) {
-  const cardPlays = gd.card_plays || [];
-  const isLive = gd.live_status === 'live';
-  const activePhase = isLive ? getActivePhaseKey(gd.status) : null;
-
-  // Parse settings to know which phases are enabled
-  let settings = {};
-  if (gd.settings_json) {
-    try { settings = JSON.parse(gd.settings_json); } catch {}
-  }
-
-  // Group card_plays by phase key
-  const playsByPhase = {};
-  for (const cp of cardPlays) {
-    if (!playsByPhase[cp.phase]) playsByPhase[cp.phase] = [];
-    playsByPhase[cp.phase].push(cp);
-  }
-
-  // Count distinct rounds per phase
-  function roundCount(plays) {
-    return new Set(plays.map(c => c.round)).size;
-  }
-
-  const phaseCards = PHASE_DEFS.map(def => {
-    const plays = playsByPhase[def.key] || [];
-    const hasPlays = plays.length > 0;
-    const enabled = settings[def.settingKey] !== false; // default true if setting unknown
-    const isActive = activePhase === def.key;
-
-    // Determine which phases are past based on game status position
-    const statusPhase = getActivePhaseKey(gd.status);
-    const statusIdx = statusPhase ? PHASE_ORDER.indexOf(statusPhase) : PHASE_ORDER.length;
-    const thisIdx = PHASE_ORDER.indexOf(def.key);
-    const isPast = thisIdx < statusIdx;
-
-    let stateClass = '';
-    if (!enabled) {
-      stateClass = 'detail__phase-card--disabled';
-    } else if (isActive) {
-      stateClass = `detail__phase-card--active detail__phase-card--active-${def.color}`;
-    } else if (!isPast && !hasPlays) {
-      stateClass = 'detail__phase-card--pending';
-    }
-
-    const rounds = roundCount(plays);
-    const roundLabel = rounds > 0 ? `${rounds} round${rounds !== 1 ? 's' : ''}` : '';
-    const statsText = hasPlays ? `${plays.length} cards${roundLabel ? ' · ' + roundLabel : ''}` : (enabled ? 'Not yet' : 'Off');
-
-    const cardsHtml = plays.map(c =>
-      `<div class="detail__mini-card-wrap ${c.is_winner ? 'detail__mini-card-wrap--winner' : ''}">
-        ${renderMiniCard(c.card_text, c.card_deck, c.card_id)}
-        <span class="detail__mini-card-player">${maskName(c.player_name)}</span>
-      </div>`
-    ).join('');
-
-    return `
-      <div class="detail__phase-card ${stateClass}">
-        <div class="detail__phase-header">
-          <span class="detail__phase-name">${def.label}</span>
-          <span class="detail__phase-stats">${statsText}</span>
-        </div>
-        ${hasPlays ? `<div class="detail__phase-cards">${cardsHtml}</div>` : ''}
-      </div>`;
-  }).join('');
-
-  return `
-    <div class="detail__row">
-      <h4 class="detail__row-title">Phases</h4>
-      <div class="detail__phases-row">${phaseCards}</div>
-    </div>`;
-}
-
-function renderDebugCard(gd) {
-  return `
-    <div class="detail__row detail__row--debug">
-      <h4 class="detail__row-title">Debug</h4>
-      <div class="detail__debug">
-        <span>ID: ${gd.id}</span>
-        <span>Started: ${gd.started_at || '—'}</span>
-        <span>Finished: ${gd.finished_at}</span>
-        <span>Duration: ${formatDuration(gd.duration_seconds)}</span>
-        <span>Status: ${gd.status} / ${gd.live_status}</span>
-        <span>Error: ${gd.has_error ? 'Yes' : 'No'}</span>
-        <span>Dev: ${gd.is_dev ? 'Yes' : 'No'}</span>
-        ${gd.room_code ? `<span>Room code: ${gd.room_code}</span>` : ''}
-      </div>
-      <button id="copy-debug-btn-${gd.id}" class="detail__copy-debug-btn" onclick="event.stopPropagation(); window.dash.copyDebugData('${gd.id}')">Copy for Claude</button>
-    </div>`;
-}
-
-function _safeParse(jsonStr, fallback) {
-  if (!jsonStr) return fallback;
-  try { return JSON.parse(jsonStr); } catch { return jsonStr; }
-}
-
-function _groupCardPlaysByRound(cardPlays) {
-  const roundMap = {};
-  for (const cp of (cardPlays || [])) {
-    if (!roundMap[cp.round]) roundMap[cp.round] = {};
-    if (!roundMap[cp.round][cp.phase]) roundMap[cp.round][cp.phase] = [];
-    roundMap[cp.round][cp.phase].push({
-      card_id: cp.card_id,
-      card_text: cp.card_text,
-      card_deck: cp.card_deck,
-      player_name: cp.player_name,
-      is_winner: !!cp.is_winner,
-    });
-  }
-  return Object.keys(roundMap)
-    .sort((a, b) => Number(a) - Number(b))
-    .map(round => ({ round: Number(round), phases: roundMap[round] }));
-}
-
-async function _copyToClipboard(text) {
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    await navigator.clipboard.writeText(text);
-    return;
-  }
-  const ta = document.createElement('textarea');
-  ta.value = text;
-  ta.style.position = 'fixed';
-  ta.style.left = '-9999px';
-  document.body.appendChild(ta);
-  ta.select();
-  document.execCommand('copy');
-  document.body.removeChild(ta);
-}
-
-async function copyDebugData(gameId) {
-  const btn = document.getElementById('copy-debug-btn-' + gameId);
-  const gd = gameDetailCache[gameId];
-  if (!gd) return;
-
-  if (btn) { btn.textContent = 'Loading...'; btn.disabled = true; }
-
-  try {
-    // Fetch game events (supplementary — don't fail if unavailable)
-    let events = [];
-    try {
-      const res = await authFetch(`${apiBase()}/api/carkedit/games/${gameId}/events`);
-      if (res.ok) { const data = await res.json(); events = data.events || []; }
-    } catch { /* events are optional */ }
-
-    // Build context string
-    const statusDesc = gd.live_status === 'completed' ? 'completed successfully'
-      : gd.live_status === 'abandoned' ? 'was abandoned' : 'is currently live';
-    const errorNote = gd.has_error ? ' The game has errors flagged.' : '';
-    const issueNote = (gd.issues && gd.issues.length > 0) ? ` There are ${gd.issues.length} issue report(s).` : '';
-    const durationNote = gd.duration_seconds ? ` Duration: ${Math.round(gd.duration_seconds / 60)} minutes.` : '';
-
-    const payload = {
-      _context: `CarkedIt game debug data for game ${gd.id}. This is a ${gd.mode} game with ${gd.player_count} players that ${statusDesc}.${durationNote}${errorNote}${issueNote} Use this data to diagnose issues or understand game flow.`,
-      host_url: window.location.origin,
-      game: {
-        id: gd.id, mode: gd.mode, room_code: gd.room_code, status: gd.status,
-        live_status: gd.live_status, has_error: gd.has_error, is_dev: gd.is_dev,
-        started_at: gd.started_at, finished_at: gd.finished_at,
-        duration_seconds: gd.duration_seconds, rounds: gd.rounds,
-        player_count: gd.player_count, winner_name: gd.winner_name,
-        winner_score: gd.winner_score, host_name: gd.host_name,
-        api_version: gd.api_version, client_version: gd.client_version,
-      },
-      settings: _safeParse(gd.settings_json, null),
-      players: gd.players || [],
-      rounds: _groupCardPlaysByRound(gd.card_plays),
-      issues: (gd.issues || []).map(issue => ({
-        id: issue.id, created_at: issue.created_at, category: issue.category,
-        description: issue.description, screen: issue.screen, phase: issue.phase,
-        player_count: issue.player_count, game_mode: issue.game_mode,
-        device_info: issue.device_info, client_version: issue.client_version,
-        players: _safeParse(issue.players_json, null),
-        game_state: _safeParse(issue.game_state_json, null),
-        errors: _safeParse(issue.error_log, null),
-      })),
-      events_timeline: events.map(ev => ({
-        event_type: ev.event_type, actor_name: ev.actor_name,
-        phase: ev.phase, round: ev.round,
-        data: _safeParse(ev.data_json, null),
-        created_at: ev.created_at,
-      })),
-    };
-
-    await _copyToClipboard(JSON.stringify(payload, null, 2));
-    if (btn) { btn.textContent = 'Copied!'; btn.classList.add('detail__copy-debug-btn--success'); }
-  } catch (err) {
-    console.error('[dashboard] copyDebugData failed:', err);
-    if (btn) { btn.textContent = 'Copy failed'; btn.classList.add('detail__copy-debug-btn--error'); }
-  } finally {
-    if (btn) {
-      btn.disabled = false;
-      setTimeout(() => {
-        btn.textContent = 'Copy for Claude';
-        btn.classList.remove('detail__copy-debug-btn--success', 'detail__copy-debug-btn--error');
-      }, 2000);
-    }
-  }
-}
-
-function _renderErrorLog(errorLogJson) {
-  if (!errorLogJson) return '';
-  let errors;
-  try { errors = JSON.parse(errorLogJson); } catch { return ''; }
-  if (!Array.isArray(errors) || errors.length === 0) return '';
-
-  const rows = errors.map(e => {
-    const ts = e.timestamp ? new Date(e.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '';
-    const type = e.type ? `<span class="detail__error-type">${e.type}</span>` : '';
-    const src = e.source ? ` <span class="detail__error-src">${e.source}${e.line ? ':' + e.line : ''}</span>` : '';
-    return `<div class="detail__error-entry">${ts} ${type} ${e.message || ''}${src}</div>`;
-  }).join('');
-
-  return `
-    <div class="detail__error-log">
-      <h5 class="detail__error-log-title" onclick="this.parentElement.classList.toggle('is-collapsed')">
-        Errors (${errors.length}) <span class="detail__toggle-arrow">&#9660;</span>
-      </h5>
-      <div class="detail__error-log-list">${rows}</div>
-    </div>`;
-}
-
-function renderIssuesCard(gd) {
-  if (!gd.issues || gd.issues.length === 0) return '';
-  const issueRows = gd.issues.map(issue => {
-    const date = new Date(issue.created_at);
-    const time = date.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-    const cats = issue.category.split(',').map(c => `<span class="detail__issue-cat">${c.trim()}</span>`).join(' ');
-    const desc = issue.description ? `<p class="detail__issue-desc">${issue.description.length > 200 ? issue.description.slice(0, 200) + '...' : issue.description}</p>` : '';
-    const meta = [issue.screen, issue.phase].filter(Boolean).join(' / ');
-    const errorLogHtml = _renderErrorLog(issue.error_log);
-    return `
-      <div class="detail__issue-item">
-        <div class="detail__issue-header">
-          <span class="detail__issue-time">${time}</span>
-          ${cats}
-          ${meta ? `<span class="detail__issue-meta">${meta}</span>` : ''}
-        </div>
-        ${desc}
-        ${errorLogHtml}
-      </div>`;
-  }).join('');
-
-  return `
-    <div class="detail__row detail__row--issues">
-      <h4 class="detail__row-title detail__row-title--issues" onclick="this.parentElement.classList.toggle('is-collapsed')">
-        Issue Reports (${gd.issues.length}) <span class="detail__toggle-arrow">&#9660;</span>
-      </h4>
-      <div class="detail__issues-list">
-        ${issueRows}
-      </div>
-    </div>`;
-}
-
-function renderGameDetail(gd) {
-  return `
-    <div class="dashboard__detail" onclick="event.stopPropagation()">
-      <div class="detail__row detail__row--top">
-        ${renderSettingsCard(gd)}
-        ${renderPlayersCard(gd)}
-      </div>
-      ${renderPhaseCards(gd)}
-      ${renderIssuesCard(gd)}
-      ${renderDebugCard(gd)}
-    </div>`;
-}
-
 function formatTimeAgo(isoDate) {
   if (!isoDate) return '';
   const diff = Math.floor((Date.now() - new Date(isoDate).getTime()) / 1000);
@@ -1360,7 +1010,7 @@ function renderGameCard(game) {
     <div class="dashboard__card ${cls}" onclick="window.dash.toggleGame('${game.id}')">
       <div class="dashboard__card-row">
         <span class="dashboard__cell dashboard__cell--date">${dateDisplay}</span>
-        <span class="dashboard__cell dashboard__cell--host">${maskName(game.host_name)}</span>
+        <span class="dashboard__cell dashboard__cell--host">${escapeHtml(game.host_name)}</span>
         <span class="dashboard__cell dashboard__cell--players">${playersDisplay}</span>
         <span class="dashboard__cell dashboard__cell--time">${playTime}</span>
         <span class="dashboard__cell dashboard__cell--status">${statusLabel(game.status)}</span>
@@ -1400,39 +1050,30 @@ function buildGamesSeeAllHref() {
   return qs ? `stats-games.html?${qs}` : 'stats-games.html';
 }
 
+// Games list now renders via the shared mountGamesStats() module (one code path
+// with the brand-admin page). Mount-once/refresh like renderUserStats: a fresh
+// #game-list (renderPage rebuild or data-source switch) re-mounts with the
+// current apiBase. The module registers its filter/card handlers on window.dash.
+let gamesStatsHandle = null;
 function renderGameList() {
   const el = document.getElementById('game-list');
   if (!el) return;
-
-  const hasMore = games.length < gamesTotalCount;
-  const loadMoreBtn = hasMore
-    ? `<button class="dashboard__load-more" onclick="window.dash.loadMoreGames()">Load more (${games.length} of ${gamesTotalCount})</button>`
-    : '';
-  const seeAllBtn = `<a class="dashboard__see-all" href="${buildGamesSeeAllHref()}">See all</a>`;
-  const actionsClass = hasMore ? 'dashboard__list-actions' : 'dashboard__list-actions dashboard__list-actions--solo';
-  const actions = `<div class="${actionsClass}">${loadMoreBtn}${seeAllBtn}</div>`;
-
-  el.innerHTML = `
-    ${renderGameFilters(getGameFilterState(), 'dash')}
-    ${renderStatusChips(getGameFilterState(), 'dash')}
-    ${renderDurationChips(getGameFilterState(), 'dash')}
-    ${renderPlayerChips(getGameFilterState(), 'dash')}
-    ${games.length === 0 ? '<p class="dashboard__empty">No games match filters.</p>' : `
-      <div class="dashboard__list-header">
-        <span class="dashboard__cell dashboard__cell--date">Date/Time</span>
-        <span class="dashboard__cell dashboard__cell--host">Host</span>
-        <span class="dashboard__cell dashboard__cell--players">Players</span>
-        <span class="dashboard__cell dashboard__cell--time">Play Time</span>
-        <span class="dashboard__cell dashboard__cell--status">Status</span>
-        <span class="dashboard__cell dashboard__cell--live"></span>
-        <span class="dashboard__cell dashboard__cell--dev"></span>
-        <span class="dashboard__cell dashboard__cell--error"></span>
-        <span class="dashboard__cell dashboard__cell--issue"></span>
-      </div>
-      ${games.map(renderGameCard).join('')}
-      ${actions}
-    `}
-  `;
+  if (el.dataset.gvMounted !== '1') {
+    el.dataset.gvMounted = '1';
+    gamesStatsHandle = mountGamesStats(el, {
+      authFetch,
+      gamesBase: `${apiBase()}/api/carkedit`,
+      ns: 'dash',
+      renderGameDetail,
+      gameDetailUrl: (id) => `${apiBase()}/api/carkedit/games/${id}`,
+      seeAllHref: buildGamesSeeAllHref,
+      pageSize: gamesPageSize,
+      patchDevFlag: dataSource === 'prod' ? null : patchDevFlag,
+      confirmDevToggle,
+    });
+  } else if (gamesStatsHandle) {
+    gamesStatsHandle.refresh();
+  }
 }
 
 // ── Card Analytics ────────────────────────────────
@@ -1444,16 +1085,13 @@ let cardDevFilter = 'nodev'; // 'all' | 'dev' | 'nodev'
 let cardPackFilter = 'all'; // 'all' | 'base' | pack_id string
 let cardAuthorFilter = 'all'; // 'all' | creator_name string
 
-async function fetchCardStats() {
-  try {
-    const params = cardDevFilter !== 'all' ? `?dev=${cardDevFilter}` : '';
-    const res = await authFetch(`${apiBase()}/api/carkedit/cards/stats${params}`);
-    if (!res.ok) return;
-    cardStats = await res.json();
-  } catch (err) {
-    console.warn('[dashboard] Failed to fetch card stats:', err);
-  }
-}
+// Card analytics render via the shared mountCardStats() module so the Stats page
+// and the brand-admin page use ONE code path. fetchCardStats is now a no-op (the
+// module fetches /cards/stats internally on mount/refresh); kept so existing
+// Promise.all() call sites (boot + every refresh tick) stay valid without edits
+// and don't issue a duplicate request. Mirrors fetchPackStats. (loadCardData is
+// intentionally left live — its one-time boot fan-out is an accepted double-fetch.)
+async function fetchCardStats() {}
 
 function filterCards(cards) {
   let result = cards;
@@ -1585,76 +1223,29 @@ function getActiveCards() {
   return cards;
 }
 
+// Card analytics now renders via the shared mountCardStats() module (one code
+// path with the brand-admin page). Mount-once/refresh like renderGameList /
+// renderPackStats: a fresh #card-analytics (renderPage rebuild or data-source
+// switch) re-mounts with the current apiBase. The module registers its filter +
+// preview handlers on window.dash (ns:'dash') so game-detail mini-cards keep
+// calling window.dash.previewCard. Pack metadata stays GLOBAL (packsMetaBase).
+// The old inline card functions above remain as dead code (referenced by the
+// window.dash literal) but are superseded by the module's handlers at mount.
+let cardStatsHandle = null;
 function renderCardAnalytics() {
   const el = document.getElementById('card-analytics');
   if (!el) return;
-
-  const deckLabels = { all: 'All Decks', die: 'Die', living: 'Live', bye: 'Bye' };
-  const deckActive = cardDeckFilter !== 'all' ? 'dashboard__filter-btn--active' : '';
-
-  const sortOption = (value, label) =>
-    `<option value="${value}" ${cardSortMode === value ? 'selected' : ''}>${label}</option>`;
-
-  const dirArrow = cardSortAsc ? '&#x25B2;' : '&#x25BC;';
-  const dirLabel = cardSortAsc ? 'Asc' : 'Desc';
-
-  const filtered = filterCards(getActiveCards());
-  const cardsHtml = filtered.length > 0
-    ? renderCardList(filtered.map((c) => fromStatRow(c)), {
-        size: 'md',
-        showStats: true,
-        scrollArrows: true,
-        legacy: true,
-        id: 'card-scroll-row',
-        buildOnClick: buildStatCardOnClick,
-        highlightStat: cardSortMode,
-      })
-    : '<p class="dashboard__card-row-empty">No data yet</p>';
-
-  const cardDevLabels = { all: 'With Dev', nodev: 'No Dev', dev: 'Only Dev' };
-  const cardDevActive = cardDevFilter !== 'all' ? 'dashboard__filter-btn--active' : '';
-
-  const truncateLabel = (str, max = 28) => {
-    const s = String(str ?? '');
-    return s.length > max ? s.slice(0, max - 1) + '…' : s;
-  };
-
-  const packOption = (value, label) =>
-    `<option value="${value}" ${cardPackFilter === value ? 'selected' : ''}>${label}</option>`;
-
-  const authorOption = (value, label) =>
-    `<option value="${value}" ${cardAuthorFilter === value ? 'selected' : ''}>${label}</option>`;
-
-  el.innerHTML = `
-    <div class="dashboard__card-analytics-header">
-      <div class="dashboard__sort-bar">
-        <select class="dashboard__sort-select" onchange="window.dash.setCardSort(this.value)">
-          ${sortOption('play_rate', 'Play Rate')}
-          ${sortOption('play_count', 'Play Count')}
-          ${sortOption('win_rate', 'Win Rate')}
-          ${sortOption('draw_count', 'Draw Count')}
-        </select>
-        <button class="dashboard__filter-btn" onclick="window.dash.toggleCardSortDir()" title="${dirLabel}">${dirArrow}</button>
-      </div>
-      <div class="dashboard__filter-bar">
-        <select class="dashboard__sort-select" onchange="window.dash.setPackFilter(this.value)">
-          ${packOption('all', 'All Packs')}
-          ${cardAuthorFilter === 'all' ? packOption('base', 'Base Game') : ''}
-          ${packList.filter(p => cardAuthorFilter === 'all' || packCreatorMap[p.id] === cardAuthorFilter).map(p => packOption(p.id, truncateLabel(p.title))).join('')}
-        </select>
-        <select class="dashboard__sort-select" onchange="window.dash.setAuthorFilter(this.value)">
-          ${authorOption('all', 'All Authors')}
-          ${authorList.map(a => authorOption(a, a)).join('')}
-        </select>
-        <button class="dashboard__filter-btn ${deckActive}" onclick="window.dash.cycleDeckFilter()">${deckLabels[cardDeckFilter]}</button>
-        <button class="dashboard__filter-btn ${cardDevActive}" onclick="window.dash.cycleCardDev()">${cardDevLabels[cardDevFilter]}</button>
-      </div>
-    </div>
-    ${cardsHtml}
-  `;
-
-  // Bind shared scroll-arrow visibility helper
-  requestAnimationFrame(() => bindScrollArrows('card-scroll-row'));
+  if (el.dataset.cvMounted !== '1') {
+    el.dataset.cvMounted = '1';
+    cardStatsHandle = mountCardStats(el, {
+      authFetch,
+      cardsStatsUrl: `${apiBase()}/api/carkedit/cards/stats`,
+      packsMetaBase: `${apiBase()}/api/carkedit`,
+      ns: 'dash',
+    });
+  } else if (cardStatsHandle) {
+    cardStatsHandle.refresh();
+  }
 }
 
 // Back-compat: some legacy markup or external callers may still reference
@@ -1666,128 +1257,32 @@ function scrollCards(direction) {
 }
 
 // ── Expansion Pack Usage ─────────────────────────────
-let packStats = { packs: [] };
-let packSortMode = 'usage_count'; // 'usage_count' | 'total_plays' | 'total_wins' | 'win_rate' | 'favorite_count' | 'card_count' | 'title'
-let packSortAsc = false;
-const PACK_INITIAL_LIMIT = 7;
-let packExpanded = false;
+let packStatsHandle = null;
 
-async function fetchPackStats() {
-  try {
-    const res = await authFetch(`${apiBase()}/api/carkedit/packs/stats`);
-    if (!res.ok) return;
-    packStats = await res.json();
-  } catch (err) {
-    console.warn('[dashboard] Failed to fetch pack stats:', err);
-  }
-}
+// Pack stats render via the shared mountPackStats() module so the Stats page and
+// the brand-admin page use ONE code path. fetchPackStats is now a no-op (the
+// module fetches internally on mount/refresh); kept so existing Promise.all()
+// call sites stay valid without edits.
+async function fetchPackStats() {}
 
-function setPackSort(mode) {
-  if (packSortMode === mode) {
-    packSortAsc = !packSortAsc;
-  } else {
-    packSortMode = mode;
-    packSortAsc = false;
-  }
-  renderPackStats();
-}
-
-function togglePackExpanded() {
-  packExpanded = !packExpanded;
-  renderPackStats();
-}
-
-function getSortedPacks() {
-  const packs = [...(packStats.packs || [])];
-  const dir = packSortAsc ? 1 : -1;
-  packs.sort((a, b) => {
-    let av, bv;
-    if (packSortMode === 'total_cost_usd') {
-      av = (a.base_cost_usd || 0) + (a.total_cost_usd || 0);
-      bv = (b.base_cost_usd || 0) + (b.total_cost_usd || 0);
-    } else {
-      av = a[packSortMode];
-      bv = b[packSortMode];
-    }
-    if (typeof av === 'string' || typeof bv === 'string') {
-      return dir * String(av || '').localeCompare(String(bv || ''));
-    }
-    return dir * ((av || 0) - (bv || 0));
-  });
-  return packs;
-}
-
-function packSortHeader(label, mode) {
-  const active = packSortMode === mode;
-  const arrow = active ? (packSortAsc ? ' &#x25B2;' : ' &#x25BC;') : '';
-  const cls = active ? 'dashboard__pack-th dashboard__pack-th--active' : 'dashboard__pack-th';
-  return `<th class="${cls}" onclick="window.dash.setPackSort('${mode}')">${label}${arrow}</th>`;
-}
-
+// Mount-once / refresh, mirroring renderUserStats: renderPage() rebuilds #app, so
+// a fresh #pack-stats (no dataset flag) triggers a re-mount — which also re-reads
+// apiBase() for a data-source switch. onEditCost/onToggleDev are null in prod
+// preview (read-only) and the modal/PATCH flow is reused via callbacks.
 function renderPackStats() {
   const el = document.getElementById('pack-stats');
   if (!el) return;
-
-  const allPacks = getSortedPacks();
-
-  if (allPacks.length === 0) {
-    el.innerHTML = '<p class="dashboard__empty">No expansion packs yet.</p>';
-    return;
+  if (el.dataset.pkMounted !== '1') {
+    el.dataset.pkMounted = '1';
+    packStatsHandle = mountPackStats(el, {
+      authFetch,
+      statsUrl: `${apiBase()}/api/carkedit/packs/stats`,
+      onEditCost: dataSource === 'prod' ? null : (p) => openBaseCostModal(p.id, p.base_cost_usd || 0, p.total_cost_usd || 0),
+      onToggleDev: dataSource === 'prod' ? null : togglePackDev,
+    });
+  } else if (packStatsHandle) {
+    packStatsHandle.refresh();
   }
-
-  const hasMore = allPacks.length > PACK_INITIAL_LIMIT;
-  const packs = (hasMore && !packExpanded) ? allPacks.slice(0, PACK_INITIAL_LIMIT) : allPacks;
-  const hidden = allPacks.length - packs.length;
-
-  const rows = packs.map((p) => {
-    const winRatePct = ((p.win_rate || 0) * 100).toFixed(0);
-    const officialBadge = p.is_official ? ' <span class="dashboard__pack-badge dashboard__pack-badge--official">OFFICIAL</span>' : '';
-    const devBadge = dataSource === 'prod'
-      ? ` <span class="dashboard__dev-toggle ${p.is_dev ? 'is-on' : ''}" title="Read-only in prod preview" style="opacity:0.4;cursor:not-allowed">DEV</span>`
-      : ` <button class="dashboard__dev-toggle ${p.is_dev ? 'is-on' : ''}" title="Toggle dev" onclick="window.dash.togglePackDev('${escAttr(p.id)}', ${!p.is_dev})">DEV</button>`;
-    const statusKey = (p.status || 'draft').toLowerCase();
-    const statusBadge = ` <span class="dashboard__pack-badge dashboard__pack-badge--status dashboard__pack-badge--${statusKey}">${statusKey.toUpperCase()}</span>`;
-    const titleEsc = escAttr(p.title || '(untitled)');
-    const creatorEsc = escAttr(p.creator_name || '—');
-    return `
-      <tr class="dashboard__pack-row">
-        <td class="dashboard__pack-cell dashboard__pack-cell--title">
-          <a href="expansions.html?pack=${encodeURIComponent(p.id)}" target="_blank" rel="noopener">${titleEsc}</a>${statusBadge}${officialBadge}${devBadge}
-        </td>
-        <td class="dashboard__pack-cell">${creatorEsc}</td>
-        <td class="dashboard__pack-cell dashboard__pack-cell--num">${p.card_count || 0}</td>
-        <td class="dashboard__pack-cell dashboard__pack-cell--num">${p.usage_count || 0}</td>
-        <td class="dashboard__pack-cell dashboard__pack-cell--num">${p.total_plays || 0}</td>
-        <td class="dashboard__pack-cell dashboard__pack-cell--num">${p.total_wins || 0}</td>
-        <td class="dashboard__pack-cell dashboard__pack-cell--num">${winRatePct}%</td>
-        <td class="dashboard__pack-cell dashboard__pack-cell--num">${p.favorite_count || 0}</td>
-        <td class="dashboard__pack-cell dashboard__pack-cell--num dashboard__pack-cell--cost" onclick="window.dash.openBaseCostModal('${escAttr(p.id)}', ${p.base_cost_usd || 0}, ${p.total_cost_usd || 0})" title="Click to set base cost">$${((p.base_cost_usd || 0) + (p.total_cost_usd || 0)).toFixed(2)}</td>
-      </tr>`;
-  }).join('');
-
-  el.innerHTML = `
-    <div class="dashboard__pack-stats-wrap">
-      <table class="dashboard__pack-table">
-        <thead>
-          <tr>
-            ${packSortHeader('Pack', 'title')}
-            <th class="dashboard__pack-th">Creator</th>
-            ${packSortHeader('Cards', 'card_count')}
-            ${packSortHeader('Games Used', 'usage_count')}
-            ${packSortHeader('Plays', 'total_plays')}
-            ${packSortHeader('Wins', 'total_wins')}
-            ${packSortHeader('Win Rate', 'win_rate')}
-            ${packSortHeader('Favorites', 'favorite_count')}
-            ${packSortHeader('Cost', 'total_cost_usd')}
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-      ${hasMore ? `
-        <button class="dashboard__load-more" onclick="window.dash.togglePackExpanded()">
-          ${packExpanded ? 'Show less' : `See more (${hidden} more)`}
-        </button>` : ''}
-    </div>`;
 }
 
 // ── Graphs ───────────────────────────────────────────
@@ -2076,16 +1571,13 @@ async function toggleSurveyDev(id, next) {
   } catch (e) { console.error(e); alert('Failed to toggle dev: ' + e.message); }
 }
 
-async function togglePackDev(id, next) {
+async function togglePackDev(pack, next) {
   if (dataSource === 'prod') return; // read-only in prod-preview mode
-  const p = packStats.packs.find(x => x.id === id);
-  const label = p ? (p.title || '(untitled)') : id;
+  const label = pack ? (pack.title || '(untitled)') : '';
   if (!await confirmDevToggle('Pack', label, next)) return;
   try {
-    const updated = await patchDevFlag('packs', id, next);
-    const i = packStats.packs.findIndex(x => x.id === id);
-    if (i >= 0) packStats.packs[i] = { ...packStats.packs[i], is_dev: !!updated.is_dev };
-    renderPackStats();
+    await patchDevFlag('packs', pack.id, next);
+    if (packStatsHandle) packStatsHandle.refresh();
   } catch (e) { console.error(e); alert('Failed to toggle dev: ' + e.message); }
 }
 
@@ -2148,10 +1640,8 @@ async function saveBaseCost(packId) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ base_cost_usd: val }),
     });
-    const i = packStats.packs.findIndex(x => x.id === packId);
-    if (i >= 0) packStats.packs[i].base_cost_usd = val;
     closeBaseCostModal();
-    renderPackStats();
+    if (packStatsHandle) packStatsHandle.refresh();
   } catch (e) {
     console.error(e);
     document.getElementById('base-cost-status').textContent = 'Failed to save: ' + e.message;
@@ -2159,7 +1649,7 @@ async function saveBaseCost(packId) {
   }
 }
 
-window.dash = { cyclePlayTime, cycleGamesCount, cyclePlayersCount, toggleGame, cycleDeckFilter, setCardSort, toggleCardSortDir, cycleCardDev, setPackFilter, setAuthorFilter, setPackSort, togglePackExpanded, cycleSurveyDev, previewCard, closePreview, prevPreviewCard, nextPreviewCard, scrollCards, loadMoreGames, loadMoreSurveys, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange, toggleHideGroup, toggleHideRaw, toggleHideDuration, toggleHidePlayers, toggleExpandGroup, signInWithGoogle, signOut, toggleGameDev, toggleSurveyDev, togglePackDev, copyDebugData, openBaseCostModal, closeBaseCostModal, saveBaseCost, cycleDataSource };
+window.dash = { cyclePlayTime, cycleGamesCount, cyclePlayersCount, toggleGame, cycleDeckFilter, setCardSort, toggleCardSortDir, cycleCardDev, setPackFilter, setAuthorFilter, cycleSurveyDev, previewCard, closePreview, prevPreviewCard, nextPreviewCard, scrollCards, loadMoreGames, loadMoreSurveys, applyGameFilters, setGameFilter, refreshNow, cycleStatus, cycleDev, cycleDateRange, toggleHideGroup, toggleHideRaw, toggleHideDuration, toggleHidePlayers, toggleExpandGroup, signInWithGoogle, signOut, toggleGameDev, toggleSurveyDev, openBaseCostModal, closeBaseCostModal, saveBaseCost, cycleDataSource };
 
 // ── Auth Gate UI ─────────────────────────────────────
 function renderAuthGate(message, showSignIn = true) {
@@ -2201,22 +1691,6 @@ async function signOut() {
   renderAuthGate('Sign in to access the dashboard.');
 }
 
-async function bootstrapAdmin() {
-  try {
-    const res = await authFetch(`${apiBase()}/api/carkedit/admin/bootstrap`, { method: 'POST' });
-    if (res.ok) {
-      authUser = await res.json();
-      bootDashboard();
-    } else {
-      const data = await res.json();
-      renderAuthGate(data.error || 'Bootstrap failed.', false);
-    }
-  } catch (err) {
-    console.warn('[dashboard] Bootstrap failed:', err);
-    renderAuthGate('Bootstrap failed. Please try again.');
-  }
-}
-
 async function checkAdminAndBoot() {
   // Fetch current user profile to check admin flag
   try {
@@ -2227,14 +1701,8 @@ async function checkAdminAndBoot() {
     }
     authUser = await res.json();
     if (!authUser.is_admin) {
-      // Try bootstrap — succeeds only if no admins exist yet
-      const bootstrapRes = await authFetch(`${apiBase()}/api/carkedit/admin/bootstrap`, { method: 'POST' });
-      if (bootstrapRes.ok) {
-        authUser = await bootstrapRes.json();
-        bootDashboard();
-        return;
-      }
-      // Admins exist but this user isn't one — show access denied
+      // Admin status is granted only via the ADMIN_EMAILS allowlist
+      // (server-side, on sign-in) — no in-app self-promotion.
       renderAuthGate('You do not have admin access.', false);
       return;
     }
@@ -2249,6 +1717,7 @@ async function checkAdminAndBoot() {
 }
 
 async function bootDashboard() {
+  initGameDetail({ authFetch, apiBase });
   renderPage();
 
   // --- Version tooltip that follows the mouse ---
@@ -2340,7 +1809,13 @@ async function bootDashboard() {
 }
 
 // ── Init — Auth Gate ────────────────────────────────
-document.addEventListener('DOMContentLoaded', async () => {
+// Run at module top level. Wrapping in `DOMContentLoaded` breaks when a
+// top-level `await` earlier in this module (e.g. `await guardPage('stats')`)
+// delays evaluation past the actual DOMContentLoaded event — the listener
+// gets registered after the event already fired and never runs, leaving the
+// page blank. `<script type="module">` already runs after DOM parse, so the
+// wrapper was redundant.
+(async () => {
   readSourceFromUrl();
   renderAuthGate('Loading...', false);
 
@@ -2370,4 +1845,4 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.warn('[dashboard] Firebase init failed:', err);
     renderAuthGate('Authentication service unavailable.', false);
   }
-});
+})();

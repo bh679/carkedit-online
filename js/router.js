@@ -1,44 +1,84 @@
 // CarkedIt Online — Screen Router
 'use strict';
 
+// First import: hydrates window.brand from the API-injected window.__BRAND__
+// before any screen renders, so partner co-branding is ready on first paint.
+import './config/brand-config.js';
 import { getState, setState, registerPackBrandsFromList } from './state.js';
 import { preloadCards } from './preloader.js';
 import { render as renderMenu } from './screens/menu.js';
 import { render as renderModeSelect } from './screens/mode-select.js';
 import { render as renderLobby, renderAdvancedPanel } from './screens/lobby.js';
-import { render as renderOnlineLobby, renderSettingsSummary, renderEditDrawerBody, refreshEditDrawerPackTabLabel } from './screens/online-lobby.js';
+import { render as renderOnlineLobby, renderSettingsSummary, renderEditDrawerBody, refreshEditDrawerPackTabLabel, refreshCreateSection } from './screens/online-lobby.js';
 import { render as renderJoinGame } from './screens/join-game.js';
 import { render as renderPhase1 } from './screens/phase1.js';
-import { render as renderPhase23 } from './screens/phase2-3.js';
+import { render as renderPhase23, formatTime } from './screens/phase2-3.js';
 import { render as renderPhase4 } from './screens/phase4.js';
+import { render as renderSolo } from './screens/solo.js';
+import { createSolo, pickCard as soloPickCard, inspectCard as soloInspectCard, dismissInspect as soloDismissInspectCard, stepInspect as soloStepInspectCard, continueStory as soloContinueStory, openEulogy as soloOpenEulogyStage, answerCard as soloAnswerCard, buildStoryRequest, startStory as soloStartStory, finishStory as soloFinishStory, failStory as soloFailStory, buildSoloUrl, stripSoloParam, SOLO_QUERY_PARAM } from './managers/solo-manager.js';
 import { render as renderAccount, renderGamesList, renderMyPacks } from './screens/account.js';
+import { render as renderScheduleGame } from './screens/schedule-game.js';
+import { render as renderScheduledCreated } from './screens/scheduled-created.js';
+import { render as renderScheduledGames, renderBody as renderScheduledGamesBody } from './screens/scheduled-games.js';
+import {
+  createScheduledGame as apiCreateScheduledGame,
+  lookupScheduledGame,
+  fetchMyScheduledGames,
+  rescheduleGame as apiRescheduleGame,
+  cancelScheduledGame as apiCancelScheduledGame,
+  buildJoinUrl,
+} from './managers/scheduled-games.js';
+import { downloadIcs, googleCalendarUrl, outlookCalendarUrl } from './utils/calendar.js';
+import { parseVideoCallText } from './utils/video-call.js';
+import { startScheduleCountdown } from './managers/schedule-countdown.js';
 import { saveGameToHistory, getGameHistory, syncWithServer } from './managers/game-history.js';
 import { shuffle } from './utils/shuffle.js';
 import { escapeHtml } from './utils/escape.js';
-import { initErrorLogger } from './utils/error-logger.js';
+import { initErrorLogger, markErrorContext } from './utils/error-logger.js';
 import { render as renderIssueReport, submit as submitIssueReport } from './components/issue-report.js';
 import {
   createRoom as networkCreateRoom,
   joinRoom as networkJoinRoom,
   leaveRoom as networkLeaveRoom,
   lookupRoom as networkLookupRoom,
+  attemptRecover as networkAttemptRecover,
   sendMessage,
   onScreenChange,
   onSettingsChange,
+  onVideoCallChange,
   resyncFromRoomState,
 } from './network/client.js';
+import { loadSession, clearSession } from './managers/session-recovery.js';
 import { onTimerUpdate } from './managers/online-timer.js';
-import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, logOut, updateUserProfile } from './managers/auth-manager.js';
+import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, sendPasswordReset, logOut, updateUserProfile, getAuthToken } from './managers/auth-manager.js';
+import { saveAuthReturn, consumeAuthReturn, clearAuthReturn } from './managers/auth-return.js';
 import { fetchMyPacks, fetchPublicPacks, fetchFavoritePacks, setPackFavorite, getPack } from './card-designer/pack-manager.js';
 import { render as renderCardFace } from './components/card.js';
 import { buildCard } from './data/card.js';
 import { getOrCreate as registryGetOrCreate, get as registryGet } from './data/CardRegistry.js';
 import { renderLoginModal } from './components/auth-button.js';
+import { markOnlinePlayed, markHowToBannerDismissed, markVideoCallTipDone } from './components/how-to-play-overlay.js';
+import { markOnlineHosted, markDiscordBarDismissed } from './components/first-host-discord.js';
+import { renderPanel as renderVideoCallPanel, renderCallButton } from './components/video-call-panel.js';
+import { renderPanel as renderSharePanel } from './components/share-panel.js';
+import { renderStorySharePanel, buildSocialLinks, SHARE_TEXT } from './components/story-share-panel.js';
+import { renderStoryImage } from './utils/story-image.js';
+import { toQrSvg } from './utils/qr.js';
+import { appendJoinDetails, parseJoinDetails, hasJoinDetails, stripJoinDetails } from './utils/join-details.js';
+import {
+  buildDraft as buildVideoCallDraft,
+  harvestDraft as harvestVideoCallDraft,
+  mergeParsed as mergeParsedVideoCall,
+  blankEntry as blankVideoCallEntry,
+  cleanDraftEntries as cleanVideoCallEntries,
+  saveRememberedVideoCall,
+  clearRememberedVideoCall,
+} from './components/video-call-editor.js';
 import {
   startPhase1, doneDying, revealCard,
   startPhase2, startPhase3,
   showPlayerHand, readyToSelect, redrawHand,
-  inspectCard, prevCard, nextCard, dismissInspect, passCard, submitCard,
+  inspectCard, prevCard, nextCard, dismissInspect, passCard, submitCard, swapCard,
   revealCards, startPitching, donePitching,
   pickWinner, nextRound,
   inspectJudgingCard, prevJudgingCard, nextJudgingCard, confirmWinner,
@@ -51,6 +91,7 @@ import {
 const SCREENS = {
   menu:          (state) => renderMenu(state),
   'mode-select': (state) => renderModeSelect(state),
+  'solo': (state) => renderSolo(state),
   lobby:         (state) => renderLobby(state),
   'online-lobby': (state) => renderOnlineLobby(state),
   'join-game':    (state) => renderJoinGame(state),
@@ -59,9 +100,23 @@ const SCREENS = {
   phase3:        (state) => renderPhase23('bye', state),
   phase4:        (state) => renderPhase4(state),
   account:       (state) => renderAccount(state),
+  'schedule-game':     (state) => renderScheduleGame(state),
+  'scheduled-created': (state) => renderScheduledCreated(state),
+  'scheduled-games':   (state) => renderScheduledGames(state),
 };
 
 export function showScreen(name, updates = {}) {
+  // A game starts when phase 1 opens (both local startPhase1() and the online
+  // flow route through here). Mark it as the error-relevance boundary so a later
+  // issue report can separate this game's errors from stale earlier ones.
+  if (name === 'phase1') markErrorContext();
+  // The share panel is a lobby affordance and is mounted on the body, so it
+  // would otherwise hang over the game once the host hits Start.
+  if (name !== 'online-lobby') unmountSharePanel();
+  // Back on the menu, the invite they followed is no longer the context — a
+  // code typed after this point shouldn't inherit the desktop QR nudge, or the
+  // details that came in on someone else's link.
+  if (name === 'menu') setState({ arrivedViaJoinLink: false, joinPrefill: null });
   setState({ screen: name, ...updates });
   const state = getState();
   const app = document.getElementById('app');
@@ -78,6 +133,7 @@ export function showScreen(name, updates = {}) {
       const el = document.getElementById('menu-version-server');
       if (el) el.textContent = `Server: v${data.version}`;
     }).catch(() => {});
+    loadScheduledGamesForMenu();
   }
 
   // Show player list label only when the list overflows (more players than fit on screen)
@@ -87,11 +143,11 @@ export function showScreen(name, updates = {}) {
     if (list && container) {
       container.classList.toggle('player-list-container--scrollable', list.scrollWidth > list.clientWidth);
     }
-    // Trigger pitch card flip animation after browser paints the initial state
-    const pitchFlips = document.querySelectorAll('[data-pitch-reveal]');
-    if (pitchFlips.length) {
+    // Trigger card flip animation after browser paints the initial state
+    const flipEls = document.querySelectorAll('[data-pitch-reveal], [data-die-reveal], [data-solo-reveal]');
+    if (flipEls.length) {
       requestAnimationFrame(() => {
-        pitchFlips.forEach(el => el.classList.add('card-flip--revealed'));
+        flipEls.forEach(el => el.classList.add('card-flip--revealed'));
       });
     }
   });
@@ -100,6 +156,8 @@ export function showScreen(name, updates = {}) {
   if ((name === 'lobby' || name === 'online-lobby' || name === 'join-game') && !state.preloadComplete) {
     startPreload();
   }
+
+  syncScheduleCountdown();
 
   // Load expansion packs the first time we enter the online lobby in this session.
   if (name === 'online-lobby' && !_packsLoadedForLobby) {
@@ -133,6 +191,16 @@ export function showScreen(name, updates = {}) {
 
 let _packsLoadedForLobby = false;
 
+/**
+ * Keep the once-a-second ticker running only while the screen actually shows a
+ * countdown. The ticker finds its own targets in the DOM, so this needs no
+ * per-screen knowledge; when a start time arrives it re-renders, which decides
+ * what (if anything) still counts down.
+ */
+function syncScheduleCountdown() {
+  startScheduleCountdown(() => showScreen(getState().screen));
+}
+
 function refreshAdvancedPanel() {
   const state = getState();
   const panel = document.getElementById('advanced-settings-panel');
@@ -162,9 +230,9 @@ function refreshAdvancedPanel() {
     const isHugeGroup =  ultraQuickMode &&                  optionalCardPlay;
     modeToggle.innerHTML = `
       <button class="btn lobby__mode-btn ${isQuick ? 'btn--primary' : 'btn--secondary'}"
-        onclick="window.game.setGameMode('quick')">Quick</button>
+        onclick="window.game.setGameMode('quick')">Normal</button>
       <button class="btn lobby__mode-btn ${isNormal ? 'btn--primary' : 'btn--secondary'}"
-        onclick="window.game.setGameMode('normal')">Normal</button>
+        onclick="window.game.setGameMode('normal')">Classic</button>
       ${pc > 6 ? `<button class="btn lobby__mode-btn ${isBigGroup ? 'btn--primary' : 'btn--secondary'}"
         onclick="window.game.setGameMode('big-group')">Big Group</button>` : ''}
       ${pc > 9 ? `<button class="btn lobby__mode-btn ${isHugeGroup ? 'btn--primary' : 'btn--secondary'}"
@@ -205,7 +273,7 @@ function refreshOnlineLobbyAfterPackChange() {
 let _preloadPromise = null;
 
 function startPreload() {
-  if (_preloadPromise) return; // already in progress
+  if (_preloadPromise) return _preloadPromise;
   _preloadPromise = preloadCards((loaded, total) => {
     const el = document.getElementById('preload-progress');
     if (el) el.textContent = `Loading cards\u2026 ${loaded}/${total}`;
@@ -224,10 +292,7 @@ function startPreload() {
       showScreen('lobby');
     }
   });
-}
-
-function isMobile() {
-  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  return _preloadPromise;
 }
 
 // TODO (dev only): placeholder names for quick testing — remove or replace with proper UX before shipping
@@ -366,6 +431,88 @@ function toggleExpansionPacks() {
   else if (screen === 'lobby') showScreen('lobby');
 }
 
+// ── Video call panel mounting ────────────────────────────
+// Body-level so it survives screen re-renders and works during the game.
+
+function mountVideoCallPanel() {
+  unmountVideoCallPanel();
+  const container = document.createElement('div');
+  container.id = 'video-call-container';
+  container.innerHTML = renderVideoCallPanel(getState());
+  document.body.appendChild(container);
+}
+
+function unmountVideoCallPanel() {
+  document.getElementById('video-call-container')?.remove();
+}
+
+// ── Share / QR panel mounting ────────────────────────────
+// Body-level for the same reason as the video call panel: opening it must never
+// re-render the lobby out from under a player on mobile.
+
+const SHARE_CONTAINER_ID = 'share-panel-container';
+
+// Re-encoding on every keystroke is wasted work; a short settle keeps the code
+// stable enough to scan while someone is still typing.
+const JOIN_QR_REFRESH_MS = 250;
+let _joinQrTimer = null;
+
+/** Escape closes the panel. Bound only while it is open. */
+function onShareKeydown(e) {
+  if (e.key === 'Escape') window.game.closeShare();
+}
+
+function mountSharePanel() {
+  unmountSharePanel();
+  const container = document.createElement('div');
+  container.id = SHARE_CONTAINER_ID;
+  // navigator.share exists but throws outside a secure context or without a
+  // user gesture; feature-detect here so the button only appears where it works.
+  container.innerHTML = renderSharePanel(getState(), currentJoinUrl(), {
+    nativeShare: typeof navigator !== 'undefined' && typeof navigator.share === 'function',
+  });
+  document.body.appendChild(container);
+  document.addEventListener('keydown', onShareKeydown);
+}
+
+function unmountSharePanel() {
+  document.getElementById(SHARE_CONTAINER_ID)?.remove();
+  document.removeEventListener('keydown', onShareKeydown);
+}
+
+/**
+ * Re-renders whichever surface currently holds the editor — the body panel, or
+ * the Call tab of the host's lobby drawer. Callers harvest the DOM into the
+ * draft first, so nothing typed is lost.
+ */
+function refreshVideoCallEditor() {
+  if (document.getElementById('video-call-container')) {
+    mountVideoCallPanel();
+    return;
+  }
+  const body = document.getElementById('online-lobby__edit-body');
+  if (body) body.innerHTML = renderEditDrawerBody(getState());
+}
+
+/**
+ * Someone else changed the call details. Refresh the open panel (unless the
+ * host is mid-edit, where clobbering their draft would be rude) and the small
+ * header button, which lives in whichever screen is currently rendered.
+ */
+function refreshVideoCallUi() {
+  const state = getState();
+  if (document.getElementById('video-call-container') && !state.videoCallEditOpen) {
+    mountVideoCallPanel();
+  }
+  const right = document.querySelector('.phase-header__right');
+  if (!right) return;
+  const existing = right.querySelector('.phase-header__call-btn');
+  const html = renderCallButton(state).trim();
+  if (existing && html) existing.outerHTML = html;
+  else if (existing) existing.remove();
+  else if (html) right.insertAdjacentHTML('afterbegin', html);
+}
+
 function openLobbyEditor() {
   setState({ lobbyEditOpen: true });
   showScreen('online-lobby');
@@ -377,7 +524,11 @@ function closeLobbyEditor() {
 }
 
 function setLobbyEditTab(tab) {
-  if (!['mode', 'rules', 'packs'].includes(tab)) return;
+  if (!['mode', 'rules', 'packs', 'call'].includes(tab)) return;
+  // The Call tab hosts the same editor as the panel, so it needs a draft.
+  if (tab === 'call' && !getState().videoCallDraft) {
+    setState({ videoCallDraft: buildVideoCallDraft(getState()) });
+  }
   setState({ lobbyEditTab: tab });
   showScreen('online-lobby');
 }
@@ -397,7 +548,7 @@ function setHandRedraws(value) {
 const PITCH_DURATIONS = [30, 60, 120, 180, 240, 300, 600, 900, 1800, 3600];
 
 const DEFAULT_GAME_SETTINGS = {
-  rounds: 2,
+  rounds: 1,
   handSize: 5,
   enableDie: true,
   enableLive: true,
@@ -517,9 +668,305 @@ function revealWinner() {
   showScreen('phase4');
 }
 
+function cancelRecover() {
+  clearSession();
+  setState({ connectionStatus: 'disconnected', onlineError: null, roomCode: null });
+  showScreen('menu');
+}
+
+/**
+ * The live room's invite URL, or null when there is no room.
+ *
+ * Reuses buildJoinUrl() from the scheduled-games manager — the same builder
+ * scheduled invites already use — so the clipboard copies, the QR code, the
+ * native share sheet and scheduled-game links can never drift apart.
+ *
+ * @returns {string|null}
+ */
+function currentJoinUrl() {
+  const code = getState().roomCode;
+  return code ? buildJoinUrl(code) : null;
+}
+
+/**
+ * Builds the room's invite URL and writes it to the clipboard.
+ * Shared by the room-code card copy, the How-to-Play "Share the Link" step and
+ * the share panel's Copy Link button.
+ * @returns {Promise<void>|null} the clipboard promise, or null when no room code
+ */
+function writeJoinLinkToClipboard() {
+  const url = currentJoinUrl();
+  if (!url) return null;
+  return navigator.clipboard.writeText(url);
+}
+
 // Expose game API for inline onclick handlers
+// ── Single player ───────────────────────────────────────────
+// Cards come from the same preloaded, shuffled decks the lobby uses; the
+// loading screen shows until they're in.
+async function soloStart() {
+  setState({ solo: null, gameMode: 'local' });
+  showScreen('solo');
+  try {
+    await startPreload();
+    const { decks } = getState();
+    const reshuffled = {
+      die: shuffle(decks.die ?? []),
+      live: shuffle(decks.live ?? []),
+      bye: shuffle(decks.bye ?? []),
+    };
+    setState({ decks: reshuffled });
+    showScreen('solo', { solo: createSolo(reshuffled) });
+  } catch (err) {
+    console.error('[solo] failed to start', err);
+    showScreen('menu');
+  }
+}
+
+function soloPick(index) {
+  const state = getState();
+  if (!state.solo || state.screen !== 'solo') return;
+  try {
+    showScreen('solo', { solo: soloPickCard(state.solo, index, state.decks) });
+  } catch (err) {
+    console.error('[solo] pick failed', err);
+    showScreen('solo', { solo: { ...state.solo, done: true } });
+  }
+}
+
+/** Back to the menu from a solo game, dropping ?solo=1 so the menu doesn't carry it. */
+function soloMenu() {
+  const cleaned = stripSoloParam(window.location.href);
+  if (cleaned !== window.location.href) window.history.replaceState(null, '', cleaned);
+  showScreen('menu');
+}
+
+/** Open the full-screen preview of a dealt card; the pick is confirmed from there. */
+function soloInspect(index) {
+  updateSolo((solo) => soloInspectCard(solo, index));
+}
+
+function soloDismissInspect() {
+  updateSolo(soloDismissInspectCard);
+}
+
+function soloStepInspect(delta) {
+  updateSolo((solo) => soloStepInspectCard(solo, delta));
+}
+
+/** Apply a pure solo transition and re-render, if a solo game is on screen. */
+function updateSolo(transition) {
+  const state = getState();
+  if (!state.solo || state.screen !== 'solo') return;
+  const next = transition(state.solo);
+  if (next !== state.solo) showScreen('solo', { solo: next });
+}
+
+/** Leave the mid-game story screen. */
+function soloContinue() {
+  updateSolo(soloContinueStory);
+}
+
+/** From the finished story to the write-your-own-eulogy screen. */
+function soloOpenEulogy() {
+  updateSolo(soloOpenEulogyStage);
+}
+
+/** Answer the pending `?` card with whatever is in the text box. */
+function soloAnswer() {
+  const text = document.getElementById('solo-answer')?.value ?? '';
+  applySoloAnswer(text);
+}
+
+/** Move past the `?` card without an answer. */
+function soloSkipAnswer() {
+  applySoloAnswer('');
+}
+
+function applySoloAnswer(text) {
+  const state = getState();
+  if (!state.solo?.pendingAnswer || state.screen !== 'solo') return;
+  showScreen('solo', { solo: soloAnswerCard(state.solo, text) });
+}
+
+function copySoloLink() {
+  const btn = document.querySelector('.solo__share-btn');
+  copyToClipboard(buildSoloUrl(window.location.origin), btn, 'Link copied', 'Share this link:');
+}
+
+// ── Life story ──
+// Done on the eulogy screen sends the picks and eulogy to the API, which asks
+// Claude for a short story. Each attempt gets an id so a late reply from an
+// earlier attempt (or after leaving the screen) is dropped.
+let soloStoryRequestId = 0;
+
+const STORY_ERRORS = {
+  429: "That's a lot of lives. Give it a few minutes and try again.",
+  503: 'Life stories are switched off right now.',
+};
+const STORY_ERROR_FALLBACK = "Couldn't write your story right now.";
+
+/** From the eulogy screen: keep what was written and request the story. */
+function soloDone() {
+  const state = getState();
+  if (!state.solo?.done || state.screen !== 'solo') return;
+  const words = document.getElementById('solo-eulogy')?.value ?? '';
+  requestSoloStory(state.solo, words);
+}
+
+/** Ask again after a failure, with the same eulogy. */
+function soloRetryStory() {
+  const state = getState();
+  if (state.solo?.stage !== 'lifestory' || state.screen !== 'solo') return;
+  requestSoloStory(state.solo, state.solo.eulogy);
+}
+
+/** Back from a failed story to the eulogy, text kept. */
+function soloBackToEulogy() {
+  updateSolo((solo) => (solo.stage === 'lifestory' ? Object.freeze({ ...solo, stage: 'eulogy' }) : solo));
+}
+
+async function requestSoloStory(solo, eulogy) {
+  const requestId = ++soloStoryRequestId;
+  showScreen('solo', { solo: soloStartStory(solo, eulogy, requestId) });
+  try {
+    const res = await fetch(`${window.location.origin}/api/carkedit/solo/story`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(buildStoryRequest(solo, eulogy)),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || typeof data.story !== 'string') {
+      console.warn('[solo] story request failed', res.status, data?.error);
+      updateSolo((s) => soloFailStory(s, requestId, STORY_ERRORS[res.status] ?? STORY_ERROR_FALLBACK));
+      return;
+    }
+    updateSolo((s) => soloFinishStory(s, requestId, data.story));
+  } catch (err) {
+    console.warn('[solo] story request errored', err);
+    updateSolo((s) => soloFailStory(s, requestId, STORY_ERROR_FALLBACK));
+  }
+}
+
+// ── Share the life story ──
+// Share builds the image first, then opens the panel; "Share image" is a second
+// tap so navigator.share runs inside a fresh user gesture (iOS requires it).
+const STORY_SHARE_CONTAINER_ID = 'story-share-container';
+const STORY_IMAGE_NAME = 'carkedit-life-story.png';
+let storyShare = null; // { blob, url }
+
+function onStoryShareKeydown(e) {
+  if (e.key === 'Escape') closeStoryShare();
+}
+
+function canShareFiles(file) {
+  try {
+    return typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] });
+  } catch {
+    return false;
+  }
+}
+
+async function soloShareStory() {
+  const state = getState();
+  if (state.solo?.lifeStory?.status !== 'ready' || state.screen !== 'solo') return;
+  const btn = document.querySelector('.solo__story-share');
+  const label = btn?.textContent ?? 'Share';
+  const setButton = (text, disabled) => {
+    const b = document.querySelector('.solo__story-share');
+    if (b) { b.textContent = text; b.disabled = disabled; }
+  };
+  setButton('Preparing…', true);
+  try {
+    const blob = await renderStoryImage(state.solo, { origin: window.location.origin });
+    closeStoryShare();
+    storyShare = { blob, url: URL.createObjectURL(blob) };
+    const file = new File([blob], STORY_IMAGE_NAME, { type: 'image/png' });
+    const container = document.createElement('div');
+    container.id = STORY_SHARE_CONTAINER_ID;
+    container.innerHTML = renderStorySharePanel({
+      previewUrl: storyShare.url,
+      canShareFiles: canShareFiles(file),
+      links: buildSocialLinks(SHARE_TEXT, buildSoloUrl(window.location.origin)),
+    });
+    document.body.appendChild(container);
+    document.addEventListener('keydown', onStoryShareKeydown);
+    setButton(label, false);
+  } catch (err) {
+    console.error('[solo] could not build share image', err);
+    setButton("Couldn't make the image", false);
+    setTimeout(() => setButton(label, false), 2500);
+  }
+}
+
+/** OS share sheet with the image. A cancelled share rejects — that is not an error. */
+function soloShareImage() {
+  if (!storyShare) return;
+  const file = new File([storyShare.blob], STORY_IMAGE_NAME, { type: 'image/png' });
+  navigator.share({ files: [file], title: 'How I carked it', text: `${SHARE_TEXT} ${buildSoloUrl(window.location.origin)}` })
+    .catch((err) => { if (err?.name !== 'AbortError') console.warn('[solo] share failed', err); });
+}
+
+function soloDownloadImage() {
+  if (!storyShare) return;
+  const a = document.createElement('a');
+  a.href = storyShare.url;
+  a.download = STORY_IMAGE_NAME;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+function closeStoryShare() {
+  document.getElementById(STORY_SHARE_CONTAINER_ID)?.remove();
+  document.removeEventListener('keydown', onStoryShareKeydown);
+  if (storyShare) URL.revokeObjectURL(storyShare.url);
+  storyShare = null;
+}
+
+/**
+ * Write text to the clipboard and flash the button. Clipboard access can be
+ * denied (permissions policy, insecure context, some in-app browsers), so on
+ * failure the text itself is shown so it can be copied by hand.
+ */
+function copyToClipboard(text, btn, copiedLabel, fallbackLabel) {
+  navigator.clipboard.writeText(text).then(() => {
+    if (!btn) return;
+    const original = btn.textContent;
+    btn.textContent = copiedLabel;
+    btn.classList.add('solo__share-btn--copied');
+    setTimeout(() => {
+      btn.textContent = original;
+      btn.classList.remove('solo__share-btn--copied');
+    }, 2000);
+  }).catch((err) => {
+    console.warn('[solo] clipboard unavailable, showing text', err);
+    if (!btn) return;
+    btn.outerHTML = `<p class="solo__share-link">${escapeHtml(fallbackLabel)} <span class="solo__share-url">${escapeHtml(text)}</span></p>`;
+  });
+}
+
 window.game = {
   showScreen,
+  soloStart,
+  soloPick,
+  soloInspect,
+  soloDismissInspect,
+  soloStepInspect,
+  soloContinue,
+  soloOpenEulogy,
+  soloMenu,
+  soloAnswer,
+  soloSkipAnswer,
+  copySoloLink,
+  soloDone,
+  soloRetryStory,
+  soloBackToEulogy,
+  soloShareStory,
+  soloShareImage,
+  soloDownloadImage,
+  closeStoryShare,
+  cancelRecover,
   addPlayer,
   selectPlayerRemoval,
   removePlayer,
@@ -552,6 +999,7 @@ window.game = {
   dismissInspect,
   passCard,
   submitCard,
+  swapCard,
   revealCards,
   startPitching,
   donePitching,
@@ -776,6 +1224,10 @@ window.game = {
     setState({ showUserMenu: false });
     showScreen(getState().screen);
   },
+  toggleMenuExtras() {
+    setState({ showMenuExtras: !getState().showMenuExtras });
+    showScreen(getState().screen);
+  },
   _closeUserMenuOnOutsideClick(e) {
     const menu = document.querySelector('.auth-menu');
     const btn = document.querySelector('.auth-bar__avatar-btn');
@@ -810,21 +1262,32 @@ window.game = {
     return false;
   },
   // Auth actions
-  showLogin() {
-    setState({ showLoginModal: true, loginMode: 'signin', loginError: null });
+  showLogin(mode = 'signin') {
+    setState({ showLoginModal: true, loginMode: mode, loginError: null, loginNotice: null });
     renderLoginModalOverlay();
   },
   hideLogin() {
-    setState({ showLoginModal: false, loginError: null });
+    setState({ showLoginModal: false, loginError: null, loginNotice: null });
     const root = document.getElementById('login-modal-root');
     if (root) root.innerHTML = '';
   },
   setLoginMode(mode) {
-    setState({ loginMode: mode, loginError: null });
+    setState({ loginMode: mode, loginError: null, loginNotice: null });
     renderLoginModalOverlay();
   },
   async signInWithGoogle() {
+    // Mobile uses signInWithRedirect (full page reload) — remember where the
+    // player was so the return trip restores this screen instead of the menu.
+    saveAuthReturn({ screen: getState().screen });
     await signInWithGoogle();
+    // Desktop popup path: the page never reloaded, so the snapshot is stale.
+    clearAuthReturn();
+    // Surface popup errors wherever the auth UI lives (modal or inline
+    // lobby form) — success re-renders via the auth state change instead.
+    if (getState().loginError) {
+      renderLoginModalOverlay();
+      refreshCreateSection(getState());
+    }
   },
   async submitEmailAuth(event) {
     event.preventDefault();
@@ -840,8 +1303,328 @@ window.game = {
     // Re-render modal if there's an error (auth state change will close it on success)
     if (getState().loginError) renderLoginModalOverlay();
   },
+  // Send a Firebase password-reset email from the login modal's sign-in form.
+  async modalForgotPassword() {
+    const form = document.querySelector('.login-modal__form');
+    const email = form?.email?.value?.trim() || '';
+    if (!email) {
+      setState({ loginError: 'Please enter your email address', loginNotice: null });
+    } else {
+      await sendPasswordReset(email);
+    }
+    renderLoginModalOverlay();
+  },
+  // Inline auth form on the online-lobby create section (no popup —
+  // signed-out players need an account to host, so the form lives in-page).
+  async submitLobbyAuth(event) {
+    event.preventDefault();
+    const form = event.target;
+    const email = form.email.value.trim();
+    const password = form.password.value;
+    // Keep the typed email across the partial re-render below
+    setState({ lobbyAuthEmail: email });
+    if (getState().lobbyAuthMode === 'signin') {
+      await signInWithEmail(email, password);
+    } else {
+      await signUpWithEmail(email, password);
+    }
+    // On success the auth state change re-renders the screen; on failure
+    // refresh just the form so the error shows without losing the email.
+    if (getState().loginError) refreshCreateSection(getState());
+  },
+  // Send a Firebase password-reset email from the inline lobby sign-in form.
+  async lobbyForgotPassword() {
+    const form = document.querySelector('.online-lobby__auth-form');
+    const email = form?.email?.value?.trim() || '';
+    if (!email) {
+      setState({ loginError: 'Please enter your email address', loginNotice: null });
+    } else {
+      // Preserve the typed email across the partial re-render (mirrors submitLobbyAuth).
+      setState({ lobbyAuthEmail: email });
+      await sendPasswordReset(email);
+    }
+    refreshCreateSection(getState());
+  },
+  setLobbyAuthMode(mode) {
+    setState({ lobbyAuthMode: mode, loginError: null, loginNotice: null });
+    refreshCreateSection(getState());
+  },
+  // Two-step unconnected lobby: details first, then the chosen account flow.
+  openOnlineLobby() {
+    setState({ lobbyStep: 'details' });
+    showScreen('online-lobby');
+  },
+
+  // ── Scheduling ────────────────────────────────────
+  openScheduleScreen() {
+    captureLobbyDetails();
+    setState({ scheduleError: null });
+    showScreen('schedule-game');
+  },
+  /**
+   * Reserve a code + time. Unlike createRoom this opens no room — the
+   * reservation is the lobby until someone follows the link.
+   */
+  async scheduleRoom() {
+    if (!getState().authUser) {
+      setState({ onlineError: 'Please sign in to host a game' });
+      showScreen('online-lobby');
+      window.game.showLogin('signup');
+      return;
+    }
+    captureScheduleDraft();
+    const { startsAt, title, videoCallText } = getState().scheduleDraft;
+    if (!startsAt) {
+      setState({ scheduleError: 'Pick a date and time' });
+      showScreen('schedule-game');
+      return;
+    }
+    // `datetime-local` gives local wall-clock time; Date parses it in the
+    // player's own zone, which is exactly what they meant.
+    const scheduledAt = new Date(startsAt);
+    if (Number.isNaN(scheduledAt.getTime())) {
+      setState({ scheduleError: 'That date and time is not valid' });
+      showScreen('schedule-game');
+      return;
+    }
+
+    setState({ connectionStatus: 'connecting', scheduleError: null });
+    showScreen('schedule-game');
+    try {
+      // The host pastes a raw invite; the shared parser splits it into the same
+      // link/phone/code entries the live room syncs, and the server sanitizes
+      // them again before they are stored.
+      const { entries, notes } = parseVideoCallText(videoCallText);
+      const game = await apiCreateScheduledGame({
+        scheduledAt: scheduledAt.toISOString(),
+        title,
+        videoCall: entries,
+        videoCallNotes: notes,
+      });
+      setState({
+        connectionStatus: 'disconnected',
+        scheduledGame: game,
+        scheduleDraft: { startsAt: '', title: '', videoCallText: '' },
+        // Seed the shared panel so "Video call details" works on the
+        // confirmation screen, before any room exists.
+        videoCall: game.videoCall || [],
+        videoCallNotes: game.videoCallNotes || '',
+      });
+      // The menu promotes upcoming games; this is a new one, so make it refetch.
+      invalidateScheduledGamesCache();
+      showScreen('scheduled-created');
+    } catch (err) {
+      // The server owns link validation, so its message is the one to show —
+      // the typed values survive because they were captured above.
+      setState({ connectionStatus: 'disconnected', scheduleError: err.message || 'Failed to schedule the game' });
+      showScreen('schedule-game');
+    }
+  },
+  copyScheduledLink() {
+    const game = getState().scheduledGame;
+    if (!game) return;
+    window.game.copyScheduledLinkFor(game.code);
+  },
+  /**
+   * Open the host's own scheduled lobby. They're signed in, so their name and
+   * birthday are already on file — asking for them again on the join screen
+   * would be a pointless step between "my games" and the room. Falls back to
+   * the join screen if the profile has no name, or if the join fails.
+   */
+  async joinScheduledGame(code) {
+    const user = getState().authUser;
+    setState({ roomCode: code, onlineError: null });
+    const name = (user?.display_name || '').trim();
+    if (!name) {
+      loadScheduleInfoForCode(code);
+      showScreen('join-game');
+      return;
+    }
+    const authToken = await getAuthToken().catch(() => null);
+    try {
+      await networkJoinRoom(
+        code,
+        {
+          name,
+          birthMonth: user.birth_month || 0,
+          birthDay: user.birth_day || 0,
+          userId: user.id || '',
+          authToken,
+        },
+        () => { const s = getState(); if (s.screen === 'online-lobby') showScreen('online-lobby'); },
+      );
+      resyncFromRoomState();
+    } catch (err) {
+      loadScheduleInfoForCode(code);
+      showScreen('join-game');
+    }
+  },
+  copyScheduledLinkFor(code) {
+    navigator.clipboard.writeText(buildJoinUrl(code)).then(() => {
+      const hint = document.querySelector('.online-lobby__code-hint');
+      if (hint) {
+        const original = hint.textContent;
+        hint.textContent = 'Link copied — send it to your players';
+        hint.classList.add('online-lobby__code-hint--copied');
+        setTimeout(() => {
+          hint.textContent = original;
+          hint.classList.remove('online-lobby__code-hint--copied');
+        }, 2000);
+      }
+    }).catch(() => {});
+  },
+  /**
+   * Reveal the calendar choices in place. Toggled on the DOM rather than via
+   * state so the surrounding screen — and its running countdown — isn't
+   * re-rendered just to open a menu.
+   */
+  toggleCalendarMenu(event) {
+    const btn = event?.currentTarget;
+    const menu = btn?.parentElement?.querySelector('.schedule__calendar-menu');
+    if (!menu) return;
+    const open = menu.hasAttribute('hidden');
+    menu.toggleAttribute('hidden', !open);
+    btn.setAttribute('aria-expanded', String(open));
+  },
+  downloadScheduleIcs() {
+    const opts = currentCalendarEvent();
+    if (opts) downloadIcs(opts);
+    closeCalendarMenus();
+  },
+  openGoogleCalendar() {
+    const opts = currentCalendarEvent();
+    if (opts) window.open(googleCalendarUrl(opts), '_blank', 'noopener');
+    closeCalendarMenus();
+  },
+  openOutlookCalendar() {
+    const opts = currentCalendarEvent();
+    if (opts) window.open(outlookCalendarUrl(opts), '_blank', 'noopener');
+    closeCalendarMenus();
+  },
+  async openScheduledGames() {
+    setState({ scheduledGamesLoading: true, scheduledGamesError: null, rescheduleId: null });
+    showScreen('scheduled-games');
+    await refreshScheduledGames();
+  },
+  startReschedule(id) {
+    setState({ rescheduleId: id });
+    refreshScheduledGamesBody();
+  },
+  cancelReschedule() {
+    setState({ rescheduleId: null });
+    refreshScheduledGamesBody();
+  },
+  async saveReschedule(id) {
+    const input = document.getElementById(`reschedule-at-${id}`);
+    const value = input?.value;
+    if (!value) return;
+    const at = new Date(value);
+    if (Number.isNaN(at.getTime())) {
+      setState({ scheduledGamesError: 'That date and time is not valid' });
+      refreshScheduledGamesBody();
+      return;
+    }
+    // Sent unconditionally, empty string included — clearing the field is how a
+    // host removes an occasion they no longer want on the row.
+    const title = document.getElementById(`edit-title-${id}`)?.value ?? '';
+    try {
+      await apiRescheduleGame(id, { scheduledAt: at.toISOString(), title });
+      setState({ rescheduleId: null, scheduledGamesError: null });
+    } catch (err) {
+      setState({ scheduledGamesError: err.message || 'Failed to update the game' });
+    }
+    await refreshScheduledGames();
+  },
+  async cancelScheduledGame(id) {
+    try {
+      await apiCancelScheduledGame(id);
+      setState({ scheduledGamesError: null });
+    } catch (err) {
+      setState({ scheduledGamesError: err.message || 'Failed to cancel the game' });
+    }
+    await refreshScheduledGames();
+  },
+
+  /**
+   * Open the schedule editor on the lobby's countdown banner.
+   *
+   * The room's state deliberately never carries the reservation's internal id,
+   * so resolve it from the host's own list by room code. That doubles as the
+   * permission check: a guest host, or anyone who isn't the account that
+   * scheduled this game, simply finds no match and is told so rather than
+   * being handed a form whose Save could only 404.
+   */
+  async startLobbyScheduleEdit() {
+    const { roomCode, lobbyScheduledId } = getState();
+    setState({ lobbyScheduleEditing: true, lobbyScheduleError: null });
+    showScreen('online-lobby');
+    if (lobbyScheduledId) return;
+    try {
+      const games = await fetchMyScheduledGames();
+      const mine = games.find((g) => g.code === roomCode);
+      setState(mine
+        ? { lobbyScheduledId: mine.id }
+        : { lobbyScheduleError: 'Only the host who scheduled this game can change its details' });
+    } catch (err) {
+      setState({ lobbyScheduleError: err.message || 'Could not load this game’s details' });
+    }
+    showScreen('online-lobby');
+  },
+  cancelLobbyScheduleEdit() {
+    setState({ lobbyScheduleEditing: false, lobbyScheduleError: null });
+    showScreen('online-lobby');
+  },
+  async saveLobbyScheduleEdit() {
+    const id = getState().lobbyScheduledId;
+    if (!id) return;
+    const value = document.getElementById('lobby-edit-at')?.value;
+    if (!value) return;
+    const at = new Date(value);
+    if (Number.isNaN(at.getTime())) {
+      setState({ lobbyScheduleError: 'That date and time is not valid' });
+      showScreen('online-lobby');
+      return;
+    }
+    const title = document.getElementById('lobby-edit-title')?.value ?? '';
+    try {
+      await apiRescheduleGame(id, { scheduledAt: at.toISOString(), title });
+      // The server pushes the change into this room, so the banner's own
+      // values arrive over the schema listeners — close the editor and let
+      // that repaint land.
+      setState({ lobbyScheduleEditing: false, lobbyScheduleError: null });
+      invalidateScheduledGamesCache();
+    } catch (err) {
+      setState({ lobbyScheduleError: err.message || 'Failed to update the game' });
+    }
+    showScreen('online-lobby');
+  },
+
+  lobbyEmailAuth() {
+    captureLobbyDetails();
+    setState({ lobbyStep: 'email-auth', loginError: null, loginNotice: null });
+    showScreen('online-lobby');
+  },
+  lobbyBackToDetails() {
+    setState({ lobbyStep: 'details', loginError: null, loginNotice: null });
+    showScreen('online-lobby');
+  },
+  async lobbyGoogleAuth() {
+    // Keep typed details — the post-sign-in re-render rebuilds the screen.
+    captureLobbyDetails();
+    // Mobile uses signInWithRedirect (full page reload) — persist the lobby
+    // step and typed details so the return trip lands back on Create Room.
+    saveAuthReturn({
+      screen: 'online-lobby',
+      lobbyStep: 'details',
+      lobbyDetails: getState().lobbyDetails,
+    });
+    await signInWithGoogle();
+    // Desktop popup path: the page never reloaded, so the snapshot is stale.
+    clearAuthReturn();
+    if (getState().loginError) refreshCreateSection(getState());
+  },
   async logOut() {
-    setState({ showUserMenu: false });
+    setState({ showUserMenu: false, lobbyStep: 'details' });
     await logOut();
     // Re-render current screen to update auth button
     showScreen(getState().screen);
@@ -868,6 +1651,15 @@ window.game = {
   },
   // Online multiplayer actions
   async createRoom(event) {
+    // Hosting requires a signed-up account (enforced server-side too).
+    // The lobby hides the create button when signed out — this guard covers
+    // direct calls and stale screens.
+    if (!getState().authUser) {
+      setState({ onlineError: 'Please sign in to host a game' });
+      showScreen('online-lobby');
+      window.game.showLogin('signup');
+      return;
+    }
     let name = document.getElementById('online-player-name')?.value?.trim();
     let birthMonth = parseInt(document.getElementById('online-birth-month')?.value ?? '', 10) || 0;
     let birthDay = parseInt(document.getElementById('online-birth-day')?.value ?? '', 10) || 0;
@@ -903,9 +1695,12 @@ window.game = {
     if (userId && !isDevName) {
       updateUserProfile({ display_name: name, birth_month: birthMonth, birth_day: birthDay });
     }
+    // Fresh Firebase ID token (stored tokens expire after an hour) — the
+    // server verifies it before allowing the room to be created.
+    const authToken = await getAuthToken();
     try {
       await networkCreateRoom(
-        { name, birthMonth, birthDay, isPrivate: true, isDevName, devMode, userId },
+        { name, birthMonth, birthDay, isPrivate: true, isDevName, devMode, userId, authToken },
         () => { refreshOnlineLobbyAfterPackChange(); },
       );
       showScreen('online-lobby');
@@ -948,7 +1743,14 @@ window.game = {
           return;
         }
       } catch (err) {
-        setState({ onlineError: err.message || 'Room not found' });
+        // A scheduled game has no live room to look up yet, so a miss here
+        // isn't a bad code — the player simply hasn't given a name.
+        const scheduled = getState().scheduledInfo;
+        setState({
+          onlineError: scheduled && scheduled.code === code.toUpperCase()
+            ? 'Please enter your name'
+            : (err.message || 'Room not found'),
+        });
         showScreen('join-game');
         return;
       }
@@ -957,10 +1759,13 @@ window.game = {
     if (userId && !isDevName) {
       updateUserProfile({ display_name: name, birth_month: birthMonth, birth_day: birthDay });
     }
+    // Sent so the scheduler of a scheduled game is recognised and given the
+    // host seat; ignored for ordinary rooms. Never blocks the join.
+    const authToken = await getAuthToken().catch(() => null);
     try {
       await networkJoinRoom(
         code,
-        { name, birthMonth, birthDay, isDevName, userId },
+        { name, birthMonth, birthDay, isDevName, userId, authToken },
         () => { const s = getState(); if (s.screen === 'online-lobby') showScreen('online-lobby'); },
       );
       // Resync screen from room state — joins an in-progress game at the correct phase
@@ -1004,23 +1809,224 @@ window.game = {
     showScreen('online-lobby');
   },
   copyJoinLink() {
-    const state = getState();
-    const code = state.roomCode;
-    if (!code) return;
-    const url = new URL(window.location.href);
-    url.search = `?join=${encodeURIComponent(code)}`;
-    navigator.clipboard.writeText(url.toString()).then(() => {
+    const copied = writeJoinLinkToClipboard();
+    if (!copied) return;
+    copied.then(() => {
       const btn = document.querySelector('.phase-header__settings-btn');
       if (btn) {
         const original = btn.innerHTML;
         btn.textContent = 'Copied!';
         setTimeout(() => { btn.innerHTML = original; }, 1500);
       }
-      const label = document.querySelector('.online-lobby__code-label');
-      if (label) {
-        label.textContent = 'Copied';
-        setTimeout(() => { label.textContent = 'Room Code'; }, 1500);
+      const hint = document.querySelector('.online-lobby__code-hint');
+      if (hint) {
+        const originalHint = hint.textContent;
+        hint.textContent = 'Link copied, send to players to invite';
+        hint.classList.add('online-lobby__code-hint--copied');
+        setTimeout(() => {
+          hint.textContent = originalHint;
+          hint.classList.remove('online-lobby__code-hint--copied');
+        }, 2200);
       }
+    }).catch(() => {});
+  },
+  // ── Join QR live refresh ─────────────────────────────────
+  // Your Details is filled in AFTER the screen renders, and the values live in
+  // the DOM (joinRoom reads them straight off the inputs). So the QR has to
+  // re-encode as they type, or scanning it would hand the phone a blank form.
+  //
+  // Swaps only the code's innerHTML — re-rendering the screen would wipe the
+  // very fields we're trying to carry across.
+  refreshJoinQr() {
+    clearTimeout(_joinQrTimer);
+    _joinQrTimer = setTimeout(() => {
+      const holder = document.querySelector('.join-qr__code');
+      if (!holder) return; // mobile, or a code typed by hand — no QR on screen
+      const code = getState().roomCode;
+      if (!code) return;
+      const url = appendJoinDetails(buildJoinUrl(code), {
+        name: document.getElementById('online-player-name')?.value,
+        birthMonth: document.getElementById('online-birth-month')?.value,
+        birthDay: document.getElementById('online-birth-day')?.value,
+      });
+      try {
+        holder.innerHTML = toQrSvg(url, { label: `QR code to open room ${code} on your phone` });
+      } catch {
+        // Leave the last good code up rather than blanking it mid-typing.
+      }
+    }, JOIN_QR_REFRESH_MS);
+  },
+  // ── Desktop join opt-in ──────────────────────────────────
+  // "I can't use my phone, play from computer" on the join screen. Reveals in
+  // place instead of re-rendering: the name and birthday live in the DOM, not
+  // in state, so showScreen() here would throw away whatever they'd typed.
+  revealDesktopJoin() {
+    setState({ desktopJoinRevealed: true });
+    document.querySelector('.online-lobby__join-btn')
+      ?.classList.remove('online-lobby__join-btn--hidden');
+    document.querySelector('.join-qr__reveal')?.remove();
+    document.querySelector('.online-lobby__join-btn')?.focus();
+  },
+  // ── Share / QR panel ─────────────────────────────────────
+  // Separate from copyJoinLink(), which still copies instantly from the header
+  // link icon and the room-code card. This is the "show me something the person
+  // opposite can scan" path.
+  openShare() {
+    mountSharePanel();
+  },
+  closeShare() {
+    unmountSharePanel();
+  },
+  /** Copy from inside the panel — feedback flashes on the button, no re-render. */
+  copyShareLink() {
+    const copied = writeJoinLinkToClipboard();
+    if (!copied) return;
+    copied.then(() => {
+      const btn = document.querySelector('.share-panel__copy');
+      if (!btn) return;
+      const original = btn.innerHTML;
+      btn.textContent = 'Copied!';
+      btn.classList.add('share-panel__copy--done');
+      setTimeout(() => {
+        const el = document.querySelector('.share-panel__copy');
+        if (!el) return;
+        el.innerHTML = original;
+        el.classList.remove('share-panel__copy--done');
+      }, 1500);
+    }).catch(() => {});
+  },
+  /** OS share sheet. A cancelled share rejects — that is not an error. */
+  nativeShare() {
+    const url = currentJoinUrl();
+    if (!url || typeof navigator.share !== 'function') return;
+    navigator.share({
+      title: 'CarkedIt',
+      text: 'Join my game of CarkedIt',
+      url,
+    }).catch(() => {});
+  },
+  // ── Video call details ───────────────────────────────────
+  // The panel is mounted on document.body (like the issue report) so it opens
+  // over the lobby AND over any game phase without navigating away — a player
+  // who drops off the call mid-game can get the link back where they stand.
+  openVideoCall() {
+    mountVideoCallPanel();
+  },
+  closeVideoCall() {
+    setState({ videoCallEditOpen: false, videoCallDraft: null });
+    unmountVideoCallPanel();
+  },
+  openVideoCallEditor() {
+    setState({ videoCallEditOpen: true, videoCallDraft: buildVideoCallDraft(getState()) });
+    mountVideoCallPanel();
+  },
+  closeVideoCallEditor() {
+    setState({ videoCallEditOpen: false, videoCallDraft: null });
+    if (document.getElementById('video-call-container')) mountVideoCallPanel();
+    else if (getState().screen === 'online-lobby') showScreen('online-lobby');
+  },
+  /** Re-runs detection over the paste box and merges anything new into the draft. */
+  parseVideoCallPaste() {
+    const draft = harvestVideoCallDraft(getState().videoCallDraft);
+    const text = draft.paste || '';
+    if (!text.trim()) {
+      setState({ videoCallDraft: draft });
+      return;
+    }
+    const merged = mergeParsedVideoCall(draft, text);
+    // The paste box has done its job — clear it so a second Detect can't
+    // re-add the same invite, and the detected rows become the source of truth.
+    setState({ videoCallDraft: { ...merged, paste: '' } });
+    refreshVideoCallEditor();
+  },
+  addVideoCallEntry(kind) {
+    const draft = harvestVideoCallDraft(getState().videoCallDraft);
+    setState({ videoCallDraft: { ...draft, entries: [...draft.entries, blankVideoCallEntry(kind)] } });
+    refreshVideoCallEditor();
+  },
+  removeVideoCallEntry(index) {
+    const draft = harvestVideoCallDraft(getState().videoCallDraft);
+    const entries = draft.entries.filter((_, i) => i !== index);
+    setState({ videoCallDraft: { ...draft, entries } });
+    refreshVideoCallEditor();
+  },
+  saveVideoCall() {
+    const draft = harvestVideoCallDraft(getState().videoCallDraft);
+    const entries = cleanVideoCallEntries(draft.entries);
+    const notes = (draft.notes || '').trim();
+
+    sendMessage('set_video_call', { entries, notes });
+
+    // Opt-in only, and unticking actively forgets what was stored before.
+    if (draft.remember) saveRememberedVideoCall({ entries, notes });
+    else clearRememberedVideoCall();
+
+    // Optimistic: the server echo will overwrite this with the sanitised copy.
+    setState({ videoCall: entries, videoCallNotes: notes, videoCallEditOpen: false, videoCallDraft: null });
+    if (document.getElementById('video-call-container')) mountVideoCallPanel();
+    if (getState().screen === 'online-lobby') showScreen('online-lobby');
+  },
+  copyVideoCallValue(index) {
+    const entry = getState().videoCall?.[index];
+    if (!entry) return;
+    navigator.clipboard.writeText(entry.value).then(() => {
+      const btn = document.querySelector(`.video-call__row[data-index="${index}"] .video-call__copy`);
+      if (!btn) return;
+      const original = btn.innerHTML;
+      btn.classList.add('video-call__copy--done');
+      btn.textContent = 'Copied';
+      setTimeout(() => {
+        btn.innerHTML = original;
+        btn.classList.remove('video-call__copy--done');
+      }, 1500);
+    }).catch(() => {});
+  },
+  // ── How to Play overlay (online lobby) ───────────────────
+  // Rendered on top of the lobby so it never navigates away (which would drop
+  // the room on mobile). State-driven, so live step check-offs update on
+  // re-render as players join.
+  openHowToPlay() {
+    setState({ showHowToPlay: true, howToPlayTab: 'setup' });
+    showScreen(howToPlayHost());
+  },
+  closeHowToPlay() {
+    setState({ showHowToPlay: false });
+    showScreen(howToPlayHost());
+  },
+  setHowToPlayTab(tab) {
+    setState({ howToPlayTab: tab === 'play' ? 'play' : 'setup' });
+    showScreen(howToPlayHost());
+  },
+  dismissHowToBanner() {
+    markHowToBannerDismissed();
+    showScreen('online-lobby');
+  },
+  dismissVideoCallTip() {
+    markVideoCallTipDone();
+    showScreen('online-lobby');
+  },
+  dismissDiscordBar() {
+    markDiscordBarDismissed();
+    showScreen('online-lobby');
+  },
+  // Copy triggered from the overlay's "Share the Link" step: same link as the
+  // room-code card, but the feedback flashes in place on the step's hint line
+  // (no re-render, so the overlay and scroll position stay put).
+  copyJoinLinkFromHowTo() {
+    const copied = writeJoinLinkToClipboard();
+    if (!copied) return;
+    copied.then(() => {
+      const hint = document.getElementById('htp-copy-hint');
+      if (!hint) return;
+      const original = hint.textContent;
+      hint.textContent = 'Copied! Send it to your friends';
+      hint.classList.add('htp-step__copy-hint--copied');
+      setTimeout(() => {
+        const el = document.getElementById('htp-copy-hint');
+        if (!el) return;
+        el.textContent = original;
+        el.classList.remove('htp-step__copy-hint--copied');
+      }, 2200);
     }).catch(() => {});
   },
 };
@@ -1030,7 +2036,169 @@ function renderLoginModalOverlay() {
   if (root) root.innerHTML = renderLoginModal(getState());
 }
 
+/**
+ * Snapshot the details-step inputs into state so they survive the re-render
+ * caused by switching lobby steps or completing a sign-in.
+ */
+function captureLobbyDetails() {
+  const name = document.getElementById('online-player-name')?.value?.trim() || '';
+  const birthMonth = parseInt(document.getElementById('online-birth-month')?.value ?? '', 10) || 0;
+  const birthDay = parseInt(document.getElementById('online-birth-day')?.value ?? '', 10) || 0;
+  setState({ lobbyDetails: { name, birthMonth, birthDay } });
+}
+
+/** Keep typed schedule values across the re-render that shows a validation error. */
+function captureScheduleDraft() {
+  const startsAt = document.getElementById('schedule-start-at')?.value || '';
+  const title = document.getElementById('schedule-title')?.value?.trim() || '';
+  const videoCallText = document.getElementById('schedule-video-call')?.value || '';
+  setState({ scheduleDraft: { startsAt, title, videoCallText } });
+}
+
+/**
+ * The event a calendar button should add, from whichever scheduled game the
+ * current screen is about: the one just created, the one being joined, or the
+ * one whose lobby we're sitting in.
+ */
+function currentCalendarEvent() {
+  const state = getState();
+  if (state.screen === 'scheduled-created' && state.scheduledGame) {
+    const g = state.scheduledGame;
+    return { title: g.title, joinUrl: buildJoinUrl(g.code), videoCall: g.videoCall, videoCallNotes: g.videoCallNotes, startsAt: g.scheduledAt };
+  }
+  if (state.screen === 'join-game' && state.scheduledInfo) {
+    const info = state.scheduledInfo;
+    return { title: info.title, joinUrl: buildJoinUrl(info.code), videoCall: info.videoCall, videoCallNotes: info.videoCallNotes, startsAt: info.scheduledAt };
+  }
+  if (state.scheduledAt && state.roomCode) {
+    return {
+      title: state.scheduledTitle,
+      joinUrl: buildJoinUrl(state.roomCode),
+      videoCall: state.videoCall,
+      videoCallNotes: state.videoCallNotes,
+      startsAt: state.scheduledAt,
+    };
+  }
+  return null;
+}
+
+/**
+ * Which screen re-renders when the how-to-play overlay opens or closes. The
+ * overlay draws on top of whatever screen offers it — leaving the lobby would
+ * drop the room on mobile — so it stays put whenever the current screen
+ * renders it, and falls back to the lobby for callers that don't.
+ */
+const HOW_TO_PLAY_SCREENS = ['online-lobby', 'join-game', 'scheduled-games'];
+function howToPlayHost() {
+  const screen = getState().screen;
+  return HOW_TO_PLAY_SCREENS.includes(screen) ? screen : 'online-lobby';
+}
+
+/** Collapse any open calendar menu once a choice has been made. */
+function closeCalendarMenus() {
+  document.querySelectorAll('.schedule__calendar-menu').forEach((menu) => {
+    menu.setAttribute('hidden', '');
+    menu.parentElement?.querySelector('.schedule__calendar-btn')?.setAttribute('aria-expanded', 'false');
+  });
+}
+
+/**
+ * Which account the menu's scheduled-game count was loaded for. Sign-in
+ * resolves after the first menu paint, so the fetch has to run again once
+ * authUser appears — but not on every visit to the menu.
+ */
+let _scheduledLoadedForUser = null;
+
+/** Force the next menu visit to refetch (a game was just added). */
+function invalidateScheduledGamesCache() {
+  _scheduledLoadedForUser = null;
+}
+
+/**
+ * Fetch the signed-in host's upcoming games so the menu can promote them.
+ * Re-renders only when the count changes, which keeps the render → fetch →
+ * render path from looping.
+ */
+function loadScheduledGamesForMenu() {
+  const userId = getState().authUser?.id ?? null;
+  if (!userId) {
+    _scheduledLoadedForUser = null;
+    if ((getState().scheduledGames || []).length > 0) {
+      setState({ scheduledGames: [] });
+      if (getState().screen === 'menu') showScreen('menu');
+    }
+    return;
+  }
+  if (_scheduledLoadedForUser === userId) return;
+  _scheduledLoadedForUser = userId;
+
+  fetchMyScheduledGames()
+    .then((games) => {
+      const before = (getState().scheduledGames || []).length;
+      setState({ scheduledGames: games });
+      if (games.length !== before && getState().screen === 'menu') showScreen('menu');
+    })
+    .catch(() => {
+      // A failed count just means no promoted button — never block the menu.
+      _scheduledLoadedForUser = null;
+    });
+}
+
+/** Reload the host's list and repaint it in place. */
+async function refreshScheduledGames() {
+  setState({ scheduledGamesLoading: true });
+  refreshScheduledGamesBody();
+  try {
+    const games = await fetchMyScheduledGames();
+    setState({ scheduledGames: games, scheduledGamesLoading: false });
+    // This list IS the menu's source, so the menu needn't refetch it.
+    _scheduledLoadedForUser = getState().authUser?.id ?? null;
+  } catch (err) {
+    setState({ scheduledGamesLoading: false, scheduledGamesError: err.message || 'Failed to load your scheduled games' });
+  }
+  refreshScheduledGamesBody();
+}
+
+function refreshScheduledGamesBody() {
+  const el = document.getElementById('scheduled-games-body');
+  if (!el) return;
+  el.innerHTML = renderScheduledGamesBody(getState());
+  // The repaint replaced every countdown element, so re-point the ticker.
+  syncScheduleCountdown();
+}
+
+/**
+ * Resolve a ?join= code against the scheduled-games API so the join screen can
+ * show the countdown, calendar buttons and rules before anyone commits to
+ * joining. A code that isn't scheduled simply leaves the banner off.
+ */
+async function loadScheduleInfoForCode(code) {
+  try {
+    const info = await lookupScheduledGame(code);
+    if (!info) return;
+    // Seed the shared video-call panel from the reservation so a player can
+    // open the call details before joining — there may be no room yet.
+    setState({
+      scheduledInfo: info,
+      videoCall: info.videoCall || [],
+      videoCallNotes: info.videoCallNotes || '',
+    });
+    const el = document.getElementById('join-schedule-banner');
+    if (el && getState().screen === 'join-game') showScreen('join-game');
+  } catch {
+    // A failed lookup just means no banner — never block the join form.
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+  // router.js is evaluated twice: index.html loads it with a ?v= cache-bust
+  // query while game-manager.js imports it plain — different URLs, so the
+  // browser treats them as two modules and registers this listener twice.
+  // Only the first boot may run: the second used to re-run the whole chain
+  // and stomp the restored screen back to the menu.
+  if (window.__carkeditBooted) return;
+  window.__carkeditBooted = true;
+
   // Start capturing errors for issue reports
   initErrorLogger();
 
@@ -1044,6 +2212,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Register screen change callback for server-driven transitions
   onScreenChange((screenName) => {
+    // Once the player reaches a game phase online, they've had their first game —
+    // drop the emphasized "How to Play" CTA in future lobbies.
+    if (typeof screenName === 'string' && screenName.startsWith('phase')) {
+      markOnlinePlayed();
+      // Same moment, but only for the host: their first hosted game is under way,
+      // so the lobby's Discord prompt has done its job and retires.
+      if (getState().isHost) markOnlineHosted();
+    }
     showScreen(screenName);
   });
 
@@ -1052,24 +2228,116 @@ document.addEventListener('DOMContentLoaded', () => {
     refreshAdvancedPanel();
   });
 
-  // Register timer update callback — re-render current screen when timer ticks
+  // Video-call details can change on any screen (host edits mid-game), so this
+  // updates the header button and the open panel in place rather than
+  // re-rendering the screen underneath the player.
+  onVideoCallChange(() => {
+    refreshVideoCallUi();
+  });
+
+  // Register timer update callback — update ONLY the timer display each tick.
+  // A full re-render here would recreate the [data-pitch-reveal] card every second,
+  // re-triggering its flip animation (the "card keeps flipping" bug). Phase changes
+  // are driven separately by the Colyseus phase listener → onScreenChange → showScreen.
   onTimerUpdate(() => {
     const state = getState();
-    if (state.gameMode === 'online' && (state.screen === 'phase2' || state.screen === 'phase3')) {
-      showScreen(state.screen);
+    if (state.gameMode !== 'online') return;
+    if (state.screen !== 'phase2' && state.screen !== 'phase3') return;
+
+    const timeEl = document.querySelector('.pitch-timer__time');
+    if (!timeEl) return; // timer hidden — nothing to update, no re-render needed
+
+    const seconds = state.onlinePhase === 'submit'
+      ? state.playCardTimerSeconds
+      : state.pitchTimerSeconds;
+    if (seconds == null) return;
+
+    timeEl.textContent = formatTime(seconds);
+
+    const wrapper = timeEl.closest('.pitch-timer');
+    if (wrapper) {
+      const countUp = state.gameSettings?.timerCountUp ?? false;
+      wrapper.classList.toggle('pitch-timer--warning', !countUp && seconds < 30);
     }
   });
 
   const params = new URLSearchParams(window.location.search);
   const joinCode = params.get('join');
-  if (joinCode) {
-    setState({ roomCode: joinCode.toUpperCase() });
+  const savedSession = loadSession();
+  // One-shot: present only when returning from the mobile Google sign-in
+  // redirect. Consumed even when savedSession/joinCode win, so it can't
+  // linger and hijack a later reload.
+  const authReturn = consumeAuthReturn();
+
+  // Page-reload recovery — only attempt if we saved a session in this tab.
+  // sessionStorage already filters out cross-tab/post-close scenarios.
+  if (savedSession) {
+    setState({ connectionStatus: 'reconnecting', roomCode: savedSession.roomCode });
+    showScreen('menu');
+    // Preload card data first so the recovered phase screen has illustrations.
+    // Without this, syncDiePhaseState / syncLivingPhaseState can't find the
+    // local card metadata and falls back to the CSS-only render.
+    startPreload()
+      .then(() => networkAttemptRecover((players) => {
+        setState({ onlinePlayers: players });
+      }))
+      .then(() => {
+        resyncFromRoomState();
+      })
+      .catch((err) => {
+        console.log(`[router] Recover failed: ${err?.message ?? err}`);
+        clearSession();
+        setState({ connectionStatus: 'disconnected', onlineError: null, roomCode: null });
+        showScreen('menu');
+      });
+  } else if (joinCode) {
+    // A QR scanned off someone's desktop carries the details they already typed
+    // there, so the phone arrives filled in. Validated on the way in — this came
+    // from a scanned code, which is data from outside the app.
+    const scannedDetails = parseJoinDetails(params);
+    // arrivedViaJoinLink distinguishes "followed someone's invite" from "typed
+    // a code on the join screen" — only the former gets the desktop QR nudge.
+    setState({
+      roomCode: joinCode.toUpperCase(),
+      arrivedViaJoinLink: true,
+      joinPrefill: hasJoinDetails(scannedDetails) ? scannedDetails : null,
+    });
     showScreen('join-game');
     // Pre-fill the room code input after render
     requestAnimationFrame(() => {
       const codeInput = document.getElementById('online-room-code');
       if (codeInput) codeInput.value = joinCode.toUpperCase();
     });
+    // Now that the details are in state, take them back out of the address bar.
+    // Left there they'd sit in browser history and ride along if this person
+    // forwarded the link on to someone else.
+    if (hasJoinDetails(scannedDetails)) {
+      const cleaned = stripJoinDetails(window.location.href);
+      if (cleaned !== window.location.href) window.history.replaceState(null, '', cleaned);
+    }
+    // A scheduled link is often opened days early — resolve it so the screen
+    // can offer the countdown, calendar and rules instead of a bare code box.
+    loadScheduleInfoForCode(joinCode.toUpperCase());
+  } else if (authReturn) {
+    // Returning from the mobile Google sign-in redirect — put the player back
+    // where they were (e.g. Create Room details step, with their typed
+    // details) instead of dumping them on the main menu. The lobby renders in
+    // its authLoading state first; onAuthStateChanged then re-renders it
+    // signed in (or with loginError if the redirect failed). The snapshot is
+    // already sanitized (whitelisted screen) by consumeAuthReturn().
+    if (authReturn.lobbyDetails) {
+      setState({ lobbyStep: authReturn.lobbyStep, lobbyDetails: authReturn.lobbyDetails });
+    }
+    showScreen(authReturn.screen);
+  } else if (params.has(SOLO_QUERY_PARAM)) {
+    // Shareable single-player link — anyone can play, no sign-in. The param
+    // stays in the address bar so a reload restarts the solo game.
+    soloStart();
+  } else if (params.has('host')) {
+    // Deep-link from the How to Play page — straight to "Your Details / Create a Room"
+    // (mirrors window.game.openOnlineLobby()).
+    setState({ lobbyStep: 'details' });
+    showScreen('online-lobby');
   } else {
     showScreen('menu');
   }

@@ -923,6 +923,19 @@ body {
   opacity: 0.7;
 }
 
+/* Stale errors: captured before the reported game began — likely unrelated, so
+   de-emphasised (muted, not danger-red) and collapsed by default. */
+.detail__error-log--stale {
+  margin-top: var(--space-sm);
+  border-left-color: var(--color-border, #3a3a4a);
+  opacity: 0.7;
+}
+
+.detail__error-log--stale .detail__error-log-title,
+.detail__error-log--stale .detail__error-type {
+  color: var(--color-text-muted);
+}
+
 /* Debug (row 3) */
 .detail__row--debug {
   opacity: 0.6;
@@ -1539,6 +1552,21 @@ body {
   overflow-wrap: anywhere;
 }
 
+.survey-response__field--truncatable {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+  line-clamp: 5;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.survey-response__field--truncatable.survey-response__field--expanded {
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+  overflow: visible;
+}
+
 /* ── Base Cost Modal ─────────────────────────────────── */
 .dashboard__pack-cell--cost {
   cursor: pointer;
@@ -1638,13 +1666,34 @@ body {
 }
 .user-stats__row {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) repeat(4, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 2fr) repeat(5, minmax(0, 1fr));
   gap: 0.75rem;
   align-items: center;
   padding: 0.75rem 1rem;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 8px;
+  cursor: pointer;
+}
+/* "Signed up" cell: brand names can be long — keep the column tidy. */
+.user-stats__signup {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Sign-up-location dropdown in the player/users filter bar. */
+.dashboard__filter-select {
+  height: 32px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-sm);
+  max-width: 200px;
   cursor: pointer;
 }
 .user-stats__row:hover {

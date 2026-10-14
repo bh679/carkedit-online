@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CarkedIt — Roles & Permissions</title>
+    <link rel="stylesheet" href="css/base.css?v=1.06.0202">
+    <link rel="stylesheet" href="css/components/auth.css?v=1.06.0202">
+    <link rel="stylesheet" href="css/components/admin-header.css?v=1.06.0202">
+    <link rel="stylesheet" href="css/dashboard.css?v=1.06.0202">
+    <style>
+        .admin-roles { max-width: 1100px; margin: 0 auto; padding: 1.5rem; }
+        .admin-roles__header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem; }
+        .admin-roles__title { font-size: 1.4rem; margin: 0; }
+        .admin-roles__intro { color: #888; font-size: 0.85rem; margin: 0 0 1rem; max-width: 720px; line-height: 1.5; }
+        .admin-roles__table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .admin-roles__table th,
+        .admin-roles__table td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid #333; }
+        .admin-roles__table th { color: #888; font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .admin-roles__table th.admin-roles__role-col,
+        .admin-roles__table td.admin-roles__role-cell { text-align: center; width: 70px; }
+        .admin-roles__table tr:hover { background: rgba(255,255,255,0.03); }
+        .admin-roles__page-label { font-weight: 600; color: #ddd; }
+        .admin-roles__page-path { display: block; font-size: 0.75rem; color: #888; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+        .admin-roles__child-marker { color: #666; margin-right: 0.25em; }
+        tr[data-parent] .admin-roles__page-label { padding-left: 1.25em; }
+        tr[data-parent] .admin-roles__page-path { padding-left: 1.25em; }
+        .admin-roles__cat { display: inline-block; padding: 0.1em 0.5em; border-radius: 3px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+        .admin-roles__cat--admin  { background: #6a2d4f; color: #e4b7d4; }
+        .admin-roles__cat--public { background: #2d6a4a; color: #b7e4c7; }
+        .admin-roles__cat--dev    { background: #4a3a85; color: #c8b9ff; }
+        .admin-roles__role-head--player { color: #aaa; }
+        .admin-roles__role-head--host   { color: #b7d4e4; }
+        .admin-roles__role-head--qa     { color: #c8b9ff; }
+        .admin-roles__role-head--admin  { color: #e4b7d4; }
+        .admin-roles__check { width: 22px; height: 22px; cursor: pointer; accent-color: #6a8dd9; }
+        .admin-roles__check:disabled { cursor: not-allowed; opacity: 0.4; }
+        .admin-roles__row--saving { opacity: 0.55; }
+        .admin-roles__default { color: #aaa; font-size: 0.78rem; }
+        .admin-roles__default--overridden { color: #e4b7d4; }
+        .admin-roles__gate { display: flex; align-items: center; justify-content: center; min-height: 60vh; text-align: center; }
+        .admin-roles__gate p { color: #888; margin-bottom: 1em; }
+        .admin-roles__status { font-size: 0.8rem; color: #888; min-height: 1.2em; margin-bottom: 0.5em; }
+        .admin-roles__status--err { color: #e4b7d4; }
+        .admin-roles__legend { display: flex; gap: 1.5em; flex-wrap: wrap; font-size: 0.75rem; color: #888; margin: 0.5em 0 1em; }
+        .admin-roles__legend strong { color: #ccc; }
+        .admin-roles__reset-btn { background: transparent; border: 1px solid #555; color: #aaa; padding: 0.2em 0.6em; border-radius: 4px; font-size: 0.75rem; cursor: pointer; }
+        .admin-roles__reset-btn:hover:not(:disabled) { border-color: #888; color: #fff; }
+        .admin-roles__reset-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    </style>
+    <script src="js/branch-banner.js"></script>
+</head>
+<body>
+    <div id="app"></div>
+    <script type="module">
+    'use strict';
+
+    import { renderAdminHeader, bindAdminHeader, resetAdminHeaderMenu } from './js/components/admin-header.js';
+    import { getFirebaseConfig } from './js/firebase-config.js';
+    import { PAGES, ROLES, ROLE_RANK, meetsRole, invalidatePermissionsCache } from './js/config/pages.js';
+
+    const FIREBASE_CONFIG = getFirebaseConfig();
+
+    let firebaseAuth = null;
+    let authToken = null;
+    let fbUserInfo = null;
+    let currentUser = null;
+    let permissions = []; // [{ path, label, defaultMinRole, currentMinRole, category }]
+
+    async function loadFirebaseAuth() {
+      const [appMod, authMod] = await Promise.all([
+        import('https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js'),
+        import('https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js'),
+      ]);
+      // Idempotent: guardPage may have already initialized the default app.
+      const app = appMod.getApps().length ? appMod.getApp() : appMod.initializeApp(FIREBASE_CONFIG);
+      firebaseAuth = authMod.getAuth(app);
+      return authMod;
+    }
+
+    function authFetch(url, opts = {}) {
+      if (authToken) {
+        opts.headers = { ...opts.headers, Authorization: `Bearer ${authToken}` };
+      }
+      return fetch(url, opts);
+    }
+
+    function esc(s) {
+      if (s == null) return '';
+      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    async function doSignOut() {
+      const { signOut } = await import('https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js');
+      await signOut(firebaseAuth);
+      authToken = null;
+      renderGate('Sign in to access role management.', true);
+    }
+
+    function renderGate(msg, showSignIn = false) {
+      const role = currentUser?.role || 'Player';
+      document.getElementById('app').innerHTML = `
+        ${renderAdminHeader({ role })}
+        <div class="admin-roles__gate">
+          <div>
+            <h1>Roles & Permissions</h1>
+            <p>${esc(msg)}</p>
+            ${showSignIn ? '<button class="btn btn--google" id="sign-in-btn" style="font-size:1rem;padding:0.75em 1.5em">Sign in with Google</button>' : ''}
+          </div>
+        </div>`;
+      bindAdminHeader(document.getElementById('app'), { role });
+      if (showSignIn) {
+        document.getElementById('sign-in-btn').addEventListener('click', async () => {
+          const authMod = await loadFirebaseAuth();
+          const provider = new authMod.GoogleAuthProvider();
+          await authMod.signInWithPopup(firebaseAuth, provider);
+        });
+      }
+    }
+
+    function setStatus(msg, isError = false) {
+      const el = document.getElementById('admin-roles-status');
+      if (!el) return;
+      el.textContent = msg;
+      el.className = isError ? 'admin-roles__status admin-roles__status--err' : 'admin-roles__status';
+    }
+
+    function rowHtml(page) {
+      const isOverridden = page.currentMinRole !== page.defaultMinRole;
+      const minRank = ROLE_RANK[page.currentMinRole] ?? 0;
+      const cells = ROLES.map((role) => {
+        const rank = ROLE_RANK[role];
+        const checked = rank >= minRank ? 'checked' : '';
+        // 'Admin' is always required minimum — the bottom of the hierarchy is
+        // 'Player' so any 'currentMinRole=Player' implies all 4 are checked.
+        return `<td class="admin-roles__role-cell">
+          <input type="checkbox" class="admin-roles__check"
+                 data-page-path="${esc(page.path)}"
+                 data-role="${role}"
+                 ${checked} />
+        </td>`;
+      }).join('');
+      const indent = page.parent ? '<span class="admin-roles__child-marker" aria-hidden="true">↳ </span>' : '';
+      return `<tr data-row-path="${esc(page.path)}" ${page.parent ? `data-parent="${esc(page.parent)}"` : ''}>
+        <td>
+          <div class="admin-roles__page-label">${indent}${esc(page.label)}</div>
+          <code class="admin-roles__page-path">${esc(page.path)}.html</code>
+        </td>
+        <td><span class="admin-roles__cat admin-roles__cat--${esc(page.category)}">${esc(page.category)}</span></td>
+        <td class="admin-roles__default ${isOverridden ? 'admin-roles__default--overridden' : ''}">
+          ${esc(page.defaultMinRole)}${isOverridden ? ' → ' + esc(page.currentMinRole) : ''}
+        </td>
+        ${cells}
+        <td>
+          <button class="admin-roles__reset-btn"
+                  data-reset-path="${esc(page.path)}"
+                  ${isOverridden ? '' : 'disabled'}>
+            Reset
+          </button>
+        </td>
+      </tr>`;
+    }
+
+    function renderTable() {
+      resetAdminHeaderMenu();
+      const app = document.getElementById('app');
+      const headerRole = currentUser?.role || 'Admin';
+      const roleHeads = ROLES.map((r) => `<th class="admin-roles__role-col admin-roles__role-head--${r.toLowerCase()}">${r}</th>`).join('');
+      const rows = permissions.map(rowHtml).join('');
+
+      app.innerHTML = `
+        ${renderAdminHeader({ user: fbUserInfo, role: headerRole })}
+        <div class="admin-roles">
+          <div class="admin-roles__header">
+            <h1 class="admin-roles__title">Roles &amp; Permissions</h1>
+          </div>
+          <p class="admin-roles__intro">
+            Each row is a page. Check the lowest role that should be able to access it &mdash;
+            higher roles inherit access automatically. Edits take effect immediately for
+            nav-link visibility and apply on the next page load for the page itself.
+            API endpoints keep their own role checks; these settings only control which
+            <em>pages</em> a user can open.
+          </p>
+          <div class="admin-roles__legend">
+            <span><strong>Hierarchy:</strong> Player &lt; Host &lt; QA &lt; Admin</span>
+            <span><strong>Default</strong> = built-in default; override appears in pink when changed.</span>
+          </div>
+          <div id="admin-roles-status" class="admin-roles__status"></div>
+          <table class="admin-roles__table">
+            <thead>
+              <tr>
+                <th>Page</th>
+                <th>Category</th>
+                <th>Min role</th>
+                ${roleHeads}
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+
+      bindAdminHeader(app, { user: fbUserInfo, role: headerRole, onSignOut: doSignOut });
+
+      app.querySelectorAll('.admin-roles__check').forEach((input) => {
+        input.addEventListener('click', (e) => onCheckboxClick(e, input));
+      });
+      app.querySelectorAll('.admin-roles__reset-btn').forEach((btn) => {
+        btn.addEventListener('click', () => onReset(btn.getAttribute('data-reset-path')));
+      });
+    }
+
+    async function patchPermission(pagePath, minRole) {
+      const row = document.querySelector(`tr[data-row-path="${CSS.escape(pagePath)}"]`);
+      if (row) row.classList.add('admin-roles__row--saving');
+      try {
+        const res = await authFetch('/api/carkedit/admin/page-permissions', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: pagePath, minRole }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || `HTTP ${res.status}`);
+        }
+        const idx = permissions.findIndex((p) => p.path === pagePath);
+        if (idx >= 0) permissions[idx] = { ...permissions[idx], currentMinRole: minRole };
+        invalidatePermissionsCache();
+        setStatus(`Saved: ${pagePath} now requires ${minRole} or higher.`);
+        renderTable();
+      } catch (err) {
+        setStatus(`Failed to save ${pagePath}: ${err.message}`, true);
+        renderTable();
+      }
+    }
+
+    function onCheckboxClick(_event, input) {
+      const pagePath = input.getAttribute('data-page-path');
+      const role = input.getAttribute('data-role');
+      // Hierarchy intent:
+      //   - After the click, `input.checked === true` → user wants this role to have
+      //     access → set min_role to this role (granting it and everyone higher).
+      //   - After the click, `input.checked === false` → user wants this role to NOT
+      //     have access → raise min_role to the next higher rank.
+      // Admin can never lose access (top of hierarchy), so unchecking Admin is a no-op
+      // that restores the visual state.
+      const idx = ROLES.indexOf(role);
+      let newMinRole;
+      if (input.checked) {
+        newMinRole = role;
+      } else if (idx < ROLES.length - 1) {
+        newMinRole = ROLES[idx + 1];
+      } else {
+        // Unchecking Admin — no higher rank, restore and bail
+        input.checked = true;
+        return;
+      }
+      // No-op guard: don't PATCH if the new value matches what's already saved.
+      const current = permissions.find((p) => p.path === pagePath)?.currentMinRole;
+      if (current === newMinRole) return;
+      patchPermission(pagePath, newMinRole);
+    }
+
+    function onReset(pagePath) {
+      const page = permissions.find((p) => p.path === pagePath);
+      if (!page) return;
+      patchPermission(pagePath, page.defaultMinRole);
+    }
+
+    async function fetchCurrentUser() {
+      try {
+        const res = await authFetch('/api/carkedit/users/me');
+        if (res.ok) currentUser = await res.json();
+      } catch (_err) { /* non-fatal */ }
+    }
+
+    async function fetchPermissions() {
+      const res = await fetch('/api/carkedit/page-permissions');
+      const data = res.ok ? await res.json() : { overrides: [] };
+      const byPath = new Map((data.overrides || []).map((o) => [o.path, o.min_role]));
+      permissions = PAGES.map((p) => ({
+        ...p,
+        currentMinRole: byPath.get(p.path) ?? p.defaultMinRole,
+      }));
+    }
+
+    async function boot() {
+      try {
+        await fetchCurrentUser();
+        if (!currentUser || currentUser.role !== 'Admin') {
+          // Try bootstrap (works only if no admins exist)
+          const bootstrapRes = await authFetch('/api/carkedit/admin/bootstrap', { method: 'POST' });
+          if (bootstrapRes.ok) {
+            await fetchCurrentUser();
+          }
+        }
+        if (!currentUser || currentUser.role !== 'Admin') {
+          renderGate('You do not have admin access.', false);
+          return;
+        }
+        await fetchPermissions();
+        renderTable();
+      } catch (err) {
+        renderGate('Failed to load roles.', false);
+      }
+    }
+
+    // Init
+    renderGate('Loading...', false);
+    try {
+      const authMod = await loadFirebaseAuth();
+      authMod.onAuthStateChanged(firebaseAuth, async (user) => {
+        if (user) {
+          authToken = await user.getIdToken();
+          fbUserInfo = { displayName: user.displayName, photoURL: user.photoURL, email: user.email };
+          await boot();
+        } else {
+          authToken = null;
+          fbUserInfo = null;
+          renderGate('Sign in to access role management.', true);
+        }
+      });
+    } catch (err) {
+      renderGate('Authentication service unavailable.', false);
+    }
+    </script>
+</body>
+</html>
