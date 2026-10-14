@@ -234,7 +234,36 @@
   resize: none;
 }
 
-.solo__eulogy-copy {
+.solo__eulogy-done {
+  width: 100%;
+}
+
+/* ── Life story ─────────────────────────────────────────── */
+
+.solo__lifestory-screen {
+  gap: var(--space-sm);
+}
+
+.solo__story {
+  width: 100%;
+  max-width: 60ch;
+  margin: 0 auto;
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--color-text-80);
+}
+
+.solo__story p {
+  margin: 0 0 var(--space-sm);
+}
+
+.solo__story--loading,
+.solo__story--error {
+  text-align: center;
+  padding: var(--space-md) 0;
+}
+
+.solo__story-copy {
   width: 100%;
   transition: color 0.15s ease;
 }

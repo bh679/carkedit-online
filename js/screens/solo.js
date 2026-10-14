@@ -4,7 +4,8 @@
 // Four cards; tap one to preview it full-screen and confirm the pick
 // (same overlay as the multiplayer hand). Three rounds per deck (the final is the
 // two favourites), three decks, then a summary of the three picks and a
-// space to write your own eulogy. Picking a `?` card shows an answer step.
+// space to write your own eulogy. Done turns the picks and eulogy into a
+// Claude-written life story. Picking a `?` card shows an answer step.
 'use strict';
 
 import { render as renderPhaseHeader } from '../components/phase-header.js';
@@ -23,6 +24,7 @@ export function render(state) {
   if (!solo) return renderLoading(state);
   if (solo.pendingAnswer) return renderAnswer(solo);
   if (solo.stage === 'eulogy') return renderEulogyScreen(solo);
+  if (solo.stage === 'lifestory') return renderLifeStory(solo);
   if (solo.stage === 'story' || solo.done) return renderStory(solo);
   return renderRound(solo);
 }
@@ -181,14 +183,63 @@ function renderEulogyScreen(solo) {
       </div>
       <p class="solo__hint">Here lies you. Say a few words.</p>
       <textarea id="solo-eulogy" class="solo__textarea solo__textarea--eulogy" maxlength="1000"
-                placeholder="They lived, they died, and then…" aria-label="Your eulogy"></textarea>
-      <button class="btn btn--primary solo__eulogy-copy" onclick="window.game.copySoloEulogy()">
-        Copy eulogy
+                placeholder="They lived, they died, and then…" aria-label="Your eulogy">${escapeHtml(solo.eulogy ?? '')}</textarea>
+      <button class="btn btn--primary solo__eulogy-done" onclick="window.game.soloDone()">
+        Done
       </button>
       <div class="phase__actions solo__actions">
         <button class="btn btn--secondary" onclick="window.game.soloStart()">Play Again</button>
         <button class="btn btn--secondary" onclick="window.game.soloMenu()">Menu</button>
       </div>
+    </div>
+  `;
+}
+
+/** The life story Claude writes from the picks and eulogy: loading, the story, or an error. */
+function renderLifeStory(solo) {
+  const story = solo.lifeStory ?? { status: 'loading' };
+  return `
+    <div class="screen screen--phase screen--solo solo__lifestory-screen" data-phase="solo">
+      ${renderPhaseHeader({ phase: 'solo', label: 'Single Player - Your Life Story' })}
+      <div class="solo__eulogy-cards">
+        ${renderPicks(solo, { compact: true })}
+      </div>
+      ${renderStoryBody(story)}
+      <div class="phase__actions solo__actions">
+        <button class="btn btn--secondary" onclick="window.game.soloStart()">Play Again</button>
+        <button class="btn btn--secondary" onclick="window.game.soloMenu()">Menu</button>
+      </div>
+      <button class="btn btn--ghost solo__share-btn" onclick="window.game.copySoloLink()">
+        Share Single Player
+      </button>
+    </div>
+  `;
+}
+
+function renderStoryBody(story) {
+  if (story.status === 'ready') {
+    const paragraphs = story.text.split(/\n\s*\n/)
+      .map((p) => p.trim()).filter(Boolean)
+      .map((p) => `<p>${escapeHtml(p)}</p>`).join('');
+    return `
+      <article class="solo__story" aria-live="polite">${paragraphs}</article>
+      <button class="btn btn--primary solo__story-copy" onclick="window.game.copySoloStory()">Copy story</button>
+    `;
+  }
+  if (story.status === 'error') {
+    return `
+      <div class="solo__story solo__story--error" role="alert">
+        <p>${escapeHtml(story.error || "Couldn't write your story right now.")}</p>
+      </div>
+      <div class="phase__actions solo__actions">
+        <button class="btn btn--primary" onclick="window.game.soloRetryStory()">Try again</button>
+        <button class="btn btn--secondary" onclick="window.game.soloBackToEulogy()">Edit eulogy</button>
+      </div>
+    `;
+  }
+  return `
+    <div class="solo__story solo__story--loading" aria-live="polite">
+      <p class="solo__loading-text">Writing your life story…</p>
     </div>
   `;
 }
