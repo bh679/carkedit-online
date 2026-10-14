@@ -15,7 +15,7 @@ import { render as renderPhase1 } from './screens/phase1.js';
 import { render as renderPhase23, formatTime } from './screens/phase2-3.js';
 import { render as renderPhase4 } from './screens/phase4.js';
 import { render as renderSolo } from './screens/solo.js';
-import { createSolo, pickCard as soloPickCard, inspectCard as soloInspectCard, dismissInspect as soloDismissInspectCard, stepInspect as soloStepInspectCard, continueStory as soloContinueStory, openEulogy as soloOpenEulogyStage, answerCard as soloAnswerCard, buildEulogyText, buildSoloUrl, stripSoloParam, SOLO_QUERY_PARAM } from './managers/solo-manager.js';
+import { createSolo, pickCard as soloPickCard, inspectCard as soloInspectCard, dismissInspect as soloDismissInspectCard, stepInspect as soloStepInspectCard, continueStory as soloContinueStory, openEulogy as soloOpenEulogyStage, answerCard as soloAnswerCard, buildStoryRequest, startStory as soloStartStory, finishStory as soloFinishStory, failStory as soloFailStory, buildStoryText, buildSoloUrl, stripSoloParam, SOLO_QUERY_PARAM } from './managers/solo-manager.js';
 import { render as renderAccount, renderGamesList, renderMyPacks } from './screens/account.js';
 import { render as renderScheduleGame } from './screens/schedule-game.js';
 import { render as renderScheduledCreated } from './screens/scheduled-created.js';
@@ -791,13 +791,66 @@ function copySoloLink() {
   copyToClipboard(buildSoloUrl(window.location.origin), btn, 'Link copied', 'Share this link:');
 }
 
-/** Copy the summary plus the player's own eulogy as plain text. */
-function copySoloEulogy() {
+// ── Life story ──
+// Done on the eulogy screen sends the picks and eulogy to the API, which asks
+// Claude for a short story. Each attempt gets an id so a late reply from an
+// earlier attempt (or after leaving the screen) is dropped.
+let soloStoryRequestId = 0;
+
+const STORY_ERRORS = {
+  429: "That's a lot of lives. Give it a few minutes and try again.",
+  503: 'Life stories are switched off right now.',
+};
+const STORY_ERROR_FALLBACK = "Couldn't write your story right now.";
+
+/** From the eulogy screen: keep what was written and request the story. */
+function soloDone() {
+  const state = getState();
+  if (!state.solo?.done || state.screen !== 'solo') return;
+  const words = document.getElementById('solo-eulogy')?.value ?? '';
+  requestSoloStory(state.solo, words);
+}
+
+/** Ask again after a failure, with the same eulogy. */
+function soloRetryStory() {
+  const state = getState();
+  if (state.solo?.stage !== 'lifestory' || state.screen !== 'solo') return;
+  requestSoloStory(state.solo, state.solo.eulogy);
+}
+
+/** Back from a failed story to the eulogy, text kept. */
+function soloBackToEulogy() {
+  updateSolo((solo) => (solo.stage === 'lifestory' ? Object.freeze({ ...solo, stage: 'eulogy' }) : solo));
+}
+
+async function requestSoloStory(solo, eulogy) {
+  const requestId = ++soloStoryRequestId;
+  showScreen('solo', { solo: soloStartStory(solo, eulogy, requestId) });
+  try {
+    const res = await fetch(`${window.location.origin}/api/carkedit/solo/story`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(buildStoryRequest(solo, eulogy)),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || typeof data.story !== 'string') {
+      console.warn('[solo] story request failed', res.status, data?.error);
+      updateSolo((s) => soloFailStory(s, requestId, STORY_ERRORS[res.status] ?? STORY_ERROR_FALLBACK));
+      return;
+    }
+    updateSolo((s) => soloFinishStory(s, requestId, data.story));
+  } catch (err) {
+    console.warn('[solo] story request errored', err);
+    updateSolo((s) => soloFailStory(s, requestId, STORY_ERROR_FALLBACK));
+  }
+}
+
+/** Copy the picks, eulogy and story as plain text. */
+function copySoloStory() {
   const state = getState();
   if (!state.solo) return;
-  const btn = document.querySelector('.solo__eulogy-copy');
-  const words = document.getElementById('solo-eulogy')?.value ?? '';
-  copyToClipboard(buildEulogyText(state.solo, words), btn, 'Eulogy copied', 'Copy this by hand:');
+  const btn = document.querySelector('.solo__story-copy');
+  copyToClipboard(buildStoryText(state.solo), btn, 'Story copied', 'Copy this by hand:');
 }
 
 /**
@@ -835,7 +888,10 @@ window.game = {
   soloAnswer,
   soloSkipAnswer,
   copySoloLink,
-  copySoloEulogy,
+  soloDone,
+  soloRetryStory,
+  soloBackToEulogy,
+  copySoloStory,
   cancelRecover,
   addPlayer,
   selectPlayerRemoval,

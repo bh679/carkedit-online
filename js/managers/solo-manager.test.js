@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createSolo, pickCard, continueStory, openEulogy, inspectCard, dismissInspect, stepInspect, answerCard, answerFor, buildEulogyText, dealPair, playableCards, currentDeck, SOLO_DECKS, SUMMARY_ORDER, CHOICE_SIZE, buildSoloUrl, stripSoloParam } from './solo-manager.js';
+import { createSolo, pickCard, continueStory, openEulogy, inspectCard, dismissInspect, stepInspect, answerCard, answerFor, buildEulogyText, dealPair, playableCards, currentDeck, SOLO_DECKS, SUMMARY_ORDER, CHOICE_SIZE, buildSoloUrl, stripSoloParam, buildStoryRequest, startStory, finishStory, failStory, buildStoryText } from './solo-manager.js';
 
 function deck(type, n, extra = () => ({})) {
   return Array.from({ length: n }, (_, i) => ({ id: i + 1, deckType: type, compositeId: `${type}:${i + 1}`, ...extra(i) }));
@@ -203,4 +203,46 @@ test('inspect is ignored while a ? answer is pending or the game is done', () =>
   const pending = pickCard(createSolo(mysteryDecks), 0, mysteryDecks);
   assert.equal(inspectCard(pending, 0), pending);
   assert.equal(pickCard(pending, 0, mysteryDecks).inspectIndex, null);
+});
+
+const finished = Object.freeze({
+  done: true,
+  stage: 'eulogy',
+  picks: {
+    die: { compositeId: 'die:1', title: 'Coconut', description: 'From above' },
+    live: { compositeId: 'live:1', title: 'Pirate' },
+    bye: { compositeId: 'bye:1', title: 'Heaven' },
+  },
+  answers: { 'die:1': 'In Bali' },
+});
+
+test('buildStoryRequest sends each pick with description and answer', () => {
+  assert.deepEqual(buildStoryRequest(finished, '  Legend. '), {
+    picks: {
+      live: { title: 'Pirate', description: '', answer: '' },
+      die: { title: 'Coconut', description: 'From above', answer: 'In Bali' },
+      bye: { title: 'Heaven', description: '', answer: '' },
+    },
+    eulogy: 'Legend.',
+  });
+});
+
+test('startStory → finishStory shows the story; copy text includes it', () => {
+  const loading = startStory(finished, 'Legend.', 1);
+  assert.equal(loading.stage, 'lifestory');
+  assert.equal(loading.lifeStory.status, 'loading');
+  assert.equal(finished.stage, 'eulogy');
+  const ready = finishStory(loading, 1, ' You sailed. ');
+  assert.deepEqual({ ...ready.lifeStory }, { status: 'ready', requestId: 1, text: 'You sailed.', error: '' });
+  assert.equal(buildStoryText(ready), 'Your life: Pirate\nYour death: Coconut — In Bali\nYour afterlife: Heaven\n\nLegend.\n\nYou sailed.');
+});
+
+test('failStory records the error; stale or off-screen responses are ignored', () => {
+  const loading = startStory(finished, '', 2);
+  assert.equal(failStory(loading, 2, 'Nope').lifeStory.error, 'Nope');
+  assert.equal(finishStory(loading, 1, 'old'), loading);
+  const left = { ...loading, stage: 'eulogy' };
+  assert.equal(finishStory(left, 2, 'late'), left);
+  assert.equal(startStory({ ...finished, done: false }, '', 3).stage, 'eulogy');
+  assert.equal(buildStoryText(loading).endsWith('Heaven'), true);
 });

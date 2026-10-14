@@ -267,3 +267,60 @@ export function openEulogy(solo) {
   if (!solo.done || solo.stage === 'eulogy') return solo;
   return Object.freeze({ ...solo, stage: 'eulogy' });
 }
+
+// ── Life story ──────────────────────────────────────────────
+// "Done" on the eulogy screen asks the API (Claude) to write a story from the
+// picks and eulogy. `lifeStory` tracks that request; `requestId` lets a late
+// response from an earlier attempt be ignored.
+
+/**
+ * Request body for POST /api/carkedit/solo/story. Pure.
+ * @param {object} solo
+ * @param {string} eulogy
+ */
+export function buildStoryRequest(solo, eulogy) {
+  const pick = (deck) => {
+    const card = solo.picks?.[deck];
+    return {
+      title: String(card?.title ?? ''),
+      description: String(card?.description ?? ''),
+      answer: answerFor(solo, card),
+    };
+  };
+  return {
+    picks: Object.fromEntries(SUMMARY_ORDER.map((deck) => [deck, pick(deck)])),
+    eulogy: String(eulogy ?? '').trim(),
+  };
+}
+
+/** Move to the life-story screen with a request in flight. Pure. */
+export function startStory(solo, eulogy, requestId) {
+  if (!solo.done) return solo;
+  return Object.freeze({
+    ...solo,
+    stage: 'lifestory',
+    eulogy: String(eulogy ?? ''),
+    lifeStory: Object.freeze({ status: 'loading', requestId, text: '', error: '' }),
+  });
+}
+
+function settleStory(solo, requestId, patch) {
+  if (solo.stage !== 'lifestory' || solo.lifeStory?.requestId !== requestId) return solo;
+  return Object.freeze({ ...solo, lifeStory: Object.freeze({ ...solo.lifeStory, ...patch }) });
+}
+
+/** Store the written story, if it answers the current request. Pure. */
+export function finishStory(solo, requestId, text) {
+  return settleStory(solo, requestId, { status: 'ready', text: String(text ?? '').trim(), error: '' });
+}
+
+/** Record a failed request, if it is the current one. Pure. */
+export function failStory(solo, requestId, message) {
+  return settleStory(solo, requestId, { status: 'error', text: '', error: String(message ?? '') });
+}
+
+/** Picks, eulogy and the written story as plain text for the clipboard. Pure. */
+export function buildStoryText(solo) {
+  const story = solo.lifeStory?.status === 'ready' ? solo.lifeStory.text : '';
+  return [buildEulogyText(solo, solo.eulogy), story].filter(Boolean).join('\n\n');
+}
