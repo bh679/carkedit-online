@@ -318,9 +318,3 @@ export function finishStory(solo, requestId, text) {
 export function failStory(solo, requestId, message) {
   return settleStory(solo, requestId, { status: 'error', text: '', error: String(message ?? '') });
 }
-
-/** Picks, eulogy and the written story as plain text for the clipboard. Pure. */
-export function buildStoryText(solo) {
-  const story = solo.lifeStory?.status === 'ready' ? solo.lifeStory.text : '';
-  return [buildEulogyText(solo, solo.eulogy), story].filter(Boolean).join('\n\n');
-}

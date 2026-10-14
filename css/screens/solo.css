@@ -263,9 +263,45 @@
   padding: var(--space-md) 0;
 }
 
-.solo__story-copy {
+.solo__story-share {
   width: 100%;
-  transition: color 0.15s ease;
+}
+
+/* ── Share your story (reuses .share-panel__* from the invite panel) ── */
+
+.story-share__panel {
+  max-height: calc(100dvh - 2 * var(--space-md));
+  overflow-y: auto;
+}
+
+.story-share__preview {
+  display: block;
+  width: 100%;
+  max-width: 320px;
+  aspect-ratio: 4 / 5;
+  margin: 0 auto;
+  border-radius: 12px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+}
+
+.story-share__socials-label {
+  margin: var(--space-sm) 0 var(--space-xs);
+  font-size: 13px;
+  text-align: center;
+  color: var(--color-text-80);
+}
+
+.story-share__socials {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-xs);
+}
+
+.story-share__social {
+  padding-inline: 0;
+  font-size: 13px;
+  text-decoration: none;
+  text-align: center;
 }
 
 /* ── Share link ─────────────────────────────────────────── */
