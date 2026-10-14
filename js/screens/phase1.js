@@ -6,6 +6,7 @@ import { render as renderGameboard, renderActiveCard } from '../components/gameb
 import { render as renderCard } from '../components/card.js';
 import { render as renderCardBack } from '../components/cardBack.js';
 import { render as renderHand } from '../components/hand.js';
+import { render as renderPhaseIntro } from '../components/phase-intro.js';
 import { escapeHtml } from '../utils/escape.js';
 
 /**
@@ -14,6 +15,23 @@ import { escapeHtml } from '../utils/escape.js';
  */
 export function render(state) {
   const isOnline = state.gameMode === 'online';
+
+  // Phase intro screen — shown before any cards are drawn.
+  // Local: gated by phaseIntroShowing. Online: server pushes onlinePhase='die_intro'.
+  if ((state.phaseIntroShowing && !isOnline) || state.onlinePhase === 'die_intro') {
+    const players = isOnline ? state.onlinePlayers : [];
+    const myPlayer = isOnline ? players.find(p => p.sessionId === state.mySessionId) : null;
+    return renderPhaseIntro({
+      phaseNumber: '1',
+      state,
+      isOnline,
+      players,
+      amReady: myPlayer?.ready ?? false,
+      isFuneralDirector: isOnline ? state.isHost : true,
+      allReady: isOnline && players.length > 0 && players.every(p => p.ready),
+    });
+  }
+
   const isMyTurn = isOnline ? state.isMyTurn : true;
   const currentPlayer = state.players[state.currentPlayerIndex];
 
