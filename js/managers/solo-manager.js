@@ -5,6 +5,7 @@
 // round pits the two favourites against each other. The winner of that
 // round is the pick for the deck. Tapping a card opens a full-screen preview
 // (`inspectIndex`) and the pick is confirmed from there.
+// A dealt hand holds at most one split and one `?` card (MAX_PER_HAND).
 // Picking a `?` (mystery) card pauses the
 // game on an answer step so the player can say what the card asks.
 //
@@ -66,24 +67,40 @@ function isWildcard(card) {
 }
 
 /**
- * Deal the next CHOICE_SIZE unused cards from a deck. Pure.
+ * Most of each special kind allowed in one dealt hand, so a hand never
+ * stacks several "Would You Rather" (split) or `?` (mystery) cards.
+ */
+export const MAX_PER_HAND = Object.freeze({ split: 1, mystery: 1 });
+
+/**
+ * Deal the next CHOICE_SIZE unused cards from a deck, capping specials per
+ * MAX_PER_HAND. Capped cards are left unused so a later hand can take them;
+ * if the deck can't fill a hand without them they top it up. Pure.
  * @param {object[]} deck — ordered (already shuffled) cards
  * @param {string[]} usedIds — compositeIds already shown this game
  * @returns {{ pair: object[], usedIds: string[] }}
  */
 export function dealPair(deck, usedIds = []) {
   const used = new Set(usedIds);
+  const unused = playableCards(deck).filter((card) => !used.has(cardId(card)));
+  const counts = {};
   const pair = [];
-  for (const card of playableCards(deck)) {
+  const skipped = [];
+  for (const card of unused) {
     if (pair.length === CHOICE_SIZE) break;
-    const id = cardId(card);
-    if (used.has(id)) continue;
+    const cap = MAX_PER_HAND[card.special];
+    if (cap !== undefined && (counts[card.special] ?? 0) >= cap) {
+      skipped.push(card);
+      continue;
+    }
+    counts[card.special] = (counts[card.special] ?? 0) + 1;
     pair.push(card);
   }
-  if (pair.length < CHOICE_SIZE) {
-    throw new Error(`Not enough cards to deal ${CHOICE_SIZE} (have ${pair.length})`);
+  const filled = [...pair, ...skipped.slice(0, CHOICE_SIZE - pair.length)];
+  if (filled.length < CHOICE_SIZE) {
+    throw new Error(`Not enough cards to deal ${CHOICE_SIZE} (have ${filled.length})`);
   }
-  return { pair, usedIds: [...usedIds, ...pair.map(cardId)] };
+  return { pair: filled, usedIds: [...usedIds, ...filled.map(cardId)] };
 }
 
 export function cardId(card) {
