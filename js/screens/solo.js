@@ -50,14 +50,19 @@ function renderRound(solo) {
   const isLikely = solo.round === ROUNDS_PER_DECK;
   const roundLabel = `${isLikely ? 'More likely' : 'Would you rather'} (${solo.round} of ${ROUNDS_PER_DECK})`;
   const prompt = isLikely ? meta.likelyPrompt : meta.ratherPrompt;
+  // In the "more likely" hand, the card carried over from "would rather".
+  const ratherId = isLikely && solo.rathers?.[deck] ? cardId(solo.rathers[deck]) : null;
   const intro = Boolean(solo.intro);
   // During the intro the cards wait unflipped; leaving out data-solo-reveal
   // keeps the router from flipping them until the intro re-renders without it.
   const reveal = intro ? '' : ' data-solo-reveal';
   // A <div role=button> rather than <button>: Chromium flattens 3D transforms
   // inside <button>, which breaks the card flip.
-  const cards = solo.pair.map((card, i) => `
-    <div class="solo__choice" role="button" tabindex="0" aria-label="Pick card ${i + 1}"
+  const cards = solo.pair.map((card, i) => {
+    const isRather = ratherId !== null && cardId(card) === ratherId;
+    return `
+    <div class="solo__choice${isRather ? ' solo__choice--rather' : ''}" role="button" tabindex="0"
+         aria-label="Pick card ${i + 1}${isRather ? " (your 'rather' pick)" : ''}"
          onclick="window.game.soloInspect(${i})"
          onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); window.game.soloInspect(${i}); }">
       <div class="card-flip"${reveal} data-flip-key="solo:${deck}:${solo.round}:${escapeHtml(cardId(card))}" style="--solo-delay: ${i * 120}ms">
@@ -65,9 +70,11 @@ function renderRound(solo) {
           <div class="card-flip__back">${renderCardBack({ deckType: deck })}</div>
           <div class="card-flip__front">${renderCard(card)}</div>
         </div>
+        ${isRather ? `<div class="solo__rather-clip" aria-hidden="true"><span class="solo__rather-ribbon">How I'd rather</span></div>` : ''}
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 
   return `
     <div class="screen screen--phase screen--solo${intro ? ' screen--solo-intro' : ''}" data-phase="${meta.phase}">

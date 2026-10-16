@@ -36,6 +36,32 @@ test('life story: eulogy still shows while loading and on error', () => {
   assert.ok(render(lifeStoryState({ status: 'error', error: 'nope' }, 'Bye.')).includes('solo__eulogy-panel'));
 });
 
+function ribbonState(round) {
+  const card = (n) => ({ id: n, deckType: 'die', compositeId: `die:${n}`, title: `Card ${n}` });
+  return {
+    solo: {
+      deckIndex: 0, round, stage: 'round', picks: {}, answers: {}, inspectIndex: null,
+      rathers: round === 2 ? { die: card(3) } : {},
+      pair: [card(5), card(3), card(6), card(7)],
+    },
+  };
+}
+
+test('more likely round: only the carried-over rather card gets the ribbon', () => {
+  const html = render(ribbonState(2));
+  assert.equal(html.match(/solo__rather-ribbon/g)?.length, 1);
+  assert.equal(html.match(/solo__choice--rather/g)?.length, 1);
+  const choices = html.split('class="solo__choice').slice(1);
+  assert.ok(choices[1].startsWith(' solo__choice--rather'), 'second card (die:3) is marked');
+  assert.match(html, /How I'd rather/);
+});
+
+test('would rather round: no ribbon', () => {
+  const html = render(ribbonState(1));
+  assert.ok(!html.includes('solo__rather-ribbon'));
+  assert.ok(!html.includes('solo__choice--rather'));
+});
+
 function roundState(intro) {
   const card = (i) => ({ id: i, deckType: 'die', compositeId: `die:${i}`, title: `Card ${i}` });
   return { solo: { stage: 'round', deckIndex: 0, round: 1, pair: [1, 2, 3, 4].map(card), picks: {}, rathers: {}, answers: {}, inspectIndex: null, intro } };
