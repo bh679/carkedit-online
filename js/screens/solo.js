@@ -204,7 +204,7 @@ function renderLifeStory(solo) {
       <div class="solo__eulogy-cards">
         ${renderPicks(solo, { compact: true })}
       </div>
-      ${renderStoryBody(story)}
+      ${renderStoryBody(story, solo.eulogy)}
       <div class="phase__actions solo__actions">
         <button class="btn btn--secondary" onclick="window.game.soloStart()">Play Again</button>
         <button class="btn btn--secondary" onclick="window.game.soloMenu()">Menu</button>
@@ -216,13 +216,15 @@ function renderLifeStory(solo) {
   `;
 }
 
-function renderStoryBody(story) {
+function renderStoryBody(story, eulogy) {
+  const eulogyBox = renderEulogyBox(eulogy);
   if (story.status === 'ready') {
-    const paragraphs = story.text.split(/\n\s*\n/)
-      .map((p) => p.trim()).filter(Boolean)
-      .map((p) => `<p>${escapeHtml(p)}</p>`).join('');
     return `
-      <article class="solo__story" aria-live="polite">${paragraphs}</article>
+      <section class="solo__story-section">
+        <h3 class="solo__section-title">Your life story</h3>
+        <article class="solo__story" aria-live="polite">${toParagraphs(story.text)}</article>
+      </section>
+      ${eulogyBox}
       <button class="btn btn--primary solo__story-share" onclick="window.game.soloShareStory()">Share</button>
     `;
   }
@@ -231,6 +233,7 @@ function renderStoryBody(story) {
       <div class="solo__story solo__story--error" role="alert">
         <p>${escapeHtml(story.error || "Couldn't write your story right now.")}</p>
       </div>
+      ${eulogyBox}
       <div class="phase__actions solo__actions">
         <button class="btn btn--primary" onclick="window.game.soloRetryStory()">Try again</button>
         <button class="btn btn--secondary" onclick="window.game.soloBackToEulogy()">Edit eulogy</button>
@@ -241,5 +244,25 @@ function renderStoryBody(story) {
     <div class="solo__story solo__story--loading" aria-live="polite">
       <p class="solo__loading-text">Writing your life story…</p>
     </div>
+    ${eulogyBox}
   `;
+}
+
+/** The player's own eulogy as a card under the story. Empty eulogy → nothing. */
+function renderEulogyBox(eulogy) {
+  const paragraphs = toParagraphs(eulogy ?? '');
+  if (!paragraphs) return '';
+  return `
+    <section class="solo__eulogy-panel">
+      <h3 class="solo__section-title">Your eulogy</h3>
+      <div class="solo__story solo__eulogy-text">${paragraphs}</div>
+    </section>
+  `;
+}
+
+/** Split text on blank lines into escaped <p> elements. */
+function toParagraphs(text) {
+  return String(text).split(/\n\s*\n/)
+    .map((p) => p.trim()).filter(Boolean)
+    .map((p) => `<p>${escapeHtml(p)}</p>`).join('');
 }
