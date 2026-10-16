@@ -257,18 +257,25 @@
   margin: 0 0 var(--space-sm);
 }
 
-/* Story and eulogy each sit in their own box, story first. */
-.solo__box {
+/* The AI story sits plain on the page; the player's eulogy is a card below it. */
+.solo__story-section,
+.solo__eulogy-panel {
   width: 100%;
   max-width: 60ch;
   margin: 0 auto;
-  padding: var(--space-sm) var(--space-md);
-  border: 2px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface, transparent);
 }
 
-.solo__box-title {
+.solo__eulogy-panel {
+  padding: var(--space-md);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(160deg, rgba(75, 53, 181, 0.25), transparent 60%),
+    var(--color-surface);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+}
+
+.solo__section-title {
   margin: 0 0 var(--space-xs);
   font-size: 12px;
   font-weight: 700;
@@ -277,11 +284,12 @@
   color: var(--color-text-80);
 }
 
-.solo__box .solo__story {
+.solo__story-section .solo__story,
+.solo__eulogy-panel .solo__story {
   max-width: none;
 }
 
-.solo__box .solo__story p:last-child {
+.solo__eulogy-panel .solo__story p:last-child {
   margin-bottom: 0;
 }
 

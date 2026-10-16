@@ -220,8 +220,8 @@ function renderStoryBody(story, eulogy) {
   const eulogyBox = renderEulogyBox(eulogy);
   if (story.status === 'ready') {
     return `
-      <section class="solo__box solo__box--story">
-        <h3 class="solo__box-title">Your life story</h3>
+      <section class="solo__story-section">
+        <h3 class="solo__section-title">Your life story</h3>
         <article class="solo__story" aria-live="polite">${toParagraphs(story.text)}</article>
       </section>
       ${eulogyBox}
@@ -248,13 +248,13 @@ function renderStoryBody(story, eulogy) {
   `;
 }
 
-/** The player's own eulogy in its own box, under the story. Empty eulogy → nothing. */
+/** The player's own eulogy as a card under the story. Empty eulogy → nothing. */
 function renderEulogyBox(eulogy) {
   const paragraphs = toParagraphs(eulogy ?? '');
   if (!paragraphs) return '';
   return `
-    <section class="solo__box solo__box--eulogy">
-      <h3 class="solo__box-title">Your eulogy</h3>
+    <section class="solo__eulogy-panel">
+      <h3 class="solo__section-title">Your eulogy</h3>
       <div class="solo__story solo__eulogy-text">${paragraphs}</div>
     </section>
   `;
