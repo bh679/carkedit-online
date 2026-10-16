@@ -1,9 +1,10 @@
 // CarkedIt Online — Single Player Manager
 //
 // One person, no server, no points. For each deck (DIE → LIVE → BYE) the
-// player sees four cards and picks a favourite, twice; the third and final
-// round pits the two favourites against each other. The winner of that
-// round is the pick for the deck. Tapping a card opens a full-screen preview
+// player answers two questions from four cards each: first what they would
+// rather (stored in `rathers`), then what is more likely — the second hand
+// holds the "rather" card plus three fresh ones, and that pick is final for
+// the deck (stored in `picks`). Tapping a card opens a full-screen preview
 // (`inspectIndex`) and the pick is confirmed from there.
 // A dealt hand holds at most one split and one `?` card (MAX_PER_HAND).
 // Picking a `?` (mystery) card pauses the
@@ -34,16 +35,25 @@ export function stripSoloParam(href) {
 }
 
 export const SOLO_DECKS = Object.freeze(['die', 'live', 'bye']);
-export const ROUNDS_PER_DECK = 3;
+export const ROUNDS_PER_DECK = 2;
 export const CHOICE_SIZE = 4;
 /** Order the picks are shown on the summary: life first, then death. */
 export const SUMMARY_ORDER = Object.freeze(['live', 'die', 'bye']);
 
 /** Short labels for the screen. */
 export const DECK_LABELS = Object.freeze({
-  die: { phase: '1', label: 'Phase 1 - DIE', prompt: 'Which death would you rather?', pickLabel: 'Your death' },
-  live: { phase: '2', label: 'Phase 2 - LIVE', prompt: 'How do you want to live before you cark it?', pickLabel: 'Your life' },
-  bye: { phase: '3', label: 'Phase 3 - BYE', prompt: 'What happens after you die?', pickLabel: 'Your afterlife' },
+  die: {
+    phase: '1', label: 'Phase 1 - DIE', pickLabel: 'Your death',
+    ratherPrompt: 'How would you rather die?', likelyPrompt: 'How are you more likely to die?',
+  },
+  live: {
+    phase: '2', label: 'Phase 2 - LIVE', pickLabel: 'Your life',
+    ratherPrompt: 'How would you rather live before you cark it?', likelyPrompt: 'How are you more likely to live?',
+  },
+  bye: {
+    phase: '3', label: 'Phase 3 - BYE', pickLabel: 'Your afterlife',
+    ratherPrompt: 'What would you rather happen after you die?', likelyPrompt: "What's more likely to happen after you die?",
+  },
 });
 
 /**
@@ -73,21 +83,23 @@ function isWildcard(card) {
 export const MAX_PER_HAND = Object.freeze({ split: 1, mystery: 1 });
 
 /**
- * Deal the next CHOICE_SIZE unused cards from a deck, capping specials per
+ * Deal the next `size` unused cards from a deck, capping specials per
  * MAX_PER_HAND. Capped cards are left unused so a later hand can take them;
- * if the deck can't fill a hand without them they top it up. Pure.
+ * if the deck can't fill a hand without them they top it up. `holding` are
+ * cards already in the hand (not dealt here) that count toward the caps. Pure.
  * @param {object[]} deck — ordered (already shuffled) cards
  * @param {string[]} usedIds — compositeIds already shown this game
+ * @param {{ size?: number, holding?: object[] }} [options]
  * @returns {{ pair: object[], usedIds: string[] }}
  */
-export function dealPair(deck, usedIds = []) {
+export function dealPair(deck, usedIds = [], { size = CHOICE_SIZE, holding = [] } = {}) {
   const used = new Set(usedIds);
   const unused = playableCards(deck).filter((card) => !used.has(cardId(card)));
-  const counts = {};
+  const counts = countSpecials(holding);
   const pair = [];
   const skipped = [];
   for (const card of unused) {
-    if (pair.length === CHOICE_SIZE) break;
+    if (pair.length === size) break;
     const cap = MAX_PER_HAND[card.special];
     if (cap !== undefined && (counts[card.special] ?? 0) >= cap) {
       skipped.push(card);
@@ -96,11 +108,31 @@ export function dealPair(deck, usedIds = []) {
     counts[card.special] = (counts[card.special] ?? 0) + 1;
     pair.push(card);
   }
-  const filled = [...pair, ...skipped.slice(0, CHOICE_SIZE - pair.length)];
-  if (filled.length < CHOICE_SIZE) {
-    throw new Error(`Not enough cards to deal ${CHOICE_SIZE} (have ${filled.length})`);
+  const filled = [...pair, ...skipped.slice(0, size - pair.length)];
+  if (filled.length < size) {
+    throw new Error(`Not enough cards to deal ${size} (have ${filled.length})`);
   }
   return { pair: filled, usedIds: [...usedIds, ...filled.map(cardId)] };
+}
+
+function countSpecials(cards) {
+  return cards.reduce((acc, card) => (
+    card?.special ? { ...acc, [card.special]: (acc[card.special] ?? 0) + 1 } : acc
+  ), {});
+}
+
+/**
+ * The "more likely" hand: the player's "rather" card plus CHOICE_SIZE - 1
+ * fresh cards, with the rather card at a random slot. Pure given `rng`.
+ * @param {object[]} deck
+ * @param {string[]} usedIds
+ * @param {object} rather — the card picked for "would rather"
+ * @param {() => number} rng — returns [0, 1)
+ */
+export function dealLikely(deck, usedIds, rather, rng = Math.random) {
+  const { pair, usedIds: nextUsed } = dealPair(deck, usedIds, { size: CHOICE_SIZE - 1, holding: [rather] });
+  const slot = Math.min(CHOICE_SIZE - 1, Math.floor(rng() * CHOICE_SIZE));
+  return { pair: [...pair.slice(0, slot), rather, ...pair.slice(slot)], usedIds: nextUsed };
 }
 
 export function cardId(card) {
@@ -118,7 +150,7 @@ export function createSolo(decks) {
     deckIndex: 0,
     round: 1,
     pair,
-    favourites: [],
+    rathers: {},
     picks: {},
     answers: {},
     pendingAnswer: null,
@@ -182,6 +214,14 @@ export function answerCard(solo, text) {
   return Object.freeze({ ...solo, answers, pendingAnswer: null });
 }
 
+/** The "would rather" card for a deck when it differs from the final pick, else null. */
+export function ratherFor(solo, deck) {
+  const rather = solo.rathers?.[deck];
+  const pick = solo.picks?.[deck];
+  if (!rather || (pick && cardId(rather) === cardId(pick))) return null;
+  return rather;
+}
+
 /** The stored answer for a card, or '' when none. */
 export function answerFor(solo, card) {
   if (!card) return '';
@@ -200,7 +240,9 @@ export function buildEulogyText(solo, eulogy) {
     if (!card) return null;
     const answer = answerFor(solo, card);
     const title = String(card.title ?? '');
-    return `${DECK_LABELS[deck].pickLabel}: ${answer ? `${title} — ${answer}` : title}`;
+    const rather = ratherFor(solo, deck);
+    const ratherNote = rather ? ` (would rather: ${String(rather.title ?? '')})` : '';
+    return `${DECK_LABELS[deck].pickLabel}: ${answer ? `${title} — ${answer}` : title}${ratherNote}`;
   };
   const lines = SUMMARY_ORDER.map(line).filter(Boolean);
   const words = String(eulogy ?? '').trim();
@@ -217,38 +259,36 @@ export function currentDeck(solo) {
  * @param {object} solo
  * @param {number} index — which card of `pair` was picked
  * @param {{ die: object[], live: object[], bye: object[] }} decks
+ * @param {() => number} [rng] — places the "rather" card in the next hand
  */
-export function pickCard(solo, index, decks) {
+export function pickCard(solo, index, decks, rng = Math.random) {
   if (solo.done || solo.pendingAnswer || !isRound(solo)) return solo;
   const chosen = solo.pair[index];
   if (!chosen) throw new Error(`Invalid pick index ${index}`);
   const answers = solo.answers ?? {};
-  return withPendingAnswer(advance(solo, chosen, decks), chosen, answers);
+  return withPendingAnswer(advance(solo, chosen, decks, rng), chosen, answers);
 }
 
 /** The round/deck transition for a pick, before any answer step. */
-function advance(solo, chosen, decks) {
+function advance(solo, chosen, decks, rng) {
   const deck = currentDeck(solo);
 
-  if (solo.round < ROUNDS_PER_DECK - 1) {
-    const { pair, usedIds } = dealPair(decks[deck], solo.usedIds);
-    return { ...solo, round: solo.round + 1, pair, usedIds, favourites: [...solo.favourites, chosen] };
+  // "Would rather" — remember it and deal the "more likely" hand around it.
+  if (solo.round < ROUNDS_PER_DECK) {
+    const rathers = { ...solo.rathers, [deck]: chosen };
+    const { pair, usedIds } = dealLikely(decks[deck], solo.usedIds, chosen, rng);
+    return { ...solo, round: solo.round + 1, pair, usedIds, rathers };
   }
 
-  if (solo.round === ROUNDS_PER_DECK - 1) {
-    const favourites = [...solo.favourites, chosen];
-    return { ...solo, round: ROUNDS_PER_DECK, pair: favourites, favourites };
-  }
-
-  // Final round — chosen is the pick for this deck; show the story so far.
+  // "More likely" — chosen is the pick for this deck; show the story so far.
   const picks = { ...solo.picks, [deck]: chosen };
   const nextIndex = solo.deckIndex + 1;
   if (nextIndex >= SOLO_DECKS.length) {
-    return { ...solo, picks, favourites: [], pair: [], done: true, stage: 'story' };
+    return { ...solo, picks, pair: [], done: true, stage: 'story' };
   }
   const nextDeck = SOLO_DECKS[nextIndex];
   const { pair, usedIds } = dealPair(decks[nextDeck], solo.usedIds);
-  return { ...solo, deckIndex: nextIndex, round: 1, pair, usedIds, favourites: [], picks, stage: 'story' };
+  return { ...solo, deckIndex: nextIndex, round: 1, pair, usedIds, picks, stage: 'story' };
 }
 
 /** Screens between rounds: 'round' (dealt cards), 'story' (picks so far), 'eulogy'. */
@@ -279,13 +319,14 @@ export function openEulogy(solo) {
  * @param {string} eulogy
  */
 export function buildStoryRequest(solo, eulogy) {
+  const describe = (card) => ({
+    title: String(card?.title ?? ''),
+    description: String(card?.description ?? ''),
+    answer: answerFor(solo, card),
+  });
   const pick = (deck) => {
-    const card = solo.picks?.[deck];
-    return {
-      title: String(card?.title ?? ''),
-      description: String(card?.description ?? ''),
-      answer: answerFor(solo, card),
-    };
+    const rather = solo.rathers?.[deck];
+    return rather ? { ...describe(solo.picks?.[deck]), rather: describe(rather) } : describe(solo.picks?.[deck]);
   };
   return {
     picks: Object.fromEntries(SUMMARY_ORDER.map((deck) => [deck, pick(deck)])),
