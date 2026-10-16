@@ -267,6 +267,46 @@
   margin: 0 0 var(--space-sm);
 }
 
+/* The AI story sits plain on the page; the player's eulogy is a card below it. */
+.solo__story-section,
+.solo__eulogy-panel {
+  width: 100%;
+  max-width: 60ch;
+  margin: 0 auto;
+}
+
+.solo__eulogy-panel {
+  padding: var(--space-md);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(160deg, rgba(75, 53, 181, 0.25), transparent 60%),
+    var(--color-surface);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+}
+
+.solo__section-title {
+  margin: 0 0 var(--space-xs);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-80);
+}
+
+.solo__story-section .solo__story,
+.solo__eulogy-panel .solo__story {
+  max-width: none;
+}
+
+.solo__eulogy-panel .solo__story p:last-child {
+  margin-bottom: 0;
+}
+
+.solo__eulogy-text {
+  font-style: italic;
+}
+
 .solo__story--loading,
 .solo__story--error {
   text-align: center;
