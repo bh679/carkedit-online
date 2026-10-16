@@ -14,7 +14,7 @@ import { render as renderCard } from '../components/card.js';
 import { render as renderCardBack } from '../components/cardBack.js';
 import { renderInspectOverlay } from '../components/hand.js';
 import { escapeHtml } from '../utils/escape.js';
-import { currentDeck, DECK_LABELS, ROUNDS_PER_DECK, SOLO_DECKS, SUMMARY_ORDER, answerFor, ratherFor } from '../managers/solo-manager.js';
+import { cardId, currentDeck, DECK_LABELS, ROUNDS_PER_DECK, SOLO_DECKS, SUMMARY_ORDER, answerFor, ratherFor } from '../managers/solo-manager.js';
 
 /**
  * @param {object} state
@@ -48,10 +48,15 @@ function renderRound(solo) {
   const isLikely = solo.round === ROUNDS_PER_DECK;
   const roundLabel = `${isLikely ? 'More likely' : 'Would you rather'} (${solo.round} of ${ROUNDS_PER_DECK})`;
   const prompt = isLikely ? meta.likelyPrompt : meta.ratherPrompt;
+  // In the "more likely" hand, the card carried over from "would rather".
+  const ratherId = isLikely && solo.rathers?.[deck] ? cardId(solo.rathers[deck]) : null;
   // A <div role=button> rather than <button>: Chromium flattens 3D transforms
   // inside <button>, which breaks the card flip.
-  const cards = solo.pair.map((card, i) => `
-    <div class="solo__choice" role="button" tabindex="0" aria-label="Pick card ${i + 1}"
+  const cards = solo.pair.map((card, i) => {
+    const isRather = ratherId !== null && cardId(card) === ratherId;
+    return `
+    <div class="solo__choice${isRather ? ' solo__choice--rather' : ''}" role="button" tabindex="0"
+         aria-label="Pick card ${i + 1}${isRather ? " (your 'rather' pick)" : ''}"
          onclick="window.game.soloInspect(${i})"
          onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); window.game.soloInspect(${i}); }">
       <div class="card-flip" data-solo-reveal style="--solo-delay: ${i * 120}ms">
@@ -59,9 +64,11 @@ function renderRound(solo) {
           <div class="card-flip__back">${renderCardBack({ deckType: deck })}</div>
           <div class="card-flip__front">${renderCard(card)}</div>
         </div>
+        ${isRather ? `<div class="solo__rather-clip" aria-hidden="true"><span class="solo__rather-ribbon">How I'd rather</span></div>` : ''}
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 
   return `
     <div class="screen screen--phase screen--solo" data-phase="${meta.phase}">
