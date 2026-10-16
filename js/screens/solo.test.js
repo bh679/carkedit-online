@@ -35,3 +35,24 @@ test('life story: eulogy still shows while loading and on error', () => {
   assert.ok(render(lifeStoryState({ status: 'loading' }, 'Bye.')).includes('solo__eulogy-panel'));
   assert.ok(render(lifeStoryState({ status: 'error', error: 'nope' }, 'Bye.')).includes('solo__eulogy-panel'));
 });
+
+function roundState(intro) {
+  const card = (i) => ({ id: i, deckType: 'die', compositeId: `die:${i}`, title: `Card ${i}` });
+  return { solo: { stage: 'round', deckIndex: 0, round: 1, pair: [1, 2, 3, 4].map(card), picks: {}, rathers: {}, answers: {}, inspectIndex: null, intro } };
+}
+
+test('round intro: question marked for the intro and cards held back', () => {
+  const html = render(roundState(true));
+  assert.match(html, /screen--solo-intro/);
+  assert.match(html, /data-solo-intro/);
+  assert.match(html, /solo__skip-hint/);
+  assert.ok(!html.includes('data-solo-reveal'), 'cards do not flip in during the intro');
+});
+
+test('round after the intro: cards flip in, no intro markup', () => {
+  const html = render(roundState(false));
+  assert.ok(!html.includes('screen--solo-intro'));
+  assert.ok(!html.includes('data-solo-intro'));
+  assert.ok(!html.includes('solo__skip-hint'));
+  assert.equal(html.match(/data-solo-reveal/g).length, 4);
+});

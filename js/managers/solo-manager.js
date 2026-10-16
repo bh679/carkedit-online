@@ -6,6 +6,8 @@
 // holds the "rather" card plus three fresh ones, and that pick is final for
 // the deck (stored in `picks`). Tapping a card opens a full-screen preview
 // (`inspectIndex`) and the pick is confirmed from there.
+// Each new question opens with a full-screen intro (`intro: true`) before
+// its cards deal in; `endIntro` clears it (see screens/solo-intro.js).
 // A dealt hand holds at most one split and one `?` card (MAX_PER_HAND).
 // Picking a `?` (mystery) card pauses the
 // game on an answer step so the player can say what the card asks.
@@ -155,6 +157,7 @@ export function createSolo(decks) {
     answers: {},
     pendingAnswer: null,
     inspectIndex: null,
+    intro: true,
     stage: 'round',
     usedIds,
     done: false,
@@ -182,8 +185,14 @@ function withPendingAnswer(next, chosen, answers) {
  * @param {number} index
  */
 export function inspectCard(solo, index) {
-  if (solo.done || solo.pendingAnswer || !isRound(solo) || !solo.pair[index]) return solo;
+  if (solo.done || solo.pendingAnswer || solo.intro || !isRound(solo) || !solo.pair[index]) return solo;
   return Object.freeze({ ...solo, inspectIndex: index });
+}
+
+/** Finish the current question's intro so its cards deal in. Pure. */
+export function endIntro(solo) {
+  if (!solo?.intro) return solo;
+  return Object.freeze({ ...solo, intro: false });
 }
 
 /** Close the preview without picking. Pure. */
@@ -277,7 +286,7 @@ function advance(solo, chosen, decks, rng) {
   if (solo.round < ROUNDS_PER_DECK) {
     const rathers = { ...solo.rathers, [deck]: chosen };
     const { pair, usedIds } = dealLikely(decks[deck], solo.usedIds, chosen, rng);
-    return { ...solo, round: solo.round + 1, pair, usedIds, rathers };
+    return { ...solo, round: solo.round + 1, pair, usedIds, rathers, intro: true };
   }
 
   // "More likely" — chosen is the pick for this deck; show the story so far.
@@ -288,7 +297,7 @@ function advance(solo, chosen, decks, rng) {
   }
   const nextDeck = SOLO_DECKS[nextIndex];
   const { pair, usedIds } = dealPair(decks[nextDeck], solo.usedIds);
-  return { ...solo, deckIndex: nextIndex, round: 1, pair, usedIds, picks, stage: 'story' };
+  return { ...solo, deckIndex: nextIndex, round: 1, pair, usedIds, picks, stage: 'story', intro: true };
 }
 
 /** Screens between rounds: 'round' (dealt cards), 'story' (picks so far), 'eulogy'. */

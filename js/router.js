@@ -15,7 +15,8 @@ import { render as renderPhase1 } from './screens/phase1.js';
 import { render as renderPhase23, formatTime } from './screens/phase2-3.js';
 import { render as renderPhase4 } from './screens/phase4.js';
 import { render as renderSolo } from './screens/solo.js';
-import { createSolo, pickCard as soloPickCard, inspectCard as soloInspectCard, dismissInspect as soloDismissInspectCard, stepInspect as soloStepInspectCard, continueStory as soloContinueStory, openEulogy as soloOpenEulogyStage, answerCard as soloAnswerCard, buildStoryRequest, startStory as soloStartStory, finishStory as soloFinishStory, failStory as soloFailStory, buildSoloUrl, stripSoloParam, SOLO_QUERY_PARAM } from './managers/solo-manager.js';
+import { runSoloIntro, cancelSoloIntro } from './screens/solo-intro.js';
+import { createSolo, endIntro as soloEndIntro, pickCard as soloPickCard, inspectCard as soloInspectCard, dismissInspect as soloDismissInspectCard, stepInspect as soloStepInspectCard, continueStory as soloContinueStory, openEulogy as soloOpenEulogyStage, answerCard as soloAnswerCard, buildStoryRequest, startStory as soloStartStory, finishStory as soloFinishStory, failStory as soloFailStory, buildSoloUrl, stripSoloParam, SOLO_QUERY_PARAM } from './managers/solo-manager.js';
 import { render as renderAccount, renderGamesList, renderMyPacks } from './screens/account.js';
 import { render as renderScheduleGame } from './screens/schedule-game.js';
 import { render as renderScheduledCreated } from './screens/scheduled-created.js';
@@ -123,6 +124,7 @@ export function showScreen(name, updates = {}) {
   const renderFn = SCREENS[name];
   if (!renderFn) throw new Error(`Unknown screen: ${name}`);
   app.innerHTML = renderFn(state);
+  syncSoloIntro(name, state);
 
   if (name === 'menu') {
     fetch('package.json').then(r => r.json()).then(pkg => {
@@ -190,6 +192,17 @@ export function showScreen(name, updates = {}) {
 }
 
 let _packsLoadedForLobby = false;
+
+/**
+ * Every render replaces the DOM, so drop any running solo question intro and
+ * start a fresh one when the new screen is a question still in its intro.
+ */
+function syncSoloIntro(name, state) {
+  cancelSoloIntro();
+  const solo = state.solo;
+  if (name !== 'solo' || !solo?.intro || solo.stage !== 'round' || solo.pendingAnswer || solo.done) return;
+  requestAnimationFrame(() => runSoloIntro({ onDone: () => updateSolo(soloEndIntro) }));
+}
 
 /**
  * Keep the once-a-second ticker running only while the screen actually shows a
