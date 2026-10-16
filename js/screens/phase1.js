@@ -63,7 +63,7 @@ export function render(state) {
         ? `<p class="phase1__card-prompt">${state.currentCard.prompt}</p>`
         : '';
       const flipCard = `
-        <div class="card-flip" data-die-reveal>
+        <div class="card-flip" data-die-reveal data-flip-key="die:${state.currentCard.id}">
           <div class="card-flip__inner">
             <div class="card-flip__back">${renderCardBack({ deckType: 'die' })}</div>
             <div class="card-flip__front">${renderCard(state.currentCard)}</div>

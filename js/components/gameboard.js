@@ -86,7 +86,7 @@ export function render(promptCard = '', hint = '', {
   if (pitchingPlayer && playedCards[pitchingPlayer]) {
     const card = playedCards[pitchingPlayer];
     const flipCard = `
-      <div class="card-flip"${card.faceUp ? ' data-pitch-reveal' : ''}>
+      <div class="card-flip"${card.faceUp ? ` data-pitch-reveal data-flip-key="pitch:${card.id}"` : ''}>
         <div class="card-flip__inner">
           <div class="card-flip__back">${renderCardBack({ deckType: card.deckType })}</div>
           <div class="card-flip__front">${renderCard(card)}</div>
