@@ -183,15 +183,15 @@
 
 .solo__rather-ribbon {
   position: absolute;
-  top: 11cqw;
-  right: -23cqw;
+  top: 12cqw;
+  right: -22cqw;
   width: 80cqw;
   padding: 1.2cqw 0;
   transform: rotate(45deg);
   background: rgba(20, 18, 30, 0.92);
   border-block: 0.8cqw solid var(--color-live);
   color: #fff;
-  font-size: clamp(7px, 4.4cqw, 11px);
+  font-size: clamp(5px, 4cqw, 11px);
   font-weight: 700;
   line-height: 1.1;
   letter-spacing: 0.03em;
