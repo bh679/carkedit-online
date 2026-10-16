@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createSolo, pickCard, continueStory, openEulogy, inspectCard, dismissInspect, stepInspect, answerCard, answerFor, buildEulogyText, dealPair, playableCards, currentDeck, SOLO_DECKS, SUMMARY_ORDER, CHOICE_SIZE, buildSoloUrl, stripSoloParam, buildStoryRequest, startStory, finishStory, failStory } from './solo-manager.js';
+import { createSolo, pickCard, continueStory, openEulogy, inspectCard, dismissInspect, stepInspect, answerCard, answerFor, buildEulogyText, dealPair, playableCards, currentDeck, SOLO_DECKS, SUMMARY_ORDER, CHOICE_SIZE, buildSoloUrl, stripSoloParam, buildStoryRequest, startStory, finishStory, failStory, dealLikely, ratherFor, ROUNDS_PER_DECK } from './solo-manager.js';
 
 function deck(type, n, extra = () => ({})) {
   return Array.from({ length: n }, (_, i) => ({ id: i + 1, deckType: type, compositeId: `${type}:${i + 1}`, ...extra(i) }));
@@ -47,25 +47,25 @@ test('playableCards drops BYE wildcards', () => {
   assert.equal(playableCards(bye).length, 2);
 });
 
-test('round flow: two picks then a final between the favourites', () => {
+test('round flow: would rather, then more likely with the rather card back in the hand', () => {
+  assert.equal(ROUNDS_PER_DECK, 2);
   let s = createSolo(decks);
   assert.equal(currentDeck(s), 'die');
   assert.equal(s.round, 1);
   assert.equal(s.pair.length, 4);
-  const favA = s.pair[3];
-  s = pickCard(s, 3, decks);
+  const rather = s.pair[3];
+  s = pickCard(s, 3, decks, () => 0.5);
   assert.equal(s.round, 2);
   assert.equal(s.pair.length, 4);
-  assert.deepEqual(s.favourites, [favA]);
-  const favB = s.pair[1];
+  assert.equal(s.pair[2], rather);
+  assert.equal(s.rathers.die, rather);
+  assert.equal(new Set(s.pair.map((c) => c.compositeId)).size, 4);
+  const likely = s.pair[1];
   s = pickCard(s, 1, decks);
-  assert.equal(s.round, 3);
-  assert.deepEqual(s.pair, [favA, favB]);
-  s = pickCard(s, 1, decks);
-  assert.equal(s.picks.die, favB);
+  assert.equal(s.picks.die, likely);
+  assert.equal(s.rathers.die, rather);
   assert.equal(currentDeck(s), 'live');
   assert.equal(s.round, 1);
-  assert.deepEqual(s.favourites, []);
   // Story screen between decks: input is ignored until Continue.
   assert.equal(s.stage, 'story');
   assert.equal(pickCard(s, 0, decks), s);
@@ -76,17 +76,44 @@ test('round flow: two picks then a final between the favourites', () => {
   assert.equal(continueStory(s), s);
 });
 
+test('dealLikely places the rather card at the rng slot and deals three fresh cards', () => {
+  const { pair: first, usedIds } = dealPair(decks.die);
+  const rather = first[0];
+  for (const [r, slot] of [[0, 0], [0.3, 1], [0.6, 2], [0.99, 3]]) {
+    const { pair, usedIds: next } = dealLikely(decks.die, usedIds, rather, () => r);
+    assert.equal(pair.length, CHOICE_SIZE);
+    assert.equal(pair[slot], rather);
+    assert.equal(next.length, usedIds.length + CHOICE_SIZE - 1);
+    assert.ok(pair.filter((c) => c !== rather).every((c) => !usedIds.includes(c.compositeId)));
+  }
+});
+
+test('dealLikely counts the rather card toward the special caps', () => {
+  const d = deck('die', 12, (i) => (i < 4 ? { special: 'mystery' } : {}));
+  const { pair } = dealLikely(d, ['die:1'], d[0], () => 0);
+  assert.equal(pair.filter((c) => c.special === 'mystery').length, 1);
+});
+
+test('ratherFor is null when the rather card is also the final pick', () => {
+  const a = { compositeId: 'die:1' };
+  const b = { compositeId: 'die:2' };
+  assert.equal(ratherFor({ rathers: { die: a }, picks: { die: a } }, 'die'), null);
+  assert.equal(ratherFor({ rathers: { die: a }, picks: { die: b } }, 'die'), a);
+  assert.equal(ratherFor({ picks: { die: b } }, 'die'), null);
+});
+
 function playThrough(decks) {
   let s = createSolo(decks);
-  for (let i = 0; i < SOLO_DECKS.length * 3; i++) s = continueStory(pickCard(s, 0, decks));
+  for (let i = 0; i < SOLO_DECKS.length * ROUNDS_PER_DECK; i++) s = continueStory(pickCard(s, 0, decks));
   return s;
 }
 
-test('finishes after BYE final with one pick per deck, then story → eulogy', () => {
+test('finishes after BYE more-likely with a rather and a pick per deck, then story → eulogy', () => {
   const s = playThrough(decks);
   assert.equal(s.done, true);
   assert.equal(s.stage, 'story');
   assert.deepEqual(Object.keys(s.picks), SOLO_DECKS);
+  assert.deepEqual(Object.keys(s.rathers), SOLO_DECKS);
   assert.equal(pickCard(s, 0, decks), s);
   assert.equal(continueStory(s), s);
   const e = openEulogy(s);
@@ -136,24 +163,23 @@ test('picking a ? card pauses on an answer step; picks are ignored until answere
 
 test('skipping a ? card stores no answer and does not ask again', () => {
   let s = createSolo(mysteryDecks);
-  s = pickCard(s, 0, mysteryDecks);
+  s = pickCard(s, 0, mysteryDecks, () => 0);
   s = answerCard(s, '');
   assert.equal(s.pendingAnswer, null);
   assert.deepEqual(s.answers, {});
-  // The mystery card is now a favourite; picking it in the final asks again
-  // only because no answer was stored — pick a plain card and finish instead.
-  s = pickCard(s, 0, mysteryDecks);
-  assert.equal(s.round, 3);
+  // The mystery card is back in the more-likely hand (slot 0 here); picking it
+  // would ask again only because no answer was stored — pick a plain card.
+  assert.equal(s.round, 2);
   s = pickCard(s, 1, mysteryDecks);
   assert.equal(s.pendingAnswer, null);
   assert.equal(currentDeck(s), 'live');
 });
 
-test('a ? card answered once is not asked again when it wins the final', () => {
+test('a ? card answered as rather is not asked again when it is also more likely', () => {
   let s = createSolo(mysteryDecks);
-  s = answerCard(pickCard(s, 0, mysteryDecks), 'Laughing');
-  s = pickCard(s, 0, mysteryDecks);
-  s = pickCard(s, 0, mysteryDecks); // final: mystery card wins
+  s = answerCard(pickCard(s, 0, mysteryDecks, () => 0), 'Laughing');
+  assert.equal(s.pair[0].compositeId, 'die:1');
+  s = pickCard(s, 0, mysteryDecks); // more likely: the same mystery card
   assert.equal(s.pendingAnswer, null);
   assert.equal(s.picks.die.compositeId, 'die:1');
 });
@@ -173,11 +199,12 @@ test('buildEulogyText lists life, death, afterlife then the eulogy', () => {
       live: { compositeId: 'live:1', title: 'Pirate' },
       bye: { compositeId: 'bye:1', title: 'Heaven' },
     },
+    rathers: { live: { compositeId: 'live:2', title: 'Astronaut' }, die: { compositeId: 'die:1' } },
     answers: { 'die:1': 'Laughing' },
   };
   assert.equal(
     buildEulogyText(solo, ' Gone too soon. '),
-    'Your life: Pirate\nYour death: Pick the Best Way to Die — Laughing\nYour afterlife: Heaven\n\nGone too soon.'
+    'Your life: Pirate (would rather: Astronaut)\nYour death: Pick the Best Way to Die — Laughing\nYour afterlife: Heaven\n\nGone too soon.'
   );
   assert.equal(buildEulogyText({ picks: {}, answers: {} }, ''), '');
 });
@@ -225,6 +252,22 @@ test('buildStoryRequest sends each pick with description and answer', () => {
     },
     eulogy: 'Legend.',
   });
+});
+
+test('buildStoryRequest includes the would-rather card for each deck', () => {
+  const solo = {
+    ...finished,
+    rathers: {
+      die: { compositeId: 'die:9', title: 'In my sleep', description: 'Peaceful' },
+      live: { compositeId: 'live:1', title: 'Pirate' },
+      bye: { compositeId: 'bye:3', title: 'Ghost' },
+    },
+  };
+  const { picks } = buildStoryRequest(solo, '');
+  assert.deepEqual(picks.die.rather, { title: 'In my sleep', description: 'Peaceful', answer: '' });
+  assert.deepEqual(picks.live.rather, { title: 'Pirate', description: '', answer: '' });
+  assert.equal(picks.bye.rather.title, 'Ghost');
+  assert.equal(picks.die.title, 'Coconut');
 });
 
 test('startStory → finishStory shows the story', () => {

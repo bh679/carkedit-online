@@ -2,8 +2,9 @@
 //
 // Pure render(state) over `state.solo` (see managers/solo-manager.js).
 // Four cards; tap one to preview it full-screen and confirm the pick
-// (same overlay as the multiplayer hand). Three rounds per deck (the final is the
-// two favourites), three decks, then a summary of the three picks and a
+// (same overlay as the multiplayer hand). Two questions per deck ("would
+// rather", then "more likely" with the rather card back in the hand), three
+// decks, then a summary of the three picks and a
 // space to write your own eulogy. Done turns the picks and eulogy into a
 // Claude-written life story. Picking a `?` card shows an answer step.
 'use strict';
@@ -13,7 +14,7 @@ import { render as renderCard } from '../components/card.js';
 import { render as renderCardBack } from '../components/cardBack.js';
 import { renderInspectOverlay } from '../components/hand.js';
 import { escapeHtml } from '../utils/escape.js';
-import { currentDeck, DECK_LABELS, ROUNDS_PER_DECK, SOLO_DECKS, SUMMARY_ORDER, answerFor } from '../managers/solo-manager.js';
+import { currentDeck, DECK_LABELS, ROUNDS_PER_DECK, SOLO_DECKS, SUMMARY_ORDER, answerFor, ratherFor } from '../managers/solo-manager.js';
 
 /**
  * @param {object} state
@@ -44,9 +45,9 @@ function renderLoading(state) {
 function renderRound(solo) {
   const deck = currentDeck(solo);
   const meta = DECK_LABELS[deck];
-  const isFinal = solo.round === ROUNDS_PER_DECK;
-  const roundLabel = isFinal ? 'Final' : `Round ${solo.round} of ${ROUNDS_PER_DECK}`;
-  const prompt = isFinal ? 'Your two favourites. Which one wins?' : meta.prompt;
+  const isLikely = solo.round === ROUNDS_PER_DECK;
+  const roundLabel = `${isLikely ? 'More likely' : 'Would you rather'} (${solo.round} of ${ROUNDS_PER_DECK})`;
+  const prompt = isLikely ? meta.likelyPrompt : meta.ratherPrompt;
   // A <div role=button> rather than <button>: Chromium flattens 3D transforms
   // inside <button>, which breaks the card flip.
   const cards = solo.pair.map((card, i) => `
@@ -71,13 +72,13 @@ function renderRound(solo) {
       </div>
       <p class="solo__hint">Tap a card to take a closer look</p>
       ${renderProgress(solo)}
-      ${renderInspect(solo, deck, isFinal)}
+      ${renderInspect(solo, deck, isLikely)}
     </div>
   `;
 }
 
 /** Full-screen preview of the tapped card, reusing the multiplayer hand overlay. */
-function renderInspect(solo, deck, isFinal) {
+function renderInspect(solo, deck, isLikely) {
   const index = solo.inspectIndex;
   if (index === null || index === undefined) return '';
   const card = solo.pair[index];
@@ -85,7 +86,7 @@ function renderInspect(solo, deck, isFinal) {
   return renderInspectOverlay({
     selectedCard: card,
     deckType: deck,
-    submitLabel: isFinal ? 'This one wins' : 'Pick this card',
+    submitLabel: isLikely ? 'Most likely this' : "I'd rather this",
     onSubmit: `window.game.soloPick(${index})`,
     onDismiss: 'window.game.soloDismissInspect()',
     onPrev: solo.pair.length > 1 ? 'window.game.soloStepInspect(-1)' : null,
@@ -135,11 +136,13 @@ function renderPicks(solo, { compact = false } = {}) {
     const card = solo.picks[deck];
     if (!card) return '';
     const answer = answerFor(solo, card);
+    const rather = ratherFor(solo, deck);
     return `
       <div class="solo__pick solo__pick--${deck}">
         <span class="solo__pick-label">${escapeHtml(DECK_LABELS[deck].pickLabel)}</span>
         ${renderCard(card)}
         ${answer && !compact ? `<p class="solo__answer">“${escapeHtml(answer)}”</p>` : ''}
+        ${rather ? `<p class="solo__rather">You'd rather: ${escapeHtml(rather.title ?? '')}</p>` : ''}
       </div>
     `;
   }).join('');
