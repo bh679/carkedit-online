@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createSolo, pickCard, continueStory, openEulogy, inspectCard, dismissInspect, stepInspect, answerCard, answerFor, buildEulogyText, dealPair, playableCards, currentDeck, SOLO_DECKS, SUMMARY_ORDER, CHOICE_SIZE, buildSoloUrl, stripSoloParam, buildStoryRequest, startStory, finishStory, failStory, dealLikely, ratherFor, ROUNDS_PER_DECK } from './solo-manager.js';
+import { createSolo, endIntro, pickCard, continueStory, openEulogy, inspectCard, dismissInspect, stepInspect, answerCard, answerFor, buildEulogyText, dealPair, playableCards, currentDeck, SOLO_DECKS, SUMMARY_ORDER, CHOICE_SIZE, buildSoloUrl, stripSoloParam, buildStoryRequest, startStory, finishStory, failStory, dealLikely, ratherFor, ROUNDS_PER_DECK } from './solo-manager.js';
 
 function deck(type, n, extra = () => ({})) {
   return Array.from({ length: n }, (_, i) => ({ id: i + 1, deckType: type, compositeId: `${type}:${i + 1}`, ...extra(i) }));
@@ -210,7 +210,7 @@ test('buildEulogyText lists life, death, afterlife then the eulogy', () => {
 });
 
 test('inspect: tap previews, arrows wrap, dismiss closes, pick clears', () => {
-  const s = createSolo(decks);
+  const s = endIntro(createSolo(decks));
   assert.equal(s.inspectIndex, null);
   assert.equal(inspectCard(s, 9), s);
   const open = inspectCard(s, 1);
@@ -286,4 +286,29 @@ test('failStory records the error; stale or off-screen responses are ignored', (
   const left = { ...loading, stage: 'eulogy' };
   assert.equal(finishStory(left, 2, 'late'), left);
   assert.equal(startStory({ ...finished, done: false }, '', 3).stage, 'eulogy');
+});
+
+test('intro: every new question opens with an intro; endIntro clears it', () => {
+  const s = createSolo(decks);
+  assert.equal(s.intro, true);
+  const cleared = endIntro(s);
+  assert.equal(cleared.intro, false);
+  assert.equal(endIntro(cleared), cleared);
+  assert.equal(s.intro, true, 'endIntro does not mutate');
+
+  const likely = pickCard(cleared, 0, decks);
+  assert.equal(likely.round, 2);
+  assert.equal(likely.intro, true, 'more-likely question gets its own intro');
+
+  const story = pickCard(endIntro(likely), 0, decks);
+  assert.equal(story.stage, 'story');
+  const nextDeck = continueStory(story);
+  assert.equal(nextDeck.deckIndex, 1);
+  assert.equal(nextDeck.intro, true, 'next deck question gets its own intro');
+});
+
+test('intro: cards cannot be inspected until the intro ends', () => {
+  const s = createSolo(decks);
+  assert.equal(inspectCard(s, 0), s);
+  assert.equal(inspectCard(endIntro(s), 0).inspectIndex, 0);
 });
