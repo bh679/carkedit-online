@@ -14,7 +14,7 @@ import { render as renderCard } from '../components/card.js';
 import { render as renderCardBack } from '../components/cardBack.js';
 import { renderInspectOverlay } from '../components/hand.js';
 import { escapeHtml } from '../utils/escape.js';
-import { currentDeck, DECK_LABELS, ROUNDS_PER_DECK, SOLO_DECKS, SUMMARY_ORDER, answerFor, ratherFor } from '../managers/solo-manager.js';
+import { cardId, currentDeck, DECK_LABELS, ROUNDS_PER_DECK, SOLO_DECKS, SUMMARY_ORDER, answerFor, ratherFor } from '../managers/solo-manager.js';
 
 /**
  * @param {object} state
@@ -54,7 +54,7 @@ function renderRound(solo) {
     <div class="solo__choice" role="button" tabindex="0" aria-label="Pick card ${i + 1}"
          onclick="window.game.soloInspect(${i})"
          onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); window.game.soloInspect(${i}); }">
-      <div class="card-flip" data-solo-reveal style="--solo-delay: ${i * 120}ms">
+      <div class="card-flip" data-solo-reveal data-flip-key="solo:${deck}:${solo.round}:${escapeHtml(cardId(card))}" style="--solo-delay: ${i * 120}ms">
         <div class="card-flip__inner">
           <div class="card-flip__back">${renderCardBack({ deckType: deck })}</div>
           <div class="card-flip__front">${renderCard(card)}</div>
