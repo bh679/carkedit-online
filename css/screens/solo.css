@@ -257,6 +257,38 @@
   margin: 0 0 var(--space-sm);
 }
 
+/* Story and eulogy each sit in their own box, story first. */
+.solo__box {
+  width: 100%;
+  max-width: 60ch;
+  margin: 0 auto;
+  padding: var(--space-sm) var(--space-md);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface, transparent);
+}
+
+.solo__box-title {
+  margin: 0 0 var(--space-xs);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-80);
+}
+
+.solo__box .solo__story {
+  max-width: none;
+}
+
+.solo__box .solo__story p:last-child {
+  margin-bottom: 0;
+}
+
+.solo__eulogy-text {
+  font-style: italic;
+}
+
 .solo__story--loading,
 .solo__story--error {
   text-align: center;
