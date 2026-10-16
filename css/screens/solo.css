@@ -106,26 +106,27 @@
 
 .solo__rather-ribbon {
   position: absolute;
-  top: 17cqw;
-  right: -27cqw;
-  width: 100cqw;
-  padding: 1.6cqw 0;
+  top: 11cqw;
+  right: -23cqw;
+  width: 80cqw;
+  padding: 1.2cqw 0;
   transform: rotate(45deg);
-  background: var(--color-live);
+  background: rgba(20, 18, 30, 0.92);
+  border-block: 0.8cqw solid var(--color-live);
   color: #fff;
-  font-size: clamp(8px, 7cqw, 16px);
+  font-size: clamp(7px, 4.4cqw, 11px);
   font-weight: 700;
   line-height: 1.1;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.03em;
   text-align: center;
   text-transform: uppercase;
   white-space: nowrap;
-  box-shadow: 0 2px 6px var(--color-shadow-sm, rgba(0, 0, 0, 0.3));
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
 }
 
-.solo__pair--die  .solo__rather-ribbon { background: var(--color-die); }
-.solo__pair--live .solo__rather-ribbon { background: var(--color-live); }
-.solo__pair--bye  .solo__rather-ribbon { background: var(--color-bye); }
+.solo__pair--die  .solo__rather-ribbon { border-color: var(--color-die); }
+.solo__pair--live .solo__rather-ribbon { border-color: var(--color-live); }
+.solo__pair--bye  .solo__rather-ribbon { border-color: var(--color-bye); }
 
 .solo__hint {
   font-size: 13px;
