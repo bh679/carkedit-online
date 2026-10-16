@@ -123,7 +123,9 @@ export function showScreen(name, updates = {}) {
   const app = document.getElementById('app');
   const renderFn = SCREENS[name];
   if (!renderFn) throw new Error(`Unknown screen: ${name}`);
+  const revealedFlipKeys = collectRevealedFlipKeys(app);
   app.innerHTML = renderFn(state);
+  restoreRevealedFlips(app, revealedFlipKeys);
   syncSoloIntro(name, state);
 
   if (name === 'menu') {
@@ -192,6 +194,25 @@ export function showScreen(name, updates = {}) {
 }
 
 let _packsLoadedForLobby = false;
+
+/** Keys of flip cards already face-up, read before a re-render replaces them. */
+function collectRevealedFlipKeys(root) {
+  const els = root.querySelectorAll('.card-flip--revealed[data-flip-key]');
+  return new Set(Array.from(els, el => el.dataset.flipKey));
+}
+
+/**
+ * Re-renders (selecting, browsing or loading cards) rebuild every flip card
+ * face-down, and the reveal pass below would replay the flip each time. Cards
+ * that were already face-up go straight back to face-up — set before first
+ * paint, so no transition runs — and only genuinely new cards animate.
+ */
+function restoreRevealedFlips(root, keys) {
+  if (!keys.size) return;
+  root.querySelectorAll('[data-flip-key]').forEach(el => {
+    if (keys.has(el.dataset.flipKey)) el.classList.add('card-flip--revealed');
+  });
+}
 
 /**
  * Every render replaces the DOM, so drop any running solo question intro and
