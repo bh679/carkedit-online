@@ -9,6 +9,83 @@
   padding: 0 var(--space-sm);
 }
 
+/* ── Question intro ─────────────────────────────────────── */
+/* Each question shows big and centred first (js/screens/solo-intro.js sets
+   --intro-dy), then glides up into place before the cards deal in. */
+
+.screen--solo-intro {
+  cursor: pointer;
+}
+
+.screen--solo-intro > :not(.solo__prompt):not(.solo__skip-hint) {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Header, hint and dots fade back while the question settles; the cards stay
+   hidden until the re-render flips them in. */
+.screen--solo-intro-settling > :not(.solo__prompt):not(.solo__skip-hint):not(.solo__pair) {
+  opacity: 1;
+  transition: opacity 600ms ease;
+}
+
+.solo__prompt[data-solo-intro] {
+  position: relative;
+  z-index: 2;
+  font-size: clamp(36px, 11vw, 72px);
+  font-weight: 800;
+  line-height: 1.15;
+  text-wrap: balance;
+  transform: translateY(var(--intro-dy, 0px));
+  visibility: hidden;
+}
+
+.solo__prompt[data-solo-intro].solo__prompt--placed {
+  visibility: visible;
+  animation: solo-intro-in 450ms ease-out both;
+}
+
+.solo__prompt[data-solo-intro].solo__prompt--settling {
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: normal;
+  transform: translateY(0);
+  transition:
+    font-size 600ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform 600ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    line-height 600ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.solo__skip-hint {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--space-lg, 24px) + env(safe-area-inset-bottom, 0px));
+  margin: 0;
+  text-align: center;
+  font-size: 13px;
+  font-style: italic;
+  color: var(--color-text-80);
+  animation: solo-intro-in 450ms ease-out 900ms both;
+}
+
+.screen--solo-intro-settling .solo__skip-hint {
+  animation: none;
+  opacity: 0;
+}
+
+@keyframes solo-intro-in {
+  from { opacity: 0; scale: 0.92; }
+  to   { opacity: 1; scale: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .solo__prompt[data-solo-intro].solo__prompt--placed,
+  .solo__skip-hint {
+    animation: none;
+  }
+}
+
 .solo__loading {
   flex: 1;
   display: flex;

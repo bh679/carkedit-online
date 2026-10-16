@@ -7,6 +7,8 @@
 // decks, then a summary of the three picks and a
 // space to write your own eulogy. Done turns the picks and eulogy into a
 // Claude-written life story. Picking a `?` card shows an answer step.
+// Each question first shows full-screen (`solo.intro`), then the cards deal
+// in; screens/solo-intro.js runs that animation.
 'use strict';
 
 import { render as renderPhaseHeader } from '../components/phase-header.js';
@@ -50,6 +52,10 @@ function renderRound(solo) {
   const prompt = isLikely ? meta.likelyPrompt : meta.ratherPrompt;
   // In the "more likely" hand, the card carried over from "would rather".
   const ratherId = isLikely && solo.rathers?.[deck] ? cardId(solo.rathers[deck]) : null;
+  const intro = Boolean(solo.intro);
+  // During the intro the cards wait unflipped; leaving out data-solo-reveal
+  // keeps the router from flipping them until the intro re-renders without it.
+  const reveal = intro ? '' : ' data-solo-reveal';
   // A <div role=button> rather than <button>: Chromium flattens 3D transforms
   // inside <button>, which breaks the card flip.
   const cards = solo.pair.map((card, i) => {
@@ -59,7 +65,7 @@ function renderRound(solo) {
          aria-label="Pick card ${i + 1}${isRather ? " (your 'rather' pick)" : ''}"
          onclick="window.game.soloInspect(${i})"
          onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); window.game.soloInspect(${i}); }">
-      <div class="card-flip" data-solo-reveal data-flip-key="solo:${deck}:${solo.round}:${escapeHtml(cardId(card))}" style="--solo-delay: ${i * 120}ms">
+      <div class="card-flip"${reveal} data-flip-key="solo:${deck}:${solo.round}:${escapeHtml(cardId(card))}" style="--solo-delay: ${i * 120}ms">
         <div class="card-flip__inner">
           <div class="card-flip__back">${renderCardBack({ deckType: deck })}</div>
           <div class="card-flip__front">${renderCard(card)}</div>
@@ -71,15 +77,16 @@ function renderRound(solo) {
   }).join('');
 
   return `
-    <div class="screen screen--phase screen--solo" data-phase="${meta.phase}">
+    <div class="screen screen--phase screen--solo${intro ? ' screen--solo-intro' : ''}" data-phase="${meta.phase}">
       ${renderPhaseHeader({ phase: meta.phase, label: `${meta.label} - ${roundLabel}` })}
-      <p class="phase__prompt solo__prompt">${escapeHtml(prompt)}</p>
+      <p class="phase__prompt solo__prompt"${intro ? ' data-solo-intro' : ''}>${escapeHtml(prompt)}</p>
       <div class="solo__pair solo__pair--${deck}${solo.pair.length > 2 ? ' solo__pair--four' : ''}">
         ${cards}
       </div>
       <p class="solo__hint">Tap a card to take a closer look</p>
       ${renderProgress(solo)}
       ${renderInspect(solo, deck, isLikely)}
+      ${intro ? '<p class="solo__skip-hint" aria-hidden="true">Tap to skip</p>' : ''}
     </div>
   `;
 }

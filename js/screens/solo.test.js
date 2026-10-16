@@ -36,7 +36,7 @@ test('life story: eulogy still shows while loading and on error', () => {
   assert.ok(render(lifeStoryState({ status: 'error', error: 'nope' }, 'Bye.')).includes('solo__eulogy-panel'));
 });
 
-function roundState(round) {
+function ribbonState(round) {
   const card = (n) => ({ id: n, deckType: 'die', compositeId: `die:${n}`, title: `Card ${n}` });
   return {
     solo: {
@@ -48,7 +48,7 @@ function roundState(round) {
 }
 
 test('more likely round: only the carried-over rather card gets the ribbon', () => {
-  const html = render(roundState(2));
+  const html = render(ribbonState(2));
   assert.equal(html.match(/solo__rather-ribbon/g)?.length, 1);
   assert.equal(html.match(/solo__choice--rather/g)?.length, 1);
   const choices = html.split('class="solo__choice').slice(1);
@@ -57,7 +57,28 @@ test('more likely round: only the carried-over rather card gets the ribbon', () 
 });
 
 test('would rather round: no ribbon', () => {
-  const html = render(roundState(1));
+  const html = render(ribbonState(1));
   assert.ok(!html.includes('solo__rather-ribbon'));
   assert.ok(!html.includes('solo__choice--rather'));
+});
+
+function roundState(intro) {
+  const card = (i) => ({ id: i, deckType: 'die', compositeId: `die:${i}`, title: `Card ${i}` });
+  return { solo: { stage: 'round', deckIndex: 0, round: 1, pair: [1, 2, 3, 4].map(card), picks: {}, rathers: {}, answers: {}, inspectIndex: null, intro } };
+}
+
+test('round intro: question marked for the intro and cards held back', () => {
+  const html = render(roundState(true));
+  assert.match(html, /screen--solo-intro/);
+  assert.match(html, /data-solo-intro/);
+  assert.match(html, /solo__skip-hint/);
+  assert.ok(!html.includes('data-solo-reveal'), 'cards do not flip in during the intro');
+});
+
+test('round after the intro: cards flip in, no intro markup', () => {
+  const html = render(roundState(false));
+  assert.ok(!html.includes('screen--solo-intro'));
+  assert.ok(!html.includes('data-solo-intro'));
+  assert.ok(!html.includes('solo__skip-hint'));
+  assert.equal(html.match(/data-solo-reveal/g).length, 4);
 });
