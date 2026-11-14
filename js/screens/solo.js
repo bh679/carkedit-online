@@ -6,7 +6,8 @@
 // rather", then "more likely" with the rather card back in the hand), three
 // decks, then a summary of the three picks and a
 // space to write your own eulogy. Done turns the picks and eulogy into a
-// Claude-written life story. Picking a `?` card shows an answer step.
+// Claude-written life story. Picking a `?` card shows an answer step;
+// picking a split card breaks it in two so the player takes one option.
 // Each question first shows full-screen (`solo.intro`), then the cards deal
 // in; screens/solo-intro.js runs that animation.
 'use strict';
@@ -16,7 +17,7 @@ import { render as renderCard } from '../components/card.js';
 import { render as renderCardBack } from '../components/cardBack.js';
 import { renderInspectOverlay } from '../components/hand.js';
 import { escapeHtml } from '../utils/escape.js';
-import { cardId, currentDeck, DECK_LABELS, ROUNDS_PER_DECK, SOLO_DECKS, SUMMARY_ORDER, answerFor, ratherFor } from '../managers/solo-manager.js';
+import { cardId, currentDeck, DECK_LABELS, ROUNDS_PER_DECK, SOLO_DECKS, SUMMARY_ORDER, answerFor, cardLabel, choiceFor, ratherFor } from '../managers/solo-manager.js';
 
 /**
  * @param {object} state
@@ -25,6 +26,7 @@ import { cardId, currentDeck, DECK_LABELS, ROUNDS_PER_DECK, SOLO_DECKS, SUMMARY_
 export function render(state) {
   const solo = state.solo;
   if (!solo) return renderLoading(state);
+  if (solo.pendingChoice) return renderChoice(solo);
   if (solo.pendingAnswer) return renderAnswer(solo);
   if (solo.stage === 'eulogy') return renderEulogyScreen(solo);
   if (solo.stage === 'lifestory') return renderLifeStory(solo);
@@ -108,16 +110,47 @@ function renderInspect(solo, deck, isLikely) {
   });
 }
 
+/** Deck for a paused step: after the BYE final the deck index no longer advances. */
+function stepDeck(solo) {
+  return solo.done ? SOLO_DECKS[SOLO_DECKS.length - 1] : currentDeck(solo);
+}
+
+/**
+ * Choice step for a split card: two copies of the card, each clipped to one
+ * half, sit on top of each other and then pull apart along the diagonal.
+ * Tapping a half takes that option.
+ */
+function renderChoice(solo) {
+  const card = solo.pendingChoice;
+  const meta = DECK_LABELS[stepDeck(solo)];
+  const cardHtml = renderCard(card);
+  const piece = (i) => `
+    <div class="solo__split-piece solo__split-piece--${i === 0 ? 'a' : 'b'}" role="button" tabindex="0"
+         aria-label="${escapeHtml(card.options[i])}"
+         onclick="window.game.soloChoose(${i})"
+         onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); window.game.soloChoose(${i}); }">
+      ${cardHtml}
+    </div>`;
+  return `
+    <div class="screen screen--phase screen--solo" data-phase="${meta.phase}">
+      ${renderPhaseHeader({ phase: meta.phase, label: `${meta.label} - Your choice` })}
+      <p class="phase__prompt solo__prompt">${escapeHtml(card.title || 'Which one?')}</p>
+      <div class="solo__split-step">
+        <div class="solo__split">${piece(0)}${piece(1)}</div>
+      </div>
+      <p class="solo__hint">Tap the half you'd take</p>
+      ${renderProgress(solo)}
+    </div>
+  `;
+}
+
 /**
  * Answer step for a `?` card: the card asks a question, the player answers.
  * Continue stores the text; Skip moves on without one.
  */
 function renderAnswer(solo) {
   const card = solo.pendingAnswer;
-  // After the BYE final the deck index no longer advances, so fall back to
-  // the last deck's label.
-  const deck = solo.done ? SOLO_DECKS[SOLO_DECKS.length - 1] : currentDeck(solo);
-  const meta = DECK_LABELS[deck];
+  const meta = DECK_LABELS[stepDeck(solo)];
   return `
     <div class="screen screen--phase screen--solo" data-phase="${meta.phase}">
       ${renderPhaseHeader({ phase: meta.phase, label: `${meta.label} - Your answer` })}
@@ -150,13 +183,15 @@ function renderPicks(solo, { compact = false } = {}) {
     const card = solo.picks[deck];
     if (!card) return '';
     const answer = answerFor(solo, card);
+    const choice = choiceFor(solo, card);
     const rather = ratherFor(solo, deck);
     return `
       <div class="solo__pick solo__pick--${deck}">
         <span class="solo__pick-label">${escapeHtml(DECK_LABELS[deck].pickLabel)}</span>
         ${renderCard(card)}
+        ${choice ? `<p class="solo__answer solo__answer--choice">${escapeHtml(choice.chosen)}</p>` : ''}
         ${answer && !compact ? `<p class="solo__answer">“${escapeHtml(answer)}”</p>` : ''}
-        ${rather ? `<p class="solo__rather">You'd rather: ${escapeHtml(rather.title ?? '')}</p>` : ''}
+        ${rather ? `<p class="solo__rather">You'd rather: ${escapeHtml(cardLabel(solo, rather))}</p>` : ''}
       </div>
     `;
   }).join('');

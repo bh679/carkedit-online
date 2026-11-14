@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createSolo, endIntro, pickCard, continueStory, openEulogy, inspectCard, dismissInspect, stepInspect, answerCard, answerFor, buildEulogyText, dealPair, playableCards, currentDeck, SOLO_DECKS, SUMMARY_ORDER, CHOICE_SIZE, buildSoloUrl, stripSoloParam, buildStoryRequest, startStory, finishStory, failStory, dealLikely, ratherFor, ROUNDS_PER_DECK } from './solo-manager.js';
+import { createSolo, endIntro, pickCard, continueStory, openEulogy, inspectCard, dismissInspect, stepInspect, answerCard, answerFor, buildEulogyText, dealPair, playableCards, currentDeck, SOLO_DECKS, SUMMARY_ORDER, CHOICE_SIZE, buildSoloUrl, stripSoloParam, buildStoryRequest, startStory, finishStory, failStory, dealLikely, ratherFor, ROUNDS_PER_DECK, chooseOption, choiceFor, cardLabel, isSplitChoice } from './solo-manager.js';
 
 function deck(type, n, extra = () => ({})) {
   return Array.from({ length: n }, (_, i) => ({ id: i + 1, deckType: type, compositeId: `${type}:${i + 1}`, ...extra(i) }));
@@ -311,4 +311,74 @@ test('intro: cards cannot be inspected until the intro ends', () => {
   const s = createSolo(decks);
   assert.equal(inspectCard(s, 0), s);
   assert.equal(inspectCard(endIntro(s), 0).inspectIndex, 0);
+});
+
+// ── Split ("Would You Rather") cards ────────────────────────
+const splitDecks = {
+  die: deck('die', 14, (i) => (i === 0 ? { special: 'split', title: 'Would you rather', options: ['Fire', 'Ice'] } : {})),
+  live: deck('live', 14),
+  bye: deck('bye', 14),
+};
+
+test('isSplitChoice needs a split card with two options', () => {
+  assert.equal(isSplitChoice({ special: 'split', options: ['a', 'b'] }), true);
+  assert.equal(isSplitChoice({ special: 'split', options: null }), false);
+  assert.equal(isSplitChoice({ special: 'mystery', options: ['a', 'b'] }), false);
+});
+
+test('picking a split card pauses on a choice step; picks and inspect are ignored until chosen', () => {
+  let s = endIntro(createSolo(splitDecks));
+  s = pickCard(s, 0, splitDecks);
+  assert.equal(s.pendingChoice.compositeId, 'die:1');
+  assert.equal(s.pendingAnswer, null);
+  assert.equal(s.round, 2);
+  assert.equal(pickCard(s, 0, splitDecks), s);
+  assert.equal(inspectCard(endIntro(s), 0).inspectIndex, null);
+  const chosen = chooseOption(s, 1);
+  assert.equal(chosen.pendingChoice, null);
+  assert.deepEqual(choiceFor(chosen, s.pendingChoice), { chosen: 'Ice', other: 'Fire' });
+  assert.equal(cardLabel(chosen, s.pendingChoice), 'Would you rather — Ice');
+});
+
+test('chooseOption ignores a bad index, a missing step, and never mutates', () => {
+  const s = pickCard(createSolo(splitDecks), 0, splitDecks);
+  assert.equal(chooseOption(s, 2), s);
+  assert.equal(chooseOption(s, -1), s);
+  assert.equal(chooseOption(s, '0'), s);
+  const plain = createSolo(decks);
+  assert.equal(chooseOption(plain, 0), plain);
+  const before = JSON.stringify(s);
+  chooseOption(s, 0);
+  assert.equal(JSON.stringify(s), before);
+});
+
+test('a split card chosen as rather keeps its choice when it is also more likely', () => {
+  let s = chooseOption(pickCard(createSolo(splitDecks), 0, splitDecks, () => 0), 0);
+  assert.equal(s.pair[0].compositeId, 'die:1');
+  s = pickCard(s, 0, splitDecks);
+  assert.equal(s.pendingChoice, null);
+  assert.equal(s.picks.die.compositeId, 'die:1');
+  assert.equal(choiceFor(s, s.picks.die).chosen, 'Fire');
+});
+
+test('choiceFor and cardLabel fall back for plain or unchosen cards', () => {
+  const s = createSolo(splitDecks);
+  assert.equal(choiceFor(s, splitDecks.die[0]), null);
+  assert.equal(choiceFor(s, decks.live[0]), null);
+  assert.equal(cardLabel(s, { title: 'Pirate' }), 'Pirate');
+});
+
+test('eulogy text and story request carry the split choice and its card', () => {
+  const split = { compositeId: 'die:9', special: 'split', title: 'Would you rather', options: ['Fire', 'Ice'] };
+  const solo = {
+    picks: { die: { compositeId: 'die:1', title: 'Old age' }, live: { compositeId: 'live:1', title: 'Pirate' }, bye: { compositeId: 'bye:1', title: 'Heaven' } },
+    rathers: { die: split },
+    answers: {},
+    choices: { 'die:9': 0 },
+  };
+  assert.match(buildEulogyText(solo, ''), /Your death: Old age \(would rather: Would you rather — Fire\)/);
+  const { picks } = buildStoryRequest(solo, '');
+  assert.deepEqual(picks.die.rather.choice, { chosen: 'Fire', other: 'Ice' });
+  assert.equal(picks.die.rather.title, 'Would you rather');
+  assert.ok(!('choice' in picks.live));
 });
