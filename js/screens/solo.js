@@ -6,7 +6,8 @@
 // rather", then "more likely" with the rather card back in the hand), three
 // decks, then a summary of the three picks and a
 // space to write your own eulogy. Done turns the picks and eulogy into a
-// Claude-written life story. Picking a `?` card shows an answer step.
+// Claude-written life story. Picking a card that asks something (a `?`
+// card, or a question/tip prompt) shows an answer or reflect step.
 // Each question first shows full-screen (`solo.intro`), then the cards deal
 // in; screens/solo-intro.js runs that animation.
 'use strict';
@@ -16,7 +17,7 @@ import { render as renderCard } from '../components/card.js';
 import { render as renderCardBack } from '../components/cardBack.js';
 import { renderInspectOverlay } from '../components/hand.js';
 import { escapeHtml } from '../utils/escape.js';
-import { cardId, currentDeck, DECK_LABELS, ROUNDS_PER_DECK, SOLO_DECKS, SUMMARY_ORDER, answerFor, ratherFor } from '../managers/solo-manager.js';
+import { cardId, currentDeck, DECK_LABELS, ROUNDS_PER_DECK, SOLO_DECKS, SUMMARY_ORDER, answerFor, ratherFor, soloPromptFor } from '../managers/solo-manager.js';
 
 /**
  * @param {object} state
@@ -109,29 +110,49 @@ function renderInspect(solo, deck, isLikely) {
 }
 
 /**
- * Answer step for a `?` card: the card asks a question, the player answers.
- * Continue stores the text; Skip moves on without one.
+ * Step after picking a card that asks something (see soloPromptFor).
+ * Question: the player answers; Continue stores the text, Skip moves on.
+ * Tip: the card's comment to reflect on, with a single Continue.
  */
 function renderAnswer(solo) {
   const card = solo.pendingAnswer;
+  const ask = soloPromptFor(card) ?? { kind: 'question', text: card.title ?? 'What do you say?' };
   // After the BYE final the deck index no longer advances, so fall back to
   // the last deck's label.
   const deck = solo.done ? SOLO_DECKS[SOLO_DECKS.length - 1] : currentDeck(solo);
   const meta = DECK_LABELS[deck];
+  const isTip = ask.kind === 'tip';
+  const label = isTip ? 'Something to think about' : 'Your answer';
   return `
     <div class="screen screen--phase screen--solo" data-phase="${meta.phase}">
-      ${renderPhaseHeader({ phase: meta.phase, label: `${meta.label} - Your answer` })}
-      <p class="phase__prompt solo__prompt">${escapeHtml(card.title ?? 'What do you say?')}</p>
+      ${renderPhaseHeader({ phase: meta.phase, label: `${meta.label} - ${label}` })}
+      ${isTip ? '' : `<p class="phase__prompt solo__prompt">${escapeHtml(ask.text)}</p>`}
       <div class="solo__answer-step">
         <div class="solo__answer-card">${renderCard(card)}</div>
+        ${isTip ? renderReflect(ask.text) : `
         <textarea id="solo-answer" class="solo__textarea" rows="3" maxlength="140"
-                  placeholder="Your answer…" aria-label="Your answer"></textarea>
+                  placeholder="Your answer…" aria-label="${escapeHtml(ask.text)}"></textarea>`}
       </div>
       <div class="phase__actions solo__actions">
-        <button class="btn btn--primary" onclick="window.game.soloAnswer()">Continue</button>
-        <button class="btn btn--secondary" onclick="window.game.soloSkipAnswer()">Skip</button>
+        ${isTip
+          ? '<button class="btn btn--primary" onclick="window.game.soloSkipAnswer()">Continue</button>'
+          : `<button class="btn btn--primary" onclick="window.game.soloAnswer()">Continue</button>
+        <button class="btn btn--secondary" onclick="window.game.soloSkipAnswer()">Skip</button>`}
       </div>
       ${renderProgress(solo)}
+    </div>
+  `;
+}
+
+/** A card's tip, shown as a speech-bubble note to reflect on. */
+function renderReflect(text) {
+  return `
+    <div class="solo__reflect" role="note">
+      <svg class="solo__reflect-icon" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"
+           fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 20l1.3-3.9A9 8 0 1 1 7.7 19L3 20"/><path d="M8 10h8"/><path d="M8 14h5"/>
+      </svg>
+      <p class="solo__reflect-text">${escapeHtml(text)}</p>
     </div>
   `;
 }

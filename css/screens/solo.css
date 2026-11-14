@@ -321,6 +321,29 @@
   resize: vertical;
 }
 
+.solo__reflect {
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+}
+
+.solo__reflect-icon {
+  flex: none;
+  margin-top: 2px;
+}
+
+.solo__reflect-text {
+  margin: 0;
+  font-size: 1.1rem;
+  line-height: 1.4;
+}
+
 .solo__textarea:focus-visible {
   outline: none;
   border-color: var(--color-live);
