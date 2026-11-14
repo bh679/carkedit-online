@@ -62,6 +62,32 @@ test('would rather round: no ribbon', () => {
   assert.ok(!html.includes('solo__choice--rather'));
 });
 
+test('life story: Share, Play with friends, Play Again close the page in every state', () => {
+  for (const story of [{ status: 'loading' }, { status: 'ready', text: 'Story.' }, { status: 'error', error: 'nope' }]) {
+    const html = render(lifeStoryState(story, 'Bye.'));
+    const ctasAt = html.indexOf('solo__ctas');
+    assert.ok(ctasAt > html.indexOf('solo__eulogy-panel'), `CTAs after the eulogy (${story.status})`);
+    const ctas = html.slice(ctasAt);
+    const shareAt = ctas.indexOf('>Share<');
+    const friendsAt = ctas.indexOf('>Play with friends<');
+    const againAt = ctas.indexOf('>Play Again<');
+    assert.ok(shareAt > -1 && shareAt < friendsAt && friendsAt < againAt, `CTA order (${story.status})`);
+    assert.match(ctas, /onclick="window\.game\.soloMenu\(\)">Play with friends</);
+    assert.match(ctas, /onclick="window\.game\.soloStart\(\)">Play Again</);
+    assert.equal(html.match(/>Share</g).length, 1, `one Share button (${story.status})`);
+  }
+});
+
+test('life story: Share sends the story image once ready, the link before that', () => {
+  const ready = render(lifeStoryState({ status: 'ready', text: 'Story.' }));
+  assert.match(ready, /solo__story-share" onclick="window\.game\.soloShareStory\(\)"/);
+  for (const story of [{ status: 'loading' }, { status: 'error', error: 'nope' }]) {
+    const html = render(lifeStoryState(story));
+    assert.ok(!html.includes('soloShareStory'));
+    assert.match(html, /solo__share-btn" onclick="window\.game\.copySoloLink\(\)"/);
+  }
+});
+
 function roundState(intro) {
   const card = (i) => ({ id: i, deckType: 'die', compositeId: `die:${i}`, title: `Card ${i}` });
   return { solo: { stage: 'round', deckIndex: 0, round: 1, pair: [1, 2, 3, 4].map(card), picks: {}, rathers: {}, answers: {}, inspectIndex: null, intro } };
