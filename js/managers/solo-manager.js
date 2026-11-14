@@ -53,7 +53,7 @@ export const DECK_LABELS = Object.freeze({
   },
   live: {
     phase: '2', label: 'Phase 2 - LIVE', pickLabel: 'Your life',
-    ratherPrompt: 'How would you rather live before you cark it?', likelyPrompt: 'How are you more likely to live?',
+    ratherPrompt: 'How do you want to approach your final days?', likelyPrompt: 'How are you more likely to live?',
   },
   bye: {
     phase: '3', label: 'Phase 3 - BYE', pickLabel: 'Your afterlife',
