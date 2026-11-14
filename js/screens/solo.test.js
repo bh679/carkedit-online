@@ -93,6 +93,7 @@ test('answer step: a question prompt shows the question and a text box', () => {
   assert.ok(html.includes('id="solo-answer"'));
   assert.ok(html.includes('soloSkipAnswer'));
   assert.ok(!html.includes('solo__reflect'));
+  assert.ok(!html.includes('class="card'), 'the card itself is not shown');
 });
 
 test('answer step: a tip prompt shows a note to reflect on, no text box', () => {

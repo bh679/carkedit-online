@@ -293,25 +293,6 @@
   gap: var(--space-sm);
 }
 
-/* The card gets whatever room the question, text box and buttons leave (at
-   most 42vh, so the question stays the focus), and is sized by whichever of
-   width or height runs out first — never cropped. */
-.solo__answer-card {
-  flex: 1;
-  min-height: 0;
-  max-height: 42vh;
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  container-type: size;
-}
-
-.solo__answer-card .card {
-  width: min(100%, calc(100cqh * 5 / 7));
-  max-height: 100%;
-}
-
 .solo__textarea {
   width: 100%;
   max-width: 480px;
@@ -324,7 +305,7 @@
   resize: vertical;
 }
 
-/* The card's question or tip, big under the (smaller) card. */
+/* The card's question or tip, shown big on its own. */
 .solo__ask {
   margin: 0;
   padding: 0 var(--space-sm);
