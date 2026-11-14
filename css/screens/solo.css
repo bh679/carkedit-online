@@ -324,7 +324,7 @@
   resize: vertical;
 }
 
-/* The card's question or tip, big above the (smaller) card. */
+/* The card's question or tip, big under the (smaller) card. */
 .solo__ask {
   margin: 0;
   padding: 0 var(--space-sm);

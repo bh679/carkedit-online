@@ -127,8 +127,8 @@ function renderAnswer(solo) {
     <div class="screen screen--phase screen--solo" data-phase="${meta.phase}">
       ${renderPhaseHeader({ phase: meta.phase, label: `${meta.label} - ${label}` })}
       <div class="solo__answer-step">
-        ${isTip ? renderReflect(ask.text) : `<p class="solo__ask">${escapeHtml(ask.text)}</p>`}
         <div class="solo__answer-card">${renderCard(card)}</div>
+        ${isTip ? renderReflect(ask.text) : `<p class="solo__ask">${escapeHtml(ask.text)}</p>`}
         ${isTip ? '' : `
         <textarea id="solo-answer" class="solo__textarea" rows="3" maxlength="140"
                   placeholder="Your answer…" aria-label="${escapeHtml(ask.text)}"></textarea>`}
