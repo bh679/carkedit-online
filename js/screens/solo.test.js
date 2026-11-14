@@ -62,6 +62,32 @@ test('would rather round: no ribbon', () => {
   assert.ok(!html.includes('solo__choice--rather'));
 });
 
+test('life story: Share, Play with friends, Play Again close the page in every state', () => {
+  for (const story of [{ status: 'loading' }, { status: 'ready', text: 'Story.' }, { status: 'error', error: 'nope' }]) {
+    const html = render(lifeStoryState(story, 'Bye.'));
+    const ctasAt = html.indexOf('solo__ctas');
+    assert.ok(ctasAt > html.indexOf('solo__eulogy-panel'), `CTAs after the eulogy (${story.status})`);
+    const ctas = html.slice(ctasAt);
+    const shareAt = ctas.indexOf('>Share<');
+    const friendsAt = ctas.indexOf('>Play with friends<');
+    const againAt = ctas.indexOf('>Play Again<');
+    assert.ok(shareAt > -1 && shareAt < friendsAt && friendsAt < againAt, `CTA order (${story.status})`);
+    assert.match(ctas, /onclick="window\.game\.soloMenu\(\)">Play with friends</);
+    assert.match(ctas, /onclick="window\.game\.soloStart\(\)">Play Again</);
+    assert.equal(html.match(/>Share</g).length, 1, `one Share button (${story.status})`);
+  }
+});
+
+test('life story: Share sends the story image once ready, the link before that', () => {
+  const ready = render(lifeStoryState({ status: 'ready', text: 'Story.' }));
+  assert.match(ready, /solo__story-share" onclick="window\.game\.soloShareStory\(\)"/);
+  for (const story of [{ status: 'loading' }, { status: 'error', error: 'nope' }]) {
+    const html = render(lifeStoryState(story));
+    assert.ok(!html.includes('soloShareStory'));
+    assert.match(html, /solo__share-btn" onclick="window\.game\.copySoloLink\(\)"/);
+  }
+});
+
 function roundState(intro) {
   const card = (i) => ({ id: i, deckType: 'die', compositeId: `die:${i}`, title: `Card ${i}` });
   return { solo: { stage: 'round', deckIndex: 0, round: 1, pair: [1, 2, 3, 4].map(card), picks: {}, rathers: {}, answers: {}, inspectIndex: null, intro } };
@@ -81,6 +107,23 @@ test('round after the intro: cards flip in, no intro markup', () => {
   assert.ok(!html.includes('data-solo-intro'));
   assert.ok(!html.includes('solo__skip-hint'));
   assert.equal(html.match(/data-solo-reveal/g).length, 4);
+});
+
+const splitCard = { compositeId: 'die:9', deckType: 'die', special: 'split', title: 'Would you rather', options: ['Fire <b>', 'Ice'] };
+
+test('choice step: a split card breaks into two tappable halves', () => {
+  const html = render({ solo: { deckIndex: 0, round: 2, pair: [], picks: {}, stage: 'round', pendingChoice: splitCard } });
+  assert.equal((html.match(/solo__split-piece--a/g) ?? []).length, 1);
+  assert.equal((html.match(/solo__split-piece--b/g) ?? []).length, 1);
+  assert.match(html, /window\.game\.soloChoose\(0\)/);
+  assert.match(html, /window\.game\.soloChoose\(1\)/);
+  assert.ok(html.includes('aria-label="Fire &lt;b&gt;"'));
+  assert.ok(!html.includes('Fire <b>'));
+});
+
+test('story: a split pick shows the option taken', () => {
+  const html = render({ solo: { deckIndex: 1, stage: 'story', picks: { die: splitCard }, answers: {}, choices: { 'die:9': 1 } } });
+  assert.match(html, /solo__answer--choice">Ice</);
 });
 
 function answerState(card) {
