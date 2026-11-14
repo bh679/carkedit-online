@@ -126,10 +126,10 @@ function renderAnswer(solo) {
   return `
     <div class="screen screen--phase screen--solo" data-phase="${meta.phase}">
       ${renderPhaseHeader({ phase: meta.phase, label: `${meta.label} - ${label}` })}
-      ${isTip ? '' : `<p class="phase__prompt solo__prompt">${escapeHtml(ask.text)}</p>`}
       <div class="solo__answer-step">
+        ${isTip ? renderReflect(ask.text) : `<p class="solo__ask">${escapeHtml(ask.text)}</p>`}
         <div class="solo__answer-card">${renderCard(card)}</div>
-        ${isTip ? renderReflect(ask.text) : `
+        ${isTip ? '' : `
         <textarea id="solo-answer" class="solo__textarea" rows="3" maxlength="140"
                   placeholder="Your answer…" aria-label="${escapeHtml(ask.text)}"></textarea>`}
       </div>
@@ -147,13 +147,13 @@ function renderAnswer(solo) {
 /** A card's tip, shown as a speech-bubble note to reflect on. */
 function renderReflect(text) {
   return `
-    <div class="solo__reflect" role="note">
+    <p class="solo__ask solo__reflect" role="note">
       <svg class="solo__reflect-icon" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"
            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M3 20l1.3-3.9A9 8 0 1 1 7.7 19L3 20"/><path d="M8 10h8"/><path d="M8 14h5"/>
       </svg>
-      <p class="solo__reflect-text">${escapeHtml(text)}</p>
-    </div>
+      ${escapeHtml(text)}
+    </p>
   `;
 }
 

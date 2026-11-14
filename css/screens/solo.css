@@ -289,14 +289,17 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: var(--space-sm);
 }
 
-/* The card gets whatever room the text box and buttons leave, and is sized
-   by whichever of width or height runs out first — never cropped. */
+/* The card gets whatever room the question, text box and buttons leave (at
+   most 42vh, so the question stays the focus), and is sized by whichever of
+   width or height runs out first — never cropped. */
 .solo__answer-card {
   flex: 1;
   min-height: 0;
+  max-height: 42vh;
   width: 100%;
   display: flex;
   justify-content: center;
@@ -321,27 +324,22 @@
   resize: vertical;
 }
 
-.solo__reflect {
-  width: 100%;
-  max-width: 480px;
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-sm);
-  padding: var(--space-sm) var(--space-md);
-  border: 2px solid var(--color-border);
-  border-radius: var(--radius-md);
-  color: var(--color-text);
+/* The card's question or tip, big above the (smaller) card. */
+.solo__ask {
+  margin: 0;
+  padding: 0 var(--space-sm);
+  text-align: center;
+  font-size: clamp(24px, 6.5vw, 40px);
+  font-weight: 800;
+  line-height: 1.2;
+  text-wrap: balance;
 }
 
 .solo__reflect-icon {
-  flex: none;
-  margin-top: 2px;
-}
-
-.solo__reflect-text {
-  margin: 0;
-  font-size: 1.1rem;
-  line-height: 1.4;
+  width: 0.9em;
+  height: 0.9em;
+  margin-right: 0.25em;
+  vertical-align: -0.1em;
 }
 
 .solo__textarea:focus-visible {
