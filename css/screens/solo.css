@@ -379,6 +379,10 @@
 
 .solo__lifestory-screen {
   gap: var(--space-sm);
+  /* body and #app don't scroll, so a long story scrolls inside the screen. */
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .solo__story {
@@ -441,6 +445,21 @@
 }
 
 .solo__story-share {
+  width: 100%;
+}
+
+/* Share / Play with friends / Play Again at the end of the story page. */
+.solo__ctas {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  width: 100%;
+  max-width: 60ch;
+  margin: var(--space-sm) auto 0;
+  padding-bottom: var(--space-md);
+}
+
+.solo__ctas .btn {
   width: 100%;
 }
 

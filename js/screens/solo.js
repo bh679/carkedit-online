@@ -222,13 +222,24 @@ function renderLifeStory(solo) {
         ${renderPicks(solo, { compact: true })}
       </div>
       ${renderStoryBody(story, solo.eulogy)}
-      <div class="phase__actions solo__actions">
-        <button class="btn btn--secondary" onclick="window.game.soloStart()">Play Again</button>
-        <button class="btn btn--secondary" onclick="window.game.soloMenu()">Menu</button>
-      </div>
-      <button class="btn btn--ghost solo__share-btn" onclick="window.game.copySoloLink()">
-        Share Single Player
-      </button>
+      ${renderStoryCtas(story)}
+    </div>
+  `;
+}
+
+/**
+ * The calls to action at the end of the story page. Share sends the story image
+ * once it's written; until then it copies the single player link.
+ */
+function renderStoryCtas(story) {
+  const share = story.status === 'ready'
+    ? `<button class="btn btn--primary solo__story-share" onclick="window.game.soloShareStory()">Share</button>`
+    : `<button class="btn btn--primary solo__share-btn" onclick="window.game.copySoloLink()">Share</button>`;
+  return `
+    <div class="solo__ctas">
+      ${share}
+      <button class="btn btn--secondary" onclick="window.game.soloMenu()">Play with friends</button>
+      <button class="btn btn--secondary" onclick="window.game.soloStart()">Play Again</button>
     </div>
   `;
 }
@@ -242,7 +253,6 @@ function renderStoryBody(story, eulogy) {
         <article class="solo__story" aria-live="polite">${toParagraphs(story.text)}</article>
       </section>
       ${eulogyBox}
-      <button class="btn btn--primary solo__story-share" onclick="window.game.soloShareStory()">Share</button>
     `;
   }
   if (story.status === 'error') {
