@@ -9,8 +9,9 @@
 // Each new question opens with a full-screen intro (`intro: true`) before
 // its cards deal in; `endIntro` clears it (see screens/solo-intro.js).
 // A dealt hand holds at most one split and one `?` card (MAX_PER_HAND).
-// Picking a `?` (mystery) card pauses the
-// game on an answer step so the player can say what the card asks.
+// Picking a card that asks something — a `?` (mystery) card, or a LIVE/BYE
+// card whose bottom-line `prompt` is a question or tip — pauses the game on
+// an answer step (see soloPromptFor). Each card is prompted at most once.
 // Picking a split ("Would You Rather") card pauses on a choice step
 // (`pendingChoice`): the card breaks in two and the player takes one option,
 // stored by card in `choices` and sent with the card to the life story.
@@ -159,6 +160,7 @@ export function createSolo(decks) {
     picks: {},
     answers: {},
     pendingAnswer: null,
+    promptedIds: [],
     choices: {},
     pendingChoice: null,
     inspectIndex: null,
@@ -179,14 +181,39 @@ export function isSplitChoice(card) {
 }
 
 /**
- * Attach a pending step for the chosen card: an answer for a `?` card that
- * hasn't been answered yet, or a choice for a split card that hasn't been
- * split yet. Pure.
+ * Solo wording for prompts written for the table. Keyed by cardId.
+ */
+export const SOLO_PROMPT_OVERRIDES = Object.freeze({
+  'bye:50': 'What would you like to be reincarnated as?',
+});
+
+/** Multiplayer-only prompts ("take turns…", "go around the table…"). */
+const MULTIPLAYER_PROMPT = /^\s*bonus mini-game/i;
+
+/**
+ * What a picked card asks of a solo player: a question to answer, a tip to
+ * reflect on, or nothing. Pure.
+ * @param {object} card
+ * @returns {{ kind: 'question' | 'tip', text: string } | null}
+ */
+export function soloPromptFor(card) {
+  if (!card) return null;
+  if (isMystery(card)) return { kind: 'question', text: String(card.title || 'What do you say?') };
+  const text = String(SOLO_PROMPT_OVERRIDES[cardId(card)] ?? card.prompt ?? '').trim();
+  if (!text || MULTIPLAYER_PROMPT.test(text)) return null;
+  return { kind: text.includes('?') ? 'question' : 'tip', text };
+}
+
+/**
+ * Attach a pending step for the chosen card: an answer for a card that asks
+ * something (see soloPromptFor) and hasn't been answered or prompted yet, or
+ * a choice for a split card that hasn't been split yet. Pure.
  */
 function withPendingStep(next, chosen, solo) {
   const cleared = { ...next, inspectIndex: null };
   const id = cardId(chosen);
-  if (isMystery(chosen) && (solo.answers ?? {})[id] === undefined) {
+  const prompted = (solo.answers ?? {})[id] !== undefined || (solo.promptedIds ?? []).includes(id);
+  if (!prompted && soloPromptFor(chosen)) {
     return Object.freeze({ ...cleared, pendingAnswer: chosen });
   }
   if (isSplitChoice(chosen) && (solo.choices ?? {})[id] === undefined) {
@@ -233,16 +260,19 @@ export function stepInspect(solo, delta) {
 }
 
 /**
- * Record the player's answer to the pending `?` card and clear the step.
- * Blank text skips without storing anything. Pure.
+ * Record the player's answer to the pending card and clear the step. Blank
+ * text (Skip, or Continue on a tip) stores nothing; either way the card is
+ * not prompted again. Pure.
  * @param {object} solo
  * @param {string} text
  */
 export function answerCard(solo, text) {
   if (!solo.pendingAnswer) return solo;
+  const id = cardId(solo.pendingAnswer);
   const trimmed = String(text ?? '').trim();
-  const answers = trimmed ? { ...solo.answers, [cardId(solo.pendingAnswer)]: trimmed } : solo.answers;
-  return Object.freeze({ ...solo, answers, pendingAnswer: null });
+  const answers = trimmed ? { ...solo.answers, [id]: trimmed } : solo.answers;
+  const promptedIds = [...(solo.promptedIds ?? []), id];
+  return Object.freeze({ ...solo, answers, promptedIds, pendingAnswer: null });
 }
 
 /**

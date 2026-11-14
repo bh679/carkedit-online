@@ -125,3 +125,25 @@ test('story: a split pick shows the option taken', () => {
   const html = render({ solo: { deckIndex: 1, stage: 'story', picks: { die: splitCard }, answers: {}, choices: { 'die:9': 1 } } });
   assert.match(html, /solo__answer--choice">Ice</);
 });
+
+function answerState(card) {
+  return { solo: { pendingAnswer: card, deckIndex: 1, stage: 'round', picks: {}, answers: {} } };
+}
+
+test('answer step: a question prompt shows the question and a text box', () => {
+  const html = render(answerState({ deckType: 'live', id: 5, title: 'Bucket List', prompt: "What's on your bucket list?" }));
+  assert.match(html, /What&#39;s on your bucket list\?|What&#x27;s on your bucket list\?|What's on your bucket list\?/);
+  assert.ok(html.includes('id="solo-answer"'));
+  assert.ok(html.includes('soloSkipAnswer'));
+  assert.ok(!html.includes('solo__reflect'));
+  assert.ok(!html.includes('class="card'), 'the card itself is not shown');
+});
+
+test('answer step: a tip prompt shows a note to reflect on, no text box', () => {
+  const html = render(answerState({ deckType: 'live', id: 3, title: 'Write a Will', prompt: 'Tell your <family>!' }));
+  assert.ok(html.includes('solo__reflect'));
+  assert.ok(html.includes('Something to think about'));
+  assert.ok(html.includes('Tell your &lt;family&gt;!'));
+  assert.ok(!html.includes('id="solo-answer"'));
+  assert.ok(!html.includes('soloAnswer()'));
+});

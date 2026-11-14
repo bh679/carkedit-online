@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createSolo, endIntro, pickCard, continueStory, openEulogy, inspectCard, dismissInspect, stepInspect, answerCard, answerFor, buildEulogyText, dealPair, playableCards, currentDeck, SOLO_DECKS, SUMMARY_ORDER, CHOICE_SIZE, buildSoloUrl, stripSoloParam, buildStoryRequest, startStory, finishStory, failStory, dealLikely, ratherFor, ROUNDS_PER_DECK, chooseOption, choiceFor, cardLabel, isSplitChoice } from './solo-manager.js';
+import { createSolo, endIntro, pickCard, continueStory, openEulogy, inspectCard, dismissInspect, stepInspect, answerCard, answerFor, buildEulogyText, dealPair, playableCards, currentDeck, SOLO_DECKS, SUMMARY_ORDER, CHOICE_SIZE, buildSoloUrl, stripSoloParam, buildStoryRequest, startStory, finishStory, failStory, dealLikely, ratherFor, ROUNDS_PER_DECK, chooseOption, choiceFor, cardLabel, isSplitChoice, soloPromptFor } from './solo-manager.js';
 
 function deck(type, n, extra = () => ({})) {
   return Array.from({ length: n }, (_, i) => ({ id: i + 1, deckType: type, compositeId: `${type}:${i + 1}`, ...extra(i) }));
@@ -167,8 +167,8 @@ test('skipping a ? card stores no answer and does not ask again', () => {
   s = answerCard(s, '');
   assert.equal(s.pendingAnswer, null);
   assert.deepEqual(s.answers, {});
-  // The mystery card is back in the more-likely hand (slot 0 here); picking it
-  // would ask again only because no answer was stored — pick a plain card.
+  // The mystery card is back in the more-likely hand (slot 0 here); pick a
+  // plain card to move on.
   assert.equal(s.round, 2);
   s = pickCard(s, 1, mysteryDecks);
   assert.equal(s.pendingAnswer, null);
@@ -381,4 +381,66 @@ test('eulogy text and story request carry the split choice and its card', () => 
   assert.deepEqual(picks.die.rather.choice, { chosen: 'Fire', other: 'Ice' });
   assert.equal(picks.die.rather.title, 'Would you rather');
   assert.ok(!('choice' in picks.live));
+});
+
+// ── Card prompts (questions and tips) ───────────────────────
+
+test('soloPromptFor: questions, tips, mystery cards and none', () => {
+  assert.deepEqual(soloPromptFor({ deckType: 'bye', id: 10, prompt: 'Who will keep your urn?' }),
+    { kind: 'question', text: 'Who will keep your urn?' });
+  assert.deepEqual(soloPromptFor({ deckType: 'live', id: 3, prompt: "Don't forget to tell your family!" }),
+    { kind: 'tip', text: "Don't forget to tell your family!" });
+  assert.deepEqual(soloPromptFor({ deckType: 'die', id: 9, special: 'mystery', title: 'Pick the Best Way to Die' }),
+    { kind: 'question', text: 'Pick the Best Way to Die' });
+  assert.equal(soloPromptFor({ deckType: 'die', id: 1, title: 'Old leftovers' }), null);
+  assert.equal(soloPromptFor({ deckType: 'live', id: 2, prompt: '   ' }), null);
+  assert.equal(soloPromptFor(null), null);
+});
+
+test('soloPromptFor: rewords Reincarnation for solo, drops other mini-games', () => {
+  const reincarnation = { deckType: 'bye', id: 50, prompt: 'Bonus Mini-Game: take turns to guess what other players would like to be reincarnated as!' };
+  assert.deepEqual(soloPromptFor(reincarnation), { kind: 'question', text: 'What would you like to be reincarnated as?' });
+  assert.equal(soloPromptFor({ deckType: 'bye', id: 99, prompt: 'Bonus Mini-Game: go around the table!' }), null);
+});
+
+const promptDecks = {
+  die: deck('die', 14),
+  live: deck('live', 14, (i) => ({ prompt: i === 0 ? "What's on your bucket list?" : i === 1 ? 'Tell your family!' : '' })),
+  bye: deck('bye', 14),
+};
+
+function toLive(rng = () => 0) {
+  let s = createSolo(promptDecks);
+  s = pickCard(s, 1, promptDecks, rng);
+  s = pickCard(s, 1, promptDecks, rng);
+  return continueStory(s);
+}
+
+test('picking a card with a question prompt pauses for an answer that reaches the story', () => {
+  let s = toLive();
+  assert.equal(currentDeck(s), 'live');
+  s = pickCard(s, 0, promptDecks, () => 0);
+  assert.equal(s.pendingAnswer.compositeId, 'live:1');
+  s = answerCard(s, 'See the aurora');
+  assert.equal(answerFor(s, promptDecks.live[0]), 'See the aurora');
+  // The rather card is back at slot 0; picking it again asks nothing.
+  s = pickCard(s, 0, promptDecks);
+  assert.equal(s.pendingAnswer, null);
+  s = continueStory(s);
+  s = pickCard(s, 1, promptDecks, () => 0);
+  s = pickCard(s, 1, promptDecks);
+  s = openEulogy(s);
+  assert.equal(buildStoryRequest(s, '').picks.live.answer, 'See the aurora');
+});
+
+test('a tip prompt pauses once; continuing stores nothing and never re-prompts', () => {
+  let s = toLive();
+  s = pickCard(s, 1, promptDecks, () => 0);
+  assert.equal(s.pendingAnswer.compositeId, 'live:2');
+  s = answerCard(s, '');
+  assert.equal(s.pendingAnswer, null);
+  assert.deepEqual(s.answers, {});
+  assert.deepEqual(s.promptedIds, ['live:2']);
+  s = pickCard(s, 0, promptDecks);
+  assert.equal(s.pendingAnswer, null);
 });

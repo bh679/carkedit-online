@@ -289,24 +289,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-sm);
-}
-
-/* The card gets whatever room the text box and buttons leave, and is sized
-   by whichever of width or height runs out first — never cropped. */
-.solo__answer-card {
-  flex: 1;
-  min-height: 0;
-  width: 100%;
-  display: flex;
   justify-content: center;
-  align-items: center;
-  container-type: size;
-}
-
-.solo__answer-card .card {
-  width: min(100%, calc(100cqh * 5 / 7));
-  max-height: 100%;
+  gap: var(--space-sm);
 }
 
 /* Split-card choice: two copies of the card, each clipped to one triangle
@@ -389,6 +373,24 @@
   color: var(--color-text);
   font: inherit;
   resize: vertical;
+}
+
+/* The card's question or tip, shown big on its own. */
+.solo__ask {
+  margin: 0;
+  padding: 0 var(--space-sm);
+  text-align: center;
+  font-size: clamp(24px, 6.5vw, 40px);
+  font-weight: 800;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+
+.solo__reflect-icon {
+  width: 0.9em;
+  height: 0.9em;
+  margin-right: 0.25em;
+  vertical-align: -0.1em;
 }
 
 .solo__textarea:focus-visible {
