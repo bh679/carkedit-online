@@ -82,3 +82,20 @@ test('round after the intro: cards flip in, no intro markup', () => {
   assert.ok(!html.includes('solo__skip-hint'));
   assert.equal(html.match(/data-solo-reveal/g).length, 4);
 });
+
+const splitCard = { compositeId: 'die:9', deckType: 'die', special: 'split', title: 'Would you rather', options: ['Fire <b>', 'Ice'] };
+
+test('choice step: a split card breaks into two tappable halves', () => {
+  const html = render({ solo: { deckIndex: 0, round: 2, pair: [], picks: {}, stage: 'round', pendingChoice: splitCard } });
+  assert.equal((html.match(/solo__split-piece--a/g) ?? []).length, 1);
+  assert.equal((html.match(/solo__split-piece--b/g) ?? []).length, 1);
+  assert.match(html, /window\.game\.soloChoose\(0\)/);
+  assert.match(html, /window\.game\.soloChoose\(1\)/);
+  assert.ok(html.includes('aria-label="Fire &lt;b&gt;"'));
+  assert.ok(!html.includes('Fire <b>'));
+});
+
+test('story: a split pick shows the option taken', () => {
+  const html = render({ solo: { deckIndex: 1, stage: 'story', picks: { die: splitCard }, answers: {}, choices: { 'die:9': 1 } } });
+  assert.match(html, /solo__answer--choice">Ice</);
+});

@@ -16,7 +16,7 @@ import { render as renderPhase23, formatTime } from './screens/phase2-3.js';
 import { render as renderPhase4 } from './screens/phase4.js';
 import { render as renderSolo } from './screens/solo.js';
 import { runSoloIntro, cancelSoloIntro } from './screens/solo-intro.js';
-import { createSolo, endIntro as soloEndIntro, pickCard as soloPickCard, inspectCard as soloInspectCard, dismissInspect as soloDismissInspectCard, stepInspect as soloStepInspectCard, continueStory as soloContinueStory, openEulogy as soloOpenEulogyStage, answerCard as soloAnswerCard, buildStoryRequest, startStory as soloStartStory, finishStory as soloFinishStory, failStory as soloFailStory, buildSoloUrl, stripSoloParam, SOLO_QUERY_PARAM } from './managers/solo-manager.js';
+import { createSolo, endIntro as soloEndIntro, pickCard as soloPickCard, inspectCard as soloInspectCard, dismissInspect as soloDismissInspectCard, stepInspect as soloStepInspectCard, continueStory as soloContinueStory, openEulogy as soloOpenEulogyStage, answerCard as soloAnswerCard, chooseOption as soloChooseOption, buildStoryRequest, startStory as soloStartStory, finishStory as soloFinishStory, failStory as soloFailStory, buildSoloUrl, stripSoloParam, SOLO_QUERY_PARAM } from './managers/solo-manager.js';
 import { render as renderAccount, renderGamesList, renderMyPacks } from './screens/account.js';
 import { render as renderScheduleGame } from './screens/schedule-game.js';
 import { render as renderScheduledCreated } from './screens/scheduled-created.js';
@@ -221,7 +221,7 @@ function restoreRevealedFlips(root, keys) {
 function syncSoloIntro(name, state) {
   cancelSoloIntro();
   const solo = state.solo;
-  if (name !== 'solo' || !solo?.intro || solo.stage !== 'round' || solo.pendingAnswer || solo.done) return;
+  if (name !== 'solo' || !solo?.intro || solo.stage !== 'round' || solo.pendingAnswer || solo.pendingChoice || solo.done) return;
   requestAnimationFrame(() => runSoloIntro({ onDone: () => updateSolo(soloEndIntro) }));
 }
 
@@ -823,6 +823,11 @@ function applySoloAnswer(text) {
   showScreen('solo', { solo: soloAnswerCard(state.solo, text) });
 }
 
+/** Take one half (0 = top, 1 = bottom) of the pending split card. */
+function soloChoose(index) {
+  updateSolo((solo) => soloChooseOption(solo, index));
+}
+
 function copySoloLink() {
   const btn = document.querySelector('.solo__share-btn');
   copyToClipboard(buildSoloUrl(window.location.origin), btn, 'Link copied', 'Share this link:');
@@ -992,6 +997,7 @@ window.game = {
   soloMenu,
   soloAnswer,
   soloSkipAnswer,
+  soloChoose,
   copySoloLink,
   soloDone,
   soloRetryStory,

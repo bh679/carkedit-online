@@ -11,6 +11,9 @@
 // A dealt hand holds at most one split and one `?` card (MAX_PER_HAND).
 // Picking a `?` (mystery) card pauses the
 // game on an answer step so the player can say what the card asks.
+// Picking a split ("Would You Rather") card pauses on a choice step
+// (`pendingChoice`): the card breaks in two and the player takes one option,
+// stored by card in `choices` and sent with the card to the life story.
 //
 // Everything here is a pure transition over a `solo` object held in state
 // (see js/state.js). The router owns the thin `start` / `pick` hooks that
@@ -156,6 +159,8 @@ export function createSolo(decks) {
     picks: {},
     answers: {},
     pendingAnswer: null,
+    choices: {},
+    pendingChoice: null,
     inspectIndex: null,
     intro: true,
     stage: 'round',
@@ -168,14 +173,31 @@ function isMystery(card) {
   return card?.special === 'mystery';
 }
 
+/** A split card with its two options, i.e. one the player can break apart. */
+export function isSplitChoice(card) {
+  return card?.special === 'split' && Array.isArray(card.options) && card.options.length === 2;
+}
+
 /**
- * Attach a pending answer step when the chosen card is a `?` card that
- * hasn't been answered yet. Pure.
+ * Attach a pending step for the chosen card: an answer for a `?` card that
+ * hasn't been answered yet, or a choice for a split card that hasn't been
+ * split yet. Pure.
  */
-function withPendingAnswer(next, chosen, answers) {
+function withPendingStep(next, chosen, solo) {
   const cleared = { ...next, inspectIndex: null };
-  if (!isMystery(chosen) || answers[cardId(chosen)] !== undefined) return Object.freeze(cleared);
-  return Object.freeze({ ...cleared, pendingAnswer: chosen });
+  const id = cardId(chosen);
+  if (isMystery(chosen) && (solo.answers ?? {})[id] === undefined) {
+    return Object.freeze({ ...cleared, pendingAnswer: chosen });
+  }
+  if (isSplitChoice(chosen) && (solo.choices ?? {})[id] === undefined) {
+    return Object.freeze({ ...cleared, pendingChoice: chosen });
+  }
+  return Object.freeze(cleared);
+}
+
+/** True while the game is paused on an answer or choice step. */
+function isPaused(solo) {
+  return Boolean(solo.pendingAnswer || solo.pendingChoice);
 }
 
 /**
@@ -185,7 +207,7 @@ function withPendingAnswer(next, chosen, answers) {
  * @param {number} index
  */
 export function inspectCard(solo, index) {
-  if (solo.done || solo.pendingAnswer || solo.intro || !isRound(solo) || !solo.pair[index]) return solo;
+  if (solo.done || isPaused(solo) || solo.intro || !isRound(solo) || !solo.pair[index]) return solo;
   return Object.freeze({ ...solo, inspectIndex: index });
 }
 
@@ -223,6 +245,37 @@ export function answerCard(solo, text) {
   return Object.freeze({ ...solo, answers, pendingAnswer: null });
 }
 
+/**
+ * Take one option (0 = top, 1 = bottom) of the pending split card and clear
+ * the step. Any other index is ignored. Pure.
+ * @param {object} solo
+ * @param {number} optionIndex
+ */
+export function chooseOption(solo, optionIndex) {
+  if (!solo.pendingChoice || (optionIndex !== 0 && optionIndex !== 1)) return solo;
+  const choices = { ...solo.choices, [cardId(solo.pendingChoice)]: optionIndex };
+  return Object.freeze({ ...solo, choices, pendingChoice: null });
+}
+
+/**
+ * The option taken on a split card and the one it beat, or null when the
+ * card isn't split or no choice was made.
+ * @returns {{ chosen: string, other: string } | null}
+ */
+export function choiceFor(solo, card) {
+  if (!isSplitChoice(card)) return null;
+  const index = (solo.choices ?? {})[cardId(card)];
+  if (index !== 0 && index !== 1) return null;
+  return { chosen: String(card.options[index]), other: String(card.options[1 - index]) };
+}
+
+/** A card's title, followed by the option taken when it is a split card. */
+export function cardLabel(solo, card) {
+  const title = String(card?.title ?? '');
+  const choice = choiceFor(solo, card);
+  return choice ? `${title} — ${choice.chosen}` : title;
+}
+
 /** The "would rather" card for a deck when it differs from the final pick, else null. */
 export function ratherFor(solo, deck) {
   const rather = solo.rathers?.[deck];
@@ -248,9 +301,9 @@ export function buildEulogyText(solo, eulogy) {
     const card = solo.picks?.[deck];
     if (!card) return null;
     const answer = answerFor(solo, card);
-    const title = String(card.title ?? '');
+    const title = cardLabel(solo, card);
     const rather = ratherFor(solo, deck);
-    const ratherNote = rather ? ` (would rather: ${String(rather.title ?? '')})` : '';
+    const ratherNote = rather ? ` (would rather: ${cardLabel(solo, rather)})` : '';
     return `${DECK_LABELS[deck].pickLabel}: ${answer ? `${title} — ${answer}` : title}${ratherNote}`;
   };
   const lines = SUMMARY_ORDER.map(line).filter(Boolean);
@@ -271,11 +324,10 @@ export function currentDeck(solo) {
  * @param {() => number} [rng] — places the "rather" card in the next hand
  */
 export function pickCard(solo, index, decks, rng = Math.random) {
-  if (solo.done || solo.pendingAnswer || !isRound(solo)) return solo;
+  if (solo.done || isPaused(solo) || !isRound(solo)) return solo;
   const chosen = solo.pair[index];
   if (!chosen) throw new Error(`Invalid pick index ${index}`);
-  const answers = solo.answers ?? {};
-  return withPendingAnswer(advance(solo, chosen, decks, rng), chosen, answers);
+  return withPendingStep(advance(solo, chosen, decks, rng), chosen, solo);
 }
 
 /** The round/deck transition for a pick, before any answer step. */
@@ -328,11 +380,15 @@ export function openEulogy(solo) {
  * @param {string} eulogy
  */
 export function buildStoryRequest(solo, eulogy) {
-  const describe = (card) => ({
-    title: String(card?.title ?? ''),
-    description: String(card?.description ?? ''),
-    answer: answerFor(solo, card),
-  });
+  const describe = (card) => {
+    const base = {
+      title: String(card?.title ?? ''),
+      description: String(card?.description ?? ''),
+      answer: answerFor(solo, card),
+    };
+    const choice = choiceFor(solo, card);
+    return choice ? { ...base, choice } : base;
+  };
   const pick = (deck) => {
     const rather = solo.rathers?.[deck];
     return rather ? { ...describe(solo.picks?.[deck]), rather: describe(rather) } : describe(solo.picks?.[deck]);
