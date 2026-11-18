@@ -1,6 +1,6 @@
 <?php
 /**
- * Branch Manager — switch staging branches for carkedit-online and carkedit-api.
+ * Branch Manager — switch dev-server branches for carkedit-online and carkedit-api.
  *
  * Self-contained: all HTML/CSS/JS is inline. No external dependencies from the repo.
  * On every page load, regenerates rescue.php (gitignored) as a zero-input failsafe.
@@ -263,7 +263,7 @@ pre{font-size:0.75rem;color:#888;white-space:pre-wrap;margin-top:0.5rem}
 <body>
 <div class="container">
 <?php if ($action !== "reset"): ?>
-  <h1>CarkedIt Staging Rescue</h1>
+  <h1>CarkedIt Dev Rescue</h1>
   <p style="color:#aaa;margin-bottom:1.5rem">Reset both repos to <strong>main</strong> and restart the API server.</p>
   <a class="btn btn-danger" href="?action=reset">Reset Everything to Main</a>
   <br>
@@ -964,28 +964,28 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
     }
 
     // Env detection mirrors branch-info.php's logic so the same hostname
-    // patterns drive both. STAGING_URL points at the dev server (where
+    // patterns drive both. DEV_URL points at the dev server (where
     // branch swapping lives) regardless of which env the user is on.
     const _hostname = window.location.hostname;
     const IS_PRODUCTION = _hostname === 'play.carkedit.com'
         || _hostname === 'carkedit.com'
         || _hostname === 'www.carkedit.com';
-    const STAGING_URL = 'https://dev.play.carkedit.com/carkedit-online/branch-manager.php';
+    const DEV_URL = 'https://dev.play.carkedit.com/carkedit-online/branch-manager.php';
 
     function renderDashboard() {
       resetAdminHeaderMenu();
       const app = document.getElementById('app');
       const prodBanner = IS_PRODUCTION ? `
         <div class="bm__prod-banner">
-          <p>If you want to play on different branches, go to our staging server</p>
-          <a href="${STAGING_URL}">Open Branch Manager on Staging</a>
+          <p>If you want to play on different branches, go to our dev server</p>
+          <a href="${DEV_URL}">Open Branch Manager on Dev</a>
         </div>` : '';
       app.innerHTML = `
         ${renderAdminHeader({ user: fbUserInfo })}
         ${prodBanner}
         <div class="bm${IS_PRODUCTION ? ' bm--greyed' : ''}">
           <h1 class="bm__title">Branch Manager</h1>
-          <p class="bm__subtitle">Switch staging branches for carkedit-online and carkedit-api</p>
+          <p class="bm__subtitle">Switch dev-server branches for carkedit-online and carkedit-api</p>
 
           <div id="reset-confirm" class="bm__confirm hidden">
             <p>Reset both repos to main? This will restart the API server.</p>
@@ -1213,7 +1213,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
 
     function fetchLiveVersions() {
       // PROD points at the live game regardless of which env this manager
-      // is running on — used to compare dev/staging versions against live.
+      // is running on — used to compare dev versions against live.
       const PROD = 'https://play.carkedit.com';
       return Promise.all([
         fetch(PROD + '/package.json').then(r => r.json()).then(d => { liveClientVersion = d.version || null; }).catch(() => {}),
@@ -1464,7 +1464,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
         const isBehindApi = isActive && inApi && b === currentApiBranch && apiDeployedSha && aRemoteSha && apiDeployedSha !== aRemoteSha;
         const isBehind = isBehindClient || isBehindApi;
         const deployBtnClass = 'bm__deploy-btn' + (isBehind ? ' bm__deploy-btn--update' : '');
-        const deployTitle = isBehind ? 'Update available — deploy latest' : (isActive ? 'Re-deploy this branch' : 'Deploy this branch to staging');
+        const deployTitle = isBehind ? 'Update available — deploy latest' : (isActive ? 'Re-deploy this branch' : 'Deploy this branch to dev');
         rowHtml += '<button class="' + deployBtnClass + '" title="' + deployTitle + '"'
           + ' data-branch="' + escapeHtml(b) + '">Deploy</button>';
 
@@ -1700,7 +1700,7 @@ if (!$authenticated && isset($_GET['action']) && !in_array($_GET['action'], ['au
     /* ── Boot ─────────────────────────────────────────── */
 
     if (IS_PRODUCTION) {
-      // On production, show greyed-out dashboard with staging link — no auth needed
+      // On production, show greyed-out dashboard with dev link — no auth needed
       renderDashboard();
     } else {
 

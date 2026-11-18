@@ -120,6 +120,8 @@ function renderSummaryCards(data, aws) {
 }
 
 // ── Environment Breakdown ─────────────────────────────
+// `staging` stays for history: AWS Cost Explorer still returns past spend for
+// the retired staging box (Lightsail tag Environment=staging, retired Nov 2026).
 const ENV_META = {
   dev:      { label: 'Dev',         bg: 'rgba(59, 130, 246, 0.15)', fg: '#2563eb' },
   staging:  { label: 'Staging',     bg: 'rgba(245, 158, 11, 0.15)', fg: '#d97706' },

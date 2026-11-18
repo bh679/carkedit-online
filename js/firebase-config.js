@@ -18,15 +18,6 @@ const PROD_CONFIG = {
   appId: "1:144073275425:web:2301fbbccc2be69c654b60",
 };
 
-const STAGING_CONFIG = {
-  apiKey: "AIzaSyC0ngHBR-_Uz3M5Dwbo-r5WiKel0SvuHGI",
-  projectId: "carkedit-staging",
-  storageBucket: "carkedit-staging.firebasestorage.app",
-  messagingSenderId: "44484042956",
-  appId: "1:44484042956:web:8a98c9c742dd48f5256269",
-  measurementId: "G-TQQQQ6545W",
-};
-
 const DEV_CONFIG = {
   apiKey: "AIzaSyADRu0zM_jXlfNswZcasR5Y0DtAz-C9xHE",
   projectId: "carkeditdev",
@@ -38,7 +29,6 @@ const DEV_CONFIG = {
 
 const CONFIG_BY_HOST = {
   'dev.play.carkedit.com': DEV_CONFIG,
-  'staging.play.carkedit.com': STAGING_CONFIG,
   'play.carkedit.com': PROD_CONFIG,
 };
 
@@ -59,7 +49,7 @@ export function getFirebaseConfig(hostnameArg, hostArg) {
 }
 
 // Prod Firebase config for the "preview production data" toggle on the
-// dev/staging stats page. authDomain points at play.carkedit.com so the
+// dev stats page. authDomain points at play.carkedit.com so the
 // OAuth popup runs through prod's same-origin /__/auth/* reverse-proxy,
 // matching the Safari ITP workaround used by getFirebaseConfig above.
 export function getProdFirebaseConfig() {

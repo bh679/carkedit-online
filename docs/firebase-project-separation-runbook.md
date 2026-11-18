@@ -1,5 +1,7 @@
 # Firebase Project Separation Runbook
 
+> **Historical (Nov 2026):** the staging tier has been retired. Only dev and prod remain; the `carkedit-staging` rows and steps below are kept as a record of the original cutover.
+
 Goal: three distinct Firebase projects — one per CarkedIt environment — so that signing in on `dev.play.carkedit.com` creates a user in the dev Firebase project, NOT in prod.
 
 After this runbook is followed, every Firebase Auth user is bound to the environment it originated from.
