@@ -1,6 +1,6 @@
 /**
  * Branch Banner — shows a thin bar at the top of every page when the site
- * is deployed on a non-production env (dev or staging) on a non-main branch.
+ * is deployed on a non-production env (dev) on a non-main branch.
  *
  * Reads from the carkedit-deploy service:
  *   GET /api/admin/deploy/versions
@@ -8,7 +8,7 @@
  *
  * Banner is hidden when:
  *   - envTier === 'prod' (production never gets a branch banner)
- *   - client.deployed.ref.kind !== 'branch' (tag pins on staging/prod)
+ *   - client.deployed.ref.kind !== 'branch' (tag pins on prod)
  *   - client.deployed.ref.value === 'main'
  *
  * Self-contained: all styles are inline, no external CSS dependencies.

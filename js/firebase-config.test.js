@@ -10,10 +10,11 @@ test('returns prod config for play.carkedit.com', () => {
   assert.equal(cfg.measurementId, undefined, 'prod config intentionally omits measurementId — analytics not wired');
 });
 
-test('returns staging config for staging.play.carkedit.com', () => {
+// The staging tier was retired in Nov 2026; its host must not map to a live
+// Firebase project any more and falls through to dev like any unknown host.
+test('retired staging.play.carkedit.com falls back to dev config', () => {
   const cfg = getFirebaseConfig('staging.play.carkedit.com', 'staging.play.carkedit.com');
-  assert.equal(cfg.projectId, 'carkedit-staging');
-  assert.equal(cfg.measurementId, 'G-TQQQQ6545W');
+  assert.equal(cfg.projectId, 'carkeditdev');
 });
 
 test('returns dev config for dev.play.carkedit.com', () => {
@@ -58,7 +59,7 @@ test('authDomain defaults to the hostname when host arg is omitted', () => {
 });
 
 test('returned object always includes projectId and apiKey', () => {
-  for (const host of ['play.carkedit.com', 'staging.play.carkedit.com', 'dev.play.carkedit.com', 'localhost']) {
+  for (const host of ['play.carkedit.com', 'dev.play.carkedit.com', 'localhost']) {
     const cfg = getFirebaseConfig(host, host);
     assert.ok(cfg.projectId, `projectId missing for ${host}`);
     assert.ok(cfg.apiKey, `apiKey missing for ${host}`);

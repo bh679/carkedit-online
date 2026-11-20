@@ -1,6 +1,6 @@
 # Serve /foo as foo.html when /foo is not an existing file or directory.
 # Mirrors the carkedit-api express.static({ extensions: ['html'] }) behaviour
-# so staging (Apache) and production (Express) resolve URLs identically.
+# so Apache-served hosts and Express resolve URLs identically.
 RewriteEngine On
 
 # The pricing page was renamed evangelist-pricing → champion-pricing with the

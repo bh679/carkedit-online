@@ -133,8 +133,7 @@
 
       // Reset-to-main chain mode: seed the fragment's sessionStorage queue and
       // let its mount() resume the chain. The fragment picks the right ref per
-      // env (branch=main on dev, latest staging tag on staging, latest release
-      // tag on prod) via getResetTargetRef(). No POST from us — the chain
+      // env (branch=main on dev, latest release tag on prod) via getResetTargetRef(). No POST from us — the chain
       // serialises api → client → deploy with proper status polling between.
       if (params.get('reset') === 'main') {
         try {
